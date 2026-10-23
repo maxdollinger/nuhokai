@@ -1,0 +1,17 @@
+{
+  "name": "@nuhokai/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@mariozechner/pi-agent-core": "^0.73.1",
+    "@mariozechner/pi-ai": "^0.73.1",
+    "@nuhokai/shared": "workspace:*",
+    "hono": "^4.13.13",
+    "typebox": "^1.4.3"
+  }
+}

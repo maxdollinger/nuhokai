@@ -1,0 +1,24 @@
+{
+  "name": "nuhokai",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '@nuhokai/server' --filter '@nuhokai/web' dev",
+    "dev:server": "bun run --filter '@nuhokai/server' dev",
+    "dev:web": "bun run --filter '@nuhokai/web' dev",
+    "build": "bun run --filter '@nuhokai/web' build",
+    "test": "bun test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "check": "biome check .",
+    "fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.2",
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}

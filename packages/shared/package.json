@@ -1,0 +1,16 @@
+{
+  "name": "@nuhokai/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./spec": "./src/spec/index.ts",
+    "./api": "./src/api/index.ts",
+    "./result": "./src/result.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "typebox": "^1.4.3"
+  }
+}
