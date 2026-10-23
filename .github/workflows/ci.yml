@@ -4,6 +4,11 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to the PR supersedes the runs for the previous one.
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # Decides which of the jobs below have anything to do for this PR.
   changes:
@@ -13,8 +18,8 @@ jobs:
     outputs:
       packages: ${{ steps.packages.outputs.changes }}
       biome: ${{ steps.biome.outputs.biome }}
+    # On pull_request, paths-filter reads the changed files from the API; no checkout needed.
     steps:
-      - uses: actions/checkout@v4
       - id: packages
         uses: dorny/paths-filter@v3
         with:
@@ -24,6 +29,7 @@ jobs:
               - bun.lock
               - tsconfig.base.json
               - .github/workflows/ci.yml
+              - ".github/actions/**"
             shared: &shared
               - *workspace
               - "packages/shared/**"
@@ -40,7 +46,11 @@ jobs:
             biome:
               - "**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css}"
               - biome.json
+              # Biome honours .gitignore; bun.lock pins the Biome version.
+              - .gitignore
+              - bun.lock
               - .github/workflows/ci.yml
+              - ".github/actions/**"
 
   test:
     needs: changes
@@ -55,10 +65,7 @@ jobs:
           - package: workspace
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: bun test --pass-with-no-tests
         working-directory: ${{ matrix.package == 'shared' && 'packages/shared' || format('apps/{0}', matrix.package) }}
 
@@ -74,10 +81,7 @@ jobs:
           - package: workspace
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: bun run typecheck
         working-directory: ${{ matrix.package == 'shared' && 'packages/shared' || format('apps/{0}', matrix.package) }}
 
@@ -87,10 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: bunx biome format .
 
   lint:
@@ -99,9 +100,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
       # Lint rules plus assists (import sorting); formatting is the format job's.
       - run: bunx biome check --formatter-enabled=false .
+
+  # The single check to mark as required: the jobs above are skipped when their
+  # paths didn't change, and their names depend on the matrix.
+  ci-ok:
+    needs: [changes, test, typecheck, format, lint]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
