@@ -1,0 +1,19 @@
+name: test server
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/server/**"
+      - "packages/shared/**"
+      - package.json
+      - bun.lock
+      - tsconfig.base.json
+      - .github/workflows/test-package.yml
+      - .github/workflows/test-server.yml
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-package.yml
+    with:
+      path: apps/server

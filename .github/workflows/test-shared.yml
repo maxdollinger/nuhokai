@@ -1,0 +1,18 @@
+name: test shared
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/shared/**"
+      - package.json
+      - bun.lock
+      - tsconfig.base.json
+      - .github/workflows/test-package.yml
+      - .github/workflows/test-shared.yml
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-package.yml
+    with:
+      path: packages/shared
