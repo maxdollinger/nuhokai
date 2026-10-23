@@ -48,3 +48,5 @@ Web env: `NUHOKAI_SERVER` (proxy target, default `http://localhost:3000`).
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md): the source is public and free for personal and other noncommercial use.
 Commercial use is not permitted without a separate license from the copyright holder.
+
+This project is source-available, not open source. Contributions (pull requests) are not accepted at this time.
