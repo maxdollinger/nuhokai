@@ -43,3 +43,8 @@ bun run build       # production build of the web client
 
 Server env: `PORT` (default 3000), `NUHOKAI_DB` (default `data/nuhokai.db`).
 Web env: `NUHOKAI_SERVER` (proxy target, default `http://localhost:3000`).
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md): the source is public and free for personal and other noncommercial use.
+Commercial use is not permitted without a separate license from the copyright holder.
