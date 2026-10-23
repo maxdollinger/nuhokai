@@ -62,6 +62,25 @@ jobs:
       - run: bun test --pass-with-no-tests
         working-directory: ${{ matrix.package == 'shared' && 'packages/shared' || format('apps/{0}', matrix.package) }}
 
+  typecheck:
+    needs: changes
+    if: ${{ needs.changes.outputs.packages != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+        exclude:
+          - package: workspace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+        working-directory: ${{ matrix.package == 'shared' && 'packages/shared' || format('apps/{0}', matrix.package) }}
+
   format:
     needs: changes
     if: ${{ needs.changes.outputs.biome == 'true' }}
