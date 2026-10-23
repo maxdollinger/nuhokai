@@ -81,27 +81,32 @@ jobs:
       - run: bun run typecheck
         working-directory: ${{ matrix.package == 'shared' && 'packages/shared' || format('apps/{0}', matrix.package) }}
 
-  format:
+  # Applies what Biome can fix and commits it to the PR branch; fails only on what is left.
+  format-and-lint:
     needs: changes
     if: ${{ needs.changes.outputs.biome == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - run: bunx biome format .
-
-  lint:
-    needs: changes
-    if: ${{ needs.changes.outputs.biome == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
-      # Lint rules plus assists (import sorting); formatting is the format job's.
-      - run: bunx biome check --formatter-enabled=false .
+      # Lint rules plus assists (import sorting), safe fixes only. Runs before format so fixed code gets formatted.
+      - name: lint
+        run: bunx biome check --formatter-enabled=false --write .
+      - name: format
+        if: ${{ !cancelled() }}
+        run: bunx biome format --write .
+      - name: commit fixes
+        if: ${{ !cancelled() }}
+        run: |
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Apply Biome fixes"
+          git push
