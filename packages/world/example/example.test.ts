@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { NodeRef, PortRef } from "../src/index.ts";
+import type { NodeRef, PortRef, WorldChild } from "../src/index.ts";
 import * as world from "./index.ts";
+import exampleWorld from "./world.ts";
 
-// Every world file (type-errors.ts is compile-time only and never evaluated), by file name.
+// Every node file (type-errors.ts is compile-time only and never evaluated), by file name.
 const files = readdirSync(import.meta.dir).filter(
-  (file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && file !== "index.ts" && file !== "type-errors.ts",
+  (file) =>
+    file.endsWith(".ts") && !file.endsWith(".test.ts") && !["index.ts", "world.ts", "type-errors.ts"].includes(file),
 );
 const modules = await Promise.all(
   files.map(async (file) => [file, (await import(join(import.meta.dir, file))) as Record<string, unknown>] as const),
@@ -18,14 +20,27 @@ const nodes = modules.flatMap(([file, exports]) =>
 
 /** Every lazy edge of a node, evaluated, labelled for failure messages. */
 function edgesOf(node: NodeRef): [string, unknown][] {
-  const { parent, uses, implements: impl, delegate = {} } = node.$def;
+  const { uses, implements: impl, delegate = {} } = node.$def;
   return [
-    ...(parent ? [["parent", parent()] as [string, unknown]] : []),
     ...(uses?.() ?? []).map((ref, i): [string, unknown] => [`uses[${i}]`, ref]),
     ...(impl?.() ?? []).map((ref, i): [string, unknown] => [`implements[${i}]`, ref]),
     ...Object.entries(delegate).map(([port, ref]): [string, unknown] => [`delegate.${port}`, ref()]),
   ];
 }
+
+/** Every node in the world tree with its parent (`null` at the top level), depth first. */
+function walk(
+  children: readonly WorldChild[],
+  parent: NodeRef | null = null,
+): { node: NodeRef; parent: NodeRef | null }[] {
+  return children.flatMap((child) =>
+    child.$ref === "relation"
+      ? [{ node: child.parent, parent }, ...walk(child.children, child.parent)]
+      : [{ node: child, parent }],
+  );
+}
+const placed = walk(exampleWorld.children);
+const parentOf = (node: NodeRef) => placed.find((entry) => entry.node === node)?.parent;
 
 describe("example world", () => {
   test("has at least three nodes in at least three files", () => {
@@ -54,9 +69,38 @@ describe("example world", () => {
     expect(world.Stock.reserve.node).toBe(world.Stock);
   });
 
-  test("a parent delegates a port to its child, and the child names the parent", () => {
+  test("world.ts lists every exported node exactly once, and nothing else", () => {
+    expect(exampleWorld.$ref).toBe("world");
+    expect(placed.map(({ node }) => node.$ref)).toEqual(placed.map(() => "node"));
+    expect(new Set(placed.map(({ node }) => node)).size).toBe(placed.length);
+    expect(new Set(placed.map(({ node }) => node.$def.id)).size).toBe(placed.length);
+    expect(new Set(placed.map(({ node }) => node))).toEqual(new Set(nodes.map(({ node }) => node)));
+  });
+
+  test("the tree places children under their parent; externals and contracts are top level", () => {
+    expect(parentOf(world.Orders)).toBe(world.Shop);
+    expect(parentOf(world.Stock)).toBe(world.Shop);
+    expect(parentOf(world.Shop)).toBeNull();
+    expect(parentOf(world.Postgres)).toBeNull();
+    expect(parentOf(world.AuditLog)).toBeNull();
+  });
+
+  test("every delegate target is a direct child of the delegating node", () => {
+    for (const { name, node } of nodes) {
+      for (const [port, target] of Object.entries(node.$def.delegate ?? {})) {
+        const ref = target();
+        if (ref.$ref !== "unresolved") expect(parentOf(ref.node), `${name}.${port}`).toBe(node);
+      }
+    }
     expect(world.Shop.$def.delegate?.placeOrder?.()).toBe(world.Orders.place);
-    expect(world.Orders.$def.parent?.()).toBe(world.Shop);
+  });
+
+  test("node files never import the world file", () => {
+    const transpiler = new Bun.Transpiler({ loader: "ts" });
+    for (const file of files) {
+      const imports = transpiler.scanImports(readFileSync(join(import.meta.dir, file), "utf8")).map((i) => i.path);
+      expect(imports, file).not.toContain("./world.ts");
+    }
   });
 
   test("a parent delegates to a port its child inherited", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { defineNode, inherited, tbd } from "./index.ts";
+import { defineNode, defineWorld, inherited, relation, tbd } from "./index.ts";
 
 const Billing = defineNode({
   id: "01a16dd2-bc51-72f0-9842-c9e091eddd30",
@@ -68,7 +68,8 @@ describe("defineNode", () => {
       status: "planned",
       source: [],
       ports: { charge: { kind: "call", purpose: "Charge" } },
-    }).edges({ uses, delegate: { charge: () => Billing.charge } });
+      delegate: { charge: () => Billing.charge },
+    }).edges({ uses });
     expect(calls).toBe(0);
     expect(node.$def.uses).toBe(uses);
     expect(node.$def.delegate?.charge?.()).toBe(Billing.charge);
@@ -118,6 +119,43 @@ describe("inherited", () => {
     const ref = inherited(Ledger, Audit.history);
     expect<unknown>(ref).toEqual({ $ref: "inherited", kind: "call", node: Ledger, port: Audit.history });
     expect(Object.isFrozen(ref)).toBe(true);
+  });
+});
+
+describe("defineWorld and relation", () => {
+  const Shop = defineNode({
+    id: "01a16dd2-bc62-7d3e-8f4a-5b6c7d8e9f01",
+    purpose: "Parent.",
+    status: "planned",
+    source: [],
+    ports: { pay: { kind: "call", purpose: "Pay" } },
+    delegate: { pay: () => Billing.charge },
+  }).edges({});
+  const Db = defineNode({
+    id: "01a16dd2-bc63-7e4f-9a5b-6c7d8e9f0a12",
+    external: true,
+    purpose: "External.",
+    status: "built",
+    source: [],
+  }).edges({});
+
+  test("build frozen, branded trees that keep the references by identity", () => {
+    const children = [Billing];
+    const shop = relation({ parent: Shop, children });
+    const world = defineWorld({ children: [Db, shop] });
+    expect<unknown>(shop).toEqual({ $ref: "relation", parent: Shop, children: [Billing] });
+    expect(shop.parent).toBe(Shop);
+    expect(shop.children[0]).toBe(Billing);
+    expect(world.$ref).toBe("world");
+    expect(world.children).toEqual([Db, shop]);
+    expect(world.children[1]).toBe(shop);
+    for (const part of [shop, shop.children, world, world.children]) expect(Object.isFrozen(part)).toBe(true);
+  });
+
+  test("copy the children instead of freezing the caller's array", () => {
+    const children = [Billing];
+    relation({ parent: Shop, children });
+    expect(Object.isFrozen(children)).toBe(false);
   });
 });
 

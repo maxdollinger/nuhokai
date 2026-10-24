@@ -1,12 +1,19 @@
-import type { PortKind, UnresolvedPortRef } from "./types.ts";
+import type { Forbidden, PortKind, UnresolvedPortRef } from "./types.ts";
 
 export interface TbdSpec {
-  /** What the missing port has to do. Required and non-empty: a hole without a description cannot be filled. */
+  /** What the missing port has to do. Required, not blank: a hole without a description cannot be filled. */
   readonly description: string;
 }
 
-/** Rejects a literal empty description at compile time. */
-type NonEmpty<S extends string> = S extends "" ? { readonly "description must not be empty": never } : S;
+type Whitespace = " " | "\t" | "\n" | "\r";
+type Trim<S extends string> = S extends `${Whitespace}${infer Rest}`
+  ? Trim<Rest>
+  : S extends `${infer Rest}${Whitespace}`
+    ? Trim<Rest>
+    : S;
+
+/** Rejects a literal empty or whitespace-only description at compile time. */
+type NonEmpty<S extends string> = Trim<S> extends "" ? Forbidden<"description must not be empty or whitespace"> : S;
 
 function hole<K extends PortKind>(kind: K, spec: TbdSpec): UnresolvedPortRef<K> {
   return Object.freeze({ $ref: "unresolved", kind, description: spec.description }) as unknown as UnresolvedPortRef<K>;

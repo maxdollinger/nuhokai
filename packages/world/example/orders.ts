@@ -1,7 +1,6 @@
 import { defineNode } from "../src/index.ts";
 import { AuditLog } from "./audit-log.ts";
 import { notifyCustomer } from "./holes.ts";
-import { Shop } from "./shop.ts";
 import { Stock } from "./stock.ts";
 
 export const Orders = defineNode({
@@ -21,6 +20,5 @@ export const Orders = defineNode({
   },
   implements: () => [AuditLog],
 }).edges({
-  parent: () => Shop,
   uses: () => [Stock.reserve, notifyCustomer],
 });

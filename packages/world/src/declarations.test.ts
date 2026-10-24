@@ -6,7 +6,7 @@ import { join } from "node:path";
 // What the CLI will ship is a `.d.ts` of this package. This proves that
 // declarations emit from `src`, that they are self-contained (no non-relative
 // imports), and that a world type-checked against them alone still
-// gets the brand, flag and cycle behaviour (declaration emit erases the types
+// gets the brand, flag, id, relation and cycle behaviour (declaration emit erases the types
 // of `#private` members, which must not weaken the brands).
 
 const tsc = join(import.meta.dir, "../../../node_modules/.bin/tsc");
@@ -20,28 +20,49 @@ function run(project: string) {
 const consumer = {
   "a.ts": `
 import { defineNode, inherited } from "../dts/index.ts";
-import { B, Contract, Ext } from "./b.ts";
+import { B, C, Contract } from "./b.ts";
 export const A = defineNode({
   id: "01a16dd2-bc70-7000-8000-000000000001", purpose: "a", status: "planned", source: [],
   ports: { x: { kind: "call", purpose: "x" } },
   implements: () => [Contract],
 }).edges({ uses: () => [B.y] });
+// Delegates in step one to a node of b.ts, which imports this file: no annotation needed.
+export const Parent = defineNode({
+  id: "01a16dd2-bc70-7000-8000-00000000000a", purpose: "p", status: "planned", source: [],
+  ports: { z: { kind: "call", purpose: "z" } },
+  delegate: { z: () => C.z },
+}).edges({});
 // @ts-expect-error typo
 export const T = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000002", purpose: "t", status: "planned", source: [] }).edges({ uses: () => [B.yy] });
-// @ts-expect-error external parent
-export const P = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000003", purpose: "p", status: "planned", source: [] }).edges({ parent: () => Ext });
 // @ts-expect-error spread drops the brand
 export const F = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000004", purpose: "f", status: "planned", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
 export const I = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000005", purpose: "i", status: "planned", source: [] }).edges({ uses: () => [inherited(A, Contract.c)] });
 // @ts-expect-error B does not implement Contract
 export const J = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000006", purpose: "j", status: "planned", source: [] }).edges({ uses: () => [inherited(B, Contract.c)] });
+// @ts-expect-error not a uuidv7
+export const K = defineNode({ id: "01a16dd2-bc70-7000-c000-000000000006", purpose: "k", status: "planned", source: [] }).edges({});
 `,
   "b.ts": `
 import { defineNode } from "../dts/index.ts";
 import { A } from "./a.ts";
 export const Contract = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000007", abstract: true, purpose: "c", status: "planned", source: [], ports: { c: { kind: "call", purpose: "c" } } }).edges({});
 export const Ext = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000008", external: true, purpose: "e", status: "planned", source: [] }).edges({});
-export const B = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000009", purpose: "b", status: "planned", source: [], ports: { y: { kind: "call", purpose: "y" } } }).edges({ parent: () => A, uses: () => [A.x] });
+export const B = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000009", purpose: "b", status: "planned", source: [], ports: { y: { kind: "call", purpose: "y" } } }).edges({ uses: () => [A.x] });
+export const C = defineNode({ id: "01a16dd2-bc70-7000-8000-00000000000b", purpose: "c", status: "planned", source: [], ports: { z: { kind: "call", purpose: "z" } } }).edges({});
+`,
+  "world.ts": `
+import { defineWorld, relation } from "../dts/index.ts";
+import { A, Parent } from "./a.ts";
+import { B, C, Contract, Ext } from "./b.ts";
+export default defineWorld({ children: [A, B, Contract, Ext, relation({ parent: Parent, children: [C] })] });
+// @ts-expect-error external parent
+export const P = relation({ parent: Ext, children: [C] });
+// @ts-expect-error external child
+export const Q = relation({ parent: Parent, children: [C, Ext] });
+// @ts-expect-error C, the delegate target, is not a child
+export const R = relation({ parent: Parent, children: [B] });
+// @ts-expect-error a string is not a node
+export const S = defineWorld({ children: ["a"] });
 `,
 };
 

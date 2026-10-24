@@ -2,7 +2,7 @@ import { defineNode, inherited } from "../src/index.ts";
 import { AuditLog } from "./audit-log.ts";
 import { Orders } from "./orders.ts";
 
-/** Top level. Exposes ordering to the outside by delegating to its child Orders. */
+/** Exposes ordering to the outside by delegating to its child Orders (see world.ts). */
 export const Shop = defineNode({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
   purpose: "The shop backend; everything a customer interacts with lives inside it.",
@@ -12,10 +12,9 @@ export const Shop = defineNode({
     placeOrder: { kind: "call", purpose: "Place an order from checkout", transport: "http" },
     orderHistory: { kind: "call", purpose: "Audit trail of an order, for compliance", transport: "http" },
   },
-}).edges({
-  // Shop and Orders reference each other (delegate / parent); no annotation needed.
+  // In step one: the handle's type records the targets, so relation() checks they are Shop's children.
   delegate: {
     placeOrder: () => Orders.place,
     orderHistory: () => inherited(Orders, AuditLog.history),
   },
-});
+}).edges({});
