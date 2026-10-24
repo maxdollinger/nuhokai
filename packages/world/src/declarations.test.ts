@@ -39,8 +39,6 @@ export const F = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000004", purpos
 export const I = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000005", purpose: "i", status: "planned", source: [] }).edges({ uses: () => [inherited(A, Contract.c)] });
 // @ts-expect-error B does not implement Contract
 export const J = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000006", purpose: "j", status: "planned", source: [] }).edges({ uses: () => [inherited(B, Contract.c)] });
-// @ts-expect-error not a uuidv7
-export const K = defineNode({ id: "01a16dd2-bc70-7000-c000-000000000006", purpose: "k", status: "planned", source: [] }).edges({});
 `,
   "b.ts": `
 import { defineNode } from "../dts/index.ts";

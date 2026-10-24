@@ -10,7 +10,7 @@ import { defineNode, tbd } from "@nuhokai/world";
 export const notifyCustomer = tbd.call({ description: "Tell the customer; channel not decided" });
 
 export const Shop = defineNode({
-  id: "01a16dd2-bc14-752c-b0df-585621a330ab", // uuidv7: bun -e 'console.log(Bun.randomUUIDv7())'
+  id: "01a16dd2-bc14-752c-b0df-585621a330ab", // any unique string, e.g. bun -e 'console.log(Bun.randomUUIDv7())'
   purpose: "The shop backend.",
   status: "planned",
   source: [],
@@ -63,7 +63,7 @@ A compile-time check fails if the two drift apart.
 | MAX-5                         | World format                                                              |
 | ----------------------------- | ------------------------------------------------------------------------- |
 | `schema`                      | implied                                                                   |
-| `id` (slug = file name)       | `id`: uuidv7, stable across renames and moves                             |
+| `id` (slug = file name)       | `id`: any string, stable across renames and moves                         |
 | `name`                        | not authored; the export name (taken by the loader)                       |
 | `parent: NodeId \| null`      | not a node field: `relation({ parent, children })` in the world file      |
 | `external`, `abstract`        | optional, default `false`; carried on the handle as literal types         |
@@ -104,8 +104,8 @@ A compile-time check fails if the two drift apart.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an unresolved port reference
   (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have `"port"`, inherited ones
   `"inherited"`. Declare them at module level and export them, so find-references lists every dependent.
-- **Ids** are fully validated by tsc when written as literals: lowercase uuidv7, length, hex, version and variant, by a
-  recursive conditional type. An id typed as `NodeUuid` (e.g. from a shared fragment) is left to the loader.
+- **Ids** are plain strings (MAX-5 `NodeId`); tsc does not check their format. Written as literals, they stay literal
+  types on the handle, which the contract and delegate rules compare; a widened `string` id is left to the loader.
 
 ## For the loader
 
@@ -129,12 +129,12 @@ of 8 runs) before and after MAX-12:
 
 | Program                      | Types           | Instantiations   | Check time      |
 | ---------------------------- | --------------- | ---------------- | --------------- |
-| example world (`example/`)   | 3,590 → 9,108   | 5,077 → 22,657   | 0.012s → 0.033s |
-| whole package (`tsc -p .`)   | 9,911 → 25,439  | 12,368 → 59,223  | 0.050s → 0.12s  |
-| synthetic world of 200 nodes | 33,487 → 81,184 | 47,895 → 439,440 | 0.15s → 0.6s    |
+| example world (`example/`)   | 3,590 → 7,394   | 5,077 → 14,404   | 0.012s → 0.030s |
+| whole package (`tsc -p .`)   | 9,911 → 23,079  | 12,368 → 43,151  | 0.050s → 0.11s  |
+| synthetic world of 200 nodes | 33,487 → 67,579 | 47,895 → 223,722 | 0.15s → 0.5s    |
 
 Rules evaluate to `unknown` while satisfied: a tuple intersected with a rule tuple is compared method by method, which
-had made the 200-node world take 2.2s. About half of the remaining instantiations are the uuidv7 check.
+had made the 200-node world take 2.2s.
 
 ## Compiler options
 

@@ -16,7 +16,7 @@ export const WorldFormat = defineNode({
     defineNode: {
       kind: "call",
       purpose: "Declare a node: static fields first, then .edges() with the lazy references",
-      input: "MAX-5 fields with a uuidv7 id, ports by name, implements and delegates; then uses",
+      input: "MAX-5 fields with a string id, ports by name, implements and delegates; then uses",
       output: "typed node handle exposing its own ports as properties",
     },
     defineWorld: {
@@ -105,7 +105,7 @@ export const WorldFormat = defineNode({
       demonstrates: ["R3", "R9"],
     },
     {
-      text: "Port clashes with inherited or other contracts' ports, duplicate requirement ids, unknown demonstrates ids, invalid uuidv7 ids and blank tbd descriptions fail typecheck on the offending element (type-errors.ts).",
+      text: "Port clashes with inherited or other contracts' ports, duplicate requirement ids, unknown demonstrates ids and blank tbd descriptions fail typecheck on the offending element (type-errors.ts).",
       demonstrates: ["R9"],
     },
   ],
@@ -193,7 +193,7 @@ export const WorldFormat = defineNode({
     {
       decision:
         "Overrides 'the child declares its parent': the hierarchy is defined in one world file, world/index.ts, whose default export defineWorld({ children }) lists every node; nesting uses explicit relation({ parent, children }) objects, and node files never import the world file. delegate moves into step one, so relation() checks that delegate targets are direct children; .edges() keeps only uses.",
-      why: "The hierarchy was scattered across all node files and only visible to a loader; Nuhokai gives software structure, so the map of islands and domes must be readable in one place. Delegation only points down, so recording its targets in the handle's type forms no type cycle; uses may point anywhere and stays in step two (TS7022). Typecheck of the example world (tsc 7.0.2, --extendedDiagnostics, median of 8 runs): before 3,590 types, 5,077 instantiations, check 0.012s; after 9,108 types, 22,657 instantiations, check 0.033s. A synthetic 200-node world: before 0.15s check, after 0.6s.",
+      why: "The hierarchy was scattered across all node files and only visible to a loader; Nuhokai gives software structure, so the map of islands and domes must be readable in one place. Delegation only points down, so recording its targets in the handle's type forms no type cycle; uses may point anywhere and stays in step two (TS7022). Typecheck of the example world (tsc 7.0.2, --extendedDiagnostics, median of 8 runs): before 3,590 types, 5,077 instantiations, check 0.012s; after 7,394 types, 14,404 instantiations, check 0.030s. A synthetic 200-node world: before 0.15s check, after 0.5s.",
       rejected: [
         {
           option: "Tuples, children: [Postgres, [Shop, [Orders, Stock]]]",
@@ -220,7 +220,18 @@ export const WorldFormat = defineNode({
         },
         {
           option: "Rules as tuples intersected with the authored arrays, also when satisfied",
-          why: "TypeScript then compares the arrays method by method: a 200-node world took 2.2s instead of 0.6s to check.",
+          why: "TypeScript then compares the arrays method by method: a 200-node world took 2.2s instead of 0.6s to check (measured with the uuidv7 check, since dropped).",
+        },
+      ],
+    },
+    {
+      decision:
+        "Overrides 'A node's id is an authored uuidv7': an id is any authored string (MAX-5 NodeId), unique in the world; tsc does not check its format.",
+      why: "The id only has to be stable across renames and moves, which any authored string is; uuidv7 is not settled as the format, and validating it was about half of all instantiations when checking a world.",
+      rejected: [
+        {
+          option: "Validating uuidv7 in tsc (length, hex, version, variant)",
+          why: "Commits the format before it is decided and costs about half the check time; uniqueness, the property that matters, is the loader's anyway.",
         },
       ],
     },

@@ -1,5 +1,4 @@
 import type {
-  AsNodeUuid,
   CheckedContracts,
   CheckedRequirements,
   CheckedTestCases,
@@ -11,9 +10,9 @@ import type {
   NodeDraft,
   NodeEdges,
   NodeHandle,
+  NodeId,
   NodeIdOf,
   NodeRules,
-  NodeUuid,
   PortsDef,
   RequirementsDef,
   TestCasesDef,
@@ -48,7 +47,7 @@ export function defineNode<
   const P extends PortsDef = Record<never, never>,
   const External extends boolean = false,
   const Abstract extends boolean = false,
-  const Id extends string = NodeUuid,
+  const Id extends NodeId = NodeId,
   const Contracts extends readonly ContractRef[] = readonly [],
   const D extends DelegatesDef = Record<never, never>,
   const R extends RequirementsDef = readonly [],
@@ -64,18 +63,18 @@ export function defineNode<
     CheckedRequirements<R>,
     CheckedTestCases<T, R>
   > &
-    NodeRules<P, External, Abstract, Id, Contracts, D>,
-): NodeDraft<P, External, Abstract, AsNodeUuid<Id>, NodeIdOf<Contracts[number]>, DelegateTargets<D>> {
+    NodeRules<P, External, Abstract, Contracts, D>,
+): NodeDraft<P, External, Abstract, Id, NodeIdOf<Contracts[number]>, DelegateTargets<D>> {
   return Object.freeze({
     $ref: "draft",
     edges: (edges: NodeEdges) => createHandle(def as NodeDef, edges),
-  }) as unknown as NodeDraft<P, External, Abstract, AsNodeUuid<Id>, NodeIdOf<Contracts[number]>, DelegateTargets<D>>;
+  }) as unknown as NodeDraft<P, External, Abstract, Id, NodeIdOf<Contracts[number]>, DelegateTargets<D>>;
 }
 
 function createHandle(
   def: NodeDef,
   edges: NodeEdges,
-): NodeHandle<PortsDef, boolean, boolean, NodeUuid, NodeUuid, DelegateIds> {
+): NodeHandle<PortsDef, boolean, boolean, NodeId, NodeId, DelegateIds> {
   const $def = frozenCopy({ ...def, ...edges });
   const handle = { $ref: "node", $def };
   // defineProperty, not assignment: a port named `__proto__` would otherwise set the prototype.
@@ -83,7 +82,7 @@ function createHandle(
     const ref = Object.freeze({ $ref: "port", kind: port.kind, node: handle, name });
     Object.defineProperty(handle, name, { value: ref, enumerable: true });
   }
-  return Object.freeze(handle) as unknown as NodeHandle<PortsDef, boolean, boolean, NodeUuid, NodeUuid, DelegateIds>;
+  return Object.freeze(handle) as unknown as NodeHandle<PortsDef, boolean, boolean, NodeId, NodeId, DelegateIds>;
 }
 
 /** Deep copy with every object and array frozen. Functions (the lazy edges) are kept as they are. */

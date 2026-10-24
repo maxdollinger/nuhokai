@@ -1,4 +1,4 @@
-import type { InheritedPortRef, NodeRef, NodeUuid, PortKind, ResolvedPortRef } from "./types.ts";
+import type { InheritedPortRef, NodeId, NodeRef, PortKind, ResolvedPortRef } from "./types.ts";
 
 /**
  * References a port that `node` inherited from a contract it implements,
@@ -9,7 +9,7 @@ import type { InheritedPortRef, NodeRef, NodeUuid, PortKind, ResolvedPortRef } f
  *
  * Fails to compile unless `node` lists the port's contract in `implements`.
  */
-export function inherited<K extends PortKind, Contract extends NodeUuid, Id extends NodeUuid>(
+export function inherited<K extends PortKind, Contract extends NodeId, Id extends NodeId>(
   node: NodeRef<boolean, boolean, Id, NoInfer<Contract>>,
   port: ResolvedPortRef<K, Contract>,
 ): InheritedPortRef<K, Id> {

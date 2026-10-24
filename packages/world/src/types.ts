@@ -1,4 +1,6 @@
-import type { CallPort, EventPort, NodeSpec, Port } from "./node-spec.ts";
+import type { CallPort, EventPort, NodeId, NodeSpec, Port } from "./node-spec.ts";
+
+export type { NodeId };
 
 /**
  * Types of the world format (MAX-10): nodes as TS files whose edges are typed
@@ -6,8 +8,8 @@ import type { CallPort, EventPort, NodeSpec, Port } from "./node-spec.ts";
  *
  * Everything here is derived from the MAX-5 node spec (`nuhokai/node@1`);
  * only the fields the world format represents differently are replaced:
- * - `id` is a uuidv7 instead of a slug; `name` is not authored (the loader
- *   takes the export name); `schema` is implied.
+ * - `id` is any string, kept as a literal type on the handle; `name` is not
+ *   authored (the loader takes the export name); `schema` is implied.
  * - `edges` and ports' `delegate` become lazy typed references.
  * - `parent` is not a node field: the world file places every node with
  *   `defineWorld` and `relation` (MAX-12).
@@ -55,14 +57,6 @@ declare const nodeFlags: unique symbol;
 export type PortKind = Port["kind"];
 
 /**
- * uuidv7, e.g. "01a16dd2-bc14-752c-b0df-585621a330ab". Stable across renames
- * and moves. The type of ids on references; a literal id in `defineNode` is
- * fully validated (see `IdRules`). Generate one with
- * `bun -e 'console.log(Bun.randomUUIDv7())'`.
- */
-export type NodeUuid = `${string}-${string}-7${string}-${string}-${string}`;
-
-/**
  * A type no value has; the message shows up in the compiler error,
  * e.g. "not assignable to type 'Forbidden<"external nodes cannot be parents">'".
  */
@@ -71,7 +65,7 @@ export type Forbidden<Message extends string> = { readonly [K in Message]: never
 // ─── References ──────────────────────────────────────────────────────────
 
 /** Own port name -> id of the node it delegates to (`never` for a placeholder). */
-export type DelegateIds = { readonly [port: string]: NodeUuid };
+export type DelegateIds = { readonly [port: string]: NodeId };
 
 /**
  * Reference to a node; at runtime the handle returned by `.edges()`.
@@ -83,8 +77,8 @@ export type DelegateIds = { readonly [port: string]: NodeUuid };
 export interface NodeRef<
   External extends boolean = boolean,
   Abstract extends boolean = boolean,
-  Id extends NodeUuid = NodeUuid,
-  Impl extends NodeUuid = never,
+  Id extends NodeId = NodeId,
+  Impl extends NodeId = never,
   Delegates extends DelegateIds = DelegateIds,
 > extends NodeBrand {
   readonly [nodeFlags]: {
@@ -101,7 +95,7 @@ export interface NodeRef<
 }
 
 /** An own port of a node, e.g. `Orders.place`. */
-export interface ResolvedPortRef<K extends PortKind = PortKind, Id extends NodeUuid = NodeUuid> extends PortBrand {
+export interface ResolvedPortRef<K extends PortKind = PortKind, Id extends NodeId = NodeId> extends PortBrand {
   readonly $ref: "port";
   readonly kind: K;
   /** The handle of the node declaring the port. */
@@ -111,7 +105,7 @@ export interface ResolvedPortRef<K extends PortKind = PortKind, Id extends NodeU
 }
 
 /** A port a node inherited from a contract it implements; see `inherited`. */
-export interface InheritedPortRef<K extends PortKind = PortKind, Id extends NodeUuid = NodeUuid> extends PortBrand {
+export interface InheritedPortRef<K extends PortKind = PortKind, Id extends NodeId = NodeId> extends PortBrand {
   readonly $ref: "inherited";
   readonly kind: K;
   /** The implementor. */
@@ -140,12 +134,12 @@ export type PortRef<K extends PortKind = PortKind> = ResolvedPortRef<K> | Inheri
 export type CallRef = PortRef<"call">;
 export type EventRef = PortRef<"event">;
 /** Neither external nor abstract nodes can contain other nodes. */
-export type ParentRef<Id extends NodeUuid = NodeUuid> = NodeRef<false, false, Id>;
+export type ParentRef<Id extends NodeId = NodeId> = NodeRef<false, false, Id>;
 /** A node that can be implemented. */
 export type ContractRef = NodeRef<boolean, true>;
 
 /** The literal id of a node reference. */
-export type NodeIdOf<N> = N extends { readonly [nodeFlags]: { readonly id: infer Id extends NodeUuid } } ? Id : never;
+export type NodeIdOf<N> = N extends { readonly [nodeFlags]: { readonly id: infer Id extends NodeId } } ? Id : never;
 
 // ─── Definitions ─────────────────────────────────────────────────────────
 
@@ -202,7 +196,7 @@ export interface NodeDef<
   P extends PortsDef = PortsDef,
   External extends boolean = boolean,
   Abstract extends boolean = boolean,
-  Id extends string = NodeUuid,
+  Id extends NodeId = NodeId,
   Contracts extends readonly ContractRef[] = readonly ContractRef[],
   D extends DelegatesDef = DelegatesDef,
   R extends RequirementsDef = RequirementsDef,
@@ -256,42 +250,6 @@ export interface NodeEdges {
 // list rules come in pairs: a cheap check whether anything is wrong, and the
 // per-element rule tuple, built only if so.
 
-type HexDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" | "b" | "c" | "d" | "e" | "f";
-/** The number of characters if all are lowercase hex digits, else `false`. One character per step. */
-type HexLength<S extends string, Counted extends unknown[] = []> = S extends `${infer C}${infer Rest}`
-  ? C extends HexDigit
-    ? HexLength<Rest, [...Counted, C]>
-    : false
-  : Counted["length"];
-/**
- * xxxxxxxx-xxxx-7xxx-Vxxx-xxxxxxxxxxxx, V being the RFC 9562 variant (8, 9, a
- * or b). The template only splits at the dashes; each group is then walked
- * character by character, so extra dashes, wrong lengths and non-hex fail.
- */
-type IsUuidV7<S extends string> = S extends `${infer A}-${infer B}-7${infer C}-${infer Variant}${infer D}-${infer E}`
-  ? Variant extends "8" | "9" | "a" | "b"
-    ? [HexLength<A>, HexLength<B>, HexLength<C>, HexLength<D>, HexLength<E>] extends [8, 4, 3, 3, 12]
-      ? true
-      : false
-    : false
-  : false;
-
-/**
- * Full uuidv7 validation of a literal id: length, lowercase hex, version and
- * variant. `NodeUuid` itself (an id typed, not written, e.g. in a shared
- * fragment) is left to the loader.
- */
-export type IdRules<Id extends string> = string extends Id
-  ? Forbidden<"ids must be literal uuidv7 strings">
-  : NodeUuid extends Id
-    ? unknown
-    : IsUuidV7<Id> extends true
-      ? unknown
-      : Forbidden<"ids are lowercase uuidv7 (xxxxxxxx-xxxx-7xxx-[89ab]xxx-xxxxxxxxxxxx): bun -e 'console.log(Bun.randomUUIDv7())'">;
-
-/** The id as a `NodeUuid`, for the handle's type; `never` if invalid (`IdRules` reports it). */
-export type AsNodeUuid<Id extends string> = Id extends NodeUuid ? Id : never;
-
 /** Port-name rules, intersected with `ports`. */
 export type PortRules<P> = string extends keyof P
   ? Forbidden<"ports need literal names: pass the record inline or `as const`">
@@ -313,7 +271,7 @@ export type DefRules<External extends boolean, Abstract extends boolean> = (true
 type PortNamesOf<N> = N extends unknown ? Exclude<keyof N, keyof NodeRef> & string : never;
 
 /** A contract's literal id; `never` for a widened reference (left to the loader). */
-type ContractIdOf<N> = NodeUuid extends NodeIdOf<N> ? never : NodeIdOf<N>;
+type ContractIdOf<N> = NodeId extends NodeIdOf<N> ? never : NodeIdOf<N>;
 /** Whether an earlier contract in `implements` has the same literal id. */
 type ListedBefore<N, SeenIds extends string> = [ContractIdOf<N>] extends [never]
   ? false
@@ -471,11 +429,9 @@ export type NodeRules<
   P extends PortsDef,
   External extends boolean,
   Abstract extends boolean,
-  Id extends string,
   Contracts extends readonly ContractRef[],
   D extends DelegatesDef,
 > = {
-  readonly id: NoInfer<IdRules<Id>>;
   readonly ports?: PortRules<P> & NoInfer<InheritedPortRules<P, Contracts>>;
   readonly delegate?: NoInfer<DelegateRules<P, D, Contracts>>;
 } & NoInfer<ContractRules<Contracts>> &
@@ -492,8 +448,8 @@ export interface NodeDraft<
   P extends PortsDef,
   External extends boolean,
   Abstract extends boolean,
-  Id extends NodeUuid,
-  Impl extends NodeUuid,
+  Id extends NodeId,
+  Impl extends NodeId,
   Delegates extends DelegateIds,
 > {
   readonly $ref: "draft";
@@ -506,8 +462,8 @@ export type NodeHandle<
   P extends PortsDef,
   External extends boolean,
   Abstract extends boolean,
-  Id extends NodeUuid,
-  Impl extends NodeUuid,
+  Id extends NodeId,
+  Impl extends NodeId,
   Delegates extends DelegateIds,
 > = NodeRef<External, Abstract, Id, Impl, Delegates> & { readonly [K in keyof P]: ResolvedPortRef<P[K]["kind"], Id> };
 
@@ -516,7 +472,7 @@ export type NodeHandle<
 // `relation`. Node files never import it, so it adds no import cycles.
 
 /** A parent and its direct children, created by `relation`. Its type keeps the parent's id. */
-export interface RelationRef<Id extends NodeUuid = NodeUuid> extends RelationBrand {
+export interface RelationRef<Id extends NodeId = NodeId> extends RelationBrand {
   readonly $ref: "relation";
   readonly parent: ParentRef<Id>;
   readonly children: readonly WorldChild[];
