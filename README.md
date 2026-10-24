@@ -11,7 +11,7 @@ TypeScript on Bun.
 
 ```
 packages/
-  world/                world format: MAX-5 node types, defineNode, typed refs, tbd placeholders (MAX-10)
+  world/                world format: MAX-5 node types, defineNode, typed refs, tbd placeholders (MAX-10), defineWorld/relation (MAX-12)
 ```
 
 ## Commands

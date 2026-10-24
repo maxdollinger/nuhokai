@@ -2,7 +2,7 @@ import { defineNode } from "../src/index.ts";
 
 /**
  * This package, described in its own format (MAX-10 smoke test).
- * Top level for now; it moves under the Nuhokai node once the repo's own world exists.
+ * Top level in `world/index.ts` for now; it moves under the Nuhokai node once the repo's own world exists.
  */
 export const WorldFormat = defineNode({
   id: "01a16dd5-888a-77a4-9c88-e7d5bb03a016",
@@ -16,8 +16,20 @@ export const WorldFormat = defineNode({
     defineNode: {
       kind: "call",
       purpose: "Declare a node: static fields first, then .edges() with the lazy references",
-      input: "MAX-5 fields with a uuidv7 id and ports by name; then parent, uses and delegates",
+      input: "MAX-5 fields with a string id, ports by name, implements and delegates; then uses",
       output: "typed node handle exposing its own ports as properties",
+    },
+    defineWorld: {
+      kind: "call",
+      purpose: "Declare the world: every node, placed in one tree; the loader's only entry point",
+      input: "top-level nodes and relations",
+      output: "frozen world object",
+    },
+    relation: {
+      kind: "call",
+      purpose: "Place nodes under a parent, as a subtree that can live in its own file",
+      input: "parent node and its direct children (nodes or relations)",
+      output: "frozen relation object",
     },
     inherited: {
       kind: "call",
@@ -41,11 +53,22 @@ export const WorldFormat = defineNode({
   requirements: [
     { id: "R1", text: "A reference to a missing port fails tsc." },
     { id: "R2", text: "A plain string in an edge position fails tsc." },
-    { id: "R3", text: "An external or abstract node cannot be used as a parent (tsc)." },
+    {
+      id: "R3",
+      text: "In relation(), an external, abstract or not statically known node cannot be the parent, and an external node cannot be a child (tsc).",
+    },
     { id: "R4", text: "Placeholders are accepted wherever port references are, and are distinguishable at runtime." },
     { id: "R5", text: "Files of a world may import each other in cycles." },
     { id: "R6", text: "Reference cycles between nodes need no type annotations." },
     { id: "R7", text: "An implementor's inherited port is referenceable, only if it implements the contract (tsc)." },
+    {
+      id: "R8",
+      text: "The hierarchy is readable in one place: the world file lists every node, nested with relation().",
+    },
+    {
+      id: "R9",
+      text: "A rule that tsc can pin on the offending element fails there with a readable Forbidden message; global rules are the loader's.",
+    },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the MAX-5 types, never redeclared." },
   ],
@@ -54,8 +77,11 @@ export const WorldFormat = defineNode({
       text: "Typos and deleted ports in uses and delegate fail typecheck (example/type-errors.ts).",
       demonstrates: ["R1"],
     },
-    { text: "Strings in uses, implements, parent and delegate fail typecheck.", demonstrates: ["R2"] },
-    { text: "An external, abstract or not statically known parent fails typecheck.", demonstrates: ["R3"] },
+    {
+      text: "Strings in uses, implements, relation parents and children, and delegate fail typecheck.",
+      demonstrates: ["R2"],
+    },
+    { text: "An external, abstract or not statically known relation parent fails typecheck.", demonstrates: ["R3"] },
     {
       text: "Two nodes using one placeholder; its $ref is 'unresolved', real ports have 'port'.",
       demonstrates: ["R4"],
@@ -69,6 +95,18 @@ export const WorldFormat = defineNode({
     {
       text: "inherited(Orders, AuditLog.history) compiles; with a node not implementing AuditLog it fails typecheck.",
       demonstrates: ["R7"],
+    },
+    {
+      text: "example.test.ts walks example/world.ts: every exported node is listed once, under its parent.",
+      demonstrates: ["R8"],
+    },
+    {
+      text: "An external child, a delegate target that is not a child, and empty children fail typecheck in relation().",
+      demonstrates: ["R3", "R9"],
+    },
+    {
+      text: "Port clashes with inherited or other contracts' ports, duplicate requirement ids, unknown demonstrates ids and blank tbd descriptions fail typecheck on the offending element (type-errors.ts).",
+      demonstrates: ["R9"],
     },
   ],
   decisions: [
@@ -149,6 +187,51 @@ export const WorldFormat = defineNode({
         {
           option: "Importing the types from @nuhokai/shared/spec",
           why: "That module also holds the TypeBox schemas, so the .d.ts could not resolve without node_modules.",
+        },
+      ],
+    },
+    {
+      decision:
+        "Overrides 'the child declares its parent': the hierarchy is defined in one world file, world/index.ts, whose default export defineWorld({ children }) lists every node; nesting uses explicit relation({ parent, children }) objects, and node files never import the world file. delegate moves into step one, so relation() checks that delegate targets are direct children; .edges() keeps only uses.",
+      why: "The hierarchy was scattered across all node files and only visible to a loader; Nuhokai gives software structure, so the map of islands and domes must be readable in one place. Delegation only points down, so recording its targets in the handle's type forms no type cycle; uses may point anywhere and stays in step two (TS7022). Typecheck of the example world (tsc 7.0.2, --extendedDiagnostics, median of 8 runs): before 3,590 types, 5,077 instantiations, check 0.012s; after 7,394 types, 14,404 instantiations, check 0.030s. A synthetic 200-node world: before 0.15s check, after 0.5s.",
+      rejected: [
+        {
+          option: "Tuples, children: [Postgres, [Shop, [Orders, Stock]]]",
+          why: "Unreadable: a parent is only told apart from its first child by position, and nested brackets hide the structure the file exists to show.",
+        },
+        {
+          option: "Keeping parent in .edges()",
+          why: "The hierarchy stays scattered across node files, and tsc cannot check delegate targets against children.",
+        },
+        {
+          option: "Checking uses scope in tsc",
+          why: "Putting uses into the handle's type brings back TS7022 cycles; the loader checks scope against the world tree.",
+        },
+      ],
+    },
+    {
+      decision:
+        "A rule goes into tsc only if the error lands on the offending element with a readable Forbidden message; global rules (duplicate ids, orphans, uses scope, unique export names) go to the loader, which re-checks every tsc rule because a cast bypasses the types.",
+      why: "nuhokai check will run tsc and then the loader and print one list, so each message must point at its culprit; an error tsc could only put on defineWorld helps no one.",
+      rejected: [
+        {
+          option: "Every rule in tsc",
+          why: "Global rules would point at defineWorld, and uses scope would need uses in the types (TS7022).",
+        },
+        {
+          option: "Rules as tuples intersected with the authored arrays, also when satisfied",
+          why: "TypeScript then compares the arrays method by method: a 200-node world took 2.2s instead of 0.6s to check (measured with the uuidv7 check, since dropped).",
+        },
+      ],
+    },
+    {
+      decision:
+        "Overrides 'A node's id is an authored uuidv7': an id is any authored string (MAX-5 NodeId), unique in the world; tsc does not check its format.",
+      why: "The id only has to be stable across renames and moves, which any authored string is; uuidv7 is not settled as the format, and validating it was about half of all instantiations when checking a world.",
+      rejected: [
+        {
+          option: "Validating uuidv7 in tsc (length, hex, version, variant)",
+          why: "Commits the format before it is decided and costs about half the check time; uniqueness, the property that matters, is the loader's anyway.",
         },
       ],
     },

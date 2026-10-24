@@ -1,8 +1,27 @@
-import type { DefRules, NodeDef, NodeDraft, NodeEdges, NodeHandle, NodeUuid, PortRules, PortsDef } from "./types.ts";
+import type {
+  CheckedContracts,
+  CheckedRequirements,
+  CheckedTestCases,
+  ContractRef,
+  DelegateIds,
+  DelegatesDef,
+  DelegateTargets,
+  NodeDef,
+  NodeDraft,
+  NodeEdges,
+  NodeHandle,
+  NodeId,
+  NodeIdOf,
+  NodeRules,
+  PortsDef,
+  RequirementsDef,
+  TestCasesDef,
+} from "./types.ts";
 
 /**
  * Declares a node in two steps. Export the result; the export name is the
- * node's display name.
+ * node's display name. Where the node lives is not declared here but in the
+ * world file (`defineWorld`, `relation`).
  *
  * ```ts
  * export const Orders = defineNode({
@@ -12,34 +31,50 @@ import type { DefRules, NodeDef, NodeDraft, NodeEdges, NodeHandle, NodeUuid, Por
  *   source: [],
  *   ports: { place: { kind: "call", purpose: "Place an order" } },
  * }).edges({
- *   parent: () => Shop,
  *   uses: () => [Stock.reserve],
  * });
  * ```
  *
- * `defineNode` takes the static fields and infers the handle's type from them;
- * `.edges()` takes the references to other nodes and is not generic, so the
- * handle's type never depends on another node and files may reference each
- * other in cycles without annotations. Edges are functions so that modules may
- * import each other in cycles: only the loader calls them, after every module
- * has been evaluated. A node without edges still calls `.edges({})`.
+ * `defineNode` takes the static fields and infers the handle's type from them,
+ * including `implements` and `delegate`, which only point at contracts and
+ * direct children; `.edges()` takes `uses` and is not generic, so the handle's
+ * type never depends on a node that could point back, and files may reference
+ * each other in cycles without annotations. Edges are functions so that
+ * modules may import each other in cycles: only the loader calls them, after
+ * every module has been evaluated. A node without edges still calls `.edges({})`.
  */
 export function defineNode<
   const P extends PortsDef = Record<never, never>,
   const External extends boolean = false,
   const Abstract extends boolean = false,
-  const Id extends NodeUuid = NodeUuid,
-  const Impl extends NodeUuid = never,
+  const Id extends NodeId = NodeId,
+  const Contracts extends readonly ContractRef[] = readonly [],
+  const D extends DelegatesDef = Record<never, never>,
+  const R extends RequirementsDef = readonly [],
+  const T extends TestCasesDef = readonly [],
 >(
-  def: NodeDef<P, External, Abstract, Id, Impl> & { readonly ports?: PortRules<P> } & DefRules<External, Abstract>,
-): NodeDraft<P, External, Abstract, Id, Impl> {
+  def: NodeDef<
+    P,
+    External,
+    Abstract,
+    Id,
+    CheckedContracts<Contracts>,
+    D,
+    CheckedRequirements<R>,
+    CheckedTestCases<T, R>
+  > &
+    NodeRules<P, External, Abstract, Contracts, D>,
+): NodeDraft<P, External, Abstract, Id, NodeIdOf<Contracts[number]>, DelegateTargets<D>> {
   return Object.freeze({
     $ref: "draft",
-    edges: (edges: NodeEdges) => createHandle(def, edges),
-  }) as unknown as NodeDraft<P, External, Abstract, Id, Impl>;
+    edges: (edges: NodeEdges) => createHandle(def as NodeDef, edges),
+  }) as unknown as NodeDraft<P, External, Abstract, Id, NodeIdOf<Contracts[number]>, DelegateTargets<D>>;
 }
 
-function createHandle(def: NodeDef, edges: NodeEdges): NodeHandle<PortsDef, boolean, boolean, NodeUuid, NodeUuid> {
+function createHandle(
+  def: NodeDef,
+  edges: NodeEdges,
+): NodeHandle<PortsDef, boolean, boolean, NodeId, NodeId, DelegateIds> {
   const $def = frozenCopy({ ...def, ...edges });
   const handle = { $ref: "node", $def };
   // defineProperty, not assignment: a port named `__proto__` would otherwise set the prototype.
@@ -47,7 +82,7 @@ function createHandle(def: NodeDef, edges: NodeEdges): NodeHandle<PortsDef, bool
     const ref = Object.freeze({ $ref: "port", kind: port.kind, node: handle, name });
     Object.defineProperty(handle, name, { value: ref, enumerable: true });
   }
-  return Object.freeze(handle) as unknown as NodeHandle<PortsDef, boolean, boolean, NodeUuid, NodeUuid>;
+  return Object.freeze(handle) as unknown as NodeHandle<PortsDef, boolean, boolean, NodeId, NodeId, DelegateIds>;
 }
 
 /** Deep copy with every object and array frozen. Functions (the lazy edges) are kept as they are. */
