@@ -140,7 +140,7 @@ export type PortRef<K extends PortKind = PortKind> = ResolvedPortRef<K> | Inheri
 export type CallRef = PortRef<"call">;
 export type EventRef = PortRef<"event">;
 /** Neither external nor abstract nodes can contain other nodes. */
-export type ParentRef = NodeRef<false, false>;
+export type ParentRef<Id extends NodeUuid = NodeUuid> = NodeRef<false, false, Id>;
 /** A node that can be implemented. */
 export type ContractRef = NodeRef<boolean, true>;
 
@@ -252,7 +252,9 @@ export interface NodeEdges {
 // as possibly true. Rules are wrapped in `NoInfer`, so they never steer
 // inference, and are `unknown` while satisfied: a tuple intersected with a
 // rule tuple is also compared method by method, which made checking a
-// 200-node world about four times slower (2.2s instead of 0.6s).
+// 200-node world about four times slower (2.2s instead of 0.6s). That is why
+// list rules come in pairs: a cheap check whether anything is wrong, and the
+// per-element rule tuple, built only if so.
 
 type HexDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" | "b" | "c" | "d" | "e" | "f";
 /** The number of characters if all are lowercase hex digits, else `false`. One character per step. */
@@ -310,36 +312,53 @@ export type DefRules<External extends boolean, Abstract extends boolean> = (true
 /** A contract's port names: the handle's keys minus the reference's own. Distributes; `never` has none. */
 type PortNamesOf<N> = N extends unknown ? Exclude<keyof N, keyof NodeRef> & string : never;
 
-/** Port names that two contracts in `implements` declare. */
-type ClashingPortNames<Contracts extends readonly unknown[], Seen extends string = never> = Contracts extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? Extract<PortNamesOf<Head>, Seen> | ClashingPortNames<Tail, Seen | PortNamesOf<Head>>
+/** A contract's literal id; `never` for a widened reference (left to the loader). */
+type ContractIdOf<N> = NodeUuid extends NodeIdOf<N> ? never : NodeIdOf<N>;
+/** Whether an earlier contract in `implements` has the same literal id. */
+type ListedBefore<N, SeenIds extends string> = [ContractIdOf<N>] extends [never]
+  ? false
+  : [ContractIdOf<N>] extends [SeenIds]
+    ? true
+    : false;
+
+/** Ids of contracts listed twice and port names that two contracts in `implements` declare. */
+type ContractClashNames<
+  Contracts extends readonly unknown[],
+  Seen extends string = never,
+  SeenIds extends string = never,
+> = Contracts extends readonly [infer Head, ...infer Tail]
+  ? ListedBefore<Head, SeenIds> extends true
+    ? ContractIdOf<Head> | ContractClashNames<Tail, Seen, SeenIds>
+    :
+        | Extract<PortNamesOf<Head>, Seen>
+        | ContractClashNames<Tail, Seen | PortNamesOf<Head>, SeenIds | ContractIdOf<Head>>
   : never;
 
-/** Per contract, the port names an earlier contract in `implements` already declares. */
-type ContractClashes<Contracts extends readonly unknown[], Seen extends string = never> = Contracts extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? readonly [
-      [Extract<PortNamesOf<Head>, Seen>] extends [never]
-        ? unknown
-        : Forbidden<`\`${Extract<PortNamesOf<Head>, Seen>}\`: two implemented contracts must not share a port name`>,
-      ...ContractClashes<Tail, Seen | PortNamesOf<Head>>,
-    ]
+/** Per contract: listed already, or which of its port names an earlier contract in `implements` declares. */
+type ContractClashes<
+  Contracts extends readonly unknown[],
+  Seen extends string = never,
+  SeenIds extends string = never,
+> = Contracts extends readonly [infer Head, ...infer Tail]
+  ? ListedBefore<Head, SeenIds> extends true
+    ? readonly [Forbidden<"this contract is listed twice in implements">, ...ContractClashes<Tail, Seen, SeenIds>]
+    : readonly [
+        [Extract<PortNamesOf<Head>, Seen>] extends [never]
+          ? unknown
+          : Forbidden<`\`${Extract<PortNamesOf<Head>, Seen>}\`: two implemented contracts must not share a port name`>,
+        ...ContractClashes<Tail, Seen | PortNamesOf<Head>, SeenIds | ContractIdOf<Head>>,
+      ]
   : readonly unknown[];
 
 /** The contracts with their clash rules; a type argument of `NodeDef` in `defineNode`. */
 export type CheckedContracts<Contracts extends readonly ContractRef[]> = Contracts &
-  NoInfer<[ClashingPortNames<Contracts>] extends [never] ? unknown : ContractClashes<Contracts>>;
+  NoInfer<[ContractClashNames<Contracts>] extends [never] ? unknown : ContractClashes<Contracts>>;
 
 /**
  * `implements` again, but required, if a contract clashes: TypeScript only
  * points at the offending array element when the property is not optional.
  */
-type ContractRules<Contracts extends readonly ContractRef[]> = [ClashingPortNames<Contracts>] extends [never]
+type ContractRules<Contracts extends readonly ContractRef[]> = [ContractClashNames<Contracts>] extends [never]
   ? unknown
   : { readonly implements: Implements<CheckedContracts<Contracts>> };
 
@@ -355,15 +374,21 @@ type InheritedPortRules<P, Contracts extends readonly ContractRef[]> = [
       >]: Forbidden<`\`${K}\` is inherited from an implemented contract; an own port must not have its name`>;
     };
 
-/** Delegate keys are own port names; the target has the port's kind, and the port declares no shapes. */
-type DelegateRules<P extends PortsDef, D> = {
+/**
+ * Delegate keys are own port names; the target has the port's kind, and the
+ * port declares no shapes. An inherited port cannot delegate: in MAX-5,
+ * `delegate` is a field of a port the node declares itself.
+ */
+type DelegateRules<P extends PortsDef, D, Contracts extends readonly ContractRef[]> = {
   readonly [K in keyof D]: K extends keyof P
     ? Extract<keyof P[K], "input" | "output" | "errors" | "payload"> extends never
       ? () => PortRef<P[K]["kind"]>
       : Forbidden<"a delegated port declares no input, output, errors or payload">
-    : [keyof P] extends [never]
-      ? Forbidden<"a node without ports has nothing to delegate">
-      : Forbidden<"delegate keys are the node's own port names">;
+    : K extends PortNamesOf<Contracts[number]>
+      ? Forbidden<`\`${K}\` is inherited from an implemented contract; only own ports delegate`>
+      : [keyof P] extends [never]
+        ? Forbidden<"a node without ports has nothing to delegate">
+        : Forbidden<"delegate keys are the node's own port names">;
 };
 
 /** The node id each delegate points to; `never` for a placeholder. Recorded on the handle. */
@@ -379,11 +404,13 @@ type DuplicateRequirementIds<R extends readonly unknown[], Seen = never> = R ext
   ...infer Tail,
 ]
   ? Head extends { readonly id: infer Id extends string }
-    ? Extract<Id, Seen> | DuplicateRequirementIds<Tail, Seen | Id>
+    ? string extends Id
+      ? DuplicateRequirementIds<Tail, Seen>
+      : Extract<Id, Seen> | DuplicateRequirementIds<Tail, Seen | Id>
     : DuplicateRequirementIds<Tail, Seen>
   : never;
 
-/** Per requirement, whether an earlier one has the same id. */
+/** Per requirement, whether an earlier one has the same id. A non-literal id is left to the loader. */
 type UniqueRequirementIds<R extends readonly unknown[], Seen = never> = R extends readonly [infer Head, ...infer Tail]
   ? readonly [
       Head extends { readonly id: infer Id extends string }
@@ -391,7 +418,10 @@ type UniqueRequirementIds<R extends readonly unknown[], Seen = never> = R extend
           ? { readonly id: Forbidden<`requirement id \`${Id}\` is used twice`> }
           : unknown
         : unknown,
-      ...UniqueRequirementIds<Tail, Seen | (Head extends { readonly id: infer Id } ? Id : never)>,
+      ...UniqueRequirementIds<
+        Tail,
+        Seen | (Head extends { readonly id: infer Id extends string } ? (string extends Id ? never : Id) : never)
+      >,
     ]
   : readonly unknown[];
 
@@ -447,7 +477,7 @@ export type NodeRules<
 > = {
   readonly id: NoInfer<IdRules<Id>>;
   readonly ports?: PortRules<P> & NoInfer<InheritedPortRules<P, Contracts>>;
-  readonly delegate?: NoInfer<DelegateRules<P, D>>;
+  readonly delegate?: NoInfer<DelegateRules<P, D, Contracts>>;
 } & NoInfer<ContractRules<Contracts>> &
   DefRules<External, Abstract>;
 
@@ -488,7 +518,7 @@ export type NodeHandle<
 /** A parent and its direct children, created by `relation`. Its type keeps the parent's id. */
 export interface RelationRef<Id extends NodeUuid = NodeUuid> extends RelationBrand {
   readonly $ref: "relation";
-  readonly parent: NodeRef<false, false, Id>;
+  readonly parent: ParentRef<Id>;
   readonly children: readonly WorldChild[];
 }
 
@@ -553,21 +583,34 @@ export type ParentRules<Parent, Children extends readonly unknown[]> = [Parent] 
           : unknown)
   : NotANode<Parent, "parent">;
 
+/**
+ * Why a node cannot be a child here, as messages; `never` if it can.
+ * Distributes, so each node of a union (an inferred mixed array) is judged
+ * by its own flags.
+ */
+type NodeChildProblems<C, In extends "world" | "relation"> = C extends unknown
+  ?
+      | (In extends "world"
+          ? never
+          : [ExternalOf<C>] extends [false]
+            ? never
+            : [ExternalOf<C>] extends [true]
+              ? "external nodes are top level only: list them in defineWorld's children"
+              : "this node may be external (its flag is not a literal), so it can only be top level")
+      | (string extends keyof DelegatesOf<C>
+          ? never
+          : [DelegatingPorts<C>] extends [never]
+            ? never
+            : "this node delegates to its children, so it must be the parent of a relation(...)")
+  : never;
+
+/** A child is a relation, or a node; also a union of both, e.g. `WorldChild`. */
 type ChildRule<C, In extends "world" | "relation"> = [C] extends [RelationRef]
   ? unknown
-  : [C] extends [NodeRef]
-    ? (In extends "world"
-        ? unknown
-        : [ExternalOf<C>] extends [false]
-          ? unknown
-          : [ExternalOf<C>] extends [true]
-            ? Forbidden<"external nodes are top level only: list them in defineWorld's children">
-            : Forbidden<"this node may be external (its flag is not a literal), so it can only be top level">) &
-        (string extends keyof DelegatesOf<C>
-          ? unknown
-          : [DelegatingPorts<C>] extends [never]
-            ? unknown
-            : Forbidden<"this node delegates to its children, so it must be the parent of a relation(...)">)
+  : [C] extends [WorldChild]
+    ? [NodeChildProblems<Exclude<C, RelationRef>, In>] extends [never]
+      ? unknown
+      : Forbidden<NodeChildProblems<Exclude<C, RelationRef>, In>>
     : NotANode<C, "child">;
 
 /** Whether any child breaks a rule. */

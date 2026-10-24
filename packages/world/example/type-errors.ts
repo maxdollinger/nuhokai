@@ -47,6 +47,13 @@ export const delegateWithoutPorts = defineNode({
   delegate: { place: () => Orders.place },
 }).edges({});
 
+export const delegateInheritedPort = defineNode({
+  ...base,
+  implements: () => [AuditLog],
+  // @ts-expect-error `history` is inherited; in MAX-5 only a port the node declares itself has a delegate
+  delegate: { history: () => Orders.place },
+}).edges({});
+
 export const delegateFromUnknownPort = defineNode({
   ...base,
   ports: { cancel: { kind: "call", purpose: "Cancel" } },
@@ -259,6 +266,32 @@ export const composedWorld = defineWorld({
   children: [Postgres, AuditLog, relation({ parent: Outer, children: [shopSubtree] })],
 });
 
+// Children typed as `WorldChild` unions compose too: spreads, inferred mixed arrays, another world's children.
+export const spreadChildren = defineWorld({ children: [Postgres, AuditLog, ...composedWorld.children] });
+const mixedChildren = [AuditLog, shopSubtree];
+export const mixedRelation = relation({ parent: Outer, children: mixedChildren });
+export const reusedWorld = defineWorld({ children: composedWorld.children });
+
+export const widenedChildren = relation({
+  parent: Shop,
+  // @ts-expect-error a widened WorldChild may be external, so it can only be top level
+  children: shopSubtree.children,
+});
+
+// Each node of an inferred mixed array is judged by its own flags.
+const withExternal = [Postgres, Orders];
+export const mixedWithExternal = relation({
+  parent: Stock,
+  // @ts-expect-error Postgres is external
+  children: withExternal,
+});
+const withDelegator = [Stock, Shop];
+export const mixedWithDelegator = relation({
+  parent: Outer,
+  // @ts-expect-error Shop delegates to its children, so it must be a relation's parent
+  children: withDelegator,
+});
+
 // ─── Inherited ports ─────────────────────────────────────────────────────
 
 export const usesInheritedPort = defineNode(base).edges({ uses: () => [inherited(Orders, AuditLog.history)] });
@@ -305,6 +338,15 @@ export const contractsShareAPort = defineNode({
   ],
 }).edges({});
 
+export const contractListedTwice = defineNode({
+  ...base,
+  implements: () => [
+    AuditLog,
+    // @ts-expect-error AuditLog is already listed
+    AuditLog,
+  ],
+}).edges({});
+
 // ─── Requirements ────────────────────────────────────────────────────────
 
 export const duplicateRequirementId = defineNode({
@@ -323,6 +365,16 @@ export const demonstratesUnknownId = defineNode({
     { text: "Demonstrates R1.", demonstrates: ["R1"] },
     // @ts-expect-error there is no R2
     { text: "Demonstrates R2.", demonstrates: ["R2"] },
+  ],
+}).edges({});
+
+// A non-literal id is left to the loader, and does not make a literal one a duplicate.
+declare const requirementId: string;
+export const wideRequirementId = defineNode({
+  ...base,
+  requirements: [
+    { id: requirementId, text: "First." },
+    { id: "R1", text: "Second." },
   ],
 }).edges({});
 
@@ -429,6 +481,12 @@ export const tbdEmptyDescription = tbd.event({ description: "" });
 
 // @ts-expect-error a tbd description must not be whitespace only
 export const tbdBlankDescription = tbd.call({ description: " \n\t " });
+
+// @ts-expect-error vertical tab and form feed are whitespace too
+export const tbdControlWhitespace = tbd.call({ description: "\v\f" });
+
+// @ts-expect-error every character String.prototype.trim() removes counts, e.g. no-break space and BOM
+export const tbdUnicodeWhitespace = tbd.event({ description: "\u00a0\ufeff\u3000" });
 
 // A node delegating only to placeholders has no children yet, so it may stand alone.
 export const tbdAsDelegate = defineNode({

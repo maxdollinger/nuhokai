@@ -193,7 +193,7 @@ export const WorldFormat = defineNode({
     {
       decision:
         "Overrides 'the child declares its parent': the hierarchy is defined in one world file, world/index.ts, whose default export defineWorld({ children }) lists every node; nesting uses explicit relation({ parent, children }) objects, and node files never import the world file. delegate moves into step one, so relation() checks that delegate targets are direct children; .edges() keeps only uses.",
-      why: "The hierarchy was scattered across all node files and only visible to a loader; Nuhokai gives software structure, so the map of islands and domes must be readable in one place. Delegation only points down, so recording its targets in the handle's type forms no type cycle; uses may point anywhere and stays in step two (TS7022). Typecheck of the example world (tsc 7.0.2, --extendedDiagnostics, median of 8 runs): before 3,590 types, 5,077 instantiations, check 0.012s; after 8,449 types, 20,570 instantiations, check 0.035s. A synthetic 200-node world: before 0.15s check, after 0.6s.",
+      why: "The hierarchy was scattered across all node files and only visible to a loader; Nuhokai gives software structure, so the map of islands and domes must be readable in one place. Delegation only points down, so recording its targets in the handle's type forms no type cycle; uses may point anywhere and stays in step two (TS7022). Typecheck of the example world (tsc 7.0.2, --extendedDiagnostics, median of 8 runs): before 3,590 types, 5,077 instantiations, check 0.012s; after 9,108 types, 22,657 instantiations, check 0.033s. A synthetic 200-node world: before 0.15s check, after 0.6s.",
       rejected: [
         {
           option: "Tuples, children: [Postgres, [Shop, [Orders, Stock]]]",

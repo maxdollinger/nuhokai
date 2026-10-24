@@ -74,8 +74,8 @@ A compile-time check fails if the two drift apart.
 
 ## Rules worth knowing
 
-- **Two steps, no annotations.** `defineNode` takes the static fields and infers the handle's type; `.edges()` takes the
-  references to other nodes and is not generic. A node's type therefore never depends on another node, so files may
+- **Two steps, no annotations.** `defineNode` takes the static fields and infers the handle's type; `.edges()` takes
+  only `uses` and is not generic. A node's type therefore never depends on a node that could point back, so files may
   reference each other in cycles without any type annotation. `.edges()` is required, also as `.edges({})`: a draft is
   not a node, and using one as a reference fails tsc.
 - **`implements` and `delegate` are in step one** (still lazy), because the handle's type records the contracts it
@@ -89,16 +89,19 @@ A compile-time check fails if the two drift apart.
 - **A rule is in tsc when the error lands on the offending element** with a readable `Forbidden<"…">` message. Global
   rules, where tsc could only point at `defineWorld`, are the loader's (see below).
 - **MAX-5 rules checked by tsc** through the literal flags, ids and names: abstract nodes have no `uses`, no delegates
-  and implement nothing; external nodes do not delegate; `externalType` only on external nodes; a delegated port
-  declares no `input`, `output`, `errors` or `payload`; an own port must not have the name of an inherited one, and two
-  implemented contracts must not share a port name; requirement ids are unique, and `testCases[].demonstrates` names
+  and implement nothing; external nodes do not delegate; `externalType` only on external nodes; only own ports
+  delegate, and a delegated port declares no `input`, `output`, `errors` or `payload`; an own port must not have the
+  name of an inherited one, a contract is listed once in `implements`, and two implemented contracts must not share a
+  port name; requirement ids are unique (non-literal ids are left to the loader), and `testCases[].demonstrates` names
   own requirement ids only (whether an implementor may demonstrate a contract's requirement is open in MAX-5). Flags
   that are not literals count as possibly true.
 - **World rules checked by tsc:** `relation.parent` is a node that is known to be neither external nor abstract;
   external nodes are top level only; every delegate target of a parent is one of its `children` (a nested relation
   counts through its parent), and a node delegating to a node must be a relation's parent; `children` is not empty;
-  strings, drafts, ports and look-alike objects are rejected in `parent` and `children`.
-- **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank and return an unresolved port reference
+  strings, drafts, ports and look-alike objects are rejected in `parent` and `children`. Children typed as unions
+  (`WorldChild`, an inferred mixed array) are accepted, each node judged by its own flags; a widened `WorldChild` may
+  be external, so it is accepted only in `defineWorld`.
+- **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an unresolved port reference
   (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have `"port"`, inherited ones
   `"inherited"`. Declare them at module level and export them, so find-references lists every dependent.
 - **Ids** are fully validated by tsc when written as literals: lowercase uuidv7, length, hex, version and variant, by a
@@ -126,9 +129,9 @@ of 8 runs) before and after MAX-12:
 
 | Program                      | Types           | Instantiations   | Check time      |
 | ---------------------------- | --------------- | ---------------- | --------------- |
-| example world (`example/`)   | 3,590 → 8,449   | 5,077 → 20,570   | 0.012s → 0.035s |
-| whole package (`tsc -p .`)   | 9,911 → 22,447  | 12,368 → 50,350  | 0.050s → 0.12s  |
-| synthetic world of 200 nodes | 33,487 → 80,714 | 47,895 → 433,820 | 0.15s → 0.6s    |
+| example world (`example/`)   | 3,590 → 9,108   | 5,077 → 22,657   | 0.012s → 0.033s |
+| whole package (`tsc -p .`)   | 9,911 → 25,439  | 12,368 → 59,223  | 0.050s → 0.12s  |
+| synthetic world of 200 nodes | 33,487 → 81,184 | 47,895 → 439,440 | 0.15s → 0.6s    |
 
 Rules evaluate to `unknown` while satisfied: a tuple intersected with a rule tuple is compared method by method, which
 had made the 200-node world take 2.2s. About half of the remaining instantiations are the uuidv7 check.
