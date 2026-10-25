@@ -2,7 +2,7 @@ import { defineNode, inherited } from "../src/index.ts";
 import { AuditLog } from "./audit-log.ts";
 import { Orders } from "./orders.ts";
 
-/** Exposes ordering to the outside by delegating to its child Orders (see world.ts). */
+/** Exposes ordering to the outside by delegating to its child Orders (see index.ts). */
 export const Shop = defineNode({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
   purpose: "The shop backend; everything a customer interacts with lives inside it.",

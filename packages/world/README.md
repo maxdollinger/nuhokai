@@ -1,7 +1,7 @@
 # @nuhokai/world
 
-The world format (MAX-10, MAX-12): every node is a TS file in a `world/` folder, and its edges are typed references to
-other nodes. One world file, `world/index.ts`, places every node in a tree. `tsc` alone catches dangling references, and
+The world format (MAX-10, MAX-12): every node is a TS file in a repo's `nuhokai/` folder, and its edges are typed
+references to other nodes. One world file, `nuhokai/index.ts`, places every node in a tree. `tsc` alone catches dangling references, and
 completion, go-to-definition and find-references work out of the box.
 
 ```ts
@@ -31,7 +31,7 @@ export const Orders = defineNode({
 ```
 
 ```ts
-// world/index.ts: the loader's only entry point; the world contains exactly the nodes listed here.
+// nuhokai/index.ts: the loader's only entry point; the world contains exactly the nodes listed here.
 import { defineWorld, relation } from "@nuhokai/world";
 
 export default defineWorld({
@@ -51,9 +51,10 @@ export default defineWorld({
 import the world file, so it adds no import cycles.
 
 The runtime has no imports and no side effects: `defineNode`, `defineWorld`, `relation`, `inherited` and `tbd` only
-build frozen objects. `example/` is a complete small world (`example/world.ts` is its world file);
-`example/type-errors.ts` lists what must not compile; `world/world-format.ts` is this package described as a node,
-including its design decisions, and `world/index.ts` is its world.
+build frozen objects. `example/` is a complete small world: `example/index.ts` holds its world and re-exports its nodes,
+so it is the barrel and not a node file; `example/type-errors.ts` lists what must not compile; `nuhokai/world-format.ts`
+is this package described as a node, including its design decisions, and `nuhokai/index.ts` is its world (`init` writes
+the same folder into a repo).
 
 ## How it maps to MAX-5 (`nuhokai/node@1`)
 
@@ -109,7 +110,7 @@ A compile-time check fails if the two drift apart.
 
 ## For the loader
 
-- The entry point is the default export of `world/index.ts`, a `$ref: "world"` object whose `children` are nodes and
+- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object whose `children` are nodes and
   `$ref: "relation"` objects (`parent`, `children`), all frozen. A node's parent is the relation it is listed under.
 - Every exported node has `$ref: "node"`; `$def` holds both steps as authored, deep-frozen, with the edges still lazy
   functions (`uses`, `implements`, and `delegate` keyed by port name). An exported `$ref: "draft"` means `.edges()` was

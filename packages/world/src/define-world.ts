@@ -1,7 +1,7 @@
 import type { ChildrenRules, NodeIdOf, ParentRules, RelationRef, World } from "./types.ts";
 
 /**
- * The world: every node, placed in one tree. A repo's `world/index.ts`
+ * The world: every node, placed in one tree. A repo's `nuhokai/index.ts`
  * default-exports it, and it is the loader's only entry point: the world
  * contains exactly the nodes listed here.
  *

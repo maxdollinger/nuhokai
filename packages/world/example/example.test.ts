@@ -2,13 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { NodeRef, PortRef, WorldChild } from "../src/index.ts";
-import * as world from "./index.ts";
-import exampleWorld from "./world.ts";
+import exampleWorld, * as world from "./index.ts";
 
 // Every node file (type-errors.ts is compile-time only and never evaluated), by file name.
 const files = readdirSync(import.meta.dir).filter(
-  (file) =>
-    file.endsWith(".ts") && !file.endsWith(".test.ts") && !["index.ts", "world.ts", "type-errors.ts"].includes(file),
+  (file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && !["index.ts", "type-errors.ts"].includes(file),
 );
 const modules = await Promise.all(
   files.map(async (file) => [file, (await import(join(import.meta.dir, file))) as Record<string, unknown>] as const),
@@ -69,7 +67,7 @@ describe("example world", () => {
     expect(world.Stock.reserve.node).toBe(world.Stock);
   });
 
-  test("world.ts lists every exported node exactly once, and nothing else", () => {
+  test("index.ts lists every exported node exactly once, and nothing else", () => {
     expect(exampleWorld.$ref).toBe("world");
     expect(placed.map(({ node }) => node.$ref)).toEqual(placed.map(() => "node"));
     expect(new Set(placed.map(({ node }) => node)).size).toBe(placed.length);
@@ -99,7 +97,7 @@ describe("example world", () => {
     const transpiler = new Bun.Transpiler({ loader: "ts" });
     for (const file of files) {
       const imports = transpiler.scanImports(readFileSync(join(import.meta.dir, file), "utf8")).map((i) => i.path);
-      expect(imports, file).not.toContain("./world.ts");
+      expect(imports, file).not.toContain("./index.ts");
     }
   });
 

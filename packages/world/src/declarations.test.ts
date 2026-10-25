@@ -48,7 +48,7 @@ export const Ext = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000008", exte
 export const B = defineNode({ id: "01a16dd2-bc70-7000-8000-000000000009", purpose: "b", status: "planned", source: [], ports: { y: { kind: "call", purpose: "y" } } }).edges({ uses: () => [A.x] });
 export const C = defineNode({ id: "01a16dd2-bc70-7000-8000-00000000000b", purpose: "c", status: "planned", source: [], ports: { z: { kind: "call", purpose: "z" } } }).edges({});
 `,
-  "world.ts": `
+  "index.ts": `
 import { defineWorld, relation } from "../dts/index.ts";
 import { A, Parent } from "./a.ts";
 import { B, C, Contract, Ext } from "./b.ts";
