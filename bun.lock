@@ -10,6 +10,15 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/cli": {
+      "name": "@nuhokai/cli",
+      "bin": {
+        "nuhokai": "./src/bin.ts",
+      },
+      "dependencies": {
+        "@nuhokai/world": "workspace:*",
+      },
+    },
     "packages/world": {
       "name": "@nuhokai/world",
     },
@@ -36,6 +45,8 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.6.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-/PEOo6evlgrQOfKhMNtC/4Gk8ai3hySXXEtjUzCqZe/4iAbMdqelpp7qvZEDyLxlZS+BjOMQFpq2gXI/BPaAqw=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.2", "", { "os": "win32", "cpu": "x64" }, "sha512-FVlWD+mDDz8nN5LWKRWUhhb7wKIK0VE3oXQvQBX7Fwwj00CvqMVhMyiz1iz8O5aZGmnkhFlKSwJPrUvMh5prQw=="],
+
+    "@nuhokai/cli": ["@nuhokai/cli@workspace:packages/cli"],
 
     "@nuhokai/world": ["@nuhokai/world@workspace:packages/world"],
 
