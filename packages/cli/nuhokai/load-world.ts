@@ -14,13 +14,19 @@ export const LoadWorld = node({
       purpose: "Load the world at the root",
       input: "project root",
       output: "nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
-      errors: ["no nuhokai/index.ts", "a world file failed to evaluate", "default export is not a world"],
+      errors: [
+        "no nuhokai/index.ts",
+        "a world file failed to evaluate",
+        "a world file imports a package",
+        "default export is not a world",
+        "uses or implements does not return a list",
+      ],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Evaluates every nuhokai/**/*.ts except .generated/, *.d.ts, *.test.ts; @nuhokai/world is the CLI's runtime, over nuhokai/tsconfig.json paths; no node_modules.",
+      text: "Evaluates every nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts; @nuhokai/world is the CLI's runtime, over nuhokai/tsconfig.json paths; no node_modules. Any other non-relative import in a world file, node: and bun: included, is a load error: nothing installed or run.",
     },
     {
       id: "R2",
@@ -28,9 +34,17 @@ export const LoadWorld = node({
     },
     { id: "R3", text: "Order: depth-first from the world, parent before children, record order; each node once." },
     { id: "R4", text: "tbd: no edge; one placeholder per tbd object with all its users; ordered by first use." },
-    { id: "R5", text: "Load errors: one CliError naming the file, e.g. 'nuhokai/orders.ts: <message>'." },
+    {
+      id: "R5",
+      text: "Load errors: one CliError naming the file, and the line when known, e.g. 'nuhokai/orders.ts:3: <message>'.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Loader writes, spawns and prompts nothing." },
+    {
+      id: "C3",
+      kind: "constraint",
+      text: "Once per root per process: Bun caches modules by path, so a second load answers the first evaluation.",
+    },
   ],
   testCases: [
     {
@@ -43,8 +57,12 @@ export const LoadWorld = node({
     },
     { text: "A tbd used by two nodes: one placeholder, both ids, no edges.", demonstrates: ["R4"] },
     {
-      text: "Syntax error, throwing file, non-world default export: one CliError each, naming the file. Unexported node: named by id.",
+      text: "Syntax error, throwing file, non-world default export, uses returning a non-list: one CliError each, naming the file, with the line for the first two. Unexported node: named by id.",
       demonstrates: ["R2", "R5"],
+    },
+    {
+      text: "A bare package or node: import, also in a symlinked file: one CliError naming the importing file; nothing installed. A symlinked node file is named by its export.",
+      demonstrates: ["R1", "R2", "R5"],
     },
   ],
   decisions: [

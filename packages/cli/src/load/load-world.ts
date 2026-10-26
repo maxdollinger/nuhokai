@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, realpathSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { extname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
 import * as worldRuntime from "@nuhokai/world";
@@ -30,67 +30,135 @@ interface Named {
   readonly file: string;
 }
 
+/** A world file, evaluated: its from-root path and its exports. */
+type Module = [file: string, exports: Record<string, unknown>];
+
+/** The paths Bun may report for a world's files, which it loads by their real path. */
+interface WorldPaths {
+  /** The world folder, as given and as its real path. */
+  readonly dirs: readonly string[];
+  /** Each world file's real path to its from-root name; a symlinked file's may lie outside the folder. */
+  readonly files: ReadonlyMap<string, string>;
+}
+
+const transpiler = new Bun.Transpiler({ loader: "ts" });
 let runtimeRegistered = false;
+
+/** A regular expression matching `text` literally. */
+function literally(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /**
  * Make `@nuhokai/world` in every world file the CLI's own runtime, the one this
  * module imports: one runtime per process, whatever nuhokai/tsconfig.json maps
  * the specifier to and whether the repo has node_modules. A virtual module wins
  * over tsconfig paths, in the bundle and in a compiled binary alike.
+ *
+ * Every other import from a file in this world must be relative: Bun would
+ * install a bare specifier's package from the network and run it.
  */
-function useCliWorldRuntime(): void {
-  if (runtimeRegistered) return;
+function useCliWorldRuntime(paths: WorldPaths): void {
+  const dirs = paths.dirs.map((dir) => `${literally(`${dir}${sep}`)}.*\\.[jt]sx?$`);
+  const files = [...paths.files.keys()].map((file) => `${literally(file)}$`);
   Bun.plugin({
     name: "nuhokai-world-runtime",
     setup(build) {
-      build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
+      if (!runtimeRegistered) {
+        build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
+        runtimeRegistered = true;
+      }
+      build.onLoad({ filter: new RegExp(`^(?:${[...dirs, ...files].join("|")})`) }, async ({ path }) => {
+        const contents = await Bun.file(path).text();
+        const bare = importsOf(contents).find(
+          (specifier) => !/^[./]/.test(specifier) && specifier !== "@nuhokai/world",
+        );
+        if (bare !== undefined) {
+          throw new CliError(
+            `${nameIn(paths, path)}: imports are only relative files and @nuhokai/world, got '${bare}'`,
+          );
+        }
+        return { contents, loader: extname(path).slice(1) as "ts" | "tsx" | "js" | "jsx" };
+      });
     },
   });
-  runtimeRegistered = true;
+}
+
+/** Every specifier a file imports, requires or dynamically imports by a literal; a syntax error is Bun's to report. */
+function importsOf(contents: string): string[] {
+  try {
+    return transpiler.scanImports(contents).map((entry) => entry.path);
+  } catch {
+    return [];
+  }
 }
 
 /** Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests. */
 function worldFiles(root: string): string[] {
   const dir = inWorld(root);
+  const isFile = (entry: Dirent) =>
+    entry.isFile() ||
+    (entry.isSymbolicLink() && statSync(join(entry.parentPath, entry.name), { throwIfNoEntry: false })?.isFile());
   return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .filter((entry) => isFile(entry) && entry.name.endsWith(".ts"))
     .filter((entry) => !entry.name.endsWith(".d.ts") && !entry.name.endsWith(".test.ts"))
     .map((entry) => relative(dir, join(entry.parentPath, entry.name)).split(sep).join("/"))
     .filter((path) => !path.startsWith(`${WORLD_GENERATED_DIR}/`))
     .sort();
 }
 
+/** Where the world at `root` and its files are, by every path Bun may report. */
+function worldPaths(root: string, files: readonly string[]): WorldPaths {
+  const dir = inWorld(root);
+  return {
+    dirs: [dir, realpathSync(dir)],
+    files: new Map(files.map((file) => [realpathSync(inWorld(root, ...file.split("/"))), fromRoot(file)])),
+  };
+}
+
+/** A path Bun reports, from the root, or undefined outside the world. */
+function nameIn(paths: WorldPaths, path: string): string | undefined {
+  const dir = paths.dirs.find((candidate) => path.startsWith(`${candidate}${sep}`));
+  return dir ? fromRoot(...relative(dir, path).split(sep)) : paths.files.get(path);
+}
+
 /**
- * The world file a failed evaluation is about: where a syntax or resolve error
- * points, else the first stack frame inside the world, else the file whose
- * import failed (an import of a throwing file fails with that file's error).
+ * Where a failed evaluation points, from the root, with its line when known:
+ * where a syntax or resolve error points, else the first stack frame inside the
+ * world, else the file whose import failed (an import of a throwing file fails
+ * with that file's error). A thrown non-Error has no stack, so a file that
+ * throws one while imported by another is blamed on that importer.
  */
-function failingFile(error: unknown, worldDirs: readonly string[], imported: string): string {
-  const inside = (path: string | undefined): path is string =>
-    path !== undefined && worldDirs.some((dir) => path.startsWith(`${dir}${sep}`));
-  const position = (error as { position?: { file?: string } } | null)?.position?.file;
-  if (inside(position)) return position;
+function failingAt(error: unknown, paths: WorldPaths, imported: string): string {
+  const at = (path: string | undefined, line: unknown) => {
+    const name = path === undefined ? undefined : nameIn(paths, path);
+    return name && typeof line === "number" && line > 0 ? `${name}:${line}` : name;
+  };
+  const position = (error as { position?: { file?: string; line?: number } } | null)?.position;
+  const pointed = at(position?.file, position?.line);
+  if (pointed) return pointed;
   const stack = error instanceof Error ? (error.stack ?? "") : "";
-  for (const match of stack.matchAll(/^\s*at (?:.*?\()?(.+?):\d+:\d+\)?$/gm)) {
-    if (inside(match[1])) return match[1];
+  for (const match of stack.matchAll(/^\s*at (?:.*?\()?(.+?):(\d+):\d+\)?$/gm)) {
+    const frame = at(match[1], Number(match[2]));
+    if (frame) return frame;
   }
   return imported;
 }
 
 /** Evaluate every world file in sorted order; each answers its exports, keyed by its from-root path. */
-async function evaluate(root: string): Promise<[file: string, exports: Record<string, unknown>][]> {
-  const dir = inWorld(root);
-  const worldDirs = [dir, realpathSync(dir)];
-  const modules: [string, Record<string, unknown>][] = [];
-  useCliWorldRuntime();
-  for (const path of worldFiles(root)) {
+async function evaluate(root: string): Promise<Module[]> {
+  const files = worldFiles(root);
+  const paths = worldPaths(root, files);
+  const modules: Module[] = [];
+  useCliWorldRuntime(paths);
+  for (const path of files) {
     const absolute = inWorld(root, ...path.split("/"));
     try {
       modules.push([fromRoot(path), (await import(pathToFileURL(absolute).href)) as Record<string, unknown>]);
     } catch (error) {
-      const file = failingFile(error, worldDirs, absolute);
-      const worldDir = worldDirs.find((candidate) => file.startsWith(`${candidate}${sep}`)) ?? dir;
-      throw new CliError(`${fromRoot(...relative(worldDir, file).split(sep))}: ${oneLine(error)}`);
+      // The import guard's error already names its file.
+      if (error instanceof CliError) throw error;
+      throw new CliError(`${failingAt(error, paths, fromRoot(path))}: ${oneLine(error)}`);
     }
   }
   return modules;
@@ -101,7 +169,7 @@ function isNode(value: unknown): value is NodeRef {
 }
 
 /** Names from exports: the first export in sorted file order wins; `default` names nothing. */
-function namesOf(modules: readonly [string, Record<string, unknown>][]): Map<NodeRef, Named> {
+function namesOf(modules: readonly Module[]): Map<NodeRef, Named> {
   const names = new Map<NodeRef, Named>();
   for (const [file, exports] of modules) {
     for (const [name, value] of Object.entries(exports)) {
@@ -112,7 +180,7 @@ function namesOf(modules: readonly [string, Record<string, unknown>][]): Map<Nod
 }
 
 /** The world's top-level nodes, from the default export of index.ts. */
-function topLevelOf(modules: readonly [string, Record<string, unknown>][]): readonly unknown[] {
+function topLevelOf(modules: readonly Module[]): readonly unknown[] {
   const index = fromRoot(WORLD_INDEX);
   const world = modules.find(([file]) => file === index)?.[1].default as { $ref?: unknown; children?: unknown };
   if (world?.$ref !== "world" || !Array.isArray(world.children)) {
@@ -126,7 +194,7 @@ function topLevelOf(modules: readonly [string, Record<string, unknown>][]): read
  * reference by identity and judges nothing: ids, orphans, scope and names are
  * check's rules.
  */
-function specsOf(modules: readonly [string, Record<string, unknown>][]): LoadedWorld {
+function specsOf(modules: readonly Module[]): LoadedWorld {
   const names = namesOf(modules);
   const index = fromRoot(WORLD_INDEX);
   const fileOf = (node: NodeRef | null) => (node && names.get(node)?.file) ?? index;
@@ -151,13 +219,16 @@ function specsOf(modules: readonly [string, Record<string, unknown>][]): LoadedW
 
   const placeholders = new Map<UnresolvedPortRef, Placeholder>();
 
-  /** A lazy edge list, evaluated; a throwing function is a load error about the node's file. */
+  /** A lazy edge list, evaluated; a throwing function or a value that is no list is a load error about the node's file. */
   const edgeList = (node: NodeRef, edge: "uses" | "implements"): readonly unknown[] => {
+    let list: unknown;
     try {
-      return node.$def[edge]?.() ?? [];
+      list = node.$def[edge]?.() ?? [];
     } catch (error) {
       throw new CliError(`${fileOf(node)}: ${nameOf(node)}.${edge}: ${oneLine(error)}`);
     }
+    if (!Array.isArray(list)) throw new CliError(`${fileOf(node)}: ${nameOf(node)}.${edge} does not return a list`);
+    return list;
   };
 
   /** One uses edge per target node, listing every port used there; placeholders are recorded, not edges. */
@@ -167,9 +238,12 @@ function specsOf(modules: readonly [string, Record<string, unknown>][]): LoadedW
       const port = ref as { $ref?: unknown; node?: unknown; name?: unknown; port?: { name?: unknown } };
       if (port?.$ref === "unresolved") {
         const hole = ref as UnresolvedPortRef;
-        const placeholder = placeholders.get(hole) ?? { kind: hole.kind, description: hole.description, users: [] };
+        let placeholder = placeholders.get(hole);
+        if (!placeholder) {
+          placeholder = { kind: hole.kind, description: hole.description, users: [] };
+          placeholders.set(hole, placeholder);
+        }
         if (!placeholder.users.includes(node.$def.id)) placeholder.users.push(node.$def.id);
-        placeholders.set(hole, placeholder);
         continue;
       }
       // An inherited port is the implementor's: the edge goes to it, under the contract's port name.
@@ -227,6 +301,9 @@ function specsOf(modules: readonly [string, Record<string, unknown>][]): LoadedW
  * Load the world at `root`: evaluate every world file in-process and answer
  * the world as NodeSpecs plus its tbd placeholders. Writes, spawns and prompts
  * nothing, and checks no rule. Every failure is one CliError naming the file.
+ *
+ * Once per root per process: Bun caches every evaluated module by its path, so
+ * a second load of the same root answers the files as first evaluated.
  */
 export async function loadWorld(root: string): Promise<LoadedWorld> {
   if (!existsSync(inWorld(root, WORLD_INDEX))) {

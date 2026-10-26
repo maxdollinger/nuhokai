@@ -132,6 +132,6 @@ test("a throwing node file: one line naming the file, exit 1, the previous map k
 
   expect(await runMap(repo, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual(["nuhokai map: nuhokai/orders.ts: orders broke"]);
+  expect(output.err).toEqual(["nuhokai map: nuhokai/orders.ts:1: orders broke"]);
   expect(readFileSync(join(repo, MAP), "utf8")).toBe(map);
 });

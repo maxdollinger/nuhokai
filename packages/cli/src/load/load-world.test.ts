@@ -1,5 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -247,25 +256,48 @@ import { A } from "./orders.ts";
 export default defineWorld({ children: [A] });
 `;
   const orders = `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges({});\n`;
+  const edges = (body: string) =>
+    `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges(${body} as never);\n`;
+  const guard = "imports are only relative files and @nuhokai/world, got";
   const cases: [Record<string, string>, string][] = [
     [{ "orders.ts": orders }, "nuhokai/index.ts: not found"],
-    [{ "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` }, "nuhokai/orders.ts: "],
-    [{ "index.ts": index, "orders.ts": `${orders}throw new Error("boom\\nhere");\n` }, "nuhokai/orders.ts: boom here"],
+    [{ "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` }, "nuhokai/orders.ts:3: Unexpected ;"],
+    [
+      { "index.ts": index, "orders.ts": `${orders}throw new Error("boom\\nhere");\n` },
+      "nuhokai/orders.ts:3: boom here",
+    ],
     [{ "index.ts": index, "orders.ts": orders, "sub/deep.ts": 'import "./gone.ts";\n' }, "nuhokai/sub/deep.ts: "],
     [{ "index.ts": "export default { children: [] };\n", "orders.ts": orders }, "nuhokai/index.ts: the default export"],
     [
+      { "index.ts": index, "orders.ts": edges('{ uses: () => { throw new Error("lazy"); } }') },
+      "nuhokai/orders.ts: A.uses: lazy",
+    ],
+    [
+      { "index.ts": index, "orders.ts": edges("{ uses: () => 1 }") },
+      "nuhokai/orders.ts: A.uses does not return a list",
+    ],
+    [
+      { "index.ts": index, "orders.ts": edges("{ implements: () => ({}) }") },
+      "nuhokai/orders.ts: A.implements does not",
+    ],
+    [
+      { "index.ts": index, "orders.ts": `import pad from "nuhokai-no-such-package";\npad;\n${orders}` },
+      `nuhokai/orders.ts: ${guard} 'nuhokai-no-such-package'`,
+    ],
+    [
       {
         "index.ts": index,
-        "orders.ts": `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges({ uses: () => { throw new Error("lazy"); } });\n`,
+        "orders.ts": `export { A } from "./sub/a.ts";\n`,
+        "sub/a.ts": `${orders}export const fs = require("node:fs");\n`,
       },
-      "nuhokai/orders.ts: A.uses: lazy",
+      `nuhokai/sub/a.ts: ${guard} 'node:fs'`,
     ],
   ];
 
   for (const [files, prefix] of cases) {
     const error = await loadError(world(files));
     expect(error, prefix).toBeInstanceOf(CliError);
-    expect((error as Error).message.startsWith(prefix), (error as Error).message).toBe(true);
+    expect((error as Error).message).toStartWith(prefix);
     expect((error as Error).message).not.toContain("\n");
   }
 });
@@ -281,7 +313,7 @@ export default defineWorld({ children: [A] });
     }),
   );
 
-  expect((error as Error).message).toBe("nuhokai/z-throws.ts: from z");
+  expect((error as Error).message).toBe("nuhokai/z-throws.ts:1: from z");
 });
 
 test("generated files, declarations and tests are never evaluated", async () => {
@@ -296,4 +328,37 @@ export default defineWorld({ children: [A] });
   });
 
   expect((await loadWorld(root)).nodes.map((spec) => spec.id)).toEqual(["a"]);
+});
+
+test("a symlinked node file is a node file: its export names the node", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Shared } from "./linked.ts";
+export default defineWorld({ children: [Shared] });
+`,
+  });
+  mkdirSync(join(root, "shared"));
+  writeFileSync(
+    join(root, "shared/node.ts"),
+    `import { node } from "@nuhokai/world";\nexport const Shared = node(${leaf("shared")}).edges({});\n`,
+  );
+  symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
+
+  expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["Shared"]);
+});
+
+test("a bare import in a symlinked node file is rejected under its world name", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { A } from "./linked.ts";
+export default defineWorld({ children: [A] });
+`,
+  });
+  mkdirSync(join(root, "shared"));
+  writeFileSync(join(root, "shared/node.ts"), 'export { A } from "nuhokai-no-such-package";\n');
+  symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
+
+  expect((await loadError(root)) as Error).toMatchObject({
+    message: "nuhokai/linked.ts: imports are only relative files and @nuhokai/world, got 'nuhokai-no-such-package'",
+  });
 });
