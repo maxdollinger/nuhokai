@@ -11,7 +11,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "build": "bun build src/bin.ts --target=bun --outdir=dist"
+    "embed": "bun scripts/embed-world.ts",
+    "build": "bun run embed && bun build src/bin.ts --target=bun --outdir=dist"
   },
   "dependencies": {
     "@nuhokai/world": "workspace:*"
