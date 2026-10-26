@@ -1,7 +1,7 @@
-import { defineNode } from "@nuhokai/world";
+import { node } from "@nuhokai/world";
 
 /** The CLI in world format: loader, global rules, checks, writing. */
-export const Cli = defineNode({
+export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
     "Loads a repo's nuhokai folder into one checked, navigable model. Owns the toolchain (loader, tsc, world " +

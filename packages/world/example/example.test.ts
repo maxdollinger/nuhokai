@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { NodeRef, PortRef, WorldChild } from "../src/index.ts";
+import type { NodeRef, PortRef } from "../src/index.ts";
 import exampleWorld, * as world from "./index.ts";
 
 // Every node file (type-errors.ts is compile-time only and never evaluated), by file name.
@@ -18,24 +18,19 @@ const nodes = modules.flatMap(([file, exports]) =>
 
 /** Every lazy edge of a node, evaluated, labelled for failure messages. */
 function edgesOf(node: NodeRef): [string, unknown][] {
-  const { uses, implements: impl, delegate = {} } = node.$def;
+  const { uses, implements: impl } = node.$def;
   return [
     ...(uses?.() ?? []).map((ref, i): [string, unknown] => [`uses[${i}]`, ref]),
     ...(impl?.() ?? []).map((ref, i): [string, unknown] => [`implements[${i}]`, ref]),
-    ...Object.entries(delegate).map(([port, ref]): [string, unknown] => [`delegate.${port}`, ref()]),
   ];
 }
 
+/** A node's direct children, from its `children` record. */
+const childrenOf = (node: NodeRef): NodeRef[] => Object.values(node.$def.children ?? {});
+
 /** Every node in the world tree with its parent (`null` at the top level), depth first. */
-function walk(
-  children: readonly WorldChild[],
-  parent: NodeRef | null = null,
-): { node: NodeRef; parent: NodeRef | null }[] {
-  return children.flatMap((child) =>
-    child.$ref === "relation"
-      ? [{ node: child.parent, parent }, ...walk(child.children, child.parent)]
-      : [{ node: child, parent }],
-  );
+function walk(nodes: readonly NodeRef[], parent: NodeRef | null = null): { node: NodeRef; parent: NodeRef | null }[] {
+  return nodes.flatMap((node) => [{ node, parent }, ...walk(childrenOf(node), node)]);
 }
 const placed = walk(exampleWorld.children);
 const parentOf = (node: NodeRef) => placed.find((entry) => entry.node === node)?.parent;
@@ -83,14 +78,23 @@ describe("example world", () => {
     expect(parentOf(world.AuditLog)).toBeNull();
   });
 
-  test("every delegate target is a direct child of the delegating node", () => {
+  test("a leaf declares its own ports; a dome delegates every port to a direct child port", () => {
+    expect(Object.keys(world.Orders.ports).sort()).toEqual(["cancelled", "place"]);
     for (const { name, node } of nodes) {
-      for (const [port, target] of Object.entries(node.$def.delegate ?? {})) {
-        const ref = target();
-        if (ref.$ref !== "unresolved") expect(parentOf(ref.node), `${name}.${port}`).toBe(node);
+      for (const [port, def] of Object.entries(node.$def.ports ?? {})) {
+        if (!childrenOf(node).length) continue;
+        const target = def.delegate;
+        expect(target, `${name}.${port}`).toBeDefined();
+        const child = childrenOf(node).find((candidate) => candidate.$def.id === target?.to);
+        expect(child, `${name}.${port}`).toBeDefined();
+        const own = child?.$def.ports?.[target?.port ?? ""];
+        const inheritedPort = child?.$def.implements?.().some((contract) => contract.$def.ports?.[target?.port ?? ""]);
+        expect(own ?? inheritedPort, `${name}.${port}`).toBeTruthy();
       }
     }
-    expect(world.Shop.$def.delegate?.placeOrder?.()).toBe(world.Orders.place);
+    expect(world.Shop.$def.ports?.placeOrder?.delegate).toEqual({ to: world.Orders.$def.id, port: "place" });
+    expect(world.Shop.placeOrder.node).toBe(world.Shop);
+    expect(world.Shop.ports.placeOrder).toBe(world.Shop.placeOrder);
   });
 
   test("node files never import the world file", () => {
@@ -101,13 +105,12 @@ describe("example world", () => {
     }
   });
 
-  test("a parent delegates to a port its child inherited", () => {
-    expect<unknown>(world.Shop.$def.delegate?.orderHistory?.()).toEqual({
-      $ref: "inherited",
-      kind: "call",
-      node: world.Orders,
-      port: world.AuditLog.history,
-    });
+  test("a dome exposes a port its child inherited", () => {
+    const def = world.Shop.$def.ports?.orderHistory;
+    expect(def?.delegate).toEqual({ to: world.Orders.$def.id, port: "history" });
+    expect(def?.kind).toBe("call");
+    if (def?.kind === "call") expect(def.input).toBe("entity id");
+    expect(world.Shop.orderHistory.node).toBe(world.Shop);
     expect(world.Orders.$def.implements?.()).toEqual([world.AuditLog]);
   });
 

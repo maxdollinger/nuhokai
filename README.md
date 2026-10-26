@@ -11,7 +11,7 @@ TypeScript on Bun.
 
 ```
 packages/
-  world/                world format: MAX-5 node types, defineNode, typed refs, tbd placeholders (MAX-10), defineWorld/relation (MAX-12)
+  world/                world format: MAX-5 node types, node()/defineWorld, leaves and domes, typed refs, tbd (MAX-10, MAX-16)
   cli/                  @nuhokai/cli: loads a world, owns the toolchain (tsc, embedded world types), prints diagnostics
 ```
 

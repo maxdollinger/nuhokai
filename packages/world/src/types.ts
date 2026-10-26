@@ -3,24 +3,29 @@ import type { CallPort, EventPort, NodeId, NodeSpec, Port } from "./node-spec.ts
 export type { NodeId };
 
 /**
- * Types of the world format (MAX-10): nodes as TS files whose edges are typed
- * references to other nodes, so `tsc` catches dangling references.
+ * Types of the world format (MAX-10, MAX-16): nodes as TS files whose edges are
+ * typed references to other nodes, so `tsc` catches dangling references.
  *
  * Everything here is derived from the MAX-5 node spec (`nuhokai/node@1`);
  * only the fields the world format represents differently are replaced:
  * - `id` is any string, kept as a literal type on the handle; `name` is not
  *   authored (the loader takes the export name); `schema` is implied.
- * - `edges` and ports' `delegate` become lazy typed references.
- * - `parent` is not a node field: the world file places every node with
- *   `defineWorld` and `relation` (MAX-12).
+ * - `edges` become lazy typed references; a dome's ports are references to
+ *   direct children's ports.
+ * - `parent` is not a node field: a node lists its direct children itself, and
+ *   `defineWorld` lists the top-level nodes (MAX-16).
  * - `ports` is a record keyed by port name instead of an array, so
  *   `Node.portName` resolves to the declaring key (go-to-definition, find references).
  *
- * A node is defined in two steps: `defineNode(static fields)` is generic and
- * infers the handle's type; `.edges(lazy references)` is not generic, so the
- * handle's type depends only on the contracts it implements and the children
- * it delegates to, never on a node that could point back, and reference cycles
- * need no annotations.
+ * A node with children is a dome: a pure container whose behavior is its
+ * children. Its ports are references to direct children's ports, never fields
+ * of its own. A node without children is a leaf: it declares its own ports.
+ *
+ * A node is defined in two steps: `node(static fields)` is generic and infers
+ * the handle's type; `.edges(lazy references)` is not generic, so the handle's
+ * type depends only on the contracts it implements and its direct children,
+ * never on a node that could point back, and reference cycles need no
+ * annotations.
  *
  * The MAX-5 types live in `node-spec.ts`; all imports are type-only and erased at runtime.
  */
@@ -45,10 +50,6 @@ declare class UnresolvedBrand {
   #unresolved: true;
 }
 // biome-ignore lint/correctness/noUnusedPrivateClassMembers: the member is the brand
-declare class RelationBrand {
-  #relation: true;
-}
-// biome-ignore lint/correctness/noUnusedPrivateClassMembers: the member is the brand
 declare class WorldBrand {
   #world: true;
 }
@@ -64,22 +65,17 @@ export type Forbidden<Message extends string> = { readonly [K in Message]: never
 
 // ─── References ──────────────────────────────────────────────────────────
 
-/** Own port name -> id of the node it delegates to (`never` for a placeholder). */
-export type DelegateIds = { readonly [port: string]: NodeId };
-
 /**
  * Reference to a node; at runtime the handle returned by `.edges()`.
- * The type parameters are the node's static facts as literal types, so edges
- * and relations can restrict which nodes they accept: its flags, its `id`,
- * `Impl`, the ids of the contracts it implements (checked by `inherited`), and
- * `Delegates`, the nodes its ports delegate to (checked by `relation`).
+ * The type parameters are the node's static facts as literal types, so
+ * children and `inherited` can restrict which nodes they accept: its flags,
+ * its `id`, and the ids of the contracts it implements.
  */
 export interface NodeRef<
   External extends boolean = boolean,
   Abstract extends boolean = boolean,
   Id extends NodeId = NodeId,
   Impl extends NodeId = never,
-  Delegates extends DelegateIds = DelegateIds,
 > extends NodeBrand {
   readonly [nodeFlags]: {
     readonly external: External;
@@ -87,11 +83,10 @@ export interface NodeRef<
     readonly id: Id;
     // A parameter, so a node implementing more contracts is still assignable.
     readonly implements: (contract: Impl) => void;
-    readonly delegates: Delegates;
   };
   readonly $ref: "node";
-  /** Both definition steps as authored, deep-frozen; edges stay lazy functions. */
-  readonly $def: NodeDef & NodeEdges;
+  /** Both definition steps as stored, deep-frozen; edges stay lazy functions. */
+  readonly $def: StoredNodeDef & NodeEdges;
 }
 
 /** An own port of a node, e.g. `Orders.place`. */
@@ -116,8 +111,9 @@ export interface InheritedPortRef<K extends PortKind = PortKind, Id extends Node
 
 /**
  * A typed hole created by `tbd.call` / `tbd.event`: stands for a port that is
- * not designed yet. Accepted wherever a port reference is; the unresolved
- * brand and `$ref: "unresolved"` tell it apart from a real port.
+ * not designed yet. Accepted in `uses`, but not in a dome's port mapping: a
+ * dome exposes only a real port of a direct child. The unresolved brand and
+ * `$ref: "unresolved"` tell it apart from a real port.
  */
 export interface UnresolvedPortRef<K extends PortKind = PortKind> extends PortBrand, UnresolvedBrand {
   readonly $ref: "unresolved";
@@ -133,6 +129,8 @@ export type TbdPortRef<K extends PortKind = PortKind> = UnresolvedPortRef<K>;
 export type PortRef<K extends PortKind = PortKind> = ResolvedPortRef<K> | InheritedPortRef<K> | UnresolvedPortRef<K>;
 export type CallRef = PortRef<"call">;
 export type EventRef = PortRef<"event">;
+/** A port declared by a node: what a dome may expose from a direct child. */
+export type DomePortRef<K extends PortKind = PortKind> = ResolvedPortRef<K> | InheritedPortRef<K>;
 /** Neither external nor abstract nodes can contain other nodes. */
 export type ParentRef<Id extends NodeId = NodeId> = NodeRef<false, false, Id>;
 /** A node that can be implemented. */
@@ -150,19 +148,32 @@ type Authored<T> = T extends readonly (infer U)[]
     ? { readonly [K in keyof T]: Authored<T[K]> }
     : T;
 
-/** MAX-5 `CallPort` without `name` (the record key); `delegate` moves to the node's `delegate`. */
+/** MAX-5 `CallPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
 export interface WorldCallPort extends Authored<Omit<CallPort, "name" | "delegate">> {}
 
-/** MAX-5 `EventPort` without `name` (the record key); `delegate` moves to the node's `delegate`. */
+/** MAX-5 `EventPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
 export interface WorldEventPort extends Authored<Omit<EventPort, "name" | "delegate">> {}
 
 export type WorldPort = WorldCallPort | WorldEventPort;
 
+/** A port as stored in `$def`: a dome port records the direct child port it exposes. */
+export type StoredWorldPort = WorldPort & {
+  readonly delegate?: { readonly to: NodeId; readonly port: string };
+};
+/** Stored ports, keyed by name. */
+export type StoredPortsDef = { readonly [name: string]: StoredWorldPort };
+
 /**
- * Ports keyed by name. Names starting with `$` are reserved for the handle's
- * own properties (`$ref`, `$def`).
+ * Authored ports, keyed by name. Names starting with `$` are reserved for the
+ * handle's own properties (`$ref`, `$def`); `ports` is reserved for its port namespace.
  */
 export type PortsDef = { readonly [name: string]: WorldPort } & { readonly [name: `$${string}`]: never };
+
+/** Direct children keyed by the name a dome uses to reference them, e.g. `{ cmd: Cmd }`. */
+export type ChildNodes = { readonly [name: string]: ParentRef };
+
+/** What a dome's ports function returns: one direct child's port per own port name. */
+export type DomePortsDef = { readonly [name: string]: DomePortRef };
 
 /** MAX-5 fields the world format replaces or derives. */
 type Replaced =
@@ -185,20 +196,15 @@ export type TestCasesDef = Authored<NonNullable<NodeSpec["testCases"]>>;
 /** Lazy MAX-5 `implements` edges; an alias, so that `NodeRules` can repeat the exact type. */
 export type Implements<Contracts extends readonly ContractRef[]> = () => Contracts;
 
-/** Delegates keyed by own port name; each returns the direct child's port that handles it. */
-export type DelegatesDef = { readonly [port: string]: () => PortRef };
-
 /**
- * Step one of a node, the argument of `defineNode`: its static fields.
- * All fields not declared here are MAX-5 `NodeSpec` fields.
+ * The fields every node authors. All fields not declared here are MAX-5
+ * `NodeSpec` fields; `ports` and `children` are added by `NodeShape`.
  */
 export interface NodeDef<
-  P extends PortsDef = PortsDef,
   External extends boolean = boolean,
   Abstract extends boolean = boolean,
   Id extends NodeId = NodeId,
   Contracts extends readonly ContractRef[] = readonly ContractRef[],
-  D extends DelegatesDef = DelegatesDef,
   R extends RequirementsDef = RequirementsDef,
   T extends TestCasesDef = TestCasesDef,
 > extends Authored<Omit<NodeSpec, Replaced>> {
@@ -207,7 +213,6 @@ export interface NodeDef<
   readonly external?: External;
   /** Defaults to false. */
   readonly abstract?: Abstract;
-  readonly ports?: P;
   /**
    * MAX-5 `implements` edges: the abstract nodes whose contract this node
    * fulfils. Lazy like every edge, but part of step one because the handle's
@@ -216,28 +221,55 @@ export interface NodeDef<
    * this never forms a type cycle.
    */
   readonly implements?: Implements<Contracts>;
-  /**
-   * MAX-5 ports' `delegate`, keyed by own port name: the direct child's port
-   * that handles it, e.g. `{ placeOrder: () => Orders.place }`. Part of step
-   * one because the handle's type records the targets, which `relation`
-   * checks against the parent's children. Delegation only points down to
-   * direct children, so this never forms a type cycle.
-   */
-  readonly delegate?: D;
   /** MAX-5 `requirements`; a type parameter, so that tsc can check the ids. */
   readonly requirements?: R;
   /** MAX-5 `testCases`; a type parameter, so that tsc can check `demonstrates`. */
   readonly testCases?: T;
 }
 
+/**
+ * The argument shape `node` infers from: a leaf has no children and a ports
+ * record; a dome has a children record and a ports function. `C` is `undefined`
+ * for a leaf, which keeps an empty `children: {}` recognisable as a dome.
+ */
+export interface NodeShape<
+  C extends Record<string, unknown> | undefined = undefined,
+  P extends Record<string, unknown> = Record<string, unknown>,
+  External extends boolean = boolean,
+  Abstract extends boolean = boolean,
+  Id extends NodeId = NodeId,
+  Contracts extends readonly ContractRef[] = readonly ContractRef[],
+  R extends RequirementsDef = RequirementsDef,
+  T extends TestCasesDef = TestCasesDef,
+> extends NodeDef<External, Abstract, Id, Contracts, R, T> {
+  readonly children?: C;
+  readonly ports?: IsDome<C> extends true ? (children: NonNullable<C>) => P : P;
+}
+
 /** Step two of a node, the argument of `.edges()`: lazy references to other nodes. */
 export interface NodeEdges {
   /**
-   * MAX-5 `uses` edges: every port this node depends on. The loader groups them
+   * MAX-5 `uses` edges: every port this leaf depends on. The loader groups them
    * by node and checks the scope against the world tree. Not in step one:
    * `uses` may point anywhere, also back, so it would form type cycles (TS7022).
    */
   readonly uses?: () => readonly PortRef[];
+}
+
+/**
+ * A node definition as stored in `$def`: the authored fields with a dome's
+ * ports function resolved to port definitions. Each dome port carries the
+ * MAX-5 `delegate` to the direct child port it exposes.
+ */
+export interface StoredNodeDef extends Authored<Omit<NodeSpec, Replaced>> {
+  readonly id: NodeId;
+  readonly external?: boolean;
+  readonly abstract?: boolean;
+  readonly ports?: StoredPortsDef;
+  readonly children?: ChildNodes;
+  readonly implements?: () => readonly ContractRef[];
+  readonly requirements?: RequirementsDef;
+  readonly testCases?: TestCasesDef;
 }
 
 // ─── Compile-time rules ──────────────────────────────────────────────────
@@ -254,18 +286,16 @@ export interface NodeEdges {
 export type PortRules<P> = string extends keyof P
   ? Forbidden<"ports need literal names: pass the record inline or `as const`">
   : ("" extends keyof P ? { readonly "": Forbidden<"port names must not be empty"> } : unknown) &
-      ("__proto__" extends keyof P ? { readonly __proto__: Forbidden<"`__proto__` is not a port name"> } : unknown);
+      ("__proto__" extends keyof P ? { readonly __proto__: Forbidden<"`__proto__` is not a port name"> } : unknown) &
+      ("ports" extends keyof P
+        ? { readonly ports: Forbidden<"`ports` is reserved for the handle's port namespace"> }
+        : unknown);
 
-/** Flag rules for step one. */
+/** Flag rules for the fields a node authors, independent of children. */
 export type DefRules<External extends boolean, Abstract extends boolean> = (true extends External
-  ? { readonly delegate?: Forbidden<"external nodes have no children to delegate to"> }
+  ? unknown
   : { readonly externalType?: Forbidden<"externalType is for external nodes only"> }) &
-  (true extends Abstract
-    ? {
-        readonly implements?: Forbidden<"abstract nodes implement no other node">;
-        readonly delegate?: Forbidden<"abstract nodes do not delegate">;
-      }
-    : unknown);
+  (true extends Abstract ? { readonly implements?: Forbidden<"abstract nodes implement no other node"> } : unknown);
 
 /** A contract's port names: the handle's keys minus the reference's own. Distributes; `never` has none. */
 type PortNamesOf<N> = N extends unknown ? Exclude<keyof N, keyof NodeRef> & string : never;
@@ -308,7 +338,7 @@ type ContractClashes<
       ]
   : readonly unknown[];
 
-/** The contracts with their clash rules; a type argument of `NodeDef` in `defineNode`. */
+/** The contracts with their clash rules; a type argument of `NodeDef` in `node`. */
 export type CheckedContracts<Contracts extends readonly ContractRef[]> = Contracts &
   NoInfer<[ContractClashNames<Contracts>] extends [never] ? unknown : ContractClashes<Contracts>>;
 
@@ -331,30 +361,6 @@ type InheritedPortRules<P, Contracts extends readonly ContractRef[]> = [
         PortNamesOf<Contracts[number]>
       >]: Forbidden<`\`${K}\` is inherited from an implemented contract; an own port must not have its name`>;
     };
-
-/**
- * Delegate keys are own port names; the target has the port's kind, and the
- * port declares no shapes. An inherited port cannot delegate: in MAX-5,
- * `delegate` is a field of a port the node declares itself.
- */
-type DelegateRules<P extends PortsDef, D, Contracts extends readonly ContractRef[]> = {
-  readonly [K in keyof D]: K extends keyof P
-    ? Extract<keyof P[K], "input" | "output" | "errors" | "payload"> extends never
-      ? () => PortRef<P[K]["kind"]>
-      : Forbidden<"a delegated port declares no input, output, errors or payload">
-    : K extends PortNamesOf<Contracts[number]>
-      ? Forbidden<`\`${K}\` is inherited from an implemented contract; only own ports delegate`>
-      : [keyof P] extends [never]
-        ? Forbidden<"a node without ports has nothing to delegate">
-        : Forbidden<"delegate keys are the node's own port names">;
-};
-
-/** The node id each delegate points to; `never` for a placeholder. Recorded on the handle. */
-export type DelegateTargets<D> = {
-  readonly [K in keyof D]: D[K] extends () => infer Ref
-    ? NodeIdOf<Ref extends { readonly node: infer N } ? N : never>
-    : never;
-};
 
 /** Requirement ids that occur more than once. */
 type DuplicateRequirementIds<R extends readonly unknown[], Seen = never> = R extends readonly [
@@ -383,7 +389,7 @@ type UniqueRequirementIds<R extends readonly unknown[], Seen = never> = R extend
     ]
   : readonly unknown[];
 
-/** The requirements with the uniqueness rule; a type argument of `NodeDef` in `defineNode`. */
+/** The requirements with the uniqueness rule; a type argument of `NodeDef` in `node`. */
 export type CheckedRequirements<R extends RequirementsDef> = R &
   NoInfer<[DuplicateRequirementIds<R>] extends [never] ? unknown : UniqueRequirementIds<R>>;
 
@@ -411,8 +417,8 @@ type TestCaseRules<T, Ids> = {
 
 /**
  * The test cases with the `demonstrates` rule, a type argument of `NodeDef` in
- * `defineNode`: only own requirement ids. Whether an implementor may
- * demonstrate a contract's requirement is open (MAX-5 is silent).
+ * `node`: only own requirement ids. Whether an implementor may demonstrate a
+ * contract's requirement is open (MAX-5 is silent).
  */
 export type CheckedTestCases<T extends TestCasesDef, R extends RequirementsDef> = T &
   NoInfer<
@@ -422,180 +428,258 @@ export type CheckedTestCases<T extends TestCasesDef, R extends RequirementsDef> 
   >;
 
 /**
- * The step-one rules not carried by the type arguments of `NodeDef`,
- * intersected with the argument of `defineNode`.
+ * The step-one rules of a leaf not carried by the type arguments of
+ * `NodeDef`, intersected with the argument of `node`.
  */
 export type NodeRules<
   P extends PortsDef,
   External extends boolean,
   Abstract extends boolean,
   Contracts extends readonly ContractRef[],
-  D extends DelegatesDef,
 > = {
   readonly ports?: PortRules<P> & NoInfer<InheritedPortRules<P, Contracts>>;
-  readonly delegate?: NoInfer<DelegateRules<P, D, Contracts>>;
 } & NoInfer<ContractRules<Contracts>> &
   DefRules<External, Abstract>;
 
-/** Step two, with the rules that depend on step one. */
-export type EdgesOf<Abstract extends boolean> = NodeEdges &
-  (true extends Abstract ? { readonly uses?: Forbidden<"abstract nodes have no uses edges"> } : unknown);
-
-// ─── Handles ─────────────────────────────────────────────────────────────
-
-/** What `defineNode` returns. Not a node yet: call `.edges()`, also with `{}`. */
-export interface NodeDraft<
-  P extends PortsDef,
-  External extends boolean,
-  Abstract extends boolean,
-  Id extends NodeId,
-  Impl extends NodeId,
-  Delegates extends DelegateIds,
-> {
-  readonly $ref: "draft";
-  /** Adds the lazy edges and returns the node's handle. */
-  edges(edges: EdgesOf<Abstract>): NodeHandle<P, External, Abstract, Id, Impl, Delegates>;
-}
-
-/** A node reference with one property per own port. */
-export type NodeHandle<
-  P extends PortsDef,
-  External extends boolean,
-  Abstract extends boolean,
-  Id extends NodeId,
-  Impl extends NodeId,
-  Delegates extends DelegateIds,
-> = NodeRef<External, Abstract, Id, Impl, Delegates> & { readonly [K in keyof P]: ResolvedPortRef<P[K]["kind"], Id> };
-
-// ─── World ───────────────────────────────────────────────────────────────
-// The hierarchy, in one place: the world file lists every node, nested with
-// `relation`. Node files never import it, so it adds no import cycles.
-
-/** A parent and its direct children, created by `relation`. Its type keeps the parent's id. */
-export interface RelationRef<Id extends NodeId = NodeId> extends RelationBrand {
-  readonly $ref: "relation";
-  readonly parent: ParentRef<Id>;
-  readonly children: readonly WorldChild[];
-}
-
-/** An entry of `children`: a node without children, or a relation. */
-export type WorldChild = NodeRef | RelationRef;
-
-/** The world, created by `defineWorld`: exactly the nodes listed in its tree. */
-export interface World extends WorldBrand {
-  readonly $ref: "world";
-  /** Top-level nodes and relations. */
-  readonly children: readonly WorldChild[];
-}
+// ─── Children ────────────────────────────────────────────────────────────
 
 type FlagsOf<N> = N extends { readonly [nodeFlags]: infer Flags } ? Flags : never;
 type ExternalOf<N> = FlagsOf<N> extends { readonly external: infer E } ? E : never;
 type AbstractOf<N> = FlagsOf<N> extends { readonly abstract: infer A } ? A : never;
-type DelegatesOf<N> = FlagsOf<N> extends { readonly delegates: infer D } ? D : never;
 
-/** Own ports that delegate to a node (not to a placeholder). */
-type DelegatingPorts<N> = {
-  [K in keyof DelegatesOf<N>]: [DelegatesOf<N>[K]] extends [never] ? never : K;
-}[keyof DelegatesOf<N>] &
-  string;
-
-/** Why a `parent` or child entry is not a node at all. */
-type NotANode<V, Position extends "parent" | "child"> = V extends string
-  ? Forbidden<`a ${Position} is a node reference, not a string`>
+/** Why a child entry is not a node at all. */
+type NotANode<V> = V extends string
+  ? Forbidden<"a child is a node reference, not a string">
   : V extends { readonly $ref: "draft" }
     ? Forbidden<"a draft is not a node: call .edges(), also with {}">
     : V extends PortRef
-      ? Forbidden<`a ${Position} is a node, not a port`>
-      : Position extends "parent"
-        ? Forbidden<"a parent is a node from defineNode(...).edges(...)">
-        : Forbidden<"a child is a node from defineNode(...).edges(...) or a relation(...)">;
-
-/** The id of a child entry: the node's, or a nested relation's parent's. */
-type ChildId<C> = C extends RelationRef<infer Id> ? Id : NodeIdOf<C>;
+      ? Forbidden<"a child is a node, not a port">
+      : V extends { readonly $ref: "relation" }
+        ? Forbidden<"relation() is gone: a node lists its children itself">
+        : Forbidden<"a child is a node from node(...).edges(...)">;
 
 /**
- * `relation.parent` must be a `NodeRef<false, false>` with statically known
- * flags, and every delegate target must be one of `Children`.
- */
-export type ParentRules<Parent, Children extends readonly unknown[]> = [Parent] extends [NodeRef]
-  ? ([ExternalOf<Parent>] extends [false]
-      ? unknown
-      : [ExternalOf<Parent>] extends [true]
-        ? Forbidden<"external nodes cannot be parents: they are top level only">
-        : Forbidden<"this node may be external (its flag is not a literal), so it cannot be a parent">) &
-      ([AbstractOf<Parent>] extends [false]
-        ? unknown
-        : [AbstractOf<Parent>] extends [true]
-          ? Forbidden<"abstract nodes cannot be parents">
-          : Forbidden<"this node may be abstract (its flag is not a literal), so it cannot be a parent">) &
-      (string extends keyof DelegatesOf<Parent>
-        ? unknown
-        : {
-              [K in DelegatingPorts<Parent>]: DelegatesOf<Parent>[K] extends ChildId<Children[number]> ? never : K;
-            }[DelegatingPorts<Parent>] extends infer Missing extends string
-          ? [Missing] extends [never]
-            ? unknown
-            : Forbidden<`\`${Missing}\` delegates to a node that is not one of this relation's children`>
-          : unknown)
-  : NotANode<Parent, "parent">;
-
-/**
- * Why a node cannot be a child here, as messages; `never` if it can.
+ * Why a node cannot be a child of a dome, as messages; `never` if it can.
  * Distributes, so each node of a union (an inferred mixed array) is judged
- * by its own flags.
+ * by its own flags. Externals are top level only; abstract nodes have no
+ * children, so they cannot sit in a tree.
  */
-type NodeChildProblems<C, In extends "world" | "relation"> = C extends unknown
+type NodeChildProblems<C> = C extends unknown
   ?
-      | (In extends "world"
+      | ([ExternalOf<C>] extends [false]
           ? never
-          : [ExternalOf<C>] extends [false]
-            ? never
-            : [ExternalOf<C>] extends [true]
-              ? "external nodes are top level only: list them in defineWorld's children"
-              : "this node may be external (its flag is not a literal), so it can only be top level")
-      | (string extends keyof DelegatesOf<C>
+          : [ExternalOf<C>] extends [true]
+            ? "external nodes are top level only"
+            : "this node may be external (its flag is not a literal), so it cannot be a child")
+      | ([AbstractOf<C>] extends [false]
           ? never
-          : [DelegatingPorts<C>] extends [never]
-            ? never
-            : "this node delegates to its children, so it must be the parent of a relation(...)")
+          : [AbstractOf<C>] extends [true]
+            ? "abstract nodes cannot have children, so they cannot be a child"
+            : "this node may be abstract (its flag is not a literal), so it cannot be a child")
   : never;
 
-/** A child is a relation, or a node; also a union of both, e.g. `WorldChild`. */
-type ChildRule<C, In extends "world" | "relation"> = [C] extends [RelationRef]
-  ? unknown
-  : [C] extends [WorldChild]
-    ? [NodeChildProblems<Exclude<C, RelationRef>, In>] extends [never]
-      ? unknown
-      : Forbidden<NodeChildProblems<Exclude<C, RelationRef>, In>>
-    : NotANode<C, "child">;
+type NodeChildRule<C> = [C] extends [NodeRef]
+  ? [NodeChildProblems<C>] extends [never]
+    ? unknown
+    : Forbidden<NodeChildProblems<C>>
+  : NotANode<C>;
 
-/** Whether any child breaks a rule. */
-type HasChildErrors<Children extends readonly unknown[], In extends "world" | "relation"> = [
-  {
-    [I in keyof Children]: unknown extends ChildRule<Children[I], In> ? never : I;
-  }[number],
+/** Whether any child of a dome breaks a rule. */
+type HasNodeChildErrors<C extends Record<string, unknown>> = [
+  { [K in keyof C]: unknown extends NodeChildRule<C[K]> ? never : K }[keyof C],
 ] extends [never]
   ? false
   : true;
 
-/** `children` of `defineWorld` and `relation`: not empty, only nodes and relations; externals top level only. */
-export type ChildrenRules<
-  Children extends readonly unknown[],
-  In extends "world" | "relation",
-> = Children extends readonly []
+/** `children` of a dome: not empty, only non-external, non-abstract nodes. */
+export type ChildNodesRules<C extends Record<string, unknown>> = [keyof C] extends [never]
   ? Forbidden<"children must not be empty">
-  : HasChildErrors<Children, In> extends true
-    ? { readonly [I in keyof Children]: ChildRule<Children[I], In> }
+  : HasNodeChildErrors<C> extends true
+    ? { readonly [K in keyof C]: NodeChildRule<C[K]> }
     : unknown;
+
+/** The literal ids of a dome's direct children. */
+type ChildIds<C> = { readonly [K in keyof C]: NodeIdOf<C[K]> }[keyof C];
+/** The node id a port reference points at; `never` for an unresolved placeholder. */
+type DomePortId<R> = R extends { readonly node: infer N } ? NodeIdOf<N> : never;
+type WrongDomePorts<C, R> = {
+  [K in keyof R]: [DomePortId<R[K]>] extends [never] ? K : [DomePortId<R[K]>] extends [ChildIds<C>] ? never : K;
+}[keyof R];
+type DomePortRules<C, R> = {
+  readonly [K in keyof R]: [DomePortId<R[K]>] extends [never]
+    ? Forbidden<"a dome exposes only a port of one of its direct children">
+    : [DomePortId<R[K]>] extends [ChildIds<C>]
+      ? unknown
+      : Forbidden<"a dome exposes only a port of one of its direct children">;
+};
+
+/** The ports a dome exposes from its direct children, with the name and child rules. */
+export type CheckedDomePorts<C extends Record<string, unknown>, R extends DomePortsDef> = R &
+  NoInfer<PortRules<R> & ([WrongDomePorts<C, R>] extends [never] ? unknown : DomePortRules<C, R>)>;
+
+/** A node with children cannot be external or abstract; the flags must be literal `false`. */
+export type DomeRules<External extends boolean, Abstract extends boolean> = (true extends External
+  ? { readonly children: Forbidden<"external nodes cannot have children: they are top level only"> }
+  : [External] extends [false]
+    ? unknown
+    : {
+        readonly children: Forbidden<"this node may be external (its flag is not a literal), so it cannot have children">;
+      }) &
+  (true extends Abstract
+    ? { readonly children: Forbidden<"abstract nodes cannot have children"> }
+    : [Abstract] extends [false]
+      ? unknown
+      : {
+          readonly children: Forbidden<"this node may be abstract (its flag is not a literal), so it cannot have children">;
+        });
+
+/** Step two, with the rules that depend on step one. */
+export type EdgesOf<Abstract extends boolean, Dome extends boolean> = NodeEdges &
+  (true extends Abstract ? { readonly uses?: Forbidden<"abstract nodes have no uses edges"> } : unknown) &
+  (true extends Dome
+    ? { readonly uses?: Forbidden<"a dome has no behavior of its own: put uses in one of its children"> }
+    : unknown);
+
+// ─── Node shape ──────────────────────────────────────────────────────────
+
+/** `undefined` means no children: a leaf. Any record of children makes a dome. */
+export type IsDome<C> = [C] extends [undefined] ? false : true;
+
+type LeafPortsRules<P, Contracts extends readonly ContractRef[]> = P extends PortsDef
+  ? PortRules<P> & InheritedPortRules<P, Contracts>
+  : { readonly [K in keyof P]: Forbidden<"a leaf's ports are MAX-5 port definitions"> };
+
+type DomePortsRules<
+  C extends Record<string, unknown>,
+  P,
+  Contracts extends readonly ContractRef[],
+> = P extends DomePortsDef
+  ? PortRules<P> &
+      InheritedPortRules<P, Contracts> &
+      ([WrongDomePorts<C, P>] extends [never] ? unknown : DomePortRules<C, P>)
+  : { readonly [K in keyof P]: Forbidden<"a dome exposes only a port of one of its direct children"> };
+
+/**
+ * Everything `node` checks on one shape: a leaf needs own port definitions,
+ * a dome needs non-external children and a ports function over their ports.
+ */
+export type NodeShapeRules<
+  C extends Record<string, unknown> | undefined,
+  P,
+  External extends boolean,
+  Abstract extends boolean,
+  Contracts extends readonly ContractRef[],
+> = (IsDome<C> extends true
+  ? {
+      readonly children: NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
+      readonly ports?: (children: NonNullable<C>) => P & NoInfer<DomePortsRules<NonNullable<C>, P, Contracts>>;
+    } & DomeRules<External, Abstract>
+  : {
+      readonly ports?: P & NoInfer<LeafPortsRules<P, Contracts>>;
+    } & DefRules<External, Abstract>) &
+  NoInfer<ContractRules<Contracts>>;
+
+/** The handle's port kinds: a leaf's own ports, or the child ports a dome exposes. */
+export type PortsOfShape<C, P> =
+  IsDome<C> extends true
+    ? P extends DomePortsDef
+      ? DomeKinds<P>
+      : Record<never, never>
+    : P extends PortsDef
+      ? KindsOf<P>
+      : Record<never, never>;
+
+// ─── Handles ─────────────────────────────────────────────────────────────
+
+/** A record of port names and kinds, enough to type a handle without its MAX-5 port definitions. */
+export type PortKinds = { readonly [name: string]: PortKind };
+/** The kinds of a leaf's authored ports. */
+export type KindsOf<P extends PortsDef> = { readonly [K in keyof P]: P[K]["kind"] };
+/** The kinds of the child ports a dome exposes. */
+export type DomeKinds<R extends DomePortsDef> = { readonly [K in keyof R]: R[K]["kind"] };
+
+/** What `node` returns. Not a node yet: call `.edges()`, also with `{}`. */
+export interface NodeDraft<
+  P extends PortKinds,
+  External extends boolean,
+  Abstract extends boolean,
+  Id extends NodeId,
+  Impl extends NodeId,
+  Dome extends boolean,
+> {
+  readonly $ref: "draft";
+  /** Adds the lazy edges and returns the node's handle. */
+  edges(edges: EdgesOf<Abstract, Dome>): NodeHandle<P, External, Abstract, Id, Impl>;
+}
+
+/** A node reference with its ports as properties, plus the same references under `ports`. */
+export type NodeHandle<
+  P extends PortKinds,
+  External extends boolean,
+  Abstract extends boolean,
+  Id extends NodeId,
+  Impl extends NodeId,
+> = NodeRef<External, Abstract, Id, Impl> & {
+  readonly ports: { readonly [K in keyof P]: ResolvedPortRef<P[K], Id> };
+} & { readonly [K in keyof P]: ResolvedPortRef<P[K], Id> };
+
+// ─── World ───────────────────────────────────────────────────────────────
+// The top level of the hierarchy. Every node lists its own children; the
+// world file only lists the top-level nodes. Node files never import it, so
+// it adds no import cycles.
+
+/** An entry of the world's `children`: a top-level node. */
+export type WorldChild = NodeRef;
+
+/** The world, created by `defineWorld`: exactly the top-level nodes listed. */
+export interface World extends WorldBrand {
+  readonly $ref: "world";
+  /** Top-level nodes. */
+  readonly children: readonly WorldChild[];
+}
+
+/** The world's children: not empty, nodes only; externals are allowed here. */
+export type WorldChildrenRules<Children extends readonly unknown[]> = Children extends readonly []
+  ? Forbidden<"children must not be empty">
+  : [
+        {
+          [I in keyof Children]: [Children[I]] extends [NodeRef] ? never : I;
+        }[number],
+      ] extends [never]
+    ? unknown
+    : {
+        readonly [I in keyof Children]: [Children[I]] extends [NodeRef] ? unknown : NotANode<Children[I]>;
+      };
 
 // ─── Sync with MAX-5 ─────────────────────────────────────────────────────
 // Fails to compile if the world format drops or duplicates a MAX-5 field.
-// `parent` is not a node field: `relation` in the world file places nodes.
+// `parent` is not a node field: a node lists its children and `defineWorld`
+// lists the top-level nodes.
 
 type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type LeafKeys = keyof NodeShape<
+  undefined,
+  PortsDef,
+  boolean,
+  boolean,
+  NodeId,
+  readonly ContractRef[],
+  RequirementsDef,
+  TestCasesDef
+>;
+type DomeKeys = keyof NodeShape<
+  Record<string, unknown>,
+  DomePortsDef,
+  boolean,
+  boolean,
+  NodeId,
+  readonly ContractRef[],
+  RequirementsDef,
+  TestCasesDef
+>;
 const _nodeFieldsInSync: Equals<
-  keyof NodeDef | keyof NodeEdges | "schema" | "name" | "parent" | "edges",
-  keyof NodeSpec | "implements" | "uses" | "delegate"
+  LeafKeys | DomeKeys | keyof NodeEdges | "schema" | "name" | "parent" | "edges",
+  keyof NodeSpec | "implements" | "uses" | "children"
 > = true;
 const _callFieldsInSync: Equals<keyof WorldCallPort | "name" | "delegate", keyof CallPort> = true;
 const _eventFieldsInSync: Equals<keyof WorldEventPort | "name" | "delegate", keyof EventPort> = true;
