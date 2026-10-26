@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Init } from "./init.ts";
 
 /** The CLI in world format: loader, global rules, checks, writing. */
 export const Cli = node({
@@ -35,26 +36,23 @@ export const Cli = node({
   ],
   testCases: [
     { text: "Usage lists every command; --help exits 0.", demonstrates: ["R3"] },
-    { text: "An unknown command prints usage to stderr and exits 2.", demonstrates: ["R2", "R3"] },
-    { text: "A command's non-zero exit code reaches the process unchanged.", demonstrates: ["R2"] },
-    { text: "Empty node_modules: only authored violations.", demonstrates: ["R1"] },
-    { text: "Non-relative import rejected; checker runs without node_modules.", demonstrates: ["R5"] },
+    {
+      text: "An unknown command prints usage to stderr and exits 2; a command's non-zero exit reaches the process unchanged.",
+      demonstrates: ["R2", "R3"],
+    },
+    {
+      text: "With an empty node_modules the checker reports only authored violations and rejects a non-relative import.",
+      demonstrates: ["R1", "R5"],
+    },
   ],
   decisions: [
     {
-      decision: "TS on Bun: loading means executing TS; Go would embed or spawn Bun anyway.",
-      why: "Lazy edges, cycles, spreads and inherited/tbd need evaluation; static parsing loses identity; a second runtime multiplies failure modes.",
+      decision: "TypeScript on Bun, shipped as a per-platform binary embedding Bun, @nuhokai/world and the checker.",
+      why: "Loading means executing TS (lazy edges, cycles, spreads), so Bun is required; embedding makes the repo toolchain-free.",
       rejected: [
         { option: "Go parser", why: "Cannot evaluate lazy edges, cycles or computed refs; no identity." },
-        { option: "Go + Bun stdio", why: "Still needs Bun; adds a wire format and cross-process identity/file:line." },
-      ],
-    },
-    {
-      decision: "Per-platform binary: embeds Bun, @nuhokai/world runtime/.d.ts and matching tsc; repo needs nothing.",
-      why: "Zero-toolchain adoption; the native checker is embedded per platform, never from the repo.",
-      rejected: [
-        { option: "npm on repo Bun/Node", why: "Forces a toolchain install." },
-        { option: "repo tsc", why: "Breaks zero-toolchain; version-dependent results." },
+        { option: "Go + Bun stdio", why: "Still needs Bun and adds a wire format." },
+        { option: "repo Bun, Node or tsc", why: "Forces a toolchain install; version-dependent results." },
         { option: "Windows", why: "Fifth artifact and platform code for no user." },
       ],
     },
@@ -64,20 +62,12 @@ export const Cli = node({
       rejected: [
         {
           option: "command ports on Cli, delegating to children",
-          why: "Delegation points down only; it would force every command under Cli and grow Cli with every command.",
+          why: "Delegation points down only; every command would force itself under Cli.",
         },
         {
           option: "command ports on Cli, duplicating each command's contract",
           why: "The copies drift from the nodes.",
         },
-      ],
-    },
-    {
-      decision: "No LSP. init/update write a CLI-owned tsconfig with paths and a self-contained world .d.ts.",
-      why: "Editors already run TS; the gap is resolution and strict options.",
-      rejected: [
-        { option: "bundled lsp", why: "Duplicates editor TS; per-editor integration." },
-        { option: "node_modules write", why: "Imposes a node_modules shape; paths + .d.ts suffice." },
       ],
     },
     {
@@ -91,14 +81,12 @@ export const Cli = node({
     {
       decision:
         "One folder nuhokai/: index.ts, nodes, tsconfig.json, .generated/world/. Same for users and this package.",
-      why: "Users see it after init, so the CLI uses it too; .generated is clearer than types; keeps .d.ts inside, no second similar root folder.",
+      why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one root.",
       rejected: [
         { option: "world/", why: "Generic; collision-prone." },
         { option: "spec/", why: "Collides; implies prose, files are executed." },
-        { option: "nuhokai-spec/", why: "Long; spec undersells executable model." },
-        { option: "nuhokai/types/", why: "TS jargon; reads authored, not generated." },
-        { option: "nuhokai-spec/.nuhokai/world/", why: "Nested brands/hidden; splits authored and generated." },
+        { option: "nuhokai/types/", why: "Reads authored, not generated." },
       ],
     },
   ],
-}).edges({ uses: () => [checkCommand, Init.run, updateCommand] });
+}).edges({ uses: () => [Init.run] });

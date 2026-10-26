@@ -17,23 +17,19 @@ test("an unknown command is a usage error", async () => {
   expect(await main(["bogus"])).toBe(2);
 });
 
-test("the package's own world is Cli plus the Init dome", () => {
+test("the package's own world lists Cli and the Init dome at the top level", () => {
   expect(cliWorld.$ref).toBe("world");
-  const [cli, dome] = cliWorld.children as unknown as readonly {
-    $ref: string;
-    parent?: unknown;
-    children?: readonly unknown[];
-  }[];
-  expect(cli).toBe(Cli);
-  expect(dome?.$ref).toBe("relation");
-  expect(dome?.parent).toBe(Init);
-  expect(dome?.children).toHaveLength(6);
-  expect(dome?.children).toContain(Scaffold);
+  expect(cliWorld.children).toEqual([Cli, Init]);
 });
 
-test("Init delegates its run port to Scaffold", () => {
+test("Init is a dome with its interior as children and delegates run to Scaffold", () => {
   expect(Init.$ref).toBe("node");
-  expect(Init.$def.ports?.run?.kind).toBe("call");
   expect(Init.$def.status).toBe("planned");
-  expect(Init.$def.delegate?.run?.()).toBe(Scaffold.run);
+  expect(Object.keys(Init.$def.children ?? {})).toHaveLength(6);
+  expect(Init.$def.children?.scaffold).toBe(Scaffold);
+  expect(Init.$def.ports?.run).toMatchObject({
+    kind: "call",
+    delegate: { to: Scaffold.$def.id, port: "run" },
+  });
+  expect(Init.$def.uses).toBeUndefined();
 });

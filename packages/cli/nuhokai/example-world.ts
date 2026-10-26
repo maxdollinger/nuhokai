@@ -1,7 +1,7 @@
-import { defineNode } from "@nuhokai/world";
+import { node } from "@nuhokai/world";
 
 /** The authored example a new world starts with. Owns its bytes. */
-export const ExampleWorld = defineNode({
+export const ExampleWorld = node({
   id: "01a17290-3f10-7c52-b7f0-5c28d914ae6b",
   purpose:
     "Own the authored example world: one node, Example, in its own file, with a port, a tbd port and a uses edge. " +
@@ -18,21 +18,28 @@ export const ExampleWorld = defineNode({
     },
   },
   requirements: [
-    { id: "R1", text: "Exactly two files, relative to the given directory; nothing else." },
-    { id: "R2", text: "The written world loads with exactly one node, Example." },
-    { id: "R3", text: "Byte-identical per CLI version: constants, no timestamps, nothing per run." },
-    { id: "R4", text: "Writes only inside the given directory." },
+    { id: "R1", text: "Exactly two files, relative to the given directory; nothing outside it." },
+    {
+      id: "R2",
+      text: "The written files type-check and load as a world with exactly one node, Example, whose file shows a port, a tbd port and a uses edge.",
+    },
+    { id: "R3", text: "Byte-identical per CLI version: constant template ids, no timestamps, nothing per run." },
     { id: "C1", kind: "constraint", text: "Empty children are invalid; the example never is." },
   ],
   testCases: [
-    { text: "Loading the written index.ts yields a world with one node, Example.", demonstrates: ["R2"] },
-    { text: "Two runs into two directories give identical bytes.", demonstrates: ["R1", "R3"] },
-    { text: "The directory holds only the two files afterwards.", demonstrates: ["R1", "R4"] },
+    {
+      text: "The written files type-check and load as a world with one node, Example, showing a port, a tbd port and a uses edge.",
+      demonstrates: ["R2"],
+    },
+    {
+      text: "Two runs into two directories give identical bytes, and each directory holds only the two files.",
+      demonstrates: ["R1", "R3"],
+    },
   ],
   decisions: [
     {
       decision: "A constant template holding one example node, Example, in its own file.",
-      why: "The format rejects empty children; a real example shows a port, a tbd port and a uses edge, which a user or an LLM copies.",
+      why: "The format rejects empty children; a real example shows a port, a tbd port and a uses edge to it, which a user or an LLM copies without needing a second node.",
       rejected: [
         {
           option: "Relax defineWorld to accept an empty world",

@@ -1,7 +1,7 @@
-import { defineNode } from "@nuhokai/world";
+import { node } from "@nuhokai/world";
 
 /** The target's current state, as a verdict. Reads only, decides nothing. */
-export const Inspect = defineNode({
+export const Inspect = node({
   id: "01a17290-3f10-7c50-9c2e-7d41b6a83e02",
   purpose: "Observe the target: absent, a world, or a file in the way. Reads only; repairs, judges and writes nothing.",
   status: "planned",
@@ -22,9 +22,8 @@ export const Inspect = defineNode({
     { id: "C1", kind: "constraint", text: "Reads only; no writes, no repair, no content checks." },
   ],
   testCases: [
-    { text: "An empty nuhokai/ is world, an unrelated one too.", demonstrates: ["R1"] },
+    { text: "An empty or unrelated nuhokai/ directory is world; a fresh repo is absent.", demonstrates: ["R1", "R3"] },
     { text: "A file named nuhokai gives occupied.", demonstrates: ["R2"] },
-    { text: "A fresh repo gives absent.", demonstrates: ["R3"] },
   ],
   decisions: [
     {

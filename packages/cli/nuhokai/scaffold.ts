@@ -1,14 +1,14 @@
-import { defineNode } from "@nuhokai/world";
+import { node } from "@nuhokai/world";
 import { Inspect } from "./inspect.ts";
 import { Publish } from "./publish.ts";
 import { ResolveTarget } from "./resolve-target.ts";
 
 /** The program inside Init's boundary. */
-export const Scaffold = defineNode({
+export const Scaffold = node({
   id: "01a17290-3f10-7c48-a1d2-6b8e04c95f27",
   purpose:
-    "The program inside Init's boundary: resolve the target, inspect it, hand the outcome to Publish, map results to " +
-    "the run port's lines. Owns no data, no file and no template.",
+    "The program inside Init's boundary: resolve the target, inspect it, hand the outcome to Publish, then print the " +
+    "result. Owns no data, file or template.",
   status: "planned",
   source: [],
   ports: {
@@ -16,7 +16,7 @@ export const Scaffold = defineNode({
       kind: "call",
       purpose: "Create the world at the target",
       input: "the cwd",
-      output: "the four written paths, or `nuhokai/: already exists, nothing to do`",
+      output: "exit code 0 or 1; the four written paths or the nothing-to-do line on stdout, errors on stderr",
       errors: [
         "nuhokai exists but is not a directory",
         "no git and no terminal",
@@ -29,12 +29,14 @@ export const Scaffold = defineNode({
     { id: "R1", text: "absent → create; world → nothing to do; occupied → one error." },
     { id: "R2", text: "Order: resolve, inspect, publish." },
     { id: "R3", text: "No file, template or staging access of its own." },
-    { id: "R4", text: "A child's error surfaces unchanged; the run port's lines are built here." },
+    { id: "R4", text: "A child's error surfaces unchanged as one stderr line; the run port's lines are printed here." },
   ],
   testCases: [
     { text: "A fresh repo yields the four paths.", demonstrates: ["R1", "R2"] },
-    { text: "An existing world yields the nothing-to-do line and writes nothing.", demonstrates: ["R1"] },
-    { text: "A file named nuhokai yields one error line.", demonstrates: ["R1", "R4"] },
+    {
+      text: "An existing world yields the nothing-to-do line; a file at nuhokai/ yields one error line, nothing written.",
+      demonstrates: ["R1", "R4"],
+    },
     { text: "No git and no TTY yields one error and nothing written.", demonstrates: ["R4"] },
   ],
   decisions: [

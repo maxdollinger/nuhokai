@@ -33,11 +33,11 @@ src/
 
 ## Commands
 
-| Command | Purpose                                                                                |
-| ------- | -------------------------------------------------------------------------------------- |
-| `check` | load the world, run tsc and the global rules, exit 1 on any diagnostic                 |
-| `init`  | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `sync`  | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types                   |
+| Command  | Purpose                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic                 |
+| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types                   |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -47,7 +47,7 @@ nuhokai/
   example.ts                one example node, to replace with the first real node
   <nodes>.ts                node files
   tsconfig.json             CLI-owned, committed
-  .generated/world/         embedded @nuhokai/world .d.ts, committed and refreshed by sync
+  .generated/world/         embedded @nuhokai/world .d.ts, committed and refreshed by `update`
 ```
 
 `init` writes those four files and nothing else. It targets the Git root; without Git or outside a repo it asks before
@@ -55,7 +55,7 @@ using the cwd, and refuses when there is no terminal. An existing `nuhokai/` dir
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
-`init` and `sync` exist so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the world's strict
+`init` and `update` exist so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the world's strict
 options without the repo installing TypeScript. The CLI does not ship a language server.
 
 ## Distribution
