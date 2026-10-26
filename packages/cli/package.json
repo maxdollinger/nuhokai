@@ -6,9 +6,6 @@
   "bin": {
     "nuhokai": "./src/bin.ts"
   },
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
     "typecheck": "tsc -p .",
     "embed": "bun scripts/embed-world.ts",
