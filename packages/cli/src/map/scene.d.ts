@@ -112,7 +112,6 @@ export interface Details {
   }[];
 }
 
-export const WORLD_NAME: string;
 export function mapScene(world: LoadedWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
 export function detailsOf(node: NodeSpec): Details;

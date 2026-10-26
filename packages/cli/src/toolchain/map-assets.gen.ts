@@ -1154,7 +1154,6 @@ const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(W(),H());renderer.setClearColor(0x000000,0);
-renderer.shadowMap.enabled=false;
 const el=renderer.domElement;wrap.prepend(el);
 const scene=new THREE.Scene();
 const FR=30;const camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,700);
@@ -1164,7 +1163,6 @@ const controls=new THREE.OrbitControls(camera,el);controls.enableDamping=true;co
 const CAMDIR=new THREE.Vector3(0.8,1.1,-1).normalize();
 scene.add(new THREE.HemisphereLight(0xffffff,DARK?0x30302e:0xd8d6cf,DARK?0.75:0.85));
 const sun=new THREE.DirectionalLight(0xffffff,DARK?0.5:0.55);sun.position.set(18,40,-24);scene.add(sun);scene.add(sun.target);
-sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);const sc0=sun.shadow.camera;sc0.left=-50;sc0.right=50;sc0.top=50;sc0.bottom=-50;sc0.near=1;sc0.far=200;sun.shadow.bias=-0.0006;sun.shadow.radius=4;
 const world=new THREE.Group();scene.add(world);
 function M(color,o){return new THREE.MeshStandardMaterial(Object.assign({color:color,roughness:0.8,metalness:0},o||{}));}
 function op(mat,o){mat.transparent=o<1;mat.opacity=o;mat.depthWrite=o>=1;}
@@ -1251,7 +1249,7 @@ specs.filter(s=>s.side!==0).forEach(s=>{const a=L[s.id].ang;L[s.id].x=ring.cx+Ma
 // ---------- nodes ----------
 function buildItem(sp,idx){const p=layoutOf(S.scope)[sp.id];const g=new THREE.Group();g.position.set(p.x,0,p.z);world.add(g);
 const it={id:sp.id,sp:sp,kind:sp.kind,side:sp.side,name:sp.item?sp.item.name:'',node:sp.node,g:g,R:sp.R,rr:sp.R,ah:0.3,mats:[],baseOp:[],base:{x:p.x,z:p.z},y:rf*sp.ty,ty:sp.ty};S.items[sp.id]=it;
-const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh){obj.castShadow=true;obj.receiveShadow=true;if(pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}}return obj;};
+const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh&&pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}return obj;};
 const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let footShape,lab,labY=0.9;
 if(sp.kind==='comp'){const c=sp.item;const hw=sp.R-1.15+0.35,w=hw*2,cr=hw*0.35;it.rr=hw*1.06+0.15;it.ah=SH/2;
@@ -1278,8 +1276,8 @@ else if(sp.kind==='ghost'){it.rr=1.15;it.ah=0.15;const col=sp.orange?ORANGE:GHOS
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.3,40),M(col,{transparent:true,opacity:0.45})),0,0.15,0));
 const em=new THREE.LineDashedMaterial({color:col,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.9});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.0)),em);ol.computeLineDistances();ol.position.y=0.31;add(ol);
 const ports=sp.item.ports.join(', ');footShape=circShape(0.95);
-lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:'outside this dome'),col);labY=0.5;
-S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports:sp.item.name+' · outside this dome'+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details':'');}
+const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:where),col);labY=0.5;
+S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details':'');}
 else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 // a tbd: a dark pit with a dashed rim, labelled with what the missing port has to do
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.04,40),M(PIT,{transparent:true,opacity:0.6})),0,0.02,0));
@@ -1343,7 +1341,7 @@ S.pick.push(tube,fill);rec.tube=tube;rec.fill=fill;let best=sp[0];sp.forEach(p=>
 
 // ---------- board ----------
 function makeBoard(ring){const cx=ring.cx,cz=ring.cz,D=S.D;
-const top=new THREE.Mesh(new THREE.CircleGeometry(D,128),M(GROUND,{roughness:1}));top.rotation.x=-Math.PI/2;top.position.set(cx,0,cz);top.receiveShadow=true;world.add(top);
+const top=new THREE.Mesh(new THREE.CircleGeometry(D,128),M(GROUND,{roughness:1}));top.rotation.x=-Math.PI/2;top.position.set(cx,0,cz);world.add(top);
 const side=new THREE.Mesh(new THREE.CylinderGeometry(D,D*0.995,0.5,128,1,true),M(BOARDSIDE,{roughness:0.9}));side.position.set(cx,-0.25,cz);world.add(side);
 const gm=new THREE.ShaderMaterial({uniforms:{uC:{value:new THREE.Vector2(cx,cz)},uR:{value:D},uCol:{value:new THREE.Color(GRIDC)}},vertexShader:PVS,fragmentShader:GRIDF,transparent:true,depthWrite:false,extensions:{derivatives:true}});
 const grid=new THREE.Mesh(new THREE.CircleGeometry(D,128),gm);grid.rotation.x=-Math.PI/2;grid.position.set(cx,0.005,cz);grid.renderOrder=0;world.add(grid);
@@ -1354,14 +1352,13 @@ function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r
 it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{if(l.from===id||l.to===id)routeLane(l);});S.air.forEach(a=>{if(a.from===id||a.to===id)routeAir(a);});S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
 
 // ---------- state ----------
-const state={sel:null};
+let sel=null;
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
 t('Height = call depth. Lanes are calls labelled with their ports (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
 ['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background='#'+new THREE.Color(BAND[s]).getHexString();info.appendChild(sw);t(s);});
 t('. Click for details, drag islands or group outlines to rearrange; double-click a dome to look inside'+(path.length>1?', Esc to go up.':'.'));}
-function updateInfo(){legend();}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
-function renderDetails(){const d=document.getElementById('details');const id=state.sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
+function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
 const mk=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;(parent||d).appendChild(e);return e;};
 const info=detailsOf(it.node);
@@ -1372,14 +1369,14 @@ mk('p','d-purpose',info.purpose);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}}
 function setLaneLook(l,col,a){if(l.tag)l.tag.material.opacity=a<0.5?0.15:1;l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
-function applyState(){const fid=S.hover||state.sel;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
+function applyState(){const fid=S.hover||sel;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
 Object.values(S.items).forEach(it=>{const o=fid&&!near.has(it.id)?0.22:1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));it.label.material.opacity=o<1?0.35:1;
 if(it.edge){const f=fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}});
 S.lanes.forEach(l=>{if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
 S.air.forEach(a=>{a.vis=!fid||a.from===fid||a.to===fid;a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.material.opacity=a.vis?1:0.15;});
 S.pillars.forEach(r=>{const o=fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
-updateInfo();}
-function select(id){state.sel=selectable(id)?id:null;applyState();renderDetails();}
+legend();}
+function select(id){sel=selectable(id)?id:null;applyState();renderDetails();}
 function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementById('raiseBtn');b.querySelector('span').textContent=raiseTarget?'Land nodes':'Lift nodes';b.querySelector('svg').innerHTML=raiseTarget?'<path d="M12 19V5"/><path d="M6 11l6 6 6-6"/>':'<path d="M12 5v14"/><path d="M6 13l6-6 6 6"/>';}
 
 // ---------- navigation ----------
@@ -1387,7 +1384,7 @@ let HOME={t:V(0,0,0),zoom:1},trans=null;
 function computeHome(){const r=layoutOf(S.scope).ring;const fit=Math.min(FR,FR*W()/H());HOME={t:V(r.cx,(S.maxL+1)*LV*0.3,r.cz),zoom:Math.min(3,fit/(S.D*2.15))};}
 function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaledVector(CAMDIR,110);if(zoom!==undefined)camera.zoom=zoom;camera.updateProjectionMatrix();camera.lookAt(t);}
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
-function load(scope){state.sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
+function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
 function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans={kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,scope:it.sp.item.node};controls.enabled=false;tip.style.display='none';}
 function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,depth:d,childId:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
@@ -1416,7 +1413,7 @@ if(down&&down.b===0&&!trans&&e.target===el){const dx=e.clientX-down.x,dy=e.clien
 el.addEventListener('dblclick',e=>{if(trans)return;const h=hitAt(e);if(h&&h.id){enter(h.id);return;}if(path.length>1&&outsideBoard(e))goUp();});
 el.addEventListener('pointerleave',()=>{tip.style.display='none';if(S.hover){S.hover=null;applyState();}});
 el.addEventListener('contextmenu',e=>e.preventDefault());
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.sel){select(null);return;}if((e.key==='Escape'||e.key==='Backspace')&&path.length>1){e.preventDefault();goUp();}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&sel){select(null);return;}if((e.key==='Escape'||e.key==='Backspace')&&path.length>1){e.preventDefault();goUp();}});
 window.addEventListener('resize',()=>{renderer.setSize(W(),H());frustum();computeHome();});
 load(null);camAt(HOME.t,HOME.zoom);controls.update();
 
@@ -1461,7 +1458,7 @@ export const SCENE_JS: string = `/**
  */
 
 /** The name of the top-level scope, which no node owns. */
-export const WORLD_NAME = "World";
+const WORLD_NAME = "World";
 
 /** How an external is drawn, by externalType: callers come in from the left, the rest is used on the right. */
 const EXTERNAL_LOOKS = {
@@ -1496,11 +1493,8 @@ export function mapScene(world) {
 
 /** The direct child of \`scope\` that contains node \`index\` (itself included), or undefined if it lies outside. */
 function childIn(scene, index, scope) {
-  let current = index;
-  for (let step = 0; current !== null && step <= scene.nodes.length; step++) {
-    const parent = scene.parents[current];
-    if (parent === scope) return current;
-    current = parent;
+  for (let current = index; current !== null; current = scene.parents[current]) {
+    if (scene.parents[current] === scope) return current;
   }
   return undefined;
 }
@@ -1523,7 +1517,6 @@ function pathTo(scene, scope) {
   const path = [];
   for (let current = scope; current !== null; current = scene.parents[current]) {
     path.unshift({ scope: current, name: scene.nodes[current].name });
-    if (path.length > scene.nodes.length) break;
   }
   return [{ scope: null, name: WORLD_NAME }, ...path];
 }

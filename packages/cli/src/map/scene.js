@@ -12,7 +12,7 @@
  */
 
 /** The name of the top-level scope, which no node owns. */
-export const WORLD_NAME = "World";
+const WORLD_NAME = "World";
 
 /** How an external is drawn, by externalType: callers come in from the left, the rest is used on the right. */
 const EXTERNAL_LOOKS = {
@@ -47,11 +47,8 @@ export function mapScene(world) {
 
 /** The direct child of `scope` that contains node `index` (itself included), or undefined if it lies outside. */
 function childIn(scene, index, scope) {
-  let current = index;
-  for (let step = 0; current !== null && step <= scene.nodes.length; step++) {
-    const parent = scene.parents[current];
-    if (parent === scope) return current;
-    current = parent;
+  for (let current = index; current !== null; current = scene.parents[current]) {
+    if (scene.parents[current] === scope) return current;
   }
   return undefined;
 }
@@ -74,7 +71,6 @@ function pathTo(scene, scope) {
   const path = [];
   for (let current = scope; current !== null; current = scene.parents[current]) {
     path.unshift({ scope: current, name: scene.nodes[current].name });
-    if (path.length > scene.nodes.length) break;
   }
   return [{ scope: null, name: WORLD_NAME }, ...path];
 }

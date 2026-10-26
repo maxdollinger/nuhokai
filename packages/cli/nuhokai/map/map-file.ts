@@ -7,7 +7,12 @@ export const MapFile = node({
   purpose:
     "Own the map: one self-contained HTML file, the viewer plus the loaded world as one data block. Never loads, checks or resolves the root.",
   status: "building",
-  source: ["packages/cli/src/map/map-file.ts", "packages/cli/src/map/viewer.html", "packages/cli/src/map/scene.js"],
+  source: [
+    "packages/cli/src/map/map-file.ts",
+    "packages/cli/src/map/viewer.html",
+    "packages/cli/src/map/scene.js",
+    "packages/cli/src/map/scene.d.ts",
+  ],
   ports: {
     write: {
       kind: "call",
