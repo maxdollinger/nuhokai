@@ -12,7 +12,7 @@ TypeScript on Bun.
 ```
 packages/
   world/                world format: node types, node()/defineWorld, leaves and domes, typed refs, tbd
-  cli/                  @nuhokai/cli: the toolchain around the world format (`init` today; `new`, `check`, `update` planned)
+  cli/                  @nuhokai/cli: the toolchain around the world format (`init` and `new` today; `map`, `check`, `update` planned)
 ```
 
 ## Commands

@@ -5,8 +5,8 @@ export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own where a world lives and how its paths are named: one folder nuhokai/ holding index.ts, the node files, the " +
-    "CLI-owned tsconfig.json, .generated/world/index.d.ts and the map .generated/map.html; and the two forms of a file inside it, absolute under " +
-    "the root and from-root with / separators for stdout. Pure: reads and writes nothing.",
+    "CLI-owned tsconfig.json, .generated/world/index.d.ts and the map .generated/map.html; and the two forms of a " +
+    "file inside it, absolute under the root and from-root with / separators for stdout. Pure: reads and writes nothing.",
   status: "built",
   source: ["packages/cli/src/shared/paths.ts"],
   ports: {

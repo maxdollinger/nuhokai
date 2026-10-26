@@ -54,12 +54,12 @@ export const Cli = node({
       demonstrates: ["R6"],
     },
     {
-      text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs.",
-      demonstrates: ["R6"],
-    },
-    {
       text: "With an empty node_modules the checker reports only authored violations and rejects a non-relative import.",
       demonstrates: ["R1", "R5"],
+    },
+    {
+      text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs.",
+      demonstrates: ["R6"],
     },
   ],
   decisions: [

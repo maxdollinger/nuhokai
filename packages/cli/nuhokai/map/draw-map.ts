@@ -9,7 +9,7 @@ import { MapFile } from "./map-file.ts";
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
   purpose:
-    "The program inside WorldMap: owns the order and the exit mapping; no loading, page bytes, layout or filesystem " +
+    "The program inside WorldMap: owns the order and the exit mapping; no loading, map bytes, layout or filesystem " +
     "of its own.",
   status: "planned",
   source: ["packages/cli/src/map/draw-map.ts"],
@@ -24,7 +24,7 @@ export const DrawMap = node({
         "no git and no terminal",
         "the user declined the cwd",
         "no world at nuhokai/",
-        "nuhokai exists but is not a directory",
+        "a non-directory at nuhokai/",
         "the world failed to load",
         "the write failed",
       ],
@@ -33,10 +33,6 @@ export const DrawMap = node({
   requirements: [
     { id: "R1", text: "Order: resolve, inspect, load, write, print; a load failure writes nothing." },
     { id: "R2", text: "absent → one error naming init; occupied → one error; world → load and write." },
-    {
-      id: "R3",
-      text: "An expected failure becomes one stderr line through Failure.format; anything else is a bug and is rethrown.",
-    },
   ],
   testCases: [
     {
@@ -45,7 +41,7 @@ export const DrawMap = node({
     },
     {
       text: "A node file that throws gives one 'nuhokai map: ' line, exit 1, and the previous map stays.",
-      demonstrates: ["R1", "R3"],
+      demonstrates: ["R1"],
     },
   ],
 }).edges({

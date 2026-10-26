@@ -27,7 +27,8 @@ Planned modules, added as they are implemented:
 
 ```
 src/
-  load/         locate and evaluate nuhokai/index.ts; collect exported nodes
+  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
+  map/          draw the loaded world into nuhokai/.generated/map.html
   rules/        global rules: duplicate ids, orphans, uses scope, names
   check/        run the embedded tsc, merge its diagnostics with the rules'
   report/       one file:line diagnostic list
@@ -40,6 +41,7 @@ src/
 | -------- | -------------------------------------------------------------------------------------- |
 | `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map _(planned)_ |
 | `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders       |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
@@ -52,6 +54,7 @@ nuhokai/
   <nodes>.ts                node files
   tsconfig.json             CLI-owned, committed
   .generated/world/         embedded @nuhokai/world .d.ts, committed and refreshed by `update`
+  .generated/map.html       the map, written by `map`
 ```
 
 `init` writes those four files and nothing else. It targets the Git root; without Git or outside a repo it asks before
@@ -65,6 +68,11 @@ uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the 
 overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
 `new` needs an existing world.
+
+`map` _(planned)_ loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
+one self-contained HTML file with the viewer, three.js and the world inlined, so it opens offline. It draws islands,
+domes, ports, edges and `tbd` placeholders, colours each island by its status, and gives the same bytes for the same
+world. It replaces the previous map in one rename and touches nothing else; it never opens a browser.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

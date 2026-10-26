@@ -21,14 +21,16 @@ test("the package's own world lists Cli, the commands and the shared nodes at th
 });
 
 test("the shared nodes are leaves that name their own code", () => {
-  for (const shared of [ResolveTarget, Inspect, LoadWorld, WorldPath, Failure]) {
+  for (const shared of [ResolveTarget, Inspect, WorldPath, Failure]) {
     expect(shared.$ref).toBe("node");
     expect(shared.$def.children).toBeUndefined();
-    expect(shared.$def.uses?.() ?? []).toEqual(shared === LoadWorld ? [WorldPath.file] : []);
+    expect(shared.$def.uses).toBeUndefined();
     expect(shared.$def.source.length).toBeGreaterThan(0);
   }
   expect(Object.keys(WorldPath.$def.ports ?? {})).toEqual(["file"]);
   expect(Object.keys(Failure.$def.ports ?? {})).toEqual(["format", "isExpected"]);
+  expect(LoadWorld.$def.children).toBeUndefined();
+  expect(LoadWorld.$def.uses?.()).toEqual([WorldPath.file]);
   expect(Object.keys(LoadWorld.$def.ports ?? {})).toEqual(["load"]);
 });
 
@@ -90,5 +92,6 @@ test("WorldMap is a dome with a program and one page, and delegates run to DrawM
     Failure.isExpected,
   ]);
   expect(Object.keys(MapFile.$def.ports ?? {})).toEqual(["write"]);
+  expect(MapFile.$def.uses?.()).toEqual([WorldPath.file]);
   expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run]);
 });
