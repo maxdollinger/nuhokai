@@ -12,7 +12,7 @@ src/
   toolchain/    generated @nuhokai/world declarations
 scripts/        build-time embedding of those declarations
 test/           CLI tests and, later, fixture worlds
-nuhokai/        this package described as a node in its own format
+nuhokai/        this package described as nodes in its own format
 ```
 
 `src/toolchain/world-types.gen.ts` is generated from `packages/world` and checked in. `bun run embed` regenerates
@@ -26,6 +26,7 @@ src/
   load/         locate and evaluate nuhokai/index.ts; collect exported nodes
   rules/        global rules: duplicate ids, orphans, uses scope, names
   check/        run the embedded tsc, merge its diagnostics with the rules'
+  init/         resolve the root, render the skeleton, write it atomically
   report/       one file:line diagnostic list
   toolchain/    embedded @nuhokai/world runtime and tsc; the world types are already generated
 ```
@@ -43,10 +44,16 @@ src/
 ```text
 nuhokai/
   index.ts                  the world entry point
+  example.ts                one example node, to replace with the first real node
   <nodes>.ts                node files
   tsconfig.json             CLI-owned, committed
   .generated/world/         embedded @nuhokai/world .d.ts, committed and refreshed by sync
 ```
+
+`init` writes those four files and nothing else. It targets the Git root; without Git or outside a repo it asks before
+using the cwd, and refuses when there is no terminal. An existing `nuhokai/` directory is left untouched: it prints
+one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
+the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `init` and `sync` exist so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the world's strict
 options without the repo installing TypeScript. The CLI does not ship a language server.

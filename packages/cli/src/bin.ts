@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /** Commands the CLI exposes. `map` and `write` come later, from the same loader. */
-export const COMMANDS = ["check", "init", "sync"] as const;
+export const COMMANDS = ["check", "init", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -14,7 +14,7 @@ export function usage(): string {
     "Commands:",
     "  check   Load the world, run tsc and the global rules, print one diagnostics list",
     "  init    Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
-    "  sync    Refresh the CLI-owned tsconfig and the @nuhokai/world types",
+    "  update  Refresh the CLI-owned tsconfig and the @nuhokai/world types of the world in the cwd",
     "",
     "Run `nuhokai <command> --help` for command options.",
   ].join("\n");

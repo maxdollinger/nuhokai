@@ -4,49 +4,41 @@ import { node } from "@nuhokai/world";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Loads a repo's nuhokai folder into one checked, navigable model. Owns the toolchain (loader, tsc, world " +
-    "types), so repos need no TypeScript, Bun or node_modules.",
+    "The command surface: parse argv, print usage and dispatch to the command nodes. Owns exit codes and the " +
+    "distribution, so repos need no TypeScript, Bun or node_modules. Implements no command itself.",
   status: "planned",
   source: ["packages/cli/src/**", "packages/cli/scripts/**"],
   ports: {
-    check: {
+    dispatch: {
       kind: "call",
-      purpose: "Load world, run rules and tsc, print one diagnostics list",
-      input: "repo root, nuhokai folder",
-      output: "diagnostics (file:line, node, reason); exit 1 if any",
-      errors: ["missing entry", "missing embedded tsc or types"],
-    },
-    init: {
-      kind: "call",
-      purpose: "Write skeleton, tsconfig, embedded world types",
-      input: "repo root, nuhokai folder",
-      output: "nuhokai/index.ts, nuhokai/tsconfig.json, nuhokai/.generated/world/index.d.ts",
-      errors: ["files exist"],
-    },
-    sync: {
-      kind: "call",
-      purpose: "Refresh tsconfig, embedded types",
-      input: "repo root, nuhokai folder",
-      output: "updated nuhokai/tsconfig.json, nuhokai/.generated/world/index.d.ts",
+      purpose: "Parse argv and run the matching command node",
+      input: "argv without the executable",
+      output: "exit code: 0 ok, 1 diagnostics or failure, 2 usage error",
+      errors: ["unknown command"],
     },
   },
   requirements: [
-    { id: "R1", text: "check needs no TypeScript, Bun or node_modules in the repo." },
-    { id: "R2", text: "Loader evaluates nuhokai/index.ts; references resolve by object identity." },
-    { id: "R3", text: "tsc and rule diagnostics print as one list; each has file:line and one sentence." },
-    { id: "R4", text: "Editor TypeScript resolves @nuhokai/world and strict options after init/sync." },
-    { id: "R5", text: "Deterministic checker: the CLI ships its own pinned tsc, never the repo's." },
-    { id: "R6", text: "World imports are only relative files and @nuhokai/world." },
+    { id: "R1", text: "A repo needs no TypeScript, Bun or node_modules; the CLI ships its own pinned checker." },
+    {
+      id: "R2",
+      text: "A command's exit code passes through unchanged: 0 ok, 1 diagnostics or failure, 2 usage error.",
+    },
+    {
+      id: "R3",
+      text: "No argument or a help word prints usage and exits 0; an unknown command prints usage to stderr and exits 2.",
+    },
+    { id: "R4", text: "Cli holds no loading, rule, tsc or writing logic: each command is its own node." },
+    { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
   ],
   testCases: [
-    { text: "Empty node_modules: only authored violations.", demonstrates: ["R1", "R5"] },
-    { text: "Cycle + placeholder + inherited port; every reference resolves by identity.", demonstrates: ["R2", "C2"] },
-    { text: "Duplicate id, orphan, out-of-scope use: three diagnostics, one list.", demonstrates: ["R3"] },
-    { text: "After init, tsconfig paths resolve @nuhokai/world in the editor.", demonstrates: ["R4"] },
-    { text: "Non-relative import rejected; checker needs no node_modules.", demonstrates: ["R6"] },
+    { text: "Usage lists every command; --help exits 0.", demonstrates: ["R3"] },
+    { text: "An unknown command prints usage to stderr and exits 2.", demonstrates: ["R2", "R3"] },
+    { text: "A command's non-zero exit code reaches the process unchanged.", demonstrates: ["R2"] },
+    { text: "Empty node_modules: only authored violations.", demonstrates: ["R1"] },
+    { text: "Non-relative import rejected; checker runs without node_modules.", demonstrates: ["R5"] },
   ],
   decisions: [
     {
@@ -67,7 +59,21 @@ export const Cli = node({
       ],
     },
     {
-      decision: "No LSP. init/sync write CLI-owned tsconfig with paths and a self-contained world .d.ts.",
+      decision: "Cli is a dispatcher; each command is a top-level node with its own port, reached by `uses`.",
+      why: "Commands are separate domes with separate rules, and the dispatcher stays small and stable.",
+      rejected: [
+        {
+          option: "command ports on Cli, delegating to children",
+          why: "Delegation points down only; it would force every command under Cli and grow Cli with every command.",
+        },
+        {
+          option: "command ports on Cli, duplicating each command's contract",
+          why: "The copies drift from the nodes.",
+        },
+      ],
+    },
+    {
+      decision: "No LSP. init/update write a CLI-owned tsconfig with paths and a self-contained world .d.ts.",
       why: "Editors already run TS; the gap is resolution and strict options.",
       rejected: [
         { option: "bundled lsp", why: "Duplicates editor TS; per-editor integration." },
@@ -95,4 +101,4 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({});
+}).edges({ uses: () => [checkCommand, Init.run, updateCommand] });
