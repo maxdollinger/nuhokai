@@ -9,6 +9,7 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 src/
   bin.ts        argv, exit codes, command dispatch
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
+  new/          add one node file to an existing world: the program and the file's bytes
   target/       resolve the repo root, inspect what sits at nuhokai/ (shared by every command)
   shared/       the world layout and path forms, and the one error type with its one-line rule
   toolchain/    generated @nuhokai/world declarations
@@ -35,12 +36,12 @@ src/
 
 ## Commands
 
-| Command  | Purpose                                                                                      |
-| -------- | -------------------------------------------------------------------------------------------- |
-| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_           |
-| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types       |
-| `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders _(planned)_ |
-| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*              |
+| Command  | Purpose                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
+| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders       |
+| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -63,7 +64,7 @@ split into folders. Every segment is kebab-case; the file exports the PascalCase
 uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the parent directories it needs, never
 overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
-`new` needs an existing world and is planned.
+`new` needs an existing world.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

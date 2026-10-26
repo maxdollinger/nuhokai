@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
 import { runInit } from "./init/index.ts";
+import { runNew } from "./new/index.ts";
 
-/** The commands the CLI exposes; `check` and New's `run` are planned, `init` runs today. */
+/** The commands the CLI exposes; `check` and `update` are planned, `init` and `new` run today. */
 export const COMMANDS = ["check", "init", "new", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -86,6 +87,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 2;
   }
   if (first === "init") return runInit(process.cwd());
+  if (first === "new") return runNew(process.cwd(), rest[0] ?? "");
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

@@ -10,7 +10,7 @@ export const AddNode = node({
   id: "01a17950-b221-7120-be93-f49dcd85d151",
   purpose:
     "The program inside New: owns the order, the path rule, the id and the exit mapping; no template, layout or filesystem of its own.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/new/add-node.ts"],
   ports: {
     run: {
@@ -52,6 +52,26 @@ export const AddNode = node({
       demonstrates: ["R3", "R4"],
     },
   ],
+  decisions: [
+    {
+      decision:
+        "The run port is a shell over a print-free core: addNode answers the outcome, runNew prints the lines and maps the exit code.",
+      why: "The order and the rules are the program's; the lines and the exit code are the port's. A caller who wants the verdict without capturing stdout gets it, and the catch sites classify with Failure.isExpected instead of a private copy.",
+      rejected: [
+        {
+          option: "One printing runNew only",
+          why: "Tests and future callers must capture stdout to tell written from failed.",
+        },
+      ],
+    },
+  ],
 }).edges({
-  uses: () => [ResolveTarget.resolve, Inspect.inspect, WorldPath.file, NodeFile.create, Failure.format],
+  uses: () => [
+    ResolveTarget.resolve,
+    Inspect.inspect,
+    WorldPath.file,
+    NodeFile.create,
+    Failure.format,
+    Failure.isExpected,
+  ],
 });

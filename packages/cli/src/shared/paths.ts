@@ -19,3 +19,8 @@ export function fromRoot(...parts: string[]): string {
     .split("\\")
     .join("/");
 }
+
+/** A file in the world, named both ways: absolute under the root, and from-root for stdout. */
+export function worldFile(root: string, ...parts: string[]): { readonly absolute: string; readonly fromRoot: string } {
+  return { absolute: inWorld(root, ...parts), fromRoot: fromRoot(...parts) };
+}

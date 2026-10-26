@@ -24,7 +24,7 @@ test("the shared nodes are leaves that name their own code", () => {
     expect(shared.$def.source.length).toBeGreaterThan(0);
   }
   expect(Object.keys(WorldPath.$def.ports ?? {})).toEqual(["file"]);
-  expect(Object.keys(Failure.$def.ports ?? {})).toEqual(["format"]);
+  expect(Object.keys(Failure.$def.ports ?? {})).toEqual(["format", "isExpected"]);
 });
 
 test("Init is a dome with its interior as children and delegates run to Scaffold", () => {
@@ -43,7 +43,7 @@ test("Init is a dome with its interior as children and delegates run to Scaffold
 
 test("New is a dome with its interior as children and delegates run to AddNode", () => {
   expect(New.$ref).toBe("node");
-  expect(New.$def.status).toBe("planned");
+  expect(New.$def.status).toBe("building");
   expect(Object.keys(New.$def.children ?? {})).toEqual(["addNode", "nodeFile"]);
   expect(New.$def.children?.addNode).toBe(AddNode);
   expect(New.$def.children?.nodeFile).toBe(NodeFile);
@@ -58,11 +58,12 @@ test("New is a dome with its interior as children and delegates run to AddNode",
     WorldPath.file,
     NodeFile.create,
     Failure.format,
+    Failure.isExpected,
   ]);
 });
 
 test("New's interior is a program plus one node file, with no shared code of its own", () => {
-  expect(AddNode.$def.uses?.().length).toBe(5);
+  expect(AddNode.$def.uses?.().length).toBe(6);
   expect(NodeFile.$def.uses).toBeUndefined();
   expect(Object.keys(NodeFile.$def.ports ?? {})).toEqual(["create"]);
 });

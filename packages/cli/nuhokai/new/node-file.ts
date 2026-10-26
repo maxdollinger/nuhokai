@@ -5,7 +5,7 @@ export const NodeFile = node({
   id: "01a17950-b221-7124-8356-08fd2fee0888",
   purpose:
     "Own the default node file: the bytes of one planned leaf, written exclusively to the given absolute path, creating its missing parent directories; never overwrites, never chooses a path.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/new/node-file.ts"],
   ports: {
     create: {
@@ -39,6 +39,10 @@ export const NodeFile = node({
       id: "R5",
       text: "A failed write removes the partial file, if any; a failing removal does not replace the original error.",
     },
+    {
+      id: "R6",
+      text: "A name that is not a PascalCase identifier, or an id that is not a uuid, is a caller bug: a TypeError, no bytes, no file and no directory.",
+    },
   ],
   testCases: [
     {
@@ -52,6 +56,10 @@ export const NodeFile = node({
     {
       text: "An existing file or directory at the path fails with one error and leaves the first bytes; a failed write leaves no partial file.",
       demonstrates: ["R4", "R5"],
+    },
+    {
+      text: "A name with a hyphen, a space or a quote, and a non-uuid id, each throw a TypeError and leave no file and no directory behind.",
+      demonstrates: ["R6"],
     },
   ],
 }).edges({});

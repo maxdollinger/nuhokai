@@ -55,5 +55,5 @@ export const Scaffold = node({
     },
   ],
 }).edges({
-  uses: () => [ResolveTarget.resolve, Inspect.inspect, WorldPath.file, Failure.format, Publish.run],
+  uses: () => [ResolveTarget.resolve, Inspect.inspect, WorldPath.file, Failure.format, Failure.isExpected, Publish.run],
 });

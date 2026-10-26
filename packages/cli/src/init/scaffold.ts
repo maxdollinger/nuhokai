@@ -1,4 +1,4 @@
-import { CliError, oneLine } from "../shared/failure.ts";
+import { CliError, isExpected, oneLine } from "../shared/failure.ts";
 import { fromRoot, WORLD_DIR } from "../shared/paths.ts";
 import { inspectTarget } from "../target/inspect.ts";
 import { type ResolveTargetEnvironment, resolveTarget } from "../target/resolve-target.ts";
@@ -16,13 +16,6 @@ export type ScaffoldOutcome =
   | { readonly kind: "world" }
   | { readonly kind: "error"; readonly message: string };
 
-/** Whether a failure is one init promises to explain on a single stderr line. */
-function isOperational(error: unknown): boolean {
-  if (error instanceof CliError) return true;
-  // Filesystem failures carry a numeric errno; programming errors do not.
-  return typeof (error as { errno?: unknown }).errno === "number";
-}
-
 /** Resolve, inspect, publish: the order is the program. Writes and prints nothing. */
 export async function scaffold(cwd: string, environment: InitEnvironment = {}): Promise<ScaffoldOutcome> {
   try {
@@ -37,7 +30,7 @@ export async function scaffold(cwd: string, environment: InitEnvironment = {}): 
     return { kind: "written", paths: publishWorld(root) };
   } catch (error) {
     // Expected failures become one stderr line; a bug crashes with its stack.
-    if (!isOperational(error)) throw error;
+    if (!isExpected(error)) throw error;
     return { kind: "error", message: oneLine(error) };
   }
 }

@@ -51,7 +51,8 @@ test("`nuhokai new --help` shows that new takes a path", async () => {
 test("Cli enforces the argument count without validating the argument", async () => {
   expect(await main(["new"])).toBe(2);
   expect(await main(["new", "a", "b"])).toBe(2);
-  expect(await main(["new", "new/StockOrder"])).toBe(1);
+  // The count is the dispatcher's; the value is New's, which rejects this one with its own 2.
+  expect(await main(["new", "new/StockOrder"])).toBe(2);
   expect(await main(["init", "extra"])).toBe(2);
 });
 
