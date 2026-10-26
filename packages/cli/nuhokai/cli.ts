@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Init } from "./init/init.ts";
+import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
 
 /** The CLI in world format: loader, global rules, checks, writing. */
@@ -33,7 +34,7 @@ export const Cli = node({
     { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
     {
       id: "R6",
-      text: "Cli enforces the argument count per command: init, check and update take none, new takes exactly one. A wrong count is an argument error (2) and the command never runs; the arguments are passed through unchanged and never validated.",
+      text: "Cli enforces the argument count per command: init, check, update and map take none, new takes exactly one. A wrong count is an argument error (2) and the command never runs; the arguments are passed through unchanged and never validated.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
@@ -50,6 +51,10 @@ export const Cli = node({
     },
     {
       text: "`nuhokai new new/stock-order` passes new/stock-order to New unchanged; `nuhokai new` and `nuhokai new a b` are argument errors and New never runs.",
+      demonstrates: ["R6"],
+    },
+    {
+      text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs.",
       demonstrates: ["R6"],
     },
     {
@@ -101,4 +106,4 @@ export const Cli = node({
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
   ],
-}).edges({ uses: () => [Init.run, New.run] });
+}).edges({ uses: () => [Init.run, New.run, WorldMap.run] });
