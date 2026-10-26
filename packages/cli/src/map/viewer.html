@@ -155,7 +155,9 @@ if(!specs.length)specs.push({id:'self',kind:'empty',R:2.4,side:0});
 const kinds={};view.items.forEach(item=>kinds[item.key]=item.kind);
 const E=view.lanes.map(l=>({from:l.from,to:l.to,kind:l.kind,port:l.ports.join(', '),io:l.kind==='entry'||kinds[l.from]==='external'||kinds[l.to]==='external',dash:l.kind==='implements'||l.kind==='hole'}));
 const islands=view.items.filter(item=>item.kind==='island');const maxL=islands.length?Math.max(...islands.map(item=>item.level)):0;sc.maxL=maxL;
-specs.forEach(s=>{s.level=s.kind==='comp'?s.item.level:null;s.ty=s.kind==='comp'?s.level*LV:s.side<0?(maxL+1)*LV:0;});
+// level height: LV up to 6 levels, then the stack keeps the height of 6
+const lv=sc.lv=maxL>6?LV*6/maxL:LV;
+specs.forEach(s=>{s.level=s.kind==='comp'?s.item.level:null;s.ty=s.kind==='comp'?s.level*lv:s.side<0?(maxL+1)*lv:0;});
 layout(scope,specs,E,view.pillars);
 specs.forEach((sp,i)=>buildItem(sp,i));
 E.forEach(e=>{const key=e.from<e.to?e.from+'|'+e.to:e.to+'|'+e.from;const r=sc.routes[key]=sc.routes[key]||{key:key,lanes:{}};const lk=e.from+'>'+e.to+'>'+e.kind;(r.lanes[lk]=r.lanes[lk]||{from:e.from,to:e.to,kind:e.kind,dash:e.dash,calls:[]}).calls.push(e);});
@@ -190,7 +192,8 @@ comps.forEach((s,i)=>{if(fresh[i])L[s.id]={x:X[i],z:Z[i]};});}
 let cx=0,cz=0;comps.forEach(s=>{cx+=L[s.id].x;cz+=L[s.id].z;});if(n){cx/=n;cz/=n;}let rr=0;comps.forEach(s=>rr=Math.max(rr,Math.hypot(L[s.id].x-cx,L[s.id].z-cz)+s.R));
 const ring=L.ring=L.ring||{cx:cx,cz:cz,r:Math.max(10,rr+6.5)};
 const ins=specs.filter(s=>s.side<0),outs=specs.filter(s=>s.side>0);
-[[ins,Math.PI],[outs,0]].forEach(([list,c])=>list.forEach((s,i)=>{if(!L[s.id]||L[s.id].ang===undefined)L[s.id]={ang:c+(i-(list.length-1)/2)*0.36};}));
+// the outer edge: at most 0.36 rad apart, closer when a side holds many, so a side never wraps past the other
+[[ins,Math.PI],[outs,0]].forEach(([list,c])=>{const step=Math.min(0.36,Math.PI*0.9/Math.max(1,list.length));list.forEach((s,i)=>{if(!L[s.id]||L[s.id].ang===undefined)L[s.id]={ang:c+(i-(list.length-1)/2)*step};});});
 specs.filter(s=>s.side!==0).forEach(s=>{const a=L[s.id].ang;L[s.id].x=ring.cx+Math.cos(a)*ring.r;L[s.id].z=ring.cz+Math.sin(a)*ring.r;});}
 
 // ---------- nodes ----------
@@ -328,7 +331,8 @@ function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementBy
 
 // ---------- navigation ----------
 let HOME={t:V(0,0,0),zoom:1},trans=null;
-function computeHome(){const r=layoutOf(S.scope).ring;const fit=Math.min(FR,FR*W()/H());HOME={t:V(r.cx,(S.maxL+1)*LV*0.3,r.cz),zoom:Math.min(3,fit/(S.D*2.15))};}
+// home: the board's width and, above its tilted disc, the stack's height both fit the frame
+function computeHome(){const r=layoutOf(S.scope).ring;const h=(S.maxL+1)*S.lv;HOME={t:V(r.cx,h*0.5,r.cz),zoom:Math.min(3,FR*W()/H()/(S.D*2.15),FR/(S.D*1.8+h*0.8))};}
 function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaledVector(CAMDIR,110);if(zoom!==undefined)camera.zoom=zoom;camera.updateProjectionMatrix();camera.lookAt(t);}
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
