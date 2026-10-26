@@ -1175,9 +1175,10 @@ const EXTC=0xEFB860,EXTD=0xC98A2E,EXTPAD=DARK?0x5a4724:0xC4A570;
 const TOP=DARK?{planned:0x8792AA,building:0x3F8FE0,built:0x6FA834,deprecated:0xC9694A}:{planned:0x76819A,building:0x4C8CCB,built:0x76A443,deprecated:0xC0705A};
 const BAND=DARK?{planned:0x7C869A,building:0x3F8FE0,built:0x6FA834,deprecated:0xC0623F}:{planned:0x5F6B80,building:0x2A78C8,built:0x4F8A17,deprecated:0xA44A2E};
 const PILLARC=[0xF0997B,0x5DCAA5,0xAFA9EC,0xEFB860,0x85B7EB,0xD4537E];
-const LV=3.2,NP=8,SH=1.1;
+const LV=3.2,NP=8,SH=1.1,SETTLED=0.01;
 function rnd(i){const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x);}
-function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%9973;return h;}
+// FNV-1a, 32 bits
+function hash(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),0x01000193);return h>>>0;}
 const DOT=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const x=c.getContext('2d');x.beginPath();x.arc(16,16,11,0,Math.PI*2);x.fillStyle='#fff';x.fill();return new THREE.CanvasTexture(c);})();
 // dashes along a lane: an alpha stripe repeated over the tube's length
 const DASH=(()=>{const c=document.createElement('canvas');c.width=2;c.height=8;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,2,8);x.fillStyle='#fff';x.fillRect(0,0,2,5);return c;})();
@@ -1231,16 +1232,26 @@ makeBoard(ring);
 return sc;}
 function itemName(id){return S.items[id]?S.items[id].name:id;}
 function laneText(ln){const ports=ln.calls.map(c=>c.port).filter(p=>p).join(', ');return ln.kind==='implements'?'implements':ln.kind==='hole'?'tbd':ports;}
-function layout(scope,specs,E,pillars){const L=layoutOf(scope);const comps=specs.filter(s=>s.side===0);const fresh=comps.filter(s=>!L[s.id]);const gOf=id=>pillars.findIndex(g=>g.members.includes(id));
-if(fresh.length){fresh.forEach(s=>{const gi=gOf(s.id);const sd=rnd(hash(s.seed||s.id));if(gi>=0){const ga=gi*2*Math.PI/pillars.length-Math.PI/2;L[s.id]={x:Math.cos(ga)*8+(sd-0.5)*4,z:Math.sin(ga)*8+(rnd(sd*91)-0.5)*4};}else{const a=sd*Math.PI*2;L[s.id]={x:Math.cos(a)*4,z:Math.sin(a)*4};}});
-const ids=comps.map(s=>s.id),Rm={};comps.forEach(s=>Rm[s.id]=s.R);const pairs=E.filter(e=>ids.includes(e.from)&&ids.includes(e.to)).map(e=>[e.from,e.to]);
-for(let it=0;it<700;it++){const F={};ids.forEach(id=>F[id]={x:0,z:0});
-for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){const a=L[ids[i]],b=L[ids[j]];let dx=a.x-b.x,dz=a.z-b.z;const d=Math.hypot(dx,dz)||0.01;const same=gOf(ids[i])>=0&&gOf(ids[i])===gOf(ids[j]);const min=Rm[ids[i]]+Rm[ids[j]]+(same?2.6:4.4);let f=40/(d*d);if(d<min)f+=(min-d)*0.6;dx/=d;dz/=d;F[ids[i]].x+=dx*f;F[ids[i]].z+=dz*f;F[ids[j]].x-=dx*f;F[ids[j]].z-=dz*f;}
-pairs.forEach(([p,q])=>{const a=L[p],b=L[q];let dx=b.x-a.x,dz=b.z-a.z;const d=Math.hypot(dx,dz)||0.01;const f=(d-(Rm[p]+Rm[q]+5))*0.03;dx/=d;dz/=d;F[p].x+=dx*f;F[p].z+=dz*f;F[q].x-=dx*f;F[q].z-=dz*f;});
-pillars.forEach(g=>{const m=g.members.filter(id=>L[id]);if(!m.length)return;let cx=0,cz=0;m.forEach(id=>{cx+=L[id].x;cz+=L[id].z;});cx/=m.length;cz/=m.length;m.forEach(id=>{F[id].x+=(cx-L[id].x)*0.05;F[id].z+=(cz-L[id].z)*0.05;});});
-comps.forEach(s=>{F[s.id].x-=L[s.id].x*0.004;F[s.id].z-=L[s.id].z*0.004;});
-fresh.forEach(s=>{const f=F[s.id];const m=Math.hypot(f.x,f.z);const k=m>0.6?0.6/m:1;L[s.id].x+=f.x*k;L[s.id].z+=f.z*k;});}}
-let cx=0,cz=0;comps.forEach(s=>{if(!L[s.id])L[s.id]={x:0,z:0};cx+=L[s.id].x;cz+=L[s.id].z;});if(comps.length){cx/=comps.length;cz/=comps.length;}let rr=0;comps.forEach(s=>rr=Math.max(rr,Math.hypot(L[s.id].x-cx,L[s.id].z-cz)+s.R));
+function layout(scope,specs,E,pillars){const L=layoutOf(scope);const comps=specs.filter(s=>s.side===0),n=comps.length;
+// islands by index: pillar and freshness looked up once, positions, radii and one force array reused every iteration
+const at=new Map(comps.map((s,i)=>[s.id,i])),G=comps.map(s=>pillars.findIndex(g=>g.members.includes(s.id))),fresh=comps.map(s=>!L[s.id]);
+if(fresh.includes(true)){comps.forEach((s,i)=>{if(!fresh[i])return;const gi=G[i];const sd=rnd(hash(s.seed||s.id));if(gi>=0){const ga=gi*2*Math.PI/pillars.length-Math.PI/2;L[s.id]={x:Math.cos(ga)*8+(sd-0.5)*4,z:Math.sin(ga)*8+(rnd(sd*91)-0.5)*4};}else{const a=sd*Math.PI*2;L[s.id]={x:Math.cos(a)*4,z:Math.sin(a)*4};}});
+const X=comps.map(s=>L[s.id].x),Z=comps.map(s=>L[s.id].z),R=comps.map(s=>s.R),FX=new Float64Array(n),FZ=new Float64Array(n);
+const pairs=E.filter(e=>at.has(e.from)&&at.has(e.to)).map(e=>[at.get(e.from),at.get(e.to)]);
+const groups=pillars.map((_,gi)=>G.flatMap((g,i)=>g===gi?[i]:[])).filter(m=>m.length);
+for(let it=0;it<700;it++){FX.fill(0);FZ.fill(0);
+for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){let dx=X[i]-X[j],dz=Z[i]-Z[j],d=Math.sqrt(dx*dx+dz*dz);
+// coincident islands (a duplicate id): apart along a direction set by their indexes
+if(d<1e-6){dx=Math.cos(i*2.4+j);dz=Math.sin(i*2.4+j);d=0.01;}else{dx/=d;dz/=d;}
+const min=R[i]+R[j]+(G[i]>=0&&G[i]===G[j]?2.6:4.4);let f=40/(d*d);if(d<min)f+=(min-d)*0.6;FX[i]+=dx*f;FZ[i]+=dz*f;FX[j]-=dx*f;FZ[j]-=dz*f;}
+for(const[p,q]of pairs){let dx=X[q]-X[p],dz=Z[q]-Z[p];const d=Math.hypot(dx,dz)||0.01;const f=(d-(R[p]+R[q]+5))*0.03;dx/=d;dz/=d;FX[p]+=dx*f;FZ[p]+=dz*f;FX[q]-=dx*f;FZ[q]-=dz*f;}
+for(const m of groups){let cx=0,cz=0;m.forEach(i=>{cx+=X[i];cz+=Z[i];});cx/=m.length;cz/=m.length;m.forEach(i=>{FX[i]+=(cx-X[i])*0.05;FZ[i]+=(cz-Z[i])*0.05;});}
+// a step of at most 0.6, cooling so that a crowded layout settles instead of oscillating
+const cap=0.6*Math.pow(0.99,it);let moved=0;for(let i=0;i<n;i++){if(!fresh[i])continue;const fx=FX[i]-X[i]*0.004,fz=FZ[i]-Z[i]*0.004;const m=Math.sqrt(fx*fx+fz*fz);const k=m>cap?cap/m:1;X[i]+=fx*k;Z[i]+=fz*k;moved=Math.max(moved,m*k);}
+// settled: no island moves noticeably any more
+if(moved<SETTLED)break;}
+comps.forEach((s,i)=>{if(fresh[i])L[s.id]={x:X[i],z:Z[i]};});}
+let cx=0,cz=0;comps.forEach(s=>{cx+=L[s.id].x;cz+=L[s.id].z;});if(n){cx/=n;cz/=n;}let rr=0;comps.forEach(s=>rr=Math.max(rr,Math.hypot(L[s.id].x-cx,L[s.id].z-cz)+s.R));
 const ring=L.ring=L.ring||{cx:cx,cz:cz,r:Math.max(10,rr+6.5)};
 const ins=specs.filter(s=>s.side<0),outs=specs.filter(s=>s.side>0);
 [[ins,Math.PI],[outs,0]].forEach(([list,c])=>list.forEach((s,i)=>{if(!L[s.id]||L[s.id].ang===undefined)L[s.id]={ang:c+(i-(list.length-1)/2)*0.36};}));
