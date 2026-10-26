@@ -1,7 +1,7 @@
-import { defineNode } from "../src/index.ts";
+import { node } from "../src/index.ts";
 
 /** Contract: implemented by every node that keeps an audit trail. */
-export const AuditLog = defineNode({
+export const AuditLog = node({
   id: "01a16dd2-bc3e-72ea-95ef-5c4ccd593be9",
   abstract: true,
   purpose: "Lets compliance read who changed what, independent of the owning node.",

@@ -1,11 +1,11 @@
 /**
- * Compile-time acceptance tests (MAX-10 criteria 2-4, the MAX-12 tsc rules,
- * plus the strictness the format relies on). Never imported or run: `tsc -p .`
- * (the package's `typecheck`) proves that each marked line fails, because an
- * unused `@ts-expect-error` is itself an error. Each directive sits on the
- * line of the offending element.
+ * Compile-time acceptance tests (MAX-10 criteria 2-4, the MAX-12 rules, the
+ * MAX-16 dome rules, plus the strictness the format relies on). Never imported
+ * or run: `tsc -p .` (the package's `typecheck`) proves that each marked line
+ * fails, because an unused `@ts-expect-error` is itself an error. Each
+ * directive sits on the line of the offending element.
  */
-import { defineNode, defineWorld, inherited, type NodeDef, type PortsDef, relation, tbd } from "../src/index.ts";
+import { defineWorld, inherited, type NodeDef, node, type PortsDef, tbd } from "../src/index.ts";
 import { AuditLog, notifyCustomer, Orders, Postgres, Shop, Stock } from "./index.ts";
 
 const base: Pick<NodeDef, "id" | "purpose" | "status" | "source"> = {
@@ -15,307 +15,313 @@ const base: Pick<NodeDef, "id" | "purpose" | "status" | "source"> = {
   source: [],
 };
 
+const Cmd = node({
+  ...base,
+  id: "01a16dd2-bc47-74bf-84dd-c156e496d92dd",
+  ports: { run: { kind: "call", purpose: "Run" }, stopped: { kind: "event", purpose: "Stopped" } },
+}).edges({});
+
+const Other = node({
+  ...base,
+  id: "01a16dd2-bc47-74bf-84dd-c156e496d92dc",
+  ports: { run: { kind: "call", purpose: "Run" } },
+}).edges({});
+
 // ─── Criterion 2: dangling port references ───────────────────────────────
 
-export const typoInPort = defineNode(base).edges({
+export const typoInPort = node(base).edges({
   // @ts-expect-error `reserv` is not a port of Stock
   uses: () => [Stock.reserv],
 });
 
 // A port that existed and was deleted: `Before` had `remove`, `After` no longer does.
-const Before = defineNode({
+const Before = node({
   ...base,
   ports: { add: { kind: "call", purpose: "Add" }, remove: { kind: "call", purpose: "Remove" } },
 }).edges({});
-const After = defineNode({ ...base, ports: { add: { kind: "call", purpose: "Add" } } }).edges({});
-export const usesKeptPort = defineNode(base).edges({ uses: () => [Before.remove, After.add] });
-export const usesDeletedPort = defineNode(base).edges({
+const After = node({ ...base, ports: { add: { kind: "call", purpose: "Add" } } }).edges({});
+export const usesKeptPort = node(base).edges({ uses: () => [Before.remove, After.add] });
+export const usesDeletedPort = node(base).edges({
   // @ts-expect-error `remove` was deleted from After
   uses: () => [After.remove],
 });
 
-export const delegateToDeletedPort = defineNode({
+export const domeExposesDeletedPort = node({
   ...base,
-  ports: { remove: { kind: "call", purpose: "Remove" } },
-  // @ts-expect-error `remove` was deleted from After
-  delegate: { remove: () => After.remove },
-}).edges({});
-
-export const delegateWithoutPorts = defineNode({
-  ...base,
-  // @ts-expect-error a node without ports has nothing to delegate
-  delegate: { place: () => Orders.place },
-}).edges({});
-
-export const delegateInheritedPort = defineNode({
-  ...base,
-  implements: () => [AuditLog],
-  // @ts-expect-error `history` is inherited; in MAX-5 only a port the node declares itself has a delegate
-  delegate: { history: () => Orders.place },
-}).edges({});
-
-export const delegateFromUnknownPort = defineNode({
-  ...base,
-  ports: { cancel: { kind: "call", purpose: "Cancel" } },
-  delegate: {
-    // @ts-expect-error delegate keys are the node's own port names
-    place: () => Orders.place,
-  },
+  children: { after: After },
+  ports: () => ({
+    // @ts-expect-error `remove` was deleted from After
+    remove: After.remove,
+  }),
 }).edges({});
 
 // ─── Criterion 3: plain strings and forged references in edge positions ──
 
-export const stringInUses = defineNode(base).edges({
+export const stringInUses = node(base).edges({
   // @ts-expect-error a string is not a PortRef
   uses: () => ["reserve"],
 });
 
-export const stringInImplements = defineNode({
+export const stringInImplements = node({
   ...base,
   // @ts-expect-error a string is not a NodeRef
   implements: () => ["audit-log"],
 }).edges({});
 
-export const stringAsDelegate = defineNode({
-  ...base,
-  ports: { place: { kind: "call", purpose: "Place" } },
-  // @ts-expect-error a string is not a PortRef
-  delegate: { place: () => "orders.place" },
-}).edges({});
-
-export const forgedRef = defineNode(base).edges({
+export const forgedRef = node(base).edges({
   // @ts-expect-error look-alike objects lack the brand
   uses: () => [{ $ref: "port", kind: "call", node: Stock, name: "reserve" }],
 });
 
-export const spreadForgedPort = defineNode(base).edges({
+export const spreadForgedPort = node(base).edges({
   // @ts-expect-error a spread drops the brand, so a renamed copy is not a port
   uses: () => [{ ...Stock.reserve, name: "x" }],
 });
 
-export const nodeInUses = defineNode(base).edges({
+export const nodeInUses = node(base).edges({
   // @ts-expect-error uses lists ports, not nodes
   uses: () => [Stock],
 });
 
-export const edgesInStepOne = defineNode({
+export const edgesInStepOne = node({
   ...base,
   // @ts-expect-error references to other nodes go into .edges()
   uses: () => [Stock.reserve],
 }).edges({});
 
-export const parentListedInEdges = defineNode(base).edges({
-  // @ts-expect-error the hierarchy lives in the world file, not in .edges()
+export const parentListedInEdges = node(base).edges({
+  // @ts-expect-error the hierarchy lives in children, not in .edges()
   parent: () => Shop,
 });
 
-export const delegateInEdges = defineNode({ ...base, ports: { place: { kind: "call", purpose: "Place" } } }).edges({
-  // @ts-expect-error delegates go into step one, so the handle's type records the targets
+export const delegateInEdges = node({ ...base, ports: { place: { kind: "call", purpose: "Place" } } }).edges({
+  // @ts-expect-error delegate is gone: a dome port references a child port
   delegate: { place: () => Orders.place },
 });
 
-// ─── Criterion 4: external or abstract parent (relation) ─────────────────
+// ─── Domes: children ────────────────────────────────────────────────────
 
-export const externalParent = relation({
-  // @ts-expect-error external nodes cannot be parents: they are top level only
-  parent: Postgres,
-  children: [Stock],
-});
+const Draft = node(base);
 
-export const abstractParent = relation({
-  // @ts-expect-error abstract nodes cannot be parents
-  parent: AuditLog,
-  children: [Stock],
-});
-
-// Only a literal `false` qualifies: a node whose flags are not known statically cannot be a parent.
-declare const unknownFlag: boolean;
-const MaybeExternal = defineNode({ ...base, external: unknownFlag }).edges({});
-const MaybeAbstract = defineNode({ ...base, abstract: unknownFlag }).edges({});
-export const maybeExternalParent = relation({
-  // @ts-expect-error MaybeExternal may be external
-  parent: MaybeExternal,
-  children: [Stock],
-});
-export const maybeAbstractParent = relation({
-  // @ts-expect-error MaybeAbstract may be abstract
-  parent: MaybeAbstract,
-  children: [Stock],
-});
-
-export const regularParent = relation({ parent: Shop, children: [Orders, Stock] });
-
-// ─── Relations: strings, drafts, ports and forgeries ─────────────────────
-
-const Draft = defineNode(base);
-
-export const stringAsParent = relation({
-  // @ts-expect-error a parent is a node reference, not a string
-  parent: "shop",
-  children: [Stock],
-});
-
-export const draftAsParent = relation({
-  // @ts-expect-error a draft is not a node until .edges() is called
-  parent: Draft,
-  children: [Stock],
-});
-
-export const portAsParent = relation({
-  // @ts-expect-error a parent is a node, not a port
-  parent: Stock.reserve,
-  children: [Orders],
-});
-
-export const spreadForgedParent = relation({
-  // @ts-expect-error a spread drops the brand, so Shop's flags cannot be put on Postgres
-  parent: { ...Shop, $def: Postgres.$def },
-  children: [Orders],
-});
-
-export const emptyChildren = relation({
-  parent: Stock,
-  // @ts-expect-error children must not be empty
-  children: [],
-});
-
-export const stringChild = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error a child is a node reference, not a string
-    "orders",
-  ],
-});
-
-export const draftChild = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error a draft is not a node until .edges() is called
-    Draft,
-  ],
-});
-
-export const portChild = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error a child is a node, not a port
-    Orders.place,
-  ],
-});
-
-export const forgedRelationChild = defineWorld({
-  children: [
-    // @ts-expect-error a look-alike relation lacks the brand
-    { $ref: "relation", parent: Shop, children: [Orders] },
-  ],
-});
-
-// ─── Relations: externals and delegates ──────────────────────────────────
-
-export const externalChild = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error external nodes are top level only
-    Postgres,
-  ],
-});
-
-export const maybeExternalChild = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error MaybeExternal may be external
-    MaybeExternal,
-  ],
-});
-
-export const delegateTargetNotAChild = relation({
-  // @ts-expect-error Shop delegates placeOrder and orderHistory to Orders, which is not listed
-  parent: Shop,
-  children: [Stock],
-});
-
-export const delegatorWithoutRelation = defineWorld({
-  children: [
-    Postgres,
-    // @ts-expect-error Shop delegates to its children, so it must be a relation's parent
-    Shop,
-  ],
-});
-
-export const nestedDelegatorWithoutRelation = relation({
-  parent: Stock,
-  children: [
-    // @ts-expect-error Shop delegates to its children, so it must be a relation's parent
-    Shop,
-  ],
-});
-
-export const emptyWorld = defineWorld({
-  // @ts-expect-error children must not be empty
-  children: [],
-});
-
-// A nested relation counts as a direct child through its parent, and subtrees compose.
-const Outer = defineNode({
+export const emptyChildren = node({
   ...base,
-  ports: { place: { kind: "call", purpose: "Place" } },
-  delegate: { place: () => Shop.placeOrder },
+  // @ts-expect-error children must not be empty
+  children: {},
 }).edges({});
-export const shopSubtree = relation({ parent: Shop, children: [Orders, Stock] });
-export const composedWorld = defineWorld({
-  children: [Postgres, AuditLog, relation({ parent: Outer, children: [shopSubtree] })],
+
+export const stringChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error a child is a node reference, not a string
+    cmd: "cmd",
+  },
+}).edges({});
+
+export const draftChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error a draft is not a node until .edges() is called
+    cmd: Draft,
+  },
+}).edges({});
+
+export const portChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error a child is a node, not a port
+    cmd: Cmd.run,
+  },
+}).edges({});
+
+export const forgedChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error a spread drops the brand, so Shop's flags cannot be put on Cmd
+    cmd: { ...Cmd, $def: Other.$def },
+  },
+}).edges({});
+
+export const externalChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error external nodes are top level only
+    postgres: Postgres,
+  },
+}).edges({});
+
+export const abstractChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error abstract nodes cannot have children, so they cannot be a child
+    audit: AuditLog,
+  },
+}).edges({});
+
+declare const unknownFlag: boolean;
+const MaybeExternal = node({ ...base, external: unknownFlag }).edges({});
+const MaybeAbstract = node({ ...base, abstract: unknownFlag }).edges({});
+export const maybeExternalChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error MaybeExternal may be external
+    maybe: MaybeExternal,
+  },
+}).edges({});
+export const maybeAbstractChild = node({
+  ...base,
+  children: {
+    // @ts-expect-error MaybeAbstract may be abstract
+    maybe: MaybeAbstract,
+  },
+}).edges({});
+
+// ─── Domes: flag rules ───────────────────────────────────────────────────
+
+export const externalDome = node({
+  ...base,
+  external: true,
+  // @ts-expect-error external nodes cannot have children: they are top level only
+  children: { cmd: Cmd },
+}).edges({});
+
+export const abstractDome = node({
+  ...base,
+  abstract: true,
+  // @ts-expect-error abstract nodes cannot have children
+  children: { cmd: Cmd },
+}).edges({});
+
+export const maybeExternalDome = node({
+  ...base,
+  external: unknownFlag,
+  // @ts-expect-error MaybeExternal may be external, so it cannot have children
+  children: { cmd: Cmd },
+}).edges({});
+
+export const maybeAbstractDome = node({
+  ...base,
+  abstract: unknownFlag,
+  // @ts-expect-error MaybeAbstract may be abstract, so it cannot have children
+  children: { cmd: Cmd },
+}).edges({});
+
+export const domeUses = node({ ...base, children: { cmd: Cmd } }).edges({
+  // @ts-expect-error a dome has no behavior of its own: put uses in one of its children
+  uses: () => [Stock.reserve],
 });
 
-// Children typed as `WorldChild` unions compose too: spreads, inferred mixed arrays, another world's children.
-export const spreadChildren = defineWorld({ children: [Postgres, AuditLog, ...composedWorld.children] });
-const mixedChildren = [AuditLog, shopSubtree];
-export const mixedRelation = relation({ parent: Outer, children: mixedChildren });
-export const reusedWorld = defineWorld({ children: composedWorld.children });
+export const domeWithPortsRecord = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error a dome's ports are a function that references child ports
+  ports: { run: Cmd.run },
+}).edges({});
 
-export const widenedChildren = relation({
-  parent: Shop,
-  // @ts-expect-error a widened WorldChild may be external, so it can only be top level
-  children: shopSubtree.children,
-});
+export const leafWithPortsFunction = node({
+  ...base,
+  // @ts-expect-error a leaf's ports are a record, not a function
+  ports: () => ({ run: Stock.reserve }),
+}).edges({});
 
-// Each node of an inferred mixed array is judged by its own flags.
-const withExternal = [Postgres, Orders];
-export const mixedWithExternal = relation({
-  parent: Stock,
-  // @ts-expect-error Postgres is external
-  children: withExternal,
-});
-const withDelegator = [Stock, Shop];
-export const mixedWithDelegator = relation({
-  parent: Outer,
-  // @ts-expect-error Shop delegates to its children, so it must be a relation's parent
-  children: withDelegator,
-});
+// ─── Domes: ports reference direct child ports ──────────────────────────
+
+export const portOfNonChild = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error Other is not one of this dome's direct children
+  ports: () => ({
+    run: Other.run,
+  }),
+}).edges({});
+
+const Inner = node({
+  ...base,
+  id: "01a16dd2-bc47-74bf-84dd-c156e496d92de",
+  children: { cmd: Cmd },
+  ports: (c) => ({ run: c.cmd.ports.run }),
+}).edges({});
+export const grandchildPort = node({
+  ...base,
+  children: { inner: Inner },
+  // @ts-expect-error Cmd is a grandchild, not a direct child
+  ports: () => ({
+    run: Cmd.run,
+  }),
+}).edges({});
+
+export const placeholderAsDomePort = node({
+  ...base,
+  children: { stock: Stock },
+  // @ts-expect-error a placeholder is not a child's port
+  ports: () => ({
+    notify: notifyCustomer,
+  }),
+}).edges({});
+
+export const emptyDomePortName = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error port names must not be empty
+  ports: () => ({
+    "": Cmd.run,
+  }),
+}).edges({});
+
+export const reservedDomePortName = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error `ports` is reserved for the handle's port namespace
+  ports: () => ({
+    ports: Cmd.run,
+  }),
+}).edges({});
+
+const wideDomePorts: Record<string, typeof Cmd.run> = { run: Cmd.run };
+export const wideDomePortRecord = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error port names must be known statically
+  ports: () => wideDomePorts,
+}).edges({});
+
+// Valid: a dome without public ports is still a container.
+export const silentDome = node({ ...base, children: { cmd: Cmd } }).edges({});
+
+// Valid: child ports under their own or a new name; nested domes compose.
+const App = node({
+  ...base,
+  children: { cmd: Cmd },
+  ports: (c) => ({ run: c.cmd.ports.run, stopped: c.cmd.ports.stopped }),
+}).edges({});
+export const composedDome = node({
+  ...base,
+  children: { app: App },
+  ports: (c) => ({ run: c.app.ports.run }),
+}).edges({});
 
 // ─── Inherited ports ─────────────────────────────────────────────────────
 
-export const usesInheritedPort = defineNode(base).edges({ uses: () => [inherited(Orders, AuditLog.history)] });
+export const usesInheritedPort = node(base).edges({ uses: () => [inherited(Orders, AuditLog.history)] });
 
-export const inheritedFromUnimplemented = defineNode(base).edges({
+export const domeExposesInheritedPort = node({
+  ...base,
+  children: { orders: Orders },
+  ports: (c) => ({ history: inherited(c.orders, AuditLog.history) }),
+}).edges({});
+
+export const inheritedFromUnimplemented = node(base).edges({
   // @ts-expect-error Stock does not implement AuditLog
   uses: () => [inherited(Stock, AuditLog.history)],
 });
 
-export const inheritedOwnPort = defineNode(base).edges({
+export const inheritedOwnPort = node(base).edges({
   // @ts-expect-error Stock is not a contract that Orders implements
   uses: () => [inherited(Orders, Stock.reserve)],
 });
 
-export const inheritedKindMismatch = defineNode({
-  ...base,
-  ports: { changed: { kind: "event", purpose: "Changed" } },
-  // @ts-expect-error AuditLog.history is a call port
-  delegate: { changed: () => inherited(Orders, AuditLog.history) },
-}).edges({});
-
 // ─── Contracts: port names ───────────────────────────────────────────────
 
-export const ownPortClashesWithInherited = defineNode({
+export const ownPortClashesWithInherited = node({
   ...base,
   ports: {
     // @ts-expect-error `history` is inherited from AuditLog
@@ -324,32 +330,26 @@ export const ownPortClashesWithInherited = defineNode({
   implements: () => [AuditLog],
 }).edges({});
 
-const OtherAudit = defineNode({
+const OtherAudit = node({
   ...base,
   abstract: true,
   ports: { history: { kind: "call", purpose: "Another history" } },
 }).edges({});
-export const contractsShareAPort = defineNode({
+export const contractsShareAPort = node({
   ...base,
-  implements: () => [
-    AuditLog,
-    // @ts-expect-error AuditLog already declares `history`
-    OtherAudit,
-  ],
+  // @ts-expect-error AuditLog already declares `history`
+  implements: () => [AuditLog, OtherAudit],
 }).edges({});
 
-export const contractListedTwice = defineNode({
+export const contractListedTwice = node({
   ...base,
-  implements: () => [
-    AuditLog,
-    // @ts-expect-error AuditLog is already listed
-    AuditLog,
-  ],
+  // @ts-expect-error AuditLog is already listed
+  implements: () => [AuditLog, AuditLog],
 }).edges({});
 
 // ─── Requirements ────────────────────────────────────────────────────────
 
-export const duplicateRequirementId = defineNode({
+export const duplicateRequirementId = node({
   ...base,
   requirements: [
     { id: "R1", text: "First." },
@@ -358,7 +358,7 @@ export const duplicateRequirementId = defineNode({
   ],
 }).edges({});
 
-export const demonstratesUnknownId = defineNode({
+export const demonstratesUnknownId = node({
   ...base,
   requirements: [{ id: "R1", text: "Only one." }],
   testCases: [
@@ -370,7 +370,7 @@ export const demonstratesUnknownId = defineNode({
 
 // A non-literal id is left to the loader, and does not make a literal one a duplicate.
 declare const requirementId: string;
-export const wideRequirementId = defineNode({
+export const wideRequirementId = node({
   ...base,
   requirements: [
     { id: requirementId, text: "First." },
@@ -379,7 +379,7 @@ export const wideRequirementId = defineNode({
 }).edges({});
 
 // Until MAX-5 decides otherwise, only own requirement ids: AuditLog's R1 does not count for its implementor.
-export const demonstratesContractId = defineNode({
+export const demonstratesContractId = node({
   ...base,
   implements: () => [AuditLog],
   testCases: [
@@ -391,25 +391,31 @@ export const demonstratesContractId = defineNode({
 // ─── Port names ──────────────────────────────────────────────────────────
 
 const widePorts: PortsDef = { add: { kind: "call", purpose: "Add" } };
-export const widePortRecord = defineNode({
+export const widePortRecord = node({
   ...base,
   // @ts-expect-error port names must be known statically, or any `Node.typo` would compile
   ports: widePorts,
 }).edges({});
 
-export const reservedPortName = defineNode({
+export const reservedPortName = node({
   ...base,
   // @ts-expect-error `$`-names are reserved for handle properties
   ports: { $def: { kind: "call", purpose: "Clash" } },
 }).edges({});
 
-export const emptyPortName = defineNode({
+export const portsNamespaceName = node({
+  ...base,
+  // @ts-expect-error `ports` is reserved for the handle's port namespace
+  ports: { ports: { kind: "call", purpose: "Clash" } },
+}).edges({});
+
+export const emptyPortName = node({
   ...base,
   // @ts-expect-error port names must not be empty
   ports: { "": { kind: "call", purpose: "Empty" } },
 }).edges({});
 
-export const protoPortName = defineNode({
+export const protoPortName = node({
   ...base,
   // @ts-expect-error a literal `__proto__` key sets the prototype at runtime instead of declaring a port
   ports: { __proto__: { kind: "call", purpose: "Proto" } },
@@ -417,61 +423,31 @@ export const protoPortName = defineNode({
 
 // ─── Flag rules (MAX-5) ──────────────────────────────────────────────────
 
-export const abstractWithUses = defineNode({ ...base, abstract: true }).edges({
+export const abstractWithUses = node({ ...base, abstract: true }).edges({
   // @ts-expect-error abstract nodes have no uses edges
   uses: () => [Stock.reserve],
 });
 
-export const abstractDelegates = defineNode({
-  ...base,
-  abstract: true,
-  ports: { p: { kind: "call", purpose: "P" } },
-  // @ts-expect-error abstract nodes do not delegate
-  delegate: { p: () => Orders.place },
-}).edges({});
-
-export const abstractImplements = defineNode({
+export const abstractImplements = node({
   ...base,
   abstract: true,
   // @ts-expect-error abstract nodes implement no other node
   implements: () => [AuditLog],
 }).edges({});
 
-export const externalTypeOnInternal = defineNode({
+export const externalTypeOnInternal = node({
   ...base,
   // @ts-expect-error externalType is for external nodes only
   externalType: "db",
 }).edges({});
 
-export const delegatedPortWithShapes = defineNode({
-  ...base,
-  ports: { place: { kind: "call", purpose: "Place", input: "cart" } },
-  // @ts-expect-error a delegated port takes its shapes from the child port
-  delegate: { place: () => Orders.place },
-}).edges({});
-
-export const externalDelegates = defineNode({
-  ...base,
-  external: true,
-  ports: { p: { kind: "call", purpose: "P" } },
-  // @ts-expect-error external nodes have no children to delegate to
-  delegate: { p: () => Orders.place },
-}).edges({});
-
-// ─── Further strictness ──────────────────────────────────────────────────
-
-export const implementsConcrete = defineNode({
+export const implementsConcrete = node({
   ...base,
   // @ts-expect-error only abstract nodes can be implemented
   implements: () => [Orders],
 }).edges({});
 
-export const delegateKindMismatch = defineNode({
-  ...base,
-  ports: { place: { kind: "call", purpose: "Place" } },
-  // @ts-expect-error a call port cannot delegate to an event port
-  delegate: { place: () => Orders.cancelled },
-}).edges({});
+// ─── Further strictness ──────────────────────────────────────────────────
 
 // @ts-expect-error a tbd needs a description
 export const tbdWithoutDescription = tbd.call({});
@@ -488,17 +464,42 @@ export const tbdControlWhitespace = tbd.call({ description: "\v\f" });
 // @ts-expect-error every character String.prototype.trim() removes counts, e.g. no-break space and BOM
 export const tbdUnicodeWhitespace = tbd.event({ description: "\u00a0\ufeff\u3000" });
 
-// A node delegating only to placeholders has no children yet, so it may stand alone.
-export const tbdAsDelegate = defineNode({
-  ...base,
-  ports: { notify: { kind: "call", purpose: "Notify" } },
-  delegate: { notify: () => notifyCustomer },
-}).edges({});
-export const tbdDelegatorAlone = defineWorld({ children: [tbdAsDelegate] });
+// ─── Worlds ──────────────────────────────────────────────────────────────
 
-export const tbdKindMismatch = defineNode({
-  ...base,
-  ports: { changed: { kind: "event", purpose: "Changed" } },
-  // @ts-expect-error notifyCustomer is a call placeholder
-  delegate: { changed: () => notifyCustomer },
-}).edges({});
+export const emptyWorld = defineWorld({
+  // @ts-expect-error children must not be empty
+  children: [],
+});
+
+export const stringInWorld = defineWorld({
+  children: [
+    // @ts-expect-error a child is a node reference, not a string
+    "shop",
+  ],
+});
+
+export const relationInWorld = defineWorld({
+  children: [
+    // @ts-expect-error relation() is gone: a node lists its children itself
+    { $ref: "relation", parent: Shop, children: [Orders] },
+  ],
+});
+
+export const draftInWorld = defineWorld({
+  children: [
+    // @ts-expect-error a draft is not a node until .edges() is called
+    Draft,
+  ],
+});
+
+export const portInWorld = defineWorld({
+  children: [
+    // @ts-expect-error a child is a node, not a port
+    Orders.place,
+  ],
+});
+
+export const validWorld = defineWorld({ children: [Postgres, AuditLog, Shop] });
+export const reusedWorld = defineWorld({ children: validWorld.children });
+const mixed = [Postgres, composedDome];
+export const mixedWorld = defineWorld({ children: mixed });

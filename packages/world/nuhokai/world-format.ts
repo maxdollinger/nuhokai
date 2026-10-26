@@ -1,10 +1,10 @@
-import { defineNode } from "../src/index.ts";
+import { node } from "../src/index.ts";
 
 /**
  * This package, described in its own format (MAX-10 smoke test).
  * Top level in `nuhokai/index.ts` for now; it moves under the Nuhokai node once the repo's own world exists.
  */
-export const WorldFormat = defineNode({
+export const WorldFormat = node({
   id: "01a16dd5-888a-77a4-9c88-e7d5bb03a016",
   purpose:
     "Lets a repo describe its world as TS files whose edges are typed references, so tsc catches dangling references " +
@@ -12,23 +12,17 @@ export const WorldFormat = defineNode({
   status: "building",
   source: ["packages/world/src/**"],
   ports: {
-    defineNode: {
+    node: {
       kind: "call",
-      purpose: "Declare a node: static fields, then .edges() with the lazy uses",
-      input: "MAX-5 fields, ports by name, implements, delegate; then uses",
+      purpose: "Declare a leaf or a dome: children in step one, uses in .edges()",
+      input: "MAX-5 fields; a leaf's ports by name, or a dome's children and port references",
       output: "typed handle exposing its own ports",
     },
     defineWorld: {
       kind: "call",
       purpose: "Declare the world: every node, placed in one tree; the loader's only entry point",
-      input: "top-level nodes and relations",
+      input: "top-level nodes",
       output: "frozen world object",
-    },
-    relation: {
-      kind: "call",
-      purpose: "Place nodes under a parent, as a subtree that can live in its own file",
-      input: "parent node and its direct children (nodes or relations)",
-      output: "frozen relation object",
     },
     inherited: {
       kind: "call",
@@ -54,13 +48,13 @@ export const WorldFormat = defineNode({
     { id: "R2", text: "A plain string in an edge position fails tsc." },
     {
       id: "R3",
-      text: "In relation(), an external, abstract or not statically known parent fails tsc, and so does an external child.",
+      text: "A dome that is external or abstract, or exposes a non-child's port, fails tsc.",
     },
     { id: "R4", text: "Placeholders fit wherever port references do, and stay distinguishable at runtime." },
     { id: "R5", text: "Files of a world may import each other in cycles." },
     { id: "R6", text: "Reference cycles between nodes need no type annotations." },
     { id: "R7", text: "An implementor's inherited port is referenceable only if it implements the contract (tsc)." },
-    { id: "R8", text: "The hierarchy reads in one place: the world file lists every node, nested with relation()." },
+    { id: "R8", text: "A node with children is a dome: pure container, behavior = its children." },
     {
       id: "R9",
       text: "A rule tsc can pin on the offending element fails there with a readable Forbidden message; global rules are the loader's.",
@@ -69,12 +63,15 @@ export const WorldFormat = defineNode({
     { id: "C2", kind: "constraint", text: "Node fields are derived from the MAX-5 types, never redeclared." },
   ],
   testCases: [
-    { text: "Typos and deleted ports in uses and delegate fail typecheck.", demonstrates: ["R1"] },
+    { text: "Typos and deleted ports in uses and a dome's port mapping fail typecheck.", demonstrates: ["R1"] },
     {
-      text: "Strings in uses, implements, relation parents and children, and delegate fail typecheck.",
+      text: "Strings in uses, implements, children and a dome's port mapping fail typecheck.",
       demonstrates: ["R2"],
     },
-    { text: "An external, abstract or not statically known relation parent fails typecheck.", demonstrates: ["R3"] },
+    {
+      text: "An external, abstract or not statically known dome, or a port of a non-child, fails typecheck.",
+      demonstrates: ["R3"],
+    },
     {
       text: "Two nodes share one placeholder; its $ref is 'unresolved', a real port's is 'port'.",
       demonstrates: ["R4"],
@@ -89,9 +86,12 @@ export const WorldFormat = defineNode({
       text: "inherited(Orders, AuditLog.history) compiles; with a node not implementing AuditLog it fails typecheck.",
       demonstrates: ["R7"],
     },
-    { text: "Walking the example world finds every exported node once, under its parent.", demonstrates: ["R8"] },
     {
-      text: "An external child, a delegate target that is not a child, and empty children fail typecheck in relation().",
+      text: "Walking the example world's children finds every exported node once, under its parent.",
+      demonstrates: ["R8"],
+    },
+    {
+      text: "An external or abstract child, a port of a non-child, and empty children fail typecheck in node().",
       demonstrates: ["R3", "R9"],
     },
     {
@@ -211,6 +211,25 @@ export const WorldFormat = defineNode({
         {
           option: "Rules as tuples intersected with the authored arrays, also when satisfied",
           why: "TypeScript compares the arrays method by method: a 200-node world took 2.2s instead of 0.6s (measured with the uuidv7 check, since dropped).",
+        },
+      ],
+    },
+    {
+      decision:
+        "Overrides 'Overrides the child declares its parent': a node with children is a dome and has no behavior of its own. A single node() constructor holds the hierarchy: children is a record of direct children, and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`). relation() is gone; the world file lists only top-level nodes, and delegate is replaced by a dome port's child reference.",
+      why: "A boundary is its children: an Init that calls its pieces as siblings is code in a node costume. Putting children inside the node makes the dome's behavior exactly its interior, keeps child names next to the port mapping, and lets tsc check that every exposed port belongs to a direct child. Child references only point down, so no type cycle appears.",
+      rejected: [
+        {
+          option: "Keep relation() in the world file and delegate in the parent",
+          why: "Splits one boundary across two files and lets a parent declare behavior next to the children it owns.",
+        },
+        {
+          option: "A dome declares its own ports and delegates by name",
+          why: "The port definitions can drift from the child port; referencing the child port copies its kind and shapes.",
+        },
+        {
+          option: "Children as an array without names",
+          why: "`c.cmd.ports.run` needs a local child name; positions make the mapping unreadable.",
         },
       ],
     },

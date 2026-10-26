@@ -1,9 +1,9 @@
-import { defineNode } from "../src/index.ts";
+import { node } from "../src/index.ts";
 import { notifyCustomer } from "./holes.ts";
 import { Orders } from "./orders.ts";
 import { Postgres } from "./postgres.ts";
 
-export const Stock = defineNode({
+export const Stock = node({
   id: "01a16dd2-bc2d-708e-89cb-3a9da2e0550d",
   purpose: "Counts what is on the shelf and holds reservations.",
   status: "planned",

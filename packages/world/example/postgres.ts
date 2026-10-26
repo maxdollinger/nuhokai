@@ -1,6 +1,6 @@
-import { defineNode } from "../src/index.ts";
+import { node } from "../src/index.ts";
 
-export const Postgres = defineNode({
+export const Postgres = node({
   id: "01a16dd2-bc36-723e-8ba3-48099f422a52",
   external: true,
   externalType: "db",
