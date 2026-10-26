@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
-import { Init } from "./init.ts";
+import { Init } from "./init/init.ts";
+import { New } from "./new/new.ts";
 
 /** The CLI in world format: loader, global rules, checks, writing. */
 export const Cli = node({
@@ -22,23 +23,34 @@ export const Cli = node({
     { id: "R1", text: "A repo needs no TypeScript, Bun or node_modules; the CLI ships its own pinned checker." },
     {
       id: "R2",
-      text: "A command's exit code passes through unchanged: 0 ok, 1 diagnostics or failure, 2 usage error.",
+      text: "A command's exit code passes through unchanged: 0 ok, 1 failure or diagnostics, 2 usage or argument error.",
     },
     {
       id: "R3",
-      text: "No argument or a help word prints usage and exits 0; `nuhokai <command> --help` prints that command's help and exits 0; an unknown command prints usage to stderr and exits 2.",
+      text: "No argument or a help word prints usage and exits 0. Usage lists every command with its argument form and a one-line description, and `nuhokai <command> --help` repeats that form; both exit 0. An unknown command prints usage to stderr and exits 2.",
     },
     { id: "R4", text: "Cli holds no loading, rule, tsc or writing logic: each command is its own node." },
     { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
+    {
+      id: "R6",
+      text: "Cli enforces the argument count per command: init, check and update take none, new takes exactly one. A wrong count is an argument error (2) and the command never runs; the arguments are passed through unchanged and never validated.",
+    },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
   ],
   testCases: [
-    { text: "Usage lists every command; --help and `nuhokai init --help` exit 0.", demonstrates: ["R3"] },
+    {
+      text: "Usage lists every command with its argument form, so `nuhokai new <path>` is visible; --help, `nuhokai init --help` and `nuhokai new --help` exit 0.",
+      demonstrates: ["R3"],
+    },
     {
       text: "An unknown command prints usage to stderr and exits 2; a command's non-zero exit reaches the process unchanged.",
       demonstrates: ["R2", "R3"],
+    },
+    {
+      text: "`nuhokai new new/stock-order` passes new/stock-order to New unchanged; `nuhokai new` and `nuhokai new a b` are argument errors and New never runs.",
+      demonstrates: ["R6"],
     },
     {
       text: "With an empty node_modules the checker reports only authored violations and rejects a non-relative import.",
@@ -65,6 +77,16 @@ export const Cli = node({
       ],
     },
     {
+      decision: "Exit 2 covers a wrong command, flag or argument count and a command's invalid argument value.",
+      why: "One code for 'the invocation was wrong' keeps scripts to two branches: Cli owns the shape of the call, the command owns its value.",
+      rejected: [
+        {
+          option: "A fourth code for invalid values",
+          why: "More states than a script can use; the stderr line already says which.",
+        },
+      ],
+    },
+    {
       decision: "Imports: relative files and @nuhokai/world only; CLI owns the tsconfig.",
       why: "Embedded .d.ts and paths suffice; independent of the repo's dependency graph.",
       rejected: [
@@ -79,4 +101,4 @@ export const Cli = node({
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
   ],
-}).edges({ uses: () => [Init.run] });
+}).edges({ uses: () => [Init.run, New.run] });

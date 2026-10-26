@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { InitError } from "./errors.ts";
+import { CliError } from "../shared/failure.ts";
 
 /** What resolving the target may look at, so tests can stand in for git and the terminal. */
 export interface ResolveTargetEnvironment {
@@ -69,12 +69,12 @@ export async function resolveTarget(cwd: string, environment: ResolveTargetEnvir
   // An injected confirm is a terminal for the caller's purposes; only the real one needs a TTY.
   const terminal = environment.isTTY ?? (Boolean(environment.confirm) || hasTerminal());
   if (!terminal) {
-    throw new InitError(`no Git repository and no terminal to confirm the current directory (${resolve(cwd)})`);
+    throw new CliError(`no Git repository and no terminal to confirm the current directory (${resolve(cwd)})`);
   }
 
   const confirmed = await (environment.confirm ?? askYesNo)(
     `No Git repository found. Create the world in ${resolve(cwd)}? [y/N] `,
   );
-  if (!confirmed) throw new InitError("the current directory was not confirmed; nothing written");
+  if (!confirmed) throw new CliError("the current directory was not confirmed; nothing written");
   return resolve(cwd);
 }

@@ -3,9 +3,11 @@ import { node } from "@nuhokai/world";
 /** The target's current state, as a verdict. Reads only, decides nothing. */
 export const Inspect = node({
   id: "01a17290-3f10-7c50-9c2e-7d41b6a83e02",
-  purpose: "Observe the target: absent, a world, or a file in the way. Reads only; repairs, judges and writes nothing.",
+  purpose:
+    "Observe the target: absent, a world, or a file in the way. Shared by every command that reads or writes a world; " +
+    "reads only; repairs, judges and writes nothing.",
   status: "built",
-  source: ["packages/cli/src/init/inspect.ts"],
+  source: ["packages/cli/src/target/inspect.ts"],
   ports: {
     inspect: {
       kind: "call",
@@ -30,11 +32,11 @@ export const Inspect = node({
   decisions: [
     {
       decision: "Any directory counts as a world.",
-      why: "Init never repairs or updates; a broken world is update's and check's business.",
+      why: "A command never repairs or updates; a broken world is update's and check's business.",
       rejected: [
         {
           option: "Require nuhokai/index.ts or load and validate",
-          why: "Init must work before the loader does; a half-written world is update's business.",
+          why: "A command must work before the loader does; a half-written world is update's and check's business.",
         },
       ],
     },

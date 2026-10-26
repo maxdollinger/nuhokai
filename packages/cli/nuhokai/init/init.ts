@@ -1,21 +1,20 @@
 import { node } from "@nuhokai/world";
 import { CliFiles } from "./cli-files.ts";
 import { ExampleWorld } from "./example-world.ts";
-import { Inspect } from "./inspect.ts";
 import { Publish } from "./publish.ts";
-import { ResolveTarget } from "./resolve-target.ts";
 import { Scaffold } from "./scaffold.ts";
 
 /**
  * The init boundary: one public contract, the interior free to be re-cut.
- * Inside: Scaffold (program), ResolveTarget, Inspect, Publish, ExampleWorld, CliFiles.
+ * Inside: Scaffold (program), Publish, ExampleWorld, CliFiles.
+ * ResolveTarget, Inspect, WorldPath and Failure are shared top-level nodes.
  */
 export const Init = node({
   id: "01a17233-ebfc-772d-abf4-0bd32b81656d",
   purpose:
     "Create a repo's world from nothing: nuhokai/ with an example node and world, the CLI-owned tsconfig and the " +
     "embedded @nuhokai/world types, so the loader and the editor work at once. Writes only; never checks, repairs or " +
-    "updates. A boundary: run is delegated to Scaffold.",
+    "updates. A boundary: run is delegated to Scaffold; target, layout and failure concerns are shared top-level nodes.",
   status: "built",
   source: ["packages/cli/src/init/**"],
   requirements: [
@@ -81,10 +80,15 @@ export const Init = node({
       ],
     },
     {
-      decision: "Init is a boundary dome: run delegates to Scaffold, and CliFiles stays inside until update needs it.",
-      why: "The outside sees one contract; the interior re-cuts without touching Cli or these requirements. Update is the second caller that decides promotion.",
+      decision:
+        "Init is a boundary dome: run delegates to Scaffold. Target queries, the world layout and the failure line are top-level nodes, shared with New; CliFiles is Init's until update needs it.",
+      why: "One public contract, one owner per shared concern, and an interior that re-cuts without touching Cli.",
       rejected: [
         { option: "Init's body as loose code", why: "The interior stays unreadable in the map." },
+        {
+          option: "Duplicate ResolveTarget and Inspect inside New",
+          why: "Two owners of one behavior and two copies to drift.",
+        },
         {
           option: "One port per interior domain, sequenced by Cli",
           why: "The interior leaks; sequencing becomes public.",
@@ -94,8 +98,6 @@ export const Init = node({
   ],
   children: {
     scaffold: Scaffold,
-    resolveTarget: ResolveTarget,
-    inspect: Inspect,
     publish: Publish,
     exampleWorld: ExampleWorld,
     cliFiles: CliFiles,

@@ -8,7 +8,10 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 ```
 src/
   bin.ts        argv, exit codes, command dispatch
-  init/         resolve the root, inspect it, write the skeleton atomically
+  init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
+  new/          add one node file to an existing world: the program and the file's bytes
+  target/       resolve the repo root, inspect what sits at nuhokai/ (shared by every command)
+  shared/       the world layout and path forms, and the one error type with its one-line rule
   toolchain/    generated @nuhokai/world declarations
 scripts/        build-time embedding of those declarations
 nuhokai/        this package described as nodes in its own format
@@ -37,6 +40,7 @@ src/
 | -------- | -------------------------------------------------------------------------------------- |
 | `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders       |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
 `init` writes one folder, with everything the tool needs inside it:
@@ -54,6 +58,13 @@ nuhokai/
 using the cwd, and refuses when there is no terminal. An existing `nuhokai/` directory is left untouched: it prints
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
+
+`new <path>` adds one node file, `nuhokai/<path>.ts`, merging the path with the world's folder so a big world can
+split into folders. Every segment is kebab-case; the file exports the PascalCase of the last segment, carries a fresh
+uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the parent directories it needs, never
+overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
+`index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
+`new` needs an existing world.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { fromRoot, inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "./paths.ts";
+import { fromRoot, inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
 
 /** The world entry point: the loader's only entry, listing the one example node. */
 export const WORLD_INDEX_TEMPLATE = `import { defineWorld } from "@nuhokai/world";

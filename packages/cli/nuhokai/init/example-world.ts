@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { WorldPath } from "../world-path.ts";
 
 /** The authored example a new world starts with. Owns its bytes. */
 export const ExampleWorld = node({
@@ -48,8 +49,11 @@ export const ExampleWorld = node({
           option: "Relax defineWorld to accept an empty world",
           why: "Weakens a rule for one state; empty relation children stay invalid.",
         },
-        { option: "uuidv7 per run", why: "Ids need only be unique per world; constants keep output byte-identical." },
+        {
+          option: "uuidv7 per run",
+          why: "Init's output is byte-identical; `new` generates an id per authored node.",
+        },
       ],
     },
   ],
-}).edges({});
+}).edges({ uses: () => [WorldPath.file] });

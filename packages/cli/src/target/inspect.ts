@@ -1,6 +1,6 @@
 import { lstatSync } from "node:fs";
 import { join } from "node:path";
-import { WORLD_DIR } from "./paths.ts";
+import { WORLD_DIR } from "../shared/paths.ts";
 
 /** What sits at `<root>/nuhokai`; init decides, this only observes. */
 export type TargetState = { readonly kind: "absent" } | { readonly kind: "world" } | { readonly kind: "occupied" };

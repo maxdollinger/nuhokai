@@ -43,6 +43,19 @@ test("`nuhokai init --help` prints init's help and exits 0", async () => {
   expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
+test("`nuhokai new --help` shows that new takes a path", async () => {
+  expect(await main(["new", "--help"])).toBe(0);
+  expect(commandUsage("new")).toContain("Usage: nuhokai new <path>");
+});
+
+test("Cli enforces the argument count without validating the argument", async () => {
+  expect(await main(["new"])).toBe(2);
+  expect(await main(["new", "a", "b"])).toBe(2);
+  // The count is the dispatcher's; the value is New's, which rejects this one with its own 2.
+  expect(await main(["new", "new/StockOrder"])).toBe(2);
+  expect(await main(["init", "extra"])).toBe(2);
+});
+
 test("an unknown command is a usage error", async () => {
   expect(await main(["bogus"])).toBe(2);
 });
