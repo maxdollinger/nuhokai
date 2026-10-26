@@ -8,18 +8,15 @@ import { MapFile } from "./map-file.ts";
 /** The program inside WorldMap: resolve, inspect, load, write, print. */
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
-  purpose:
-    "The program inside WorldMap: owns the order and the exit mapping; no loading, map bytes, layout or filesystem " +
-    "of its own.",
+  purpose: "The program inside WorldMap: order and exit codes only.",
   status: "planned",
   source: ["packages/cli/src/map/draw-map.ts"],
   ports: {
     run: {
       kind: "call",
       purpose: "Draw the world's map",
-      input: "the cwd",
-      output:
-        "exit 0 written, 1 failure; stdout: the from-root path; stderr: one line per failure, prefixed 'nuhokai map: '",
+      input: "cwd",
+      output: "exit 0 or 1; stdout: the from-root path; stderr: one 'nuhokai map: ' line per failure",
       errors: [
         "no git and no terminal",
         "the user declined the cwd",
@@ -32,15 +29,12 @@ export const DrawMap = node({
   },
   requirements: [
     { id: "R1", text: "Order: resolve, inspect, load, write, print; a load failure writes nothing." },
-    { id: "R2", text: "absent → one error naming init; occupied → one error; world → load and write." },
+    { id: "R2", text: "absent → error naming init; occupied → error; world → load and write." },
   ],
   testCases: [
+    { text: "No world, or a file at nuhokai: one stderr line, exit 1, nothing written.", demonstrates: ["R2"] },
     {
-      text: "No world, or a file at nuhokai, gives one stderr line, exit 1, nothing written.",
-      demonstrates: ["R2"],
-    },
-    {
-      text: "A node file that throws gives one 'nuhokai map: ' line naming the file, exit 1, and the previous map stays.",
+      text: "A throwing node file: one line naming the file, exit 1, previous map kept.",
       demonstrates: ["R1"],
     },
   ],

@@ -2,70 +2,35 @@ import { node } from "@nuhokai/world";
 import { DrawMap } from "./draw-map.ts";
 import { MapFile } from "./map-file.ts";
 
-/**
- * The map boundary: `nuhokai map` draws the world as one HTML file.
- * Inside: DrawMap (program) and MapFile (the map).
- * LoadWorld, ResolveTarget, Inspect, WorldPath and Failure are shared top-level nodes.
- */
+/** `nuhokai map`: the world as one HTML file. Inside: DrawMap (program), MapFile (the map). */
 export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
   purpose:
-    "Draw the current world as a map: islands, domes, ports, edges and tbd placeholders in one self-contained HTML " +
-    "file at nuhokai/.generated/map.html. Reads the world as it evaluates; never checks, edits or opens a browser. " +
-    "run delegates to DrawMap.",
+    "Draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html. Never checks, edits or opens a browser.",
   status: "planned",
   source: ["packages/cli/src/map/**"],
   requirements: [
-    {
-      id: "R1",
-      text: "Writes exactly nuhokai/.generated/map.html, replacing the previous map; no authored file, tsconfig or .generated/world/ changes.",
-    },
-    {
-      id: "R2",
-      text: "stdout: the from-root path; a failure: one stderr line, no stdout; a load failure leaves the previous map.",
-    },
-    {
-      id: "R3",
-      text: "Draws what evaluates, unchecked: a world that check rejects still gets a map, as long as it loads.",
-    },
-    { id: "C1", kind: "constraint", text: "No arguments; --help is the only flag." },
+    { id: "R1", text: "Writes only nuhokai/.generated/map.html." },
+    { id: "R2", text: "stdout: the from-root path. Failure: one stderr line; a load failure keeps the previous map." },
+    { id: "R3", text: "Unchecked: any world that loads gets a map." },
+    { id: "C1", kind: "constraint", text: "No arguments; --help only." },
   ],
   testCases: [
     {
-      text: "After init, map writes nuhokai/.generated/map.html, prints its path and exits 0; a second run changes no other file.",
+      text: "After init: writes and prints nuhokai/.generated/map.html, exit 0; a second run changes no other file.",
       demonstrates: ["R1", "R2"],
     },
-    {
-      text: "A world with an orphan and an out-of-scope uses edge still gets a map.",
-      demonstrates: ["R3"],
-    },
+    { text: "A world with an orphan and an out-of-scope uses edge still gets a map.", demonstrates: ["R3"] },
   ],
   decisions: [
     {
-      decision: "The command is `nuhokai map`.",
-      why: "The domain already calls this picture the map (islands and domes, groups as pillars, externals at the map's outer edge), and every command is one word: init, new, check, update, map.",
-      rejected: [
-        { option: "view or open", why: "Promise a browser window; the command only writes a file." },
-        { option: "render, draw or export", why: "Generic verbs that say nothing about the result." },
-      ],
+      decision: "Command `nuhokai map`.",
+      why: "The domain calls this picture the map; every command is one word.",
     },
+    { decision: "No check before drawing.", why: "A broken world is when the map helps most." },
     {
-      decision: "map loads and draws without running check.",
-      why: "A broken world is when a map helps most, and check stays the one gate; map only needs the world to evaluate.",
-      rejected: [
-        { option: "Refuse worlds check rejects", why: "Couples two commands and hides the map when it is needed." },
-      ],
-    },
-    {
-      decision: "The map lives at nuhokai/.generated/map.html.",
-      why: "Everything the CLI owns sits in the one world folder, and .generated/ already holds what the CLI regenerates; whether to commit it is the repo's choice, and determinism keeps either clean.",
-      rejected: [
-        { option: "A file outside nuhokai/ (dist/, the repo root)", why: "A second root for CLI-owned paths." },
-        {
-          option: "A temp file opened in the browser",
-          why: "Not reproducible, not linkable, and useless in CI.",
-        },
-      ],
+      decision: "Output in nuhokai/.generated/.",
+      why: "The CLI owns only nuhokai/; .generated/ holds what it regenerates. Committing is the repo's choice.",
     },
   ],
   children: { drawMap: DrawMap, mapFile: MapFile },
