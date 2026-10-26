@@ -7,6 +7,9 @@ export const WORLD_EXAMPLE = "example.ts";
 export const WORLD_TSCONFIG = "tsconfig.json";
 export const WORLD_TYPES_DIR = ".generated/world";
 export const WORLD_TYPES_FILE = "index.d.ts";
+/** Everything the CLI regenerates lives under this folder; nothing in it is a world file. */
+export const WORLD_GENERATED_DIR = ".generated";
+export const WORLD_MAP = `${WORLD_GENERATED_DIR}/map.html`;
 
 /** An absolute path to a file in the world folder at `dir`. */
 export function inWorld(dir: string, ...parts: string[]): string {

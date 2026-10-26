@@ -6,7 +6,7 @@ export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose:
     "Evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders. Shared; checks no rule, writes nothing.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/load/**"],
   ports: {
     load: {
