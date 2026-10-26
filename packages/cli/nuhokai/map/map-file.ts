@@ -42,7 +42,7 @@ export const MapFile = node({
     },
     {
       id: "R6",
-      text: "Clicking a node shows its purpose, status, ports, requirements and source; no field outside MAX-5 is shown or invented.",
+      text: "Clicking a node shows its purpose, status, ports, requirements and source; no field outside @nuhokai/world's NodeSpec is shown or invented.",
     },
     {
       id: "C1",
@@ -76,7 +76,7 @@ export const MapFile = node({
     {
       decision:
         "The page receives the loaded world unchanged and adapts it to the scene itself; the viewer is a static asset with one data hole.",
-      why: "One data contract, MAX-5, from the loader to the browser: the viewer can be developed by pasting any loaded world into it, and no TypeScript mapping drifts from the page's own model.",
+      why: "One data contract, @nuhokai/world's NodeSpec, from the loader to the browser: the viewer can be developed by pasting any loaded world into it, and no TypeScript mapping drifts from the page's own model.",
       rejected: [
         {
           option: "Map NodeSpec to the viewer's model in TypeScript",
@@ -86,7 +86,7 @@ export const MapFile = node({
       ],
     },
     {
-      decision: "MAX-5 status replaces the reference viewer's complexity as the island's colour; role is dropped.",
+      decision: "A node's status replaces the reference viewer's complexity as the island's colour; role is dropped.",
       why: "Neither role nor complexity is a node field, and node fields come only from node-spec.ts; status is the one lifecycle fact every node has.",
       rejected: [{ option: "Add role and complexity to the format", why: "A format change for one view." }],
     },

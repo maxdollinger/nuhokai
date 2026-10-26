@@ -1,11 +1,11 @@
 import { node } from "@nuhokai/world";
 import { WorldPath } from "./world-path.ts";
 
-/** The world as plain MAX-5 data. Evaluates, judges nothing. */
+/** The world as plain data in the shape @nuhokai/world defines. Evaluates, judges nothing. */
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose:
-    "Turn a repo's world into plain MAX-5 data: evaluate nuhokai/ in-process through the CLI's own @nuhokai/world " +
+    "Turn a repo's world into plain data: evaluate nuhokai/ in-process through the CLI's own @nuhokai/world " +
     "runtime, name every node by its export, resolve every reference by identity and answer the nodes as NodeSpec, " +
     "plus the tbd placeholders they use. " +
     "Shared by every command that reads a world; checks no rule, writes nothing.",
@@ -17,7 +17,7 @@ export const LoadWorld = node({
       purpose: "Load the world at the root",
       input: "the project root",
       output:
-        "nodes: every node reachable from nuhokai/index.ts as a NodeSpec (schema nuhokai/node@1), flat, each parent before its children, in authored order; placeholders: every tbd port those nodes use, with its kind, description, export name if any, and the ids of the nodes using it",
+        "nodes: every node reachable from nuhokai/index.ts as a NodeSpec from @nuhokai/world, flat, each parent before its children, in authored order; placeholders: every tbd port those nodes use, with its kind, description, export name if any, and the ids of the nodes using it",
       errors: [
         "no nuhokai/index.ts",
         "a world file failed to evaluate",
@@ -78,7 +78,7 @@ export const LoadWorld = node({
   ],
   decisions: [
     {
-      decision: "One top-level loader whose output is MAX-5 NodeSpec, the plain data every consumer shares.",
+      decision: "One top-level loader whose output is @nuhokai/world's NodeSpec, the plain data every consumer shares.",
       why: "node-spec.ts is the only source of truth for node fields, so a map, check's rules and later tools all read one plain, serializable shape with no handles, lazy functions or identity games left to repeat.",
       rejected: [
         { option: "Hand consumers the handles", why: "Every consumer re-implements naming and identity resolution." },
@@ -104,7 +104,7 @@ export const LoadWorld = node({
     },
     {
       decision: "tbd placeholders are a second list beside the nodes, not edges.",
-      why: "The map must show what is not designed yet, but MAX-5 has no edge without a target node; a placeholder is a world-level fact (one hole, many users), so it sits next to the nodes and no node field is redeclared.",
+      why: "The map must show what is not designed yet, but NodeSpec has no edge without a target node; a placeholder is a world-level fact (one hole, many users), so it sits next to the nodes and no node field is redeclared.",
       rejected: [
         { option: "A hole edge kind on NodeSpec", why: "Redeclares a node field outside node-spec.ts." },
         { option: "Leave placeholders out", why: "The map would hide the open parts of the design." },
