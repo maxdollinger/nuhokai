@@ -7,7 +7,7 @@ export const Cli = node({
     "Loads a repo's nuhokai folder into one checked, navigable model. Owns the toolchain (loader, tsc, world " +
     "types), so repos need no TypeScript, Bun or node_modules.",
   status: "planned",
-  source: ["packages/cli/src/**"],
+  source: ["packages/cli/src/**", "packages/cli/scripts/**"],
   ports: {
     check: {
       kind: "call",

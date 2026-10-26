@@ -9,9 +9,15 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 src/
   bin.ts        argv, exit codes, command dispatch
   index.ts      public exports for tests and embedding
+  toolchain/    generated @nuhokai/world declarations
+scripts/        build-time embedding of those declarations
 test/           CLI tests and, later, fixture worlds
 nuhokai/        this package described as a node in its own format
 ```
+
+`src/toolchain/world-types.gen.ts` is generated from `packages/world` and checked in. `bun run embed` regenerates
+it, `bun run build` embeds before bundling, and `bun test` fails if the committed asset is stale. A test also
+type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from `@nuhokai/world`.
 
 Planned modules, added as they are implemented:
 
@@ -21,7 +27,7 @@ src/
   rules/        global rules: duplicate ids, orphans, uses scope, names
   check/        run the embedded tsc, merge its diagnostics with the rules'
   report/       one file:line diagnostic list
-  toolchain/    embedded @nuhokai/world runtime, .d.ts and tsc
+  toolchain/    embedded @nuhokai/world runtime and tsc; the world types are already generated
 ```
 
 ## Commands
@@ -54,6 +60,8 @@ four targets (macOS and Linux, arm64 and x86_64). The checker (tsgo) ships as a 
 ## Development
 
 ```sh
+bun run embed        # regenerate src/toolchain/world-types.gen.ts
+bun run build        # embed, then bundle dist/bin.js
 bun run typecheck
-bun test
+bun test             # fails if the embedded declarations are stale
 ```
