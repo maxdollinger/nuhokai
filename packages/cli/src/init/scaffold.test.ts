@@ -14,10 +14,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { inspectTarget } from "../target/inspect.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
 import { EXAMPLE_TEMPLATE, WORLD_INDEX_TEMPLATE } from "./example-world.ts";
-import { inspectTarget } from "./inspect.ts";
 import { runInit, scaffold } from "./scaffold.ts";
 
 const TSC = join(import.meta.dir, "../../../../node_modules/.bin/tsc");

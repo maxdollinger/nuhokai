@@ -1,8 +1,8 @@
-import { InitError, oneLine } from "./errors.ts";
-import { inspectTarget } from "./inspect.ts";
-import { fromRoot, WORLD_DIR } from "./paths.ts";
+import { CliError, oneLine } from "../shared/failure.ts";
+import { fromRoot, WORLD_DIR } from "../shared/paths.ts";
+import { inspectTarget } from "../target/inspect.ts";
+import { type ResolveTargetEnvironment, resolveTarget } from "../target/resolve-target.ts";
 import { publishWorld } from "./publish.ts";
-import { type ResolveTargetEnvironment, resolveTarget } from "./resolve-target.ts";
 
 /** What the run port may observe and answer; the defaults are the real process. */
 export interface InitEnvironment extends ResolveTargetEnvironment {
@@ -18,7 +18,7 @@ export type ScaffoldOutcome =
 
 /** Whether a failure is one init promises to explain on a single stderr line. */
 function isOperational(error: unknown): boolean {
-  if (error instanceof InitError) return true;
+  if (error instanceof CliError) return true;
   // Filesystem failures carry a numeric errno; programming errors do not.
   return typeof (error as { errno?: unknown }).errno === "number";
 }
@@ -31,7 +31,7 @@ export async function scaffold(cwd: string, environment: InitEnvironment = {}): 
 
     if (state.kind === "world") return { kind: "world" };
     if (state.kind === "occupied") {
-      throw new InitError(`${fromRoot(WORLD_DIR)} exists but is not a directory`);
+      throw new CliError(`${fromRoot(WORLD_DIR)} exists but is not a directory`);
     }
 
     return { kind: "written", paths: publishWorld(root) };

@@ -4,10 +4,11 @@ import { node } from "@nuhokai/world";
 export const ResolveTarget = node({
   id: "01a17290-3f10-7c49-8b7d-2f5a9c10de63",
   purpose:
-    "Find the directory a world belongs to: the Git root, else the cwd once the user confirms it. Writes no files; " +
-    "reads the filesystem, spawns git and asks one yes/no question on the terminal. Never inspects what is there.",
+    "Find the directory a world belongs to: the Git root, else the cwd once the user confirms it. Shared by every " +
+    "command that reads or writes a world; writes no files, reads the filesystem, spawns git and asks one yes/no " +
+    "question on the terminal. Never inspects what is there.",
   status: "built",
-  source: ["packages/cli/src/init/resolve-target.ts"],
+  source: ["packages/cli/src/target/resolve-target.ts"],
   ports: {
     resolve: {
       kind: "call",

@@ -1,8 +1,8 @@
-/** A failure init can explain on one stderr line. */
-export class InitError extends Error {
+/** The CLI's shared failure surface: one expectable-failure type and the one-line rule. */
+export class CliError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "InitError";
+    this.name = "CliError";
   }
 }
 

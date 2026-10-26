@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { fromRoot, inWorld, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE } from "../shared/paths.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
-import { fromRoot, inWorld, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE } from "./paths.ts";
 
 /**
  * The editor's TypeScript settings: the world's strict options and the

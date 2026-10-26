@@ -1,8 +1,8 @@
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { WORLD_DIR } from "../shared/paths.ts";
 import { writeCliFiles } from "./cli-files.ts";
 import { writeExampleWorld } from "./example-world.ts";
-import { WORLD_DIR } from "./paths.ts";
 
 /**
  * Make the complete world appear at the root or leave nothing behind: stage a
