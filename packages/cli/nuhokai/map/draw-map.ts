@@ -9,7 +9,7 @@ import { MapFile } from "./map-file.ts";
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
   purpose: "The program inside WorldMap: order and exit codes only.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/map/draw-map.ts"],
   ports: {
     run: {

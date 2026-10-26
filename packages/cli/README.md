@@ -10,25 +10,26 @@ src/
   bin.ts        argv, exit codes, command dispatch
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
   new/          add one node file to an existing world: the program and the file's bytes
+  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
+  map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   target/       resolve the repo root, inspect what sits at nuhokai/ (shared by every command)
   shared/       the world layout and path forms, and the one error type with its one-line rule
-  toolchain/    generated @nuhokai/world declarations
-scripts/        build-time embedding of those declarations
+  toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
+scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format
 ```
 
 Unit tests sit next to what they test (`*.test.ts`); there is no `test/` directory and no export exists solely for a
-test. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and checked in. `bun run embed`
-regenerates it, `bun run build` embeds before bundling, and `bun test` fails if the committed asset is stale. A test
-also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
+test. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and `src/toolchain/map-assets.gen.ts` from
+the exactly pinned `three` dev dependency plus `src/map/viewer.html` and `src/map/scene.js`; both are checked in.
+`bun run embed` regenerates them, `bun run build` embeds before bundling, and `bun test` fails if a committed asset is
+stale. A test also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
 `@nuhokai/world`.
 
 Planned modules, added as they are implemented:
 
 ```
 src/
-  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
-  map/          draw the loaded world into nuhokai/.generated/map.html
   rules/        global rules: duplicate ids, orphans, uses scope, names
   check/        run the embedded tsc, merge its diagnostics with the rules'
   report/       one file:line diagnostic list
@@ -41,7 +42,7 @@ src/
 | -------- | -------------------------------------------------------------------------------------- |
 | `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map _(planned)_ |
+| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
 | `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders       |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
@@ -69,7 +70,7 @@ overwrites an existing file and never edits `index.ts` or a parent: the run prin
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
 `new` needs an existing world.
 
-`map` _(planned)_ loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
+`map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
 coloured by its status. It never opens a browser.
 
@@ -85,10 +86,10 @@ four targets (macOS and Linux, arm64 and x86_64). The checker (tsgo) ships as a 
 ## Development
 
 ```sh
-bun run embed        # regenerate src/toolchain/world-types.gen.ts
+bun run embed        # regenerate src/toolchain/world-types.gen.ts and map-assets.gen.ts
 bun run build        # embed, then bundle dist/bin.js
 bun run typecheck
-bun test             # fails if the embedded declarations are stale
+bun test             # fails if an embedded asset is stale
 ```
 
 ## License

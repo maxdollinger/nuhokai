@@ -1,16 +1,18 @@
 #!/usr/bin/env bun
 
 import { runInit } from "./init/index.ts";
+import { runMap } from "./map/index.ts";
 import { runNew } from "./new/index.ts";
 
-/** The commands the CLI exposes; `check` and `update` are planned, `init` and `new` run today. */
-export const COMMANDS = ["check", "init", "new", "update"] as const;
+/** The commands the CLI exposes; `check` and `update` are planned, `init`, `map` and `new` run today. */
+export const COMMANDS = ["check", "init", "map", "new", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
 const DESCRIPTIONS: Record<Command, string> = {
   check: "Load the world, run tsc and the global rules, print one diagnostics list",
   init: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
+  map: "Draw the world into nuhokai/.generated/map.html, a self-contained 3D map",
   new: "Add one node file with a fresh id and TODO placeholders to an existing world",
   update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of an existing world",
 };
@@ -19,12 +21,13 @@ const DESCRIPTIONS: Record<Command, string> = {
 const SYNOPSIS: Record<Command, string> = {
   check: "nuhokai check",
   init: "nuhokai init",
+  map: "nuhokai map",
   new: "nuhokai new <path>",
   update: "nuhokai update",
 };
 
 /** How many positional arguments each command takes; the value is the command's to validate. */
-const ARITY: Record<Command, number> = { check: 0, init: 0, new: 1, update: 0 };
+const ARITY: Record<Command, number> = { check: 0, init: 0, map: 0, new: 1, update: 0 };
 
 const HELP_WORDS = ["help", "--help", "-h"] as const;
 
@@ -87,6 +90,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 2;
   }
   if (first === "init") return runInit(process.cwd());
+  if (first === "map") return runMap(process.cwd());
   if (first === "new") return runNew(process.cwd(), rest[0] ?? "");
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;

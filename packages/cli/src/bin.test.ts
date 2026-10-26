@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
+import { runInit } from "./init/index.ts";
 
 test("usage lists every command", () => {
   for (const command of COMMANDS) expect(usage()).toContain(command);
@@ -58,4 +62,34 @@ test("Cli enforces the argument count without validating the argument", async ()
 
 test("an unknown command is a usage error", async () => {
   expect(await main(["bogus"])).toBe(2);
+});
+
+test("`nuhokai map --help` shows that map takes no argument", async () => {
+  expect(await main(["map", "--help"])).toBe(0);
+  expect(commandUsage("map")).toContain("Usage: nuhokai map\n");
+});
+
+test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs", async () => {
+  const repo = mkdtempSync(join(tmpdir(), "nuhokai-bin-map-test-"));
+  const cwd = process.cwd();
+  const log = console.log;
+  const error = console.error;
+  const out: string[] = [];
+  try {
+    expect(Bun.spawnSync(["git", "init", "-q", repo]).exitCode).toBe(0);
+    expect(await runInit(repo, { out: () => {} })).toBe(0);
+    console.log = (line: string) => out.push(line);
+    console.error = () => {};
+    process.chdir(join(repo, "nuhokai"));
+
+    expect(await main(["map", "x"])).toBe(2);
+    expect(existsSync(join(repo, "nuhokai/.generated/map.html"))).toBe(false);
+    expect(await main(["map"])).toBe(0);
+  } finally {
+    process.chdir(cwd);
+    console.log = log;
+    console.error = error;
+    rmSync(repo, { recursive: true, force: true });
+  }
+  expect(out).toEqual(["nuhokai/.generated/map.html"]);
 });

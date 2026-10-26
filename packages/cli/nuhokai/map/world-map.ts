@@ -7,7 +7,7 @@ export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
   purpose:
     "Draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html. Never checks, edits or opens a browser.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/map/**"],
   requirements: [
     { id: "R1", text: "Writes only nuhokai/.generated/map.html." },
