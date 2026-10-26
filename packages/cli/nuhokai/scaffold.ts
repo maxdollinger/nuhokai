@@ -9,8 +9,8 @@ export const Scaffold = node({
   purpose:
     "The program inside Init's boundary: resolve the target, inspect it, hand the outcome to Publish, then print the " +
     "result. Owns no data, file or template.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/scaffold.ts"],
   ports: {
     run: {
       kind: "call",
@@ -30,7 +30,10 @@ export const Scaffold = node({
     { id: "R1", text: "absent → create; world → nothing to do; occupied → one error." },
     { id: "R2", text: "Order: resolve, inspect, publish." },
     { id: "R3", text: "No file, template or staging access of its own." },
-    { id: "R4", text: "A child's error surfaces unchanged as one stderr line; the run port's lines are printed here." },
+    {
+      id: "R4",
+      text: "A child's error becomes one stderr line, newlines collapsed, otherwise unchanged; the run port's lines are printed here.",
+    },
   ],
   testCases: [
     {

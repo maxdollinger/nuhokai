@@ -4,8 +4,8 @@ import { node } from "@nuhokai/world";
 export const Inspect = node({
   id: "01a17290-3f10-7c50-9c2e-7d41b6a83e02",
   purpose: "Observe the target: absent, a world, or a file in the way. Reads only; repairs, judges and writes nothing.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/inspect.ts"],
   ports: {
     inspect: {
       kind: "call",

@@ -6,15 +6,15 @@ export const ExampleWorld = node({
   purpose:
     "Own the authored example world: one node, Example, in its own file, with a port, a tbd port and a uses edge. " +
     "Writes only into the directory it is given; never decides where a world goes.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/example-world.ts"],
   ports: {
     write: {
       kind: "call",
       purpose: "Lay down the authored example world",
       input: "an existing directory",
       output: "the two paths from the project root, nuhokai/index.ts and nuhokai/example.ts",
-      errors: ["the embedded template is missing"],
+      errors: [],
     },
   },
   requirements: [

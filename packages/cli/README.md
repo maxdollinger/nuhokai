@@ -8,16 +8,17 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 ```
 src/
   bin.ts        argv, exit codes, command dispatch
-  index.ts      public exports for tests and embedding
+  init/         resolve the root, inspect it, write the skeleton atomically
   toolchain/    generated @nuhokai/world declarations
 scripts/        build-time embedding of those declarations
-test/           CLI tests and, later, fixture worlds
 nuhokai/        this package described as nodes in its own format
 ```
 
-`src/toolchain/world-types.gen.ts` is generated from `packages/world` and checked in. `bun run embed` regenerates
-it, `bun run build` embeds before bundling, and `bun test` fails if the committed asset is stale. A test also
-type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from `@nuhokai/world`.
+Unit tests sit next to what they test (`*.test.ts`); there is no `test/` directory and no export exists solely for a
+test. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and checked in. `bun run embed`
+regenerates it, `bun run build` embeds before bundling, and `bun test` fails if the committed asset is stale. A test
+also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
+`@nuhokai/world`.
 
 Planned modules, added as they are implemented:
 
@@ -26,7 +27,6 @@ src/
   load/         locate and evaluate nuhokai/index.ts; collect exported nodes
   rules/        global rules: duplicate ids, orphans, uses scope, names
   check/        run the embedded tsc, merge its diagnostics with the rules'
-  init/         resolve the root, render the skeleton, write it atomically
   report/       one file:line diagnostic list
   toolchain/    embedded @nuhokai/world runtime and tsc; the world types are already generated
 ```
@@ -35,9 +35,9 @@ src/
 
 | Command  | Purpose                                                                                |
 | -------- | -------------------------------------------------------------------------------------- |
-| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic                 |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types                   |
+| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -55,8 +55,8 @@ using the cwd, and refuses when there is no terminal. An existing `nuhokai/` dir
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
-`init` and `update` exist so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the world's strict
-options without the repo installing TypeScript. The CLI does not ship a language server.
+`init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
+world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
 
 ## Distribution
 
@@ -72,3 +72,7 @@ bun run build        # embed, then bundle dist/bin.js
 bun run typecheck
 bun test             # fails if the embedded declarations are stale
 ```
+
+## License
+
+[Apache License 2.0](LICENSE).

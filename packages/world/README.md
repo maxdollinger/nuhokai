@@ -58,7 +58,7 @@ The runtime has no imports and no side effects: `node`, `defineWorld`, `inherite
 objects. `example/` is a complete small world: `example/index.ts` holds its top level and re-exports its nodes, so it
 is the barrel and not a node file; `example/type-errors.ts` lists what must not compile; `nuhokai/world-format.ts` is
 this package described as a node, including its design decisions, and `nuhokai/index.ts` is its world (`init` writes
-the same folder into a repo).
+this kind of folder into a repo).
 
 ## How it maps to MAX-5 (`nuhokai/node@1`)
 
@@ -137,7 +137,8 @@ A compile-time check fails if the two drift apart.
 
 The world must be type-checked with `strict: true`. `inherited()` relies on `strictFunctionTypes`; the other checks
 also hold without `strict`. `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are not relied upon. The CLI
-should own the world's tsconfig later, instead of trusting the repo's.
+owns the world's tsconfig: `nuhokai init` writes one with these options instead of trusting the repo's; the planned
+`nuhokai update` refreshes it.
 
 ## Types and the zero-dependency goal
 

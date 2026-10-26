@@ -6,8 +6,8 @@ export const CliFiles = node({
   purpose:
     "Own every file the CLI itself owns in a world: the editor tsconfig and the embedded @nuhokai/world " +
     "declarations, so the editor resolves the format without node_modules. Never decides which directory.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/cli-files.ts"],
   ports: {
     write: {
       kind: "call",
@@ -15,7 +15,7 @@ export const CliFiles = node({
       input: "an existing directory",
       output:
         "which of nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts were written, and which were already identical",
-      errors: ["the directory is not writable", "the embedded world types are missing"],
+      errors: ["the directory is not writable"],
     },
   },
   requirements: [

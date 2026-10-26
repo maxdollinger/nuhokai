@@ -7,7 +7,7 @@ export const Cli = node({
   purpose:
     "The command surface: parse argv, print usage and dispatch to the command nodes. Owns exit codes and the " +
     "distribution, so repos need no TypeScript, Bun or node_modules. Implements no command itself.",
-  status: "planned",
+  status: "building",
   source: ["packages/cli/src/**", "packages/cli/scripts/**"],
   ports: {
     dispatch: {

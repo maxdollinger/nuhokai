@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 
-/** Commands the CLI exposes. `map` and `write` come later, from the same loader. */
+import { runInit } from "./init/index.ts";
+
+/** The commands the CLI exposes; `check` and `update` are planned, `init` runs today. */
 export const COMMANDS = ["check", "init", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -8,7 +10,7 @@ export type Command = (typeof COMMANDS)[number];
 const DESCRIPTIONS: Record<Command, string> = {
   check: "Load the world, run tsc and the global rules, print one diagnostics list",
   init: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
-  update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of the world in the cwd",
+  update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of an existing world",
 };
 
 const HELP_WORDS = ["help", "--help", "-h"] as const;
@@ -49,18 +51,25 @@ function isCommand(value: string): value is Command {
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage error. */
 export async function main(argv: readonly string[]): Promise<number> {
   const [first] = argv;
-  if (!first || isHelpWord(first)) {
+  if (argv.length === 0 || (first !== undefined && isHelpWord(first))) {
     console.log(usage());
     return 0;
   }
-  if (!isCommand(first)) {
+  if (first === undefined || !isCommand(first)) {
     console.error(`nuhokai: unknown command '${first}'\n\n${usage()}`);
     return 2;
   }
-  if (argv.slice(1).some(isHelpWord)) {
+  const options = argv.slice(1);
+  const unexpected = options.find((value) => !isHelpWord(value));
+  if (unexpected !== undefined) {
+    console.error(`nuhokai ${first}: unexpected argument '${unexpected}'\n\n${commandUsage(first)}`);
+    return 2;
+  }
+  if (options.length > 0) {
     console.log(commandUsage(first));
     return 0;
   }
+  if (first === "init") return runInit(process.cwd());
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

@@ -6,8 +6,8 @@ export const ResolveTarget = node({
   purpose:
     "Find the directory a world belongs to: the Git root, else the cwd once the user confirms it. Writes no files; " +
     "reads the filesystem, spawns git and asks one yes/no question on the terminal. Never inspects what is there.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/resolve-target.ts"],
   ports: {
     resolve: {
       kind: "call",

@@ -8,8 +8,8 @@ export const Publish = node({
   purpose:
     "Make a complete world appear at the target or leave nothing behind: staged inside the root, filled by the two " +
     "content domains, committed in one step. Owns atomicity only, no content.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["packages/cli/src/init/publish.ts"],
   ports: {
     run: {
       kind: "call",

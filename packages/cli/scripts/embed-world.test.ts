@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GENERATED_FILE, renderGeneratedModule, renderWorldTypes, TSC } from "../scripts/embed-world.ts";
-import { WORLD_TYPES } from "../src/index.ts";
+import { WORLD_TYPES } from "../src/toolchain/world-types.gen.ts";
+import { GENERATED_FILE, renderGeneratedModule, renderWorldTypes, TSC } from "./embed-world.ts";
 
 const dependency = `
 import { node } from "./dts/index.ts";
