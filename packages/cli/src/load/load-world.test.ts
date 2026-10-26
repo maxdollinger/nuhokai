@@ -192,6 +192,28 @@ export const Box = node({
   expect(loaded.placeholders).toEqual([]);
 });
 
+test("a node listed at the top level and then inside a dome stays at its first listing", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Box, Shared } from "./box.ts";
+export default defineWorld({ children: [Shared, Box] });
+`,
+    "box.ts": `import { node } from "@nuhokai/world";
+export const Shared = node(${leaf("shared")}).edges({});
+export const Inner = node(${leaf("inner")}).edges({});
+export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: { shared: Shared, inner: Inner }, ports: () => ({}) }).edges({});
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.nodes.map((spec) => [spec.name, spec.parent])).toEqual([
+    ["Shared", null],
+    ["Box", null],
+    ["Inner", "box"],
+  ]);
+});
+
 test("a tbd used by two nodes is one placeholder with both ids and no edges", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";

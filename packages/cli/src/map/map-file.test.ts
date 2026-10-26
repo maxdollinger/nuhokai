@@ -114,3 +114,11 @@ test("the map loads nothing: three.js and OrbitControls are inlined with their l
   // Only the data block's own closing tag may end it, and every inlined script stays one script.
   expect(html.match(/<\/script/gi)?.length).toBe(html.match(/<script/gi)?.length);
 });
+
+test("the write failed: a directory in the map's place is a filesystem error, and nothing else is written", () => {
+  const root = tempDir();
+  mkdirSync(join(root, "nuhokai/.generated/map.html"), { recursive: true });
+
+  expect(() => writeMap(root, oneNode("blocked"))).toThrow(expect.objectContaining({ code: "EISDIR" }));
+  expect(files(root)).toEqual([]);
+});

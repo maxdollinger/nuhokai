@@ -2,11 +2,10 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ORBIT_CONTROLS_JS, SCENE_JS, THREE_JS, VIEWER_HTML } from "../src/toolchain/map-assets.gen.ts";
-import { GENERATED_FILE, mapAssets, renderMapAssets, THREE_VERSION } from "./embed-map.ts";
+import { GENERATED_FILE, renderMapAssets, THREE_VERSION } from "./embed-map.ts";
 
 test("the embedded map assets are up to date", () => {
   expect(readFileSync(GENERATED_FILE, "utf8")).toBe(renderMapAssets());
-  expect({ THREE_JS, ORBIT_CONTROLS_JS, VIEWER_HTML, SCENE_JS }).toEqual(mapAssets());
 });
 
 test("three is pinned exactly, to the release the map inlines", () => {

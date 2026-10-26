@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
@@ -134,4 +134,18 @@ test("a throwing node file: one line naming the file, exit 1, the previous map k
   expect(output.out).toEqual([]);
   expect(output.err).toEqual(["nuhokai map: nuhokai/orders.ts:1: orders broke"]);
   expect(readFileSync(join(repo, MAP), "utf8")).toBe(map);
+});
+
+test("the write failed: one line, exit 1, nothing printed to stdout", async () => {
+  const repo = gitRepo();
+  expect(await runInit(repo, capture().environment)).toBe(0);
+  mkdirSync(join(repo, MAP));
+  const before = snapshot(repo);
+  const output = capture();
+
+  expect(await runMap(repo, output.environment)).toBe(1);
+  expect(output.out).toEqual([]);
+  expect(output.err).toHaveLength(1);
+  expect(output.err[0]).toStartWith("nuhokai map: EISDIR");
+  expect(snapshot(repo)).toEqual(before);
 });
