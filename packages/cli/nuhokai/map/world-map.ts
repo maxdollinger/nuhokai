@@ -11,14 +11,14 @@ export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
   purpose:
     "Draw the current world as a map: islands, domes, ports and edges in one self-contained HTML page at " +
-    "nuhokai/.generated/world.html. Reads the world as it evaluates; never checks, edits or opens a browser. " +
+    "nuhokai/.generated/map.html. Reads the world as it evaluates; never checks, edits or opens a browser. " +
     "run delegates to DrawMap.",
   status: "planned",
   source: ["packages/cli/src/map/**"],
   requirements: [
     {
       id: "R1",
-      text: "Writes exactly nuhokai/.generated/world.html, replacing the previous map; no authored file, tsconfig or .generated/world/ changes.",
+      text: "Writes exactly nuhokai/.generated/map.html, replacing the previous map; no authored file, tsconfig or .generated/world/ changes.",
     },
     {
       id: "R2",
@@ -33,7 +33,7 @@ export const WorldMap = node({
   ],
   testCases: [
     {
-      text: "After init, map writes nuhokai/.generated/world.html, prints its path and exits 0; a second run gives identical bytes and changes no other file.",
+      text: "After init, map writes nuhokai/.generated/map.html, prints its path and exits 0; a second run gives identical bytes and changes no other file.",
       demonstrates: ["R1", "R2", "R4"],
     },
     {
@@ -67,7 +67,7 @@ export const WorldMap = node({
       ],
     },
     {
-      decision: "The page lives at nuhokai/.generated/world.html.",
+      decision: "The page lives at nuhokai/.generated/map.html.",
       why: "Everything the CLI owns sits in the one world folder, and .generated/ already holds what the CLI regenerates; whether to commit it is the repo's choice, and determinism keeps either clean.",
       rejected: [
         { option: "A file outside nuhokai/ (dist/, the repo root)", why: "A second root for CLI-owned paths." },

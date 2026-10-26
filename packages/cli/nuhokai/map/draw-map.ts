@@ -40,7 +40,7 @@ export const DrawMap = node({
   ],
   testCases: [
     {
-      text: "After init, run writes the map and prints nuhokai/.generated/world.html, exit 0; no world or a file at nuhokai gives one stderr line, exit 1, nothing written.",
+      text: "After init, run writes the map and prints nuhokai/.generated/map.html, exit 0; no world or a file at nuhokai gives one stderr line, exit 1, nothing written.",
       demonstrates: ["R1", "R2"],
     },
     {

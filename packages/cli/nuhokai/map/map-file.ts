@@ -5,28 +5,28 @@ import { WorldPath } from "../world-path.ts";
 export const MapFile = node({
   id: "01a179c9-f7cf-779b-98cd-d973d9c86279",
   purpose:
-    "Own the map page: one self-contained HTML document holding the viewer and the world's nodes as one data block, " +
-    "written to nuhokai/.generated/world.html in one step. Draws whatever nodes it is given; never loads, checks or " +
+    "Own the map page: one self-contained HTML document holding the viewer and the loaded world as one data block, " +
+    "written to nuhokai/.generated/map.html in one step. Draws whatever world it is given; never loads, checks or " +
     "chooses the directory.",
   status: "planned",
   source: ["packages/cli/src/map/map-file.ts", "packages/cli/src/map/viewer.html"],
   ports: {
     write: {
       kind: "call",
-      purpose: "Write the map of the given nodes",
-      input: "the project root and the world's nodes as NodeSpec",
-      output: "the from-root path, nuhokai/.generated/world.html",
+      purpose: "Write the map of the given world",
+      input: "the project root and the loaded world: its nodes as NodeSpec and its placeholders",
+      output: "the from-root path, nuhokai/.generated/map.html",
       errors: ["the directory is not writable", "the write failed"],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Exactly one file, nuhokai/.generated/world.html, creating nuhokai/.generated/ if missing; an existing map is replaced in one rename, so a failure leaves the previous map and no temporary file.",
+      text: "Exactly one file, nuhokai/.generated/map.html, creating nuhokai/.generated/ if missing; an existing map is replaced in one rename, so a failure leaves the previous map and no temporary file.",
     },
     {
       id: "R2",
-      text: "The page embeds the nodes unchanged as one JSON data block and reads nothing else: no fetch, no file next to it.",
+      text: "The page embeds the loaded world unchanged as one JSON data block and reads nothing else: no fetch, no file next to it.",
     },
     {
       id: "R3",
@@ -34,11 +34,11 @@ export const MapFile = node({
     },
     {
       id: "R4",
-      text: "Deterministic: the same nodes give identical bytes; no timestamp, root path or random value; the layout is seeded by node ids.",
+      text: "Deterministic: the same world gives identical bytes; no timestamp, root path or random value; the layout is seeded by node ids.",
     },
     {
       id: "R5",
-      text: "The page draws the top level as islands; double-click opens a dome, breadcrumbs lead back. Uses edges are lanes labelled with their ports, uses of event ports are air routes, a dome's ports enter through its delegates, groups are reefs, externals stand at the outer edge by externalType (caller, api, db) and status colours an island.",
+      text: "The page draws the top level as islands; double-click opens a dome, breadcrumbs lead back. Uses edges are lanes labelled with their ports, uses of event ports are air routes, a dome's ports enter through its delegates, groups are reefs, a tbd placeholder is a dashed hole island labelled with its description and joined to each node using it in the open scope, externals stand at the outer edge by externalType (caller, api, db) and status colours an island.",
     },
     {
       id: "R6",
@@ -52,7 +52,7 @@ export const MapFile = node({
   ],
   testCases: [
     {
-      text: "Writing the example world's nodes gives one file whose data block parses back to the same NodeSpecs; a second write of the same nodes gives identical bytes.",
+      text: "Writing the example world gives one file whose data block parses back to the same nodes and placeholders; a second write of the same world gives identical bytes.",
       demonstrates: ["R1", "R2", "R4"],
     },
     {
@@ -64,14 +64,14 @@ export const MapFile = node({
       demonstrates: ["R1"],
     },
     {
-      text: "Opened in a browser, the example world shows its top-level islands, Shop opens to Orders and Stock, and Postgres stands at the edge as a db.",
+      text: "Opened in a browser, the example world shows its top-level islands, Shop opens to Orders and Stock, Postgres stands at the edge as a db, and notifyCustomer is one hole joined to Orders and Stock.",
       demonstrates: ["R5", "R6"],
     },
   ],
   decisions: [
     {
       decision:
-        "The page receives NodeSpec unchanged and adapts it to the scene itself; the viewer is a static asset with one data hole.",
+        "The page receives the loaded world unchanged and adapts it to the scene itself; the viewer is a static asset with one data hole.",
       why: "One data contract, MAX-5, from the loader to the browser: the viewer can be developed by pasting any loaded world into it, and no TypeScript mapping drifts from the page's own model.",
       rejected: [
         {

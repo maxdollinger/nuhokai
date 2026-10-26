@@ -5,7 +5,7 @@ export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own where a world lives and how its paths are named: one folder nuhokai/ holding index.ts, the node files, the " +
-    "CLI-owned tsconfig.json, .generated/world/index.d.ts and the map .generated/world.html; and the two forms of a file inside it, absolute under " +
+    "CLI-owned tsconfig.json, .generated/world/index.d.ts and the map .generated/map.html; and the two forms of a file inside it, absolute under " +
     "the root and from-root with / separators for stdout. Pure: reads and writes nothing.",
   status: "built",
   source: ["packages/cli/src/shared/paths.ts"],
@@ -21,7 +21,7 @@ export const WorldPath = node({
   requirements: [
     {
       id: "R1",
-      text: "One folder, nuhokai/, holds index.ts, tsconfig.json, .generated/world/index.d.ts and .generated/world.html under the names given here; the CLI owns no other path.",
+      text: "One folder, nuhokai/, holds index.ts, tsconfig.json, .generated/world/index.d.ts and .generated/map.html under the names given here; the CLI owns no other path.",
     },
     {
       id: "R2",
@@ -35,7 +35,7 @@ export const WorldPath = node({
   ],
   testCases: [
     {
-      text: "file(root, 'new', 'stock-order.ts') gives <root>/nuhokai/new/stock-order.ts and nuhokai/new/stock-order.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts and .generated/world.html come from this node's names.",
+      text: "file(root, 'new', 'stock-order.ts') gives <root>/nuhokai/new/stock-order.ts and nuhokai/new/stock-order.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts and .generated/map.html come from this node's names.",
       demonstrates: ["R1", "R2"],
     },
     {
