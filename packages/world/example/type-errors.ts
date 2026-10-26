@@ -1,7 +1,6 @@
 /**
- * Compile-time acceptance tests (MAX-10 criteria 2-4, the MAX-12 rules, the
- * MAX-16 dome rules, plus the strictness the format relies on). Never imported
- * or run: `tsc -p .` (the package's `typecheck`) proves that each marked line
+ * Compile-time acceptance tests (the format's type rules, its dome rules, plus
+ * the strictness the format relies on). Never imported or run: `tsc -p .` (the package's `typecheck`) proves that each marked line
  * fails, because an unused `@ts-expect-error` is itself an error. Each
  * directive sits on the line of the offending element.
  */
@@ -378,7 +377,7 @@ export const wideRequirementId = node({
   ],
 }).edges({});
 
-// Until MAX-5 decides otherwise, only own requirement ids: AuditLog's R1 does not count for its implementor.
+// Until the node spec decides otherwise, only own requirement ids: AuditLog's R1 does not count for its implementor.
 export const demonstratesContractId = node({
   ...base,
   implements: () => [AuditLog],
@@ -421,7 +420,7 @@ export const protoPortName = node({
   ports: { __proto__: { kind: "call", purpose: "Proto" } },
 }).edges({});
 
-// ─── Flag rules (MAX-5) ──────────────────────────────────────────────────
+// ─── Flag rules (node spec) ──────────────────────────────────────────────
 
 export const abstractWithUses = node({ ...base, abstract: true }).edges({
   // @ts-expect-error abstract nodes have no uses edges

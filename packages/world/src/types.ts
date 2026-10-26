@@ -3,17 +3,17 @@ import type { CallPort, EventPort, NodeId, NodeSpec, Port } from "./node-spec.ts
 export type { NodeId };
 
 /**
- * Types of the world format (MAX-10, MAX-16): nodes as TS files whose edges are
+ * Types of the world format: nodes as TS files whose edges are
  * typed references to other nodes, so `tsc` catches dangling references.
  *
- * Everything here is derived from the MAX-5 node spec (`nuhokai/node@1`);
+ * Everything here is derived from the node spec (`node-spec.ts`, `nuhokai/node@1`);
  * only the fields the world format represents differently are replaced:
  * - `id` is any string, kept as a literal type on the handle; `name` is not
  *   authored (the loader takes the export name); `schema` is implied.
  * - `edges` become lazy typed references; a dome's ports are references to
  *   direct children's ports.
  * - `parent` is not a node field: a node lists its direct children itself, and
- *   `defineWorld` lists the top-level nodes (MAX-16).
+ *   `defineWorld` lists the top-level nodes.
  * - `ports` is a record keyed by port name instead of an array, so
  *   `Node.portName` resolves to the declaring key (go-to-definition, find references).
  *
@@ -27,7 +27,7 @@ export type { NodeId };
  * never on a node that could point back, and reference cycles need no
  * annotations.
  *
- * The MAX-5 types live in `node-spec.ts`; all imports are type-only and erased at runtime.
+ * The node-spec types live in `node-spec.ts`; all imports are type-only and erased at runtime.
  */
 
 // ─── Brands ──────────────────────────────────────────────────────────────
@@ -148,10 +148,10 @@ type Authored<T> = T extends readonly (infer U)[]
     ? { readonly [K in keyof T]: Authored<T[K]> }
     : T;
 
-/** MAX-5 `CallPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
+/** Node-spec `CallPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
 export interface WorldCallPort extends Authored<Omit<CallPort, "name" | "delegate">> {}
 
-/** MAX-5 `EventPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
+/** Node-spec `EventPort` without `name` (the record key); `delegate` is implied by a dome's port mapping. */
 export interface WorldEventPort extends Authored<Omit<EventPort, "name" | "delegate">> {}
 
 export type WorldPort = WorldCallPort | WorldEventPort;
@@ -175,7 +175,7 @@ export type ChildNodes = { readonly [name: string]: ParentRef };
 /** What a dome's ports function returns: one direct child's port per own port name. */
 export type DomePortsDef = { readonly [name: string]: DomePortRef };
 
-/** MAX-5 fields the world format replaces or derives. */
+/** Node-spec fields the world format replaces or derives. */
 type Replaced =
   | "schema"
   | "id"
@@ -188,16 +188,16 @@ type Replaced =
   | "requirements"
   | "testCases";
 
-/** MAX-5 `requirements`, authored. */
+/** Node-spec `requirements`, authored. */
 export type RequirementsDef = Authored<NonNullable<NodeSpec["requirements"]>>;
-/** MAX-5 `testCases`, authored. */
+/** Node-spec `testCases`, authored. */
 export type TestCasesDef = Authored<NonNullable<NodeSpec["testCases"]>>;
 
-/** Lazy MAX-5 `implements` edges; an alias, so that `NodeRules` can repeat the exact type. */
+/** Lazy node-spec `implements` edges; an alias, so that `NodeRules` can repeat the exact type. */
 export type Implements<Contracts extends readonly ContractRef[]> = () => Contracts;
 
 /**
- * The fields every node authors. All fields not declared here are MAX-5
+ * The fields every node authors. All fields not declared here are
  * `NodeSpec` fields; `ports` and `children` are added by `NodeShape`.
  */
 export interface NodeDef<
@@ -214,16 +214,16 @@ export interface NodeDef<
   /** Defaults to false. */
   readonly abstract?: Abstract;
   /**
-   * MAX-5 `implements` edges: the abstract nodes whose contract this node
+   * Node-spec `implements` edges: the abstract nodes whose contract this node
    * fulfils. Lazy like every edge, but part of step one because the handle's
    * type records the contracts (see `inherited`) and their ports are checked
    * against the own ports; contracts reference no other node in step one, so
    * this never forms a type cycle.
    */
   readonly implements?: Implements<Contracts>;
-  /** MAX-5 `requirements`; a type parameter, so that tsc can check the ids. */
+  /** Node-spec `requirements`; a type parameter, so that tsc can check the ids. */
   readonly requirements?: R;
-  /** MAX-5 `testCases`; a type parameter, so that tsc can check `demonstrates`. */
+  /** Node-spec `testCases`; a type parameter, so that tsc can check `demonstrates`. */
   readonly testCases?: T;
 }
 
@@ -249,7 +249,7 @@ export interface NodeShape<
 /** Step two of a node, the argument of `.edges()`: lazy references to other nodes. */
 export interface NodeEdges {
   /**
-   * MAX-5 `uses` edges: every port this leaf depends on. The loader groups them
+   * Node-spec `uses` edges: every port this leaf depends on. The loader groups them
    * by node and checks the scope against the world tree. Not in step one:
    * `uses` may point anywhere, also back, so it would form type cycles (TS7022).
    */
@@ -259,7 +259,7 @@ export interface NodeEdges {
 /**
  * A node definition as stored in `$def`: the authored fields with a dome's
  * ports function resolved to port definitions. Each dome port carries the
- * MAX-5 `delegate` to the direct child port it exposes.
+ * Node-spec `delegate` to the direct child port it exposes.
  */
 export interface StoredNodeDef extends Authored<Omit<NodeSpec, Replaced>> {
   readonly id: NodeId;
@@ -273,7 +273,7 @@ export interface StoredNodeDef extends Authored<Omit<NodeSpec, Replaced>> {
 }
 
 // ─── Compile-time rules ──────────────────────────────────────────────────
-// MAX-5 rules that the literal flags, ids and port names make cheap to check,
+// Node-spec rules that the literal flags, ids and port names make cheap to check,
 // each failing on the offending element. Unknown (`boolean`) flags are treated
 // as possibly true. Rules are wrapped in `NoInfer`, so they never steer
 // inference, and are `unknown` while satisfied: a tuple intersected with a
@@ -418,7 +418,7 @@ type TestCaseRules<T, Ids> = {
 /**
  * The test cases with the `demonstrates` rule, a type argument of `NodeDef` in
  * `node`: only own requirement ids. Whether an implementor may demonstrate a
- * contract's requirement is open (MAX-5 is silent).
+ * contract's requirement is open (the node spec is silent).
  */
 export type CheckedTestCases<T extends TestCasesDef, R extends RequirementsDef> = T &
   NoInfer<
@@ -547,7 +547,7 @@ export type IsDome<C> = [C] extends [undefined] ? false : true;
 
 type LeafPortsRules<P, Contracts extends readonly ContractRef[]> = P extends PortsDef
   ? PortRules<P> & InheritedPortRules<P, Contracts>
-  : { readonly [K in keyof P]: Forbidden<"a leaf's ports are MAX-5 port definitions"> };
+  : { readonly [K in keyof P]: Forbidden<"a leaf's ports are node-spec port definitions"> };
 
 type DomePortsRules<
   C extends Record<string, unknown>,
@@ -591,7 +591,7 @@ export type PortsOfShape<C, P> =
 
 // ─── Handles ─────────────────────────────────────────────────────────────
 
-/** A record of port names and kinds, enough to type a handle without its MAX-5 port definitions. */
+/** A record of port names and kinds, enough to type a handle without its node-spec port definitions. */
 export type PortKinds = { readonly [name: string]: PortKind };
 /** The kinds of a leaf's authored ports. */
 export type KindsOf<P extends PortsDef> = { readonly [K in keyof P]: P[K]["kind"] };
@@ -651,8 +651,8 @@ export type WorldChildrenRules<Children extends readonly unknown[]> = Children e
         readonly [I in keyof Children]: [Children[I]] extends [NodeRef] ? unknown : NotANode<Children[I]>;
       };
 
-// ─── Sync with MAX-5 ─────────────────────────────────────────────────────
-// Fails to compile if the world format drops or duplicates a MAX-5 field.
+// ─── Sync with the node spec ─────────────────────────────────────────────
+// Fails to compile if the world format drops or duplicates a node-spec field.
 // `parent` is not a node field: a node lists its children and `defineWorld`
 // lists the top-level nodes.
 

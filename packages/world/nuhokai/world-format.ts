@@ -1,7 +1,7 @@
 import { node } from "../src/index.ts";
 
 /**
- * This package, described in its own format (MAX-10 smoke test).
+ * This package, described in its own format (a smoke test).
  * Top level in `nuhokai/index.ts` for now; it moves under the Nuhokai node once the repo's own world exists.
  */
 export const WorldFormat = node({
@@ -15,7 +15,7 @@ export const WorldFormat = node({
     node: {
       kind: "call",
       purpose: "Declare a leaf or a dome: children in step one, uses in .edges()",
-      input: "MAX-5 fields; a leaf's ports by name, or a dome's children and port references",
+      input: "node-spec fields; a leaf's ports by name, or a dome's children and port references",
       output: "typed handle exposing its own ports",
     },
     defineWorld: {
@@ -60,7 +60,7 @@ export const WorldFormat = node({
       text: "A rule tsc can pin on the offending element fails there with a readable Forbidden message; global rules are the loader's.",
     },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
-    { id: "C2", kind: "constraint", text: "Node fields are derived from the MAX-5 types, never redeclared." },
+    { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
   ],
   testCases: [
     { text: "Typos and deleted ports in uses and a dome's port mapping fail typecheck.", demonstrates: ["R1"] },
@@ -105,7 +105,7 @@ export const WorldFormat = node({
       why: "Ids must survive renames and moves; the export name is unique per file and is what references use.",
       rejected: [
         {
-          option: "MAX-5 slug equal to the file name",
+          option: "A slug equal to the file name",
           why: "Renaming or moving a node breaks every stored reference.",
         },
         { option: "Ids derived from the file path", why: "Moving a file would change the node's identity." },
@@ -147,10 +147,13 @@ export const WorldFormat = node({
         "Ports are a record keyed by name; handles expose own ports only, inherited ports are referenced with inherited(Node, Contract.port).",
       why: "A record makes Node.port resolve to its declaring key, so go-to-definition and find-references work. Handle properties for inherited ports would need implements evaluated at definition; inherited() checks against the contracts in the handle's type instead.",
       rejected: [
-        { option: "The MAX-5 port array", why: "Property access on a handle would not link back to the declaration." },
+        {
+          option: "The node-spec port array",
+          why: "Property access on a handle would not link back to the declaration.",
+        },
         {
           option: "Referencing the contract's port (AuditLog.history) for an implementor's port",
-          why: "MAX-5 distinguishes depending on the contract from depending on an implementation.",
+          why: "The node spec distinguishes depending on the contract from depending on an implementation.",
         },
       ],
     },
@@ -171,7 +174,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "The MAX-5 node types live in this package as plain type-only TypeScript; the TypeBox schemas and JSON reader/writer are gone.",
+        "The node types live in this package as plain type-only TypeScript; the TypeBox schemas and JSON reader/writer are gone.",
       why: "The TS files are the format, so nothing reads node JSON anymore, and the shipped .d.ts must be self-contained.",
       rejected: [
         {
@@ -235,7 +238,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "Overrides 'A node's id is an authored uuidv7': an id is any authored string (MAX-5 NodeId), unique in the world; tsc does not check its format.",
+        "Overrides 'A node's id is an authored uuidv7': an id is any authored string (a NodeId), unique in the world; tsc does not check its format.",
       why: "The id only has to survive renames and moves, which any authored string does; uuidv7 is not settled, and validating it was about half of all instantiations.",
       rejected: [
         {

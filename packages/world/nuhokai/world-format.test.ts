@@ -9,8 +9,8 @@ test("the package describes itself as a node in the world format", () => {
   expect(WorldFormat.node.node).toBe(WorldFormat);
 });
 
-test("records the id, hierarchy and world-file decisions in the MAX-5 Decision shape", () => {
-  // The Decision shape itself is enforced by the compile-time sync with MAX-5 in src/types.ts.
+test("records the id, hierarchy and world-file decisions in the node spec's Decision shape", () => {
+  // The Decision shape itself is enforced by the compile-time sync with the node spec in src/types.ts.
   const decisions = WorldFormat.$def.decisions ?? [];
   const find = (text: string) => decisions.findIndex((d) => d.decision.includes(text));
   const indices = [

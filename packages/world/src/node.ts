@@ -132,7 +132,7 @@ function createHandle(def: NodeDefinition, edges: NodeEdges): NodeHandle<PortKin
 }
 
 /**
- * Turns a dome's `ports` mapping into MAX-5 port definitions. Each own port
+ * Turns a dome's `ports` mapping into node-spec port definitions. Each own port
  * copies the direct child port's definition and records the child it delegates
  * to, so the loader can follow the reference by identity.
  */
