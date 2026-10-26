@@ -70,9 +70,8 @@ overwrites an existing file and never edits `index.ts` or a parent: the run prin
 `new` needs an existing world.
 
 `map` _(planned)_ loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
-one self-contained HTML file with the viewer, three.js and the world inlined, so it opens offline. It draws islands,
-domes, ports, edges and `tbd` placeholders, colours each island by its status, and gives the same bytes for the same
-world. It replaces the previous map in one rename and touches nothing else; it never opens a browser.
+one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
+coloured by its status. It never opens a browser.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

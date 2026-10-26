@@ -22,7 +22,7 @@ export const WorldMap = node({
     },
     {
       id: "R2",
-      text: "stdout: the from-root path; a failure: one stderr line, no stdout, the previous map unchanged.",
+      text: "stdout: the from-root path; a failure: one stderr line, no stdout; a load failure leaves the previous map.",
     },
     {
       id: "R3",
@@ -48,11 +48,6 @@ export const WorldMap = node({
         { option: "view or open", why: "Promise a browser window; the command only writes a file." },
         { option: "render, draw or export", why: "Generic verbs that say nothing about the result." },
       ],
-    },
-    {
-      decision: "The dome is WorldMap, its program DrawMap and its file MapFile.",
-      why: "A program plus one file owner, as in New; 'Map' would shadow the built-in.",
-      rejected: [{ option: "Map", why: "Shadows the JavaScript built-in." }],
     },
     {
       decision: "map loads and draws without running check.",

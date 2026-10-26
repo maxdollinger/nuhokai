@@ -75,7 +75,7 @@ test("New's interior is a program plus one node file, with no shared code of its
   expect(Object.keys(NodeFile.$def.ports ?? {})).toEqual(["create"]);
 });
 
-test("WorldMap is a dome with a program and one page, and delegates run to DrawMap", () => {
+test("WorldMap is a dome with a program and one map file, and delegates run to DrawMap", () => {
   expect(WorldMap.$ref).toBe("node");
   expect(Object.keys(WorldMap.$def.children ?? {})).toEqual(["drawMap", "mapFile"]);
   expect(WorldMap.$def.ports?.run).toMatchObject({

@@ -16,67 +16,65 @@ export const LoadWorld = node({
       purpose: "Load the world at the root",
       input: "the project root",
       output:
-        "nodes: every node reachable from nuhokai/index.ts as a NodeSpec; tbd placeholders: every tbd placeholder those nodes use, with its kind, description, export name if any and the ids of its users",
+        "nodes: every node reachable from nuhokai/index.ts as a NodeSpec; tbd placeholders: every tbd placeholder those nodes use, with its kind, description and the ids of its users",
       errors: [
         "no nuhokai/index.ts",
         "a world file failed to evaluate",
         "the default export of nuhokai/index.ts is not a world",
-        "a reachable node has no export name",
       ],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Evaluates every .ts file under nuhokai/ except .generated/, *.d.ts and *.test.ts; @nuhokai/world resolves to the CLI's own runtime, so the repo needs no node_modules.",
+      text: "Evaluates every .ts file under nuhokai/ except .generated/, *.d.ts and *.test.ts; @nuhokai/world resolves to the CLI's own runtime, also over the paths mapping in nuhokai/tsconfig.json, so the repo needs no node_modules.",
     },
     {
       id: "R2",
-      text: "Each node is the NodeSpec the world format maps it to (packages/world/README.md): name its export, the first in sorted file order when exported twice; parent the dome whose children hold it, null at the top level; a dome port keeps its delegate; uses grouped into one edge per target node, an inherited reference at the implementor; every other field as authored.",
+      text: "Each node is the NodeSpec that packages/world/README.md maps it to; a node exported under two names takes the first in sorted file order, a node without an export is named by its id.",
     },
     {
       id: "R3",
-      text: "Order: depth-first from defineWorld's children, each parent before its children, children in record order; a node listed twice appears once, at its first listing.",
+      text: "Order: depth-first from defineWorld's children, each parent before its children, children in record order; each node appears once, at its first listing.",
     },
     {
       id: "R4",
-      text: "A tbd placeholder is no edge: one per tbd object, however many nodes use it, named by its export if it has one, listing its users' ids; ordered by first use in node order.",
+      text: "A tbd placeholder is no edge: one per tbd object, however many nodes use it, with its kind, description and its users' ids; ordered by first use in node order.",
+    },
+    {
+      id: "R5",
+      text: "Every load error is a CliError naming the nuhokai/ file, e.g. 'nuhokai/orders.ts: <message>'.",
     },
     {
       id: "C1",
       kind: "constraint",
-      text: "No global rules: duplicate ids, orphans, uses scope and names are check's, including those the world README assigns to the loader; only what stops a NodeSpec from being built is an error.",
+      text: "No global rules: duplicate ids, orphans, uses scope and names are check's; only what stops a NodeSpec from being built is an error.",
     },
-    { id: "C2", kind: "constraint", text: "Reads only; writes nothing, spawns nothing, prompts nothing." },
+    { id: "C2", kind: "constraint", text: "The loader itself reads only; it writes, spawns and prompts nothing." },
   ],
   testCases: [
     {
-      text: "The example world of @nuhokai/world, copied into a temp repo's nuhokai/ with its imports pointing at @nuhokai/world and no node_modules, loads: names are the export names, Shop's ports delegate to Orders, and Orders has one uses edge per target node.",
-      demonstrates: ["R1", "R2"],
+      text: "After init, with no node_modules and the CLI-owned tsconfig in place, the world loads as one node, Example, named by its export, plus its tbd placeholder.",
+      demonstrates: ["R1", "R2", "R4"],
     },
     {
-      text: "Shop comes before Orders and Stock, in record order, and two loads give equal results.",
-      demonstrates: ["R3"],
+      text: "In a world where a dome's child uses two ports of one target and a node is listed twice, the child has one uses edge listing both ports, the dome's ports keep their delegates, and the twice-listed node appears once, at its first listing, in record order.",
+      demonstrates: ["R2", "R3"],
     },
     {
-      text: "notifyCustomer, used by Orders and Stock, is one tbd placeholder named notifyCustomer listing both ids, and neither node has an edge for it.",
+      text: "A tbd placeholder used by two nodes is one placeholder listing both ids, and neither node has an edge for it.",
       demonstrates: ["R4"],
     },
     {
-      text: "A syntax error, a throwing node file, a default export that is not a world and an inline node without an export are each one error.",
-      demonstrates: ["R1", "R2"],
+      text: "A syntax error, a throwing node file and a default export that is not a world each give one CliError naming the file; a node without an export is named by its id.",
+      demonstrates: ["R2", "R5"],
     },
   ],
   decisions: [
     {
       decision: "One top-level loader whose output is @nuhokai/world's NodeSpec plus the tbd placeholders.",
-      why: "node-spec.ts is the only source of truth for node fields, so the map and check read one plain, serializable shape with no handles, lazy functions or identity resolution left to repeat.",
+      why: "node-spec.ts is the only source of truth for node fields, and check will read the same world.",
       rejected: [
-        { option: "Hand consumers the handles", why: "Every consumer re-implements naming and identity resolution." },
-        {
-          option: "A model shaped for the map",
-          why: "Couples the loader to one consumer; check would need a second model.",
-        },
         {
           option: "The loader inside the map command",
           why: "check needs the same evaluation, and uses cannot reach into another command's dome.",
@@ -90,11 +88,8 @@ export const LoadWorld = node({
     },
     {
       decision: "tbd placeholders are a second list beside the nodes, not edges.",
-      why: "The map must show what is not designed yet, but NodeSpec has no edge without a target node; a tbd placeholder is a world-level fact (one hole, many users), so it sits next to the nodes and no node field is redeclared.",
-      rejected: [
-        { option: "A hole edge kind on NodeSpec", why: "Redeclares a node field outside node-spec.ts." },
-        { option: "Leave tbd placeholders out", why: "The map would hide the open parts of the design." },
-      ],
+      why: "NodeSpec has no edge without a target node, and one tbd placeholder can have many users.",
+      rejected: [{ option: "A hole edge kind on NodeSpec", why: "Redeclares a node field outside node-spec.ts." }],
     },
   ],
 }).edges({ uses: () => [WorldPath.file] });
