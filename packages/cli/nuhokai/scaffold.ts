@@ -16,7 +16,8 @@ export const Scaffold = node({
       kind: "call",
       purpose: "Create the world at the target",
       input: "the cwd",
-      output: "exit code 0 or 1; the four written paths or the nothing-to-do line on stdout, errors on stderr",
+      output:
+        "exit code 0 or 1; the four written paths from the project root, or the nothing-to-do line on stdout, errors on stderr",
       errors: [
         "nuhokai exists but is not a directory",
         "no git and no terminal",
@@ -32,10 +33,9 @@ export const Scaffold = node({
     { id: "R4", text: "A child's error surfaces unchanged as one stderr line; the run port's lines are printed here." },
   ],
   testCases: [
-    { text: "A fresh repo yields the four paths.", demonstrates: ["R1", "R2"] },
     {
-      text: "An existing world yields the nothing-to-do line; a file at nuhokai/ yields one error line, nothing written.",
-      demonstrates: ["R1", "R4"],
+      text: "A fresh repo yields the four paths; an existing world the nothing-to-do line; anything else one error line, nothing written.",
+      demonstrates: ["R1", "R2", "R4"],
     },
     { text: "No git and no TTY yields one error and nothing written.", demonstrates: ["R4"] },
   ],

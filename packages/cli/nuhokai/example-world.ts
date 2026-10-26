@@ -13,12 +13,15 @@ export const ExampleWorld = node({
       kind: "call",
       purpose: "Lay down the authored example world",
       input: "an existing directory",
-      output: "the two paths, nuhokai/index.ts and nuhokai/example.ts",
+      output: "the two paths from the project root, nuhokai/index.ts and nuhokai/example.ts",
       errors: ["the embedded template is missing"],
     },
   },
   requirements: [
-    { id: "R1", text: "Exactly two files, relative to the given directory; nothing outside it." },
+    {
+      id: "R1",
+      text: "Exactly two files, nuhokai/index.ts and nuhokai/example.ts from the project root; nothing outside the given directory.",
+    },
     {
       id: "R2",
       text: "The written files type-check and load as a world with exactly one node, Example, whose file shows a port, a tbd port and a uses edge.",
@@ -45,7 +48,6 @@ export const ExampleWorld = node({
           option: "Relax defineWorld to accept an empty world",
           why: "Weakens a rule for one state; empty relation children stay invalid.",
         },
-        { option: "A bare node without ports", why: "Teaches nothing about ports, edges or tbd." },
         { option: "uuidv7 per run", why: "Ids need only be unique per world; constants keep output byte-identical." },
       ],
     },

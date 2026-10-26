@@ -13,12 +13,16 @@ export const CliFiles = node({
       kind: "call",
       purpose: "Lay down the CLI-owned files",
       input: "an existing directory",
-      output: "which of tsconfig.json and .generated/world/index.d.ts were written, and which were already identical",
+      output:
+        "which of nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts were written, and which were already identical",
       errors: ["the directory is not writable", "the embedded world types are missing"],
     },
   },
   requirements: [
-    { id: "R1", text: "Exactly tsconfig.json and .generated/world/index.d.ts, relative to the given directory." },
+    {
+      id: "R1",
+      text: "Exactly two files, nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts from the project root; nothing outside the given directory.",
+    },
     { id: "R2", text: "tsconfig: the strict options and the @nuhokai/world path mapping to .generated/world." },
     {
       id: "R3",
@@ -39,15 +43,10 @@ export const CliFiles = node({
   ],
   decisions: [
     {
-      decision: "One node for both files.",
-      why: "Same owner, same trigger (CLI version), same refresh policy; only the file name differs.",
-      rejected: [{ option: "One node per file", why: "Two nodes whose only difference is a path." }],
-    },
-    {
-      decision: "A tsconfig with paths plus a self-contained .d.ts emitted from @nuhokai/world, no node_modules write.",
-      why: "Editors already run TS; the gap is resolution and strict options. A test compares the embedded .d.ts with the package, so it cannot drift.",
+      decision:
+        "One node owning both files: a tsconfig with the strict options and the @nuhokai/world path mapping, plus a self-contained .d.ts emitted from @nuhokai/world at build time.",
+      why: "Same owner, same trigger (CLI version), same refresh policy. Editors already run TS; the gap is resolution and strict options, and a test comparing the embedded .d.ts with the package keeps it from drifting.",
       rejected: [
-        { option: "bundled LSP", why: "Duplicates editor TS." },
         { option: "node_modules write", why: "Imposes a node_modules shape." },
         { option: "hand-written .d.ts", why: "Drifts from the runtime and misses brand errors." },
       ],

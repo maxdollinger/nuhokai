@@ -37,10 +37,6 @@ export const ResolveTarget = node({
       rejected: [
         { option: "cwd only", why: "Running from src/ creates a world the root never sees." },
         { option: "Search upward for package.json", why: "A second heuristic with its own wrong answers." },
-        {
-          option: "Separate Prompt node",
-          why: "One question does not need a component; extract it if update reuses it.",
-        },
       ],
     },
   ],

@@ -3,7 +3,7 @@ import { Cli } from "../nuhokai/cli.ts";
 import cliWorld from "../nuhokai/index.ts";
 import { Init } from "../nuhokai/init.ts";
 import { Scaffold } from "../nuhokai/scaffold.ts";
-import { COMMANDS, main, usage } from "../src/index.ts";
+import { COMMANDS, commandUsage, main, usage } from "../src/index.ts";
 
 test("usage lists every command", () => {
   for (const command of COMMANDS) expect(usage()).toContain(command);
@@ -11,6 +11,11 @@ test("usage lists every command", () => {
 
 test("--help exits 0", async () => {
   expect(await main(["--help"])).toBe(0);
+});
+
+test("`nuhokai init --help` prints init's help and exits 0", async () => {
+  expect(await main(["init", "--help"])).toBe(0);
+  expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
 test("an unknown command is a usage error", async () => {

@@ -34,13 +34,17 @@ export const Init = node({
     },
     {
       id: "R5",
-      text: "An existing nuhokai/ directory stays untouched, exit 0 with one line; a file at that path is one stderr line and exit 1.",
+      text: "An existing nuhokai/ directory stays untouched, exit 0 with one line; anything else at that path is one stderr line and exit 1.",
     },
     {
       id: "R6",
       text: "No TypeScript, Bun, node_modules or network in the repo; the only process init may spawn is git.",
     },
-    { id: "C1", kind: "constraint", text: "No flags in v1; confirming a cwd fallback is the only interaction." },
+    {
+      id: "C1",
+      kind: "constraint",
+      text: "No flags reach run in v1: Cli answers --help; confirming a cwd fallback is the only interaction.",
+    },
   ],
   testCases: [
     {
@@ -52,7 +56,7 @@ export const Init = node({
       demonstrates: ["R2"],
     },
     {
-      text: "An existing nuhokai/ stays unchanged, exit 0 with one line; a file named nuhokai gives one stderr line and exit 1.",
+      text: "An existing nuhokai/ stays unchanged, exit 0 with one line; a file or a symlink named nuhokai gives one stderr line and exit 1.",
       demonstrates: ["R5"],
     },
     {
@@ -70,8 +74,10 @@ export const Init = node({
           option: "Fill in missing files or run check",
           why: "Update and check own that; init would mix generated and authored files.",
         },
-        { option: "--dir", why: "Git root plus confirmation resolves the root." },
-        { option: "--force", why: "Nothing is ever overwritten." },
+        {
+          option: "Any flag (--dir, --force)",
+          why: "The Git root plus one confirmation resolves the target; nothing is ever overwritten.",
+        },
       ],
     },
     {
@@ -83,8 +89,6 @@ export const Init = node({
           option: "One port per interior domain, sequenced by Cli",
           why: "The interior leaks; sequencing becomes public.",
         },
-        { option: "Top-level CliFiles now", why: "A second caller that does not exist yet decides nothing." },
-        { option: "Duplicate the writer per command", why: "The two outputs could drift." },
       ],
     },
   ],

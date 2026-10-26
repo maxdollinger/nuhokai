@@ -26,7 +26,7 @@ export const Cli = node({
     },
     {
       id: "R3",
-      text: "No argument or a help word prints usage and exits 0; an unknown command prints usage to stderr and exits 2.",
+      text: "No argument or a help word prints usage and exits 0; `nuhokai <command> --help` prints that command's help and exits 0; an unknown command prints usage to stderr and exits 2.",
     },
     { id: "R4", text: "Cli holds no loading, rule, tsc or writing logic: each command is its own node." },
     { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
@@ -35,7 +35,7 @@ export const Cli = node({
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
   ],
   testCases: [
-    { text: "Usage lists every command; --help exits 0.", demonstrates: ["R3"] },
+    { text: "Usage lists every command; --help and `nuhokai init --help` exit 0.", demonstrates: ["R3"] },
     {
       text: "An unknown command prints usage to stderr and exits 2; a command's non-zero exit reaches the process unchanged.",
       demonstrates: ["R2", "R3"],
@@ -51,9 +51,7 @@ export const Cli = node({
       why: "Loading means executing TS (lazy edges, cycles, spreads), so Bun is required; embedding makes the repo toolchain-free.",
       rejected: [
         { option: "Go parser", why: "Cannot evaluate lazy edges, cycles or computed refs; no identity." },
-        { option: "Go + Bun stdio", why: "Still needs Bun and adds a wire format." },
         { option: "repo Bun, Node or tsc", why: "Forces a toolchain install; version-dependent results." },
-        { option: "Windows", why: "Fifth artifact and platform code for no user." },
       ],
     },
     {
@@ -61,12 +59,8 @@ export const Cli = node({
       why: "Commands are separate domes with separate rules, and the dispatcher stays small and stable.",
       rejected: [
         {
-          option: "command ports on Cli, delegating to children",
-          why: "Delegation points down only; every command would force itself under Cli.",
-        },
-        {
-          option: "command ports on Cli, duplicating each command's contract",
-          why: "The copies drift from the nodes.",
+          option: "command ports on Cli",
+          why: "Delegation points down only, and duplicating each contract on the dispatcher drifts from the nodes.",
         },
       ],
     },
@@ -82,11 +76,7 @@ export const Cli = node({
       decision:
         "One folder nuhokai/: index.ts, nodes, tsconfig.json, .generated/world/. Same for users and this package.",
       why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one root.",
-      rejected: [
-        { option: "world/", why: "Generic; collision-prone." },
-        { option: "spec/", why: "Collides; implies prose, files are executed." },
-        { option: "nuhokai/types/", why: "Reads authored, not generated." },
-      ],
+      rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
   ],
 }).edges({ uses: () => [Init.run] });

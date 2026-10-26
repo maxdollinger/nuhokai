@@ -17,21 +17,25 @@ export const Inspect = node({
   },
   requirements: [
     { id: "R1", text: "A directory at nuhokai/: world, whatever is inside it." },
-    { id: "R2", text: "A non-directory there: occupied." },
+    { id: "R2", text: "Anything there that is not a directory (a file, a symlink): occupied." },
     { id: "R3", text: "Nothing there: absent." },
     { id: "C1", kind: "constraint", text: "Reads only; no writes, no repair, no content checks." },
   ],
   testCases: [
-    { text: "An empty or unrelated nuhokai/ directory is world; a fresh repo is absent.", demonstrates: ["R1", "R3"] },
-    { text: "A file named nuhokai gives occupied.", demonstrates: ["R2"] },
+    {
+      text: "Nothing at nuhokai is absent; any directory is world; a file or a symlink is occupied.",
+      demonstrates: ["R1", "R2", "R3"],
+    },
   ],
   decisions: [
     {
       decision: "Any directory counts as a world.",
       why: "Init never repairs or updates; a broken world is update's and check's business.",
       rejected: [
-        { option: "Require nuhokai/index.ts", why: "Turns a no-op into an error for a half-written world." },
-        { option: "Load and validate", why: "Init must work before the loader does." },
+        {
+          option: "Require nuhokai/index.ts or load and validate",
+          why: "Init must work before the loader does; a half-written world is update's business.",
+        },
       ],
     },
   ],

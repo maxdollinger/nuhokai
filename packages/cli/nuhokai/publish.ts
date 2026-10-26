@@ -16,7 +16,7 @@ export const Publish = node({
       purpose: "Stage the world and commit it",
       input: "the root directory",
       output: "the paths written, relative to the root",
-      errors: ["the root is not writable", "the target appeared meanwhile", "the commit failed"],
+      errors: ["the root is not writable", "a writer failed", "the commit failed"],
     },
   },
   requirements: [
@@ -28,7 +28,7 @@ export const Publish = node({
   ],
   testCases: [
     {
-      text: "Any failure, an unwritable root, a writer error or the target appearing before the commit, leaves no nuhokai/ and no staging directory.",
+      text: "An unwritable root, a writer failure or a failed commit leaves no nuhokai/ and no staging directory.",
       demonstrates: ["R2", "R4", "C1"],
     },
     { text: "Success gives the complete world, written by the two content nodes.", demonstrates: ["R1", "R3"] },
