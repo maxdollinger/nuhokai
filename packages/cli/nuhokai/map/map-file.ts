@@ -47,7 +47,7 @@ export const MapFile = node({
     {
       id: "C1",
       kind: "constraint",
-      text: "The only resources the page loads are three.js r128 and its OrbitControls, pinned, from the CDNs the reference viewer uses.",
+      text: "The page loads nothing: three.js 0.128.0 and its OrbitControls are inlined with their license headers, embedded in the CLI at build time from the exactly pinned three dev dependency; the repo and the viewer need no network, Node or Bun.",
     },
   ],
   testCases: [
@@ -58,6 +58,10 @@ export const MapFile = node({
     {
       text: "A purpose containing </script><script>alert(1)</script> stays inside the data block and parses back unchanged.",
       demonstrates: ["R3"],
+    },
+    {
+      text: "The written page contains no http(s) URL in a src or href, and opens with the network disabled.",
+      demonstrates: ["C1"],
     },
     {
       text: "A write into a read-only .generated/ fails with one error and leaves the previous map and no temporary file.",
@@ -87,12 +91,16 @@ export const MapFile = node({
       rejected: [{ option: "Add role and complexity to the format", why: "A format change for one view." }],
     },
     {
-      decision: "three.js is loaded from pinned CDN URLs, not inlined.",
-      why: "Keeps the page and the CLI small and the bytes reviewable when committed; viewing a map is not the CLI's run and may use the network.",
+      decision: "three.js 0.128.0 and OrbitControls are inlined into every map, embedded in the CLI at build time.",
+      why: "The CLI promises a toolchain-free repo, and the map keeps that promise when viewed: it opens offline, air-gapped and the same way regardless of any CDN. The cost is ~630 KB per map and in a binary that already carries the Bun runtime; a committed map diffs only in its data block, because the library is one unchanged line.",
       rejected: [
         {
-          option: "Inline three.js into every map",
-          why: "~600 KB per map and in the binary, for offline viewing nobody asked for yet.",
+          option: "Pinned CDN URLs",
+          why: "The page breaks offline and depends on a third party staying up and unchanged.",
+        },
+        {
+          option: "Vendor the files into the repo",
+          why: "A pinned dev dependency gives the same bytes without a copy to maintain.",
         },
       ],
     },
