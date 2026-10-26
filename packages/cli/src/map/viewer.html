@@ -72,6 +72,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
   <div id="crumbs" class="panel"></div>
   <div id="controls" class="panel">
     <button id="resetBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>Reset view</button>
+    <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h3a3 3 0 0 1 3 3"/><path d="M10 17H7a3 3 0 0 1-3-3"/></svg>Reset layout</button>
     <button id="raiseBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6 6 6-6"/></svg><span>Land nodes</span></button>
   </div>
   <p id="info" class="panel"></p>
@@ -124,6 +125,14 @@ const GRIDF='uniform vec2 uC;uniform float uR;uniform vec3 uCol;varying vec3 vW;
 // ---------- model: the loaded world, as scene.js sees it ----------
 const MAP=mapScene(JSON.parse(document.getElementById('nuhokai-world').textContent));
 const LAYOUTS={};const layoutOf=scope=>LAYOUTS[scope===null?'world':scope]=LAYOUTS[scope===null?'world':scope]||{};
+// moved positions, kept per browser under one key: {scope: {item: {x,z} or {ang}}}. The scope is its dome's node id or
+// 'world', the item its node id, so a regenerated map reuses them for the nodes it still has. Storage may be unavailable.
+const STORE='nuhokai.map.layout';
+function stored(){try{const all=JSON.parse(localStorage.getItem(STORE));return all&&typeof all==='object'?all:{};}catch(e){return {};}}
+function store(all){try{localStorage.setItem(STORE,JSON.stringify(all));}catch(e){}}
+const scopeKey=scope=>scope===null?'world':MAP.nodes[scope].id;
+const keyOf=sp=>sp.node?sp.node.id:sp.kind==='hole'?'tbd:'+sp.item.name:sp.id;
+function remember(sp,pos){const all=stored(),k=scopeKey(S.scope);all[k]=Object.assign({},all[k],{[keyOf(sp)]:pos});store(all);}
 function short(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
 
 // ---------- geometry helpers ----------
@@ -171,6 +180,7 @@ return sc;}
 function itemName(id){return S.items[id]?S.items[id].name:id;}
 function laneText(ln){const ports=ln.calls.map(c=>c.port).filter(p=>p).join(', ');return ln.kind==='implements'?'implements':ln.kind==='hole'?'tbd':ports;}
 function layout(scope,specs,E,pillars){const L=layoutOf(scope);const comps=specs.filter(s=>s.side===0),n=comps.length;
+const first=!L.ring;
 // islands by index: pillar and freshness looked up once, positions, radii and one force array reused every iteration
 const at=new Map(comps.map((s,i)=>[s.id,i])),G=comps.map(s=>pillars.findIndex(g=>g.members.includes(s.id))),fresh=comps.map(s=>!L[s.id]);
 if(fresh.includes(true)){comps.forEach((s,i)=>{if(!fresh[i])return;const gi=G[i];const sd=rnd(hash(s.seed||s.id));if(gi>=0){const ga=gi*2*Math.PI/pillars.length-Math.PI/2;L[s.id]={x:Math.cos(ga)*8+(sd-0.5)*4,z:Math.sin(ga)*8+(rnd(sd*91)-0.5)*4};}else{const a=sd*Math.PI*2;L[s.id]={x:Math.cos(a)*4,z:Math.sin(a)*4};}});
@@ -191,6 +201,8 @@ if(moved<SETTLED)break;}
 comps.forEach((s,i)=>{if(fresh[i])L[s.id]={x:X[i],z:Z[i]};});}
 let cx=0,cz=0;comps.forEach(s=>{cx+=L[s.id].x;cz+=L[s.id].z;});if(n){cx/=n;cz/=n;}let rr=0;comps.forEach(s=>rr=Math.max(rr,Math.hypot(L[s.id].x-cx,L[s.id].z-cz)+s.R));
 const ring=L.ring=L.ring||{cx:cx,cz:cz,r:Math.max(10,rr+6.5)};
+// a scope's first layout: seeded as if nothing moved, then what the user moved here before, kept inside this ring
+if(first){const kept=stored()[scopeKey(scope)]||{};const ok=Number.isFinite;specs.forEach(s=>{const p=kept[keyOf(s)];if(!p)return;if(s.side===0&&ok(p.x)&&ok(p.z))L[s.id]=inRing(ring,p.x,p.z,s.R);else if(s.side!==0&&ok(p.ang))L[s.id]={ang:p.ang};});}
 const ins=specs.filter(s=>s.side<0),outs=specs.filter(s=>s.side>0);
 // the outer edge: at most 0.36 rad apart, closer when a side holds many, so a side never wraps past the other
 [[ins,Math.PI],[outs,0]].forEach(([list,c])=>{const step=Math.min(0.36,Math.PI*0.9/Math.max(1,list.length));list.forEach((s,i)=>{if(!L[s.id]||L[s.id].ang===undefined)L[s.id]={ang:c+(i-(list.length-1)/2)*step};});});
@@ -298,7 +310,8 @@ const grid=new THREE.Mesh(new THREE.CircleGeometry(D,128),gm);grid.rotation.x=-M
 const pts=[];for(let i=0;i<=160;i++){const a=i/160*Math.PI*2;pts.push(V(cx+Math.cos(a)*ring.r,0.02,cz+Math.sin(a)*ring.r));}const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:GRIDC,dashSize:0.5,gapSize:0.4,transparent:true,opacity:0.45}));l.computeLineDistances();world.add(l);}
 
 // ---------- editing (layout only) ----------
-function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r=L.ring;if(it.side!==0){const a=Math.atan2(z-r.cz,x-r.cx);x=r.cx+Math.cos(a)*r.r;z=r.cz+Math.sin(a)*r.r;L[id]={ang:a,x:x,z:z};}else{const dx=x-r.cx,dz=z-r.cz,d=Math.hypot(dx,dz),mx=r.r-it.rr-1;if(d>mx){x=r.cx+dx/d*mx;z=r.cz+dz/d*mx;}L[id]={x:x,z:z};}
+function inRing(r,x,z,R){const dx=x-r.cx,dz=z-r.cz,d=Math.hypot(dx,dz),mx=r.r-R-1;return d>mx?{x:r.cx+dx/d*mx,z:r.cz+dz/d*mx}:{x:x,z:z};}
+function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r=L.ring;if(it.side!==0){const a=Math.atan2(z-r.cz,x-r.cx);x=r.cx+Math.cos(a)*r.r;z=r.cz+Math.sin(a)*r.r;L[id]={ang:a,x:x,z:z};remember(it.sp,{ang:a});}else{const p=L[id]=inRing(r,x,z,it.R);x=p.x;z=p.z;remember(it.sp,p);}
 it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{if(l.from===id||l.to===id)routeLane(l);});S.air.forEach(a=>{if(a.from===id||a.to===id)routeAir(a);});S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
 
 // ---------- state ----------
@@ -306,7 +319,7 @@ let sel=null;
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
 t('Height = call depth. Lanes are calls labelled with their ports (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
 ['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background='#'+new THREE.Color(BAND[s]).getHexString();info.appendChild(sw);t(s);});
-t('. Click for details, drag islands or group outlines to rearrange; double-click a dome to look inside'+(path.length>1?', Esc to go up.':'.'));}
+t('. Click for details, drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
@@ -340,7 +353,10 @@ function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.
 function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,depth:d,childId:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
 function resetView(){if(trans)return;computeHome();trans={kind:'home',t:0,fromT:controls.target.clone(),toT:HOME.t.clone(),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone()};controls.enabled=false;}
+// forget what the user moved in this scope, in memory and in storage, and seed it again
+function resetLayout(){if(trans)return;const all=stored();delete all[scopeKey(S.scope)];store(all);delete LAYOUTS[S.scope===null?'world':S.scope];load(S.scope);resetView();}
 document.getElementById('resetBtn').addEventListener('click',resetView);
+document.getElementById('layoutBtn').addEventListener('click',resetLayout);
 document.getElementById('raiseBtn').addEventListener('click',toggleRaise);
 
 // ---------- input ----------

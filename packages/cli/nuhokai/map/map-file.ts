@@ -28,7 +28,7 @@ export const MapFile = node({
     { id: "R3", text: "Same world, same bytes: no timestamp, root path or randomness." },
     {
       id: "R4",
-      text: "Draws: top level as islands; double-click opens a dome, breadcrumbs back; layout seeded by ids. uses: lanes labelled with ports; event ports: air routes. implements: dashed lane to the contract; abstract: contract island. Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. status: island colour. tbd: dashed hole with its description. Edges and holes from inside a dome start at that dome.",
+      text: "Draws: top level as islands; double-click opens a dome, breadcrumbs back; layout seeded by ids. uses: lanes labelled with ports; event ports: air routes. implements: dashed lane to the contract; abstract: contract island. Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. status: island colour. tbd: dashed hole with its description. Edges and holes from inside a dome start at that dome. Moved islands and outer items persist per browser by node id and scope; a regenerated map reuses them; Reset layout forgets them.",
     },
     { id: "R5", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
     {
@@ -52,6 +52,10 @@ export const MapFile = node({
       text: "Browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
       demonstrates: ["R4", "R5"],
     },
+    {
+      text: "Browser, example world, checked by hand in headless Chromium: a moved Shop keeps its place after a reload and after regenerating with a node added, which is seeded; Reset layout seeds again; without storage the map still draws.",
+      demonstrates: ["R3", "R4"],
+    },
   ],
   decisions: [
     {
@@ -60,6 +64,10 @@ export const MapFile = node({
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
     { decision: "Island colour = status.", why: "The one lifecycle field every node has." },
+    {
+      decision: "Moved positions live in the browser's localStorage, keyed by node id, never in the map.",
+      why: "Same world, same bytes; node ids survive a regenerated map, positions in the file would not.",
+    },
     {
       decision: "three.js inlined, embedded at build time from the exactly pinned three dev dependency.",
       why: "The map opens offline, like the CLI needs no toolchain; ~630 KB per map.",

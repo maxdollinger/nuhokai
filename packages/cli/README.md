@@ -72,7 +72,8 @@ overwrites an existing file and never edits `index.ts` or a parent: the run prin
 
 `map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
-coloured by its status. It never opens a browser.
+coloured by its status. It never opens a browser. The map remembers moved islands per browser, by node id, so a
+regenerated map keeps them.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
