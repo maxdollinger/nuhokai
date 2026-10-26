@@ -1170,12 +1170,12 @@ function M(color,o){return new THREE.MeshStandardMaterial(Object.assign({color:c
 function op(mat,o){mat.transparent=o<1;mat.opacity=o;mat.depthWrite=o>=1;}
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);const UPV=V(0,1,0);
 // palette
-const SLAB=DARK?0x45453f:0xFFFFFF,EDGE=DARK?0xd3d1c7:0x2c2c2a,GROUND=DARK?0x232524:0xEAE9E3,BOARDSIDE=DARK?0x1a1b1b:0xD6D4CC,GRIDC=DARK?0xB4B2A9:0x5f5e5a;
-const LANEC=DARK?0xC3C2B7:0x6d6b67,CORAL=0xD85A30,GREEN=0x639922,ORANGE=0xE8932A,VIOLET=0x7F77DD,GHOST=0xB4B2A9,PIT=DARK?0x0d0e0e:0x8a8880;
-const EXTC=0xEFB860,EXTD=0xC98A2E,EXTPAD=DARK?0x4a3c22:0xFAEEDA;
-// island colour = status: top and band
-const TOP={planned:0xE4E2DA,building:0xCFE3F5,built:0xD3E8BC,deprecated:0xF2D9CF};
-const BAND={planned:0xA9A79F,building:0x378ADD,built:0x639922,deprecated:0xB0583C};
+const SLAB=DARK?0x5c5d57:0xFFFFFF,EDGE=DARK?0xf1efe8:0x2c2c2a,GROUND=DARK?0x1b1d1c:0xA3A197,BOARDSIDE=DARK?0x0f1010:0x9E9B90,GRIDC=DARK?0xB4B2A9:0x4a4945;
+const LANEC=DARK?0xC3C2B7:0x6d6b67,CORAL=0xD85A30,GREEN=0x639922,ORANGE=0xE8932A,VIOLET=DARK?0xA59EF0:0x7F77DD,GHOST=DARK?0x9c9a91:0x8a8880,PIT=DARK?0x050606:0x5f5e5a;
+const EXTC=0xEFB860,EXTD=0xC98A2E,EXTPAD=DARK?0x5a4724:0xC4A570;
+// island colour = status: top and band, tuned per theme so every status stands off the board
+const TOP=DARK?{planned:0x8792AA,building:0x3F8FE0,built:0x6FA834,deprecated:0xC9694A}:{planned:0x76819A,building:0x4C8CCB,built:0x76A443,deprecated:0xC0705A};
+const BAND=DARK?{planned:0x7C869A,building:0x3F8FE0,built:0x6FA834,deprecated:0xC0623F}:{planned:0x5F6B80,building:0x2A78C8,built:0x4F8A17,deprecated:0xA44A2E};
 const PILLARC=[0xF0997B,0x5DCAA5,0xAFA9EC,0xEFB860,0x85B7EB,0xD4537E];
 const LV=3.2,NP=8,SH=1.1;
 function rnd(i){const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x);}
@@ -1256,7 +1256,7 @@ const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let footShape,lab,labY=0.9;
 if(sp.kind==='comp'){const c=sp.item;const hw=sp.R-1.15+0.35,w=hw*2,cr=hw*0.35;it.rr=hw*1.06+0.15;it.ah=SH/2;
 const geo=slabGeo(w,w,SH,cr);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
-const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.5});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.5;
+const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.85});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.85;
 add(at(new THREE.Mesh(slabGeo(w+0.08,w+0.08,0.36,cr+0.04),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
 add(at(new THREE.Mesh(slabGeo(w-0.32,w-0.32,0.05,cr*0.8),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
 // a contract: a dashed rim around a translucent island
