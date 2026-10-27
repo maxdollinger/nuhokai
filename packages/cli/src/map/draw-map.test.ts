@@ -15,26 +15,18 @@ function tempDir(): string {
   return dir;
 }
 
-function gitRepo(): string {
-  const dir = tempDir();
-  const result = Bun.spawnSync(["git", "init", "-q", dir], { stdout: "pipe", stderr: "pipe" });
-  if (result.exitCode !== 0) throw new Error(`git init failed: ${result.stderr}`);
-  return dir;
-}
-
 function capture() {
   const out: string[] = [];
   const err: string[] = [];
   return { out, err, environment: { out: (line: string) => out.push(line), err: (line: string) => err.push(line) } };
 }
 
-/** Every file in the repo but .git, with its bytes. */
+/** Every file in the directory, with its bytes. */
 function snapshot(dir: string): Record<string, string> {
   return Object.fromEntries(
     readdirSync(dir, { recursive: true, withFileTypes: true })
       .filter((entry) => entry.isFile())
       .map((entry) => join(entry.parentPath, entry.name).slice(dir.length + 1))
-      .filter((path) => !path.startsWith(".git"))
       .sort()
       .map((path) => [path, readFileSync(join(dir, path), "utf8")]),
   );
@@ -45,7 +37,7 @@ afterEach(() => {
 });
 
 test("after init, map writes and prints the map; a second run changes no other file", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   const before = snapshot(repo);
   const output = capture();
@@ -64,7 +56,7 @@ test("after init, map writes and prints the map; a second run changes no other f
 });
 
 test("an orphan and an out-of-scope uses edge still get a map", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   writeFileSync(
     join(repo, "nuhokai/orphan.ts"),
@@ -94,7 +86,7 @@ export default defineWorld({ children: [Example, Box] });
 });
 
 test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written", async () => {
-  const empty = gitRepo();
+  const empty = tempDir();
   const output = capture();
 
   expect(await runMap(empty, output.environment)).toBe(1);
@@ -104,7 +96,7 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
   ]);
   expect(snapshot(empty)).toEqual({});
 
-  const occupied = gitRepo();
+  const occupied = tempDir();
   writeFileSync(join(occupied, "nuhokai"), "in the way\n");
   const second = capture();
 
@@ -115,7 +107,7 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
 });
 
 test("a throwing node file: one line naming the file, exit 1, the previous map kept", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   expect(await runMap(repo, capture().environment)).toBe(0);
   const map = readFileSync(join(repo, MAP), "utf8");
@@ -129,7 +121,7 @@ test("a throwing node file: one line naming the file, exit 1, the previous map k
 });
 
 test("the write failed: one line, exit 1, nothing printed to stdout", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   mkdirSync(join(repo, MAP));
   const before = snapshot(repo);

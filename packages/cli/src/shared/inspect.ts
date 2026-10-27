@@ -1,7 +1,7 @@
 import { lstatSync } from "node:fs";
 import { join } from "node:path";
-import { CliError } from "../shared/failure.ts";
-import { inWorld, WORLD_DIR } from "../shared/paths.ts";
+import { CliError } from "./failure.ts";
+import { inWorld, WORLD_DIR } from "./paths.ts";
 
 /** What sits at `<root>/nuhokai`; init decides, this only observes. */
 export type TargetState = { readonly kind: "absent" } | { readonly kind: "world" } | { readonly kind: "occupied" };

@@ -33,7 +33,7 @@ function threeDir(): string {
 }
 
 /** The four texts the map is assembled from: three.js, OrbitControls, the viewer page and the scene module. */
-export function mapAssets(): Record<"THREE_JS" | "ORBIT_CONTROLS_JS" | "VIEWER_HTML" | "SCENE_JS", string> {
+function mapAssets(): Record<"THREE_JS" | "ORBIT_CONTROLS_JS" | "VIEWER_HTML" | "SCENE_JS", string> {
   const three = threeDir();
   return {
     THREE_JS: readFileSync(join(three, "build/three.min.js"), "utf8"),

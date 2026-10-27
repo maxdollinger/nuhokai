@@ -31,13 +31,6 @@ function tempDir(): string {
   return dir;
 }
 
-function gitRepo(): string {
-  const dir = tempDir();
-  const result = Bun.spawnSync(["git", "init", "-q", dir], { stdout: "pipe", stderr: "pipe" });
-  if (result.exitCode !== 0) throw new Error(`git init failed: ${result.stderr}`);
-  return dir;
-}
-
 function capture() {
   const out: string[] = [];
   const err: string[] = [];
@@ -48,7 +41,6 @@ function files(dir: string): string[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => join(entry.parentPath, entry.name).slice(dir.length + 1))
-    .filter((path) => !path.startsWith(".git"))
     .sort();
 }
 
@@ -85,7 +77,7 @@ test("an invalid node path exits 2 with one line and writes nothing", async () =
 });
 
 test("new writes one node file and names index.ts, which type-checks", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   const output = capture();
 
@@ -107,7 +99,7 @@ test("new writes one node file and names index.ts, which type-checks", async () 
 });
 
 test("the written file loads as one planned leaf", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   expect(await runNew(repo, "stock-order", capture().environment)).toBe(0);
 
@@ -121,7 +113,7 @@ test("the written file loads as one planned leaf", async () => {
 });
 
 test("two runs get different ids", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
 
   expect(await runNew(repo, "stock", capture().environment)).toBe(0);
@@ -133,7 +125,7 @@ test("two runs get different ids", async () => {
 });
 
 test("an existing path writes nothing and is one error line", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   expect(await runNew(repo, "stock-order", capture().environment)).toBe(0);
   const before = files(repo);
@@ -150,7 +142,7 @@ test("an existing path writes nothing and is one error line", async () => {
 });
 
 test("without a world it is one error naming init and nothing is written", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   const output = capture();
 
   expect(await runNew(repo, "stock-order", output.environment)).toBe(1);
@@ -161,7 +153,7 @@ test("without a world it is one error naming init and nothing is written", async
 });
 
 test("a file at nuhokai/ is occupied and nothing is written", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   writeFileSync(join(repo, "nuhokai"), "in the way\n");
   const output = capture();
 

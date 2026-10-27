@@ -7,7 +7,7 @@ export const Inspect = node({
     "Observe the target: absent, a world, or a file in the way. Shared by every command that reads or writes a world; " +
     "reads only; repairs, judges and writes nothing.",
   status: "built",
-  source: ["packages/cli/src/target/inspect.ts"],
+  source: ["packages/cli/src/shared/inspect.ts"],
   ports: {
     inspect: {
       kind: "call",

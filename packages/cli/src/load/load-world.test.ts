@@ -28,13 +28,6 @@ function tempDir(): string {
   return dir;
 }
 
-function gitRepo(): string {
-  const dir = tempDir();
-  const result = Bun.spawnSync(["git", "init", "-q", dir], { stdout: "pipe", stderr: "pipe" });
-  if (result.exitCode !== 0) throw new Error(`git init failed: ${result.stderr}`);
-  return dir;
-}
-
 const quiet = { out: () => {}, err: () => {} };
 
 /** A world folder holding exactly these files, by path inside nuhokai/. */
@@ -76,7 +69,7 @@ afterEach(() => {
 });
 
 test("after init, without node_modules, loads Example named by its export plus its placeholder", async () => {
-  const repo = gitRepo();
+  const repo = tempDir();
   expect(await runInit(repo, quiet)).toBe(0);
   // The init-written tsconfig maps @nuhokai/world to the .d.ts; evaluation must still get the CLI's runtime.
   writeFileSync(join(repo, "nuhokai/runtime.ts"), 'export { node } from "@nuhokai/world";\n');

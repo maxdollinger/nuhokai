@@ -5,24 +5,28 @@ import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
 import { runInit } from "./init/index.ts";
 
+/** Run main with console.log captured: its exit code and the lines it logged. */
+async function logged(argv: string[]): Promise<[number, string[]]> {
+  const lines: string[] = [];
+  const log = console.log;
+  console.log = (line: string) => lines.push(line);
+  try {
+    return [await main(argv), lines];
+  } finally {
+    console.log = log;
+  }
+}
+
 test("usage lists every command", () => {
   for (const command of COMMANDS) expect(usage()).toContain(command);
 });
 
 test("--help exits 0", async () => {
-  expect(await main(["--help"])).toBe(0);
+  expect(await logged(["--help"])).toEqual([0, [usage()]]);
 });
 
 test("no argument prints usage on stdout and exits 0", async () => {
-  const lines: string[] = [];
-  const log = console.log;
-  console.log = (line: string) => lines.push(line);
-  try {
-    expect(await main([])).toBe(0);
-  } finally {
-    console.log = log;
-  }
-  expect(lines.join("\n")).toBe(usage());
+  expect(await logged([])).toEqual([0, [usage()]]);
 });
 
 test("an empty-string argument is an unknown command on stderr", async () => {
@@ -43,12 +47,12 @@ test("a help word does not excuse an unexpected argument", async () => {
 });
 
 test("`nuhokai init --help` prints init's help and exits 0", async () => {
-  expect(await main(["init", "--help"])).toBe(0);
+  expect(await logged(["init", "--help"])).toEqual([0, [commandUsage("init")]]);
   expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
 test("`nuhokai new --help` shows that new takes a path", async () => {
-  expect(await main(["new", "--help"])).toBe(0);
+  expect(await logged(["new", "--help"])).toEqual([0, [commandUsage("new")]]);
   expect(commandUsage("new")).toContain("Usage: nuhokai new <node-path>");
 });
 
@@ -65,7 +69,7 @@ test("an unknown command is a usage error", async () => {
 });
 
 test("`nuhokai map --help` shows that map takes no argument", async () => {
-  expect(await main(["map", "--help"])).toBe(0);
+  expect(await logged(["map", "--help"])).toEqual([0, [commandUsage("map")]]);
   expect(commandUsage("map")).toContain("Usage: nuhokai map\n");
 });
 
@@ -167,14 +171,6 @@ test("a --path without a value, given twice or not a directory is a usage error 
 });
 
 test("a help word next to --path prints the command's help, whatever the path", async () => {
-  const log = console.log;
-  const out: string[] = [];
-  try {
-    console.log = (line: string) => out.push(line);
-    expect(await main(["map", "--path", "x", "--help"])).toBe(0);
-    expect(await main(["map", "--path=x", "-h"])).toBe(0);
-  } finally {
-    console.log = log;
-  }
-  expect(out).toEqual([commandUsage("map"), commandUsage("map")]);
+  expect(await logged(["map", "--path", "x", "--help"])).toEqual([0, [commandUsage("map")]]);
+  expect(await logged(["map", "--path=x", "-h"])).toEqual([0, [commandUsage("map")]]);
 });

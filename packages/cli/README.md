@@ -12,8 +12,7 @@ src/
   new/          add one node file to an existing world: the program and the file's bytes
   load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
-  target/       inspect what sits at nuhokai/ (shared by every command)
-  shared/       the world layout and path forms, and the one error type with its one-line rule
+  shared/       the world layout and its one path form, what sits at nuhokai/, and the one error type with its one-line rule
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format

@@ -49,19 +49,6 @@ export const AddNode = node({
       demonstrates: ["R3", "R4"],
     },
   ],
-  decisions: [
-    {
-      decision:
-        "The run port is a shell over a print-free core: addNode answers the outcome, runNew prints the lines and maps the exit code.",
-      why: "The order and the rules are the program's; the lines and the exit code are the port's. A caller who wants the verdict without capturing stdout gets it, and the catch sites classify with Failure.isExpected instead of a private copy.",
-      rejected: [
-        {
-          option: "One printing runNew only",
-          why: "Tests and future callers must capture stdout to tell written from failed.",
-        },
-      ],
-    },
-  ],
 }).edges({
   uses: () => [Inspect.inspect, WorldPath.file, NodeFile.create, Failure.format, Failure.isExpected],
 });

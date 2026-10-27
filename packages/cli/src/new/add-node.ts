@@ -1,6 +1,6 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
+import { requireWorld } from "../shared/inspect.ts";
 import { inWorld, WORLD_INDEX } from "../shared/paths.ts";
-import { requireWorld } from "../target/inspect.ts";
 import { createNodeFile } from "./node-file.ts";
 
 /** Kebab-case, at least one letter, no extension, no dot segment, no leading dash. */
@@ -13,14 +13,7 @@ const RESERVED = "index";
 export interface NewEnvironment {
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
-  /** A fresh node id; the default is a uuidv7. */
-  readonly newId?: () => string;
 }
-
-/** The run port's result, before it becomes lines and an exit code. */
-export type AddNodeOutcome =
-  | { readonly kind: "written"; readonly path: string }
-  | { readonly kind: "failed"; readonly code: 1 | 2; readonly message: string };
 
 /** A parsed argument: the kebab-case segments inside the world's folder, and the export name. */
 interface NodePath {
@@ -51,19 +44,24 @@ function parsePath(argument: string): NodePath {
   return { segments, name: pascalCase(last) };
 }
 
-/** Parse, inspect, id, create: the order is the program. Writes and prints nothing. */
-export async function addNode(
-  root: string,
-  argument: string,
-  environment: NewEnvironment = {},
-): Promise<AddNodeOutcome> {
+/**
+ * The new command: parse, inspect, id, create, print; the order is the program.
+ * Adds one node file to the world in the project directory `root`, named from
+ * the cwd, or says why not, and resolves to the process exit code; programming
+ * errors propagate and crash with their stack.
+ */
+export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
+  const out = environment.out ?? ((line: string) => console.log(line));
+  const err = environment.err ?? ((line: string) => console.error(line));
+
   let target: NodePath;
   try {
     target = parsePath(argument);
   } catch (error) {
     // A bad path fails before anything is read or written.
     if (!isExpected(error)) throw error;
-    return { kind: "failed", code: 2, message: oneLine(error) };
+    err(`nuhokai new: ${oneLine(error)}`);
+    return 2;
   }
 
   try {
@@ -72,32 +70,14 @@ export async function addNode(
     // The last segment is the file's stem, so it takes the extension WorldPath does not add.
     const stem = target.segments[target.segments.length - 1] ?? "";
     const file = inWorld(root, ...target.segments.slice(0, -1), `${stem}.ts`);
-    createNodeFile(file, target.name, (environment.newId ?? Bun.randomUUIDv7)());
-    return { kind: "written", path: file };
+    createNodeFile(file, target.name, Bun.randomUUIDv7());
+    out(file);
+    out(`next: add it to ${inWorld(root, WORLD_INDEX)}`);
+    return 0;
   } catch (error) {
     // Expected failures become one stderr line; a bug crashes with its stack.
     if (!isExpected(error)) throw error;
-    return { kind: "failed", code: 1, message: oneLine(error) };
-  }
-}
-
-/**
- * The new command: add one node file to the world in the project directory, or say why not.
- * Prints the two possible line sets here and resolves to the process exit code;
- * programming errors propagate and crash with their stack.
- */
-export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
-  const out = environment.out ?? ((line: string) => console.log(line));
-  const err = environment.err ?? ((line: string) => console.error(line));
-
-  const outcome = await addNode(root, argument, environment);
-  switch (outcome.kind) {
-    case "written":
-      out(outcome.path);
-      out(`next: add it to ${inWorld(root, WORLD_INDEX)}`);
-      return 0;
-    case "failed":
-      err(`nuhokai new: ${outcome.message}`);
-      return outcome.code;
+    err(`nuhokai new: ${oneLine(error)}`);
+    return 1;
   }
 }
