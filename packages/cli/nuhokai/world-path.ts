@@ -8,7 +8,7 @@ export const WorldPath = node({
     "CLI-owned tsconfig.json, .generated/world/index.d.ts and the map .generated/map.html; and the one name of a file " +
     "inside it, under the project directory named from the cwd with / separators, so it opens as printed. Pure: reads " +
     "and writes nothing.",
-  status: "building",
+  status: "built",
   source: ["packages/cli/src/shared/paths.ts"],
   ports: {
     file: {
@@ -65,7 +65,10 @@ export const WorldPath = node({
           option: "An absolute form for the filesystem and a printed form joined under a prefix by each command",
           why: "Two forms and a join at every print site; the name from the cwd opens as printed and works for both.",
         },
-        { option: "Absolute paths on stdout", why: "The root differs per machine, so output stops being comparable." },
+        {
+          option: "Absolute paths on stdout",
+          why: "The project directory's absolute path differs per machine, so output stops being comparable.",
+        },
       ],
     },
   ],

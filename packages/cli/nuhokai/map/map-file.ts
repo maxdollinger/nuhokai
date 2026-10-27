@@ -5,7 +5,7 @@ import { WorldPath } from "../world-path.ts";
 export const MapFile = node({
   id: "01a179c9-f7cf-779b-98cd-d973d9c86279",
   purpose:
-    "Own the map: one self-contained HTML file, the viewer plus the loaded world as one data block. Never loads, checks or resolves the root.",
+    "Own the map: one self-contained HTML file, the viewer plus the loaded world as one data block. Never loads, checks or picks the project directory.",
   status: "building",
   source: [
     "packages/cli/src/map/map-file.ts",
@@ -17,15 +17,15 @@ export const MapFile = node({
     write: {
       kind: "call",
       purpose: "Write the map of the given world",
-      input: "project root, loaded world",
-      output: "nuhokai/.generated/map.html",
+      input: "the project directory named from the cwd, loaded world",
+      output: "the map's path named from the cwd: nuhokai/.generated/map.html under the project directory",
       errors: ["the write failed"],
     },
   },
   requirements: [
     { id: "R1", text: "Writes only nuhokai/.generated/map.html; creates .generated/; replaces any previous map." },
     { id: "R2", text: "Loaded world embedded unchanged as one JSON block; every < escaped." },
-    { id: "R3", text: "Same world, same bytes: no timestamp, root path or randomness." },
+    { id: "R3", text: "Same world, same bytes: no timestamp, project directory path or randomness." },
     {
       id: "R4",
       text: "Draws: top level as islands; double-click opens a dome, breadcrumbs back; layout seeded by ids. uses: lanes labelled with ports; event ports: air routes. implements: dashed lane to the contract; abstract: contract island. Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. status: island colour. tbd: dashed hole with its description. Edges and holes from inside a dome start at that dome. Moved islands and outer items persist per browser by node id and scope; a regenerated map reuses them; Reset layout forgets them.",
@@ -49,11 +49,11 @@ export const MapFile = node({
       demonstrates: ["R4"],
     },
     {
-      text: "Browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
+      text: "By hand: in a browser, example world, Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
       demonstrates: ["R4", "R5"],
     },
     {
-      text: "Browser, example world, checked by hand in headless Chromium: a moved Shop keeps its place after a reload and after regenerating with a node added, which is seeded; Reset layout seeds again; without storage the map still draws.",
+      text: "By hand: in headless Chromium, example world, a moved Shop keeps its place after a reload and after regenerating with a node added, which is seeded; Reset layout seeds again; without storage the map still draws.",
       demonstrates: ["R3", "R4"],
     },
   ],

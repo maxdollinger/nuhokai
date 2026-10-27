@@ -38,7 +38,7 @@ export const Cli = node({
     },
     {
       id: "R7",
-      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. No Git lookup, no prompt. A missing value, a second --path or a path that is no directory is a usage error (2) and the command never runs; the command gets the directory, never the cwd, and prints its paths named from the cwd.",
+      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. A missing value, a second --path or a path that is no directory is a usage error (2) and the command never runs; the command gets the directory, never the cwd, and prints its paths named from the cwd.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
@@ -110,12 +110,12 @@ export const Cli = node({
     {
       decision:
         "One folder nuhokai/: index.ts, nodes, tsconfig.json, .generated/world/. Same for users and this package.",
-      why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one root.",
+      why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one folder.",
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
     {
       decision: "The project directory is the cwd or --path; nothing else.",
-      why: "One rule with no guessing and no interaction; any folder holding nuhokai/ is a target, also a package inside a monorepo.",
+      why: "One rule with no guessing and no interaction; any folder holding nuhokai/ is a project directory, also a package inside a monorepo.",
       rejected: [
         {
           option: "The Git root, else the cwd after a yes/no prompt",

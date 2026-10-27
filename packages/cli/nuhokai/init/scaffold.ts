@@ -8,9 +8,9 @@ import { Publish } from "./publish.ts";
 export const Scaffold = node({
   id: "01a17290-3f10-7c48-a1d2-6b8e04c95f27",
   purpose:
-    "The program inside Init's boundary: resolve the target, inspect it, hand the outcome to Publish, then print the " +
-    "result. Owns no data, file or template; target, layout and failure concerns are shared top-level nodes.",
-  status: "building",
+    "The program inside Init's boundary: inspect the project directory, hand the outcome to Publish, then print the " +
+    "result. Owns no data, file or template; inspection, layout and failure concerns are shared top-level nodes.",
+  status: "built",
   source: ["packages/cli/src/init/scaffold.ts"],
   ports: {
     run: {
@@ -40,7 +40,7 @@ export const Scaffold = node({
   decisions: [
     {
       decision: "Scaffold is a sibling of Init's content domains and calls them and the shared nodes by `uses`.",
-      why: "Delegation only points down and a parent cannot use its own children; a coordinator inside the dome must be a sibling. Top-level target nodes are siblings of Init, so `uses` reaches them.",
+      why: "Delegation only points down and a parent cannot use its own children; a coordinator inside the dome must be a sibling. The shared top-level nodes are siblings of Init, so `uses` reaches them.",
       rejected: [
         { option: "Init delegates one port per domain", why: "Sequencing moves to Cli and the boundary leaks." },
         { option: "Publish and Inspect inside Scaffold", why: "The same problem one level down." },

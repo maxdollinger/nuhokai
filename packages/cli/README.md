@@ -57,10 +57,13 @@ nuhokai/
   .generated/map.html       the map, written by `map`
 ```
 
-Every command works in one project directory: the current directory, or the one given with `--path <dir>`
-(`nuhokai map --path packages/cli`). There is no Git lookup and no prompt; without a `nuhokai/` there, `new` and `map`
-fail with one line. Printed paths are named from the current directory, so `--path packages/cli` prints
-`packages/cli/nuhokai/.generated/map.html`.
+Every command works in one project directory: the current directory, or the one given with `--path <dir>` (or
+`--path=<dir>`, as in `nuhokai map --path packages/cli`). A `--path` without a value, given twice or naming no
+directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` prints map's help. Without a `nuhokai/`
+there, `new` and `map` fail with one line. Every printed path, on stdout and in errors, is named from the current
+directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
+`packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
+`packages/cli/nuhokai/<file>:<line>`.
 
 `init` writes those four files and nothing else. An existing `nuhokai/` directory is left untouched: it prints
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
@@ -73,10 +76,11 @@ overwrites an existing file and never edits `index.ts` or a parent: the run prin
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
 `new` needs an existing world.
 
-`map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`:
+`map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
 coloured by its status. It never opens a browser. The map remembers moved islands per browser, by node id, so a
-regenerated map keeps them.
+regenerated map keeps them. World files import only `@nuhokai/world` and relative files inside `nuhokai/`; any other
+import is a load error, so nothing is installed or run.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

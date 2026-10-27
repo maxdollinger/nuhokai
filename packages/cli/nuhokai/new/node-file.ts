@@ -4,14 +4,14 @@ import { node } from "@nuhokai/world";
 export const NodeFile = node({
   id: "01a17950-b221-7124-8356-08fd2fee0888",
   purpose:
-    "Own the default node file: the bytes of one planned leaf, written exclusively to the given absolute path, creating its missing parent directories; never overwrites, never chooses a path.",
+    "Own the default node file: the bytes of one planned leaf, written exclusively to the given path, creating its missing parent directories; never overwrites, never chooses a path.",
   status: "building",
   source: ["packages/cli/src/new/node-file.ts"],
   ports: {
     create: {
       kind: "call",
       purpose: "Create the node file",
-      input: "an absolute path, the export name and the id",
+      input: "a path, the export name and the id",
       output: "the path written",
       errors: [
         "the file already exists",
@@ -46,7 +46,7 @@ export const NodeFile = node({
   ],
   testCases: [
     {
-      text: "A new absolute path with missing parents writes the templated bytes, which load as one planned leaf.",
+      text: "A new path with missing parents writes the templated bytes, which load as one planned leaf.",
       demonstrates: ["R1", "R2"],
     },
     {

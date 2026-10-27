@@ -14,8 +14,8 @@ export const Init = node({
   purpose:
     "Create a repo's world from nothing: nuhokai/ with an example node and world, the CLI-owned tsconfig and the " +
     "embedded @nuhokai/world types, so the loader and the editor work at once. Writes only; never checks, repairs or " +
-    "updates. A boundary: run is delegated to Scaffold; target, layout and failure concerns are shared top-level nodes.",
-  status: "building",
+    "updates. A boundary: run is delegated to Scaffold; inspection, layout and failure concerns are shared top-level nodes.",
+  status: "built",
   source: ["packages/cli/src/init/**"],
   requirements: [
     {
@@ -81,7 +81,7 @@ export const Init = node({
     },
     {
       decision:
-        "Init is a boundary dome: run delegates to Scaffold. Target queries, the world layout and the failure line are top-level nodes, shared with New; CliFiles is Init's until update needs it.",
+        "Init is a boundary dome: run delegates to Scaffold. Inspecting the project directory, the world layout and the failure line are top-level nodes, shared with New; CliFiles is Init's until update needs it.",
       why: "One public contract, one owner per shared concern, and an interior that re-cuts without touching Cli.",
       rejected: [
         { option: "Init's body as loose code", why: "The interior stays unreadable in the map." },

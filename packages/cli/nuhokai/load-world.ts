@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Failure } from "./failure.ts";
 import { WorldPath } from "./world-path.ts";
 
 /** The world as plain NodeSpec data. Evaluates, judges nothing. */
@@ -44,7 +45,7 @@ export const LoadWorld = node({
     {
       id: "C3",
       kind: "constraint",
-      text: "Once per root per process: Bun caches modules by path, so a second load answers the first evaluation.",
+      text: "Once per project directory per process: Bun caches modules by path, so a second load answers the first evaluation.",
     },
   ],
   testCases: [
@@ -76,4 +77,4 @@ export const LoadWorld = node({
       why: "Handles carry no name; names come from exports.",
     },
   ],
-}).edges({ uses: () => [WorldPath.file] });
+}).edges({ uses: () => [WorldPath.file, Failure.format] });

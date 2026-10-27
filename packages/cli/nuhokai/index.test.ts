@@ -23,19 +23,22 @@ test("the shared nodes are leaves that name their own code", () => {
   for (const shared of [Inspect, WorldPath, Failure]) {
     expect(shared.$ref).toBe("node");
     expect(shared.$def.children).toBeUndefined();
-    expect(shared.$def.uses).toBeUndefined();
     expect(shared.$def.source.length).toBeGreaterThan(0);
   }
+  expect(WorldPath.$def.uses).toBeUndefined();
+  expect(Failure.$def.uses).toBeUndefined();
+  expect(Inspect.$def.uses?.()).toEqual([WorldPath.file]);
+  expect(Object.keys(Inspect.$def.ports ?? {})).toEqual(["inspect", "requireWorld"]);
   expect(Object.keys(WorldPath.$def.ports ?? {})).toEqual(["file"]);
   expect(Object.keys(Failure.$def.ports ?? {})).toEqual(["format", "isExpected"]);
   expect(LoadWorld.$def.children).toBeUndefined();
-  expect(LoadWorld.$def.uses?.()).toEqual([WorldPath.file]);
+  expect(LoadWorld.$def.uses?.()).toEqual([WorldPath.file, Failure.format]);
   expect(Object.keys(LoadWorld.$def.ports ?? {})).toEqual(["load"]);
 });
 
 test("Init is a dome with its interior as children and delegates run to Scaffold", () => {
   expect(Init.$ref).toBe("node");
-  expect(Init.$def.status).toBe("building");
+  expect(Init.$def.status).toBe("built");
   expect(Object.keys(Init.$def.children ?? {})).toHaveLength(4);
   expect(Init.$def.children?.scaffold).toBe(Scaffold);
   expect(Init.$def.children?.inspect).toBeUndefined();
@@ -58,7 +61,7 @@ test("New is a dome with its interior as children and delegates run to AddNode",
   });
   expect(New.$def.uses).toBeUndefined();
   expect(AddNode.$def.uses?.()).toEqual([
-    Inspect.inspect,
+    Inspect.requireWorld,
     WorldPath.file,
     NodeFile.create,
     Failure.format,
@@ -81,7 +84,7 @@ test("WorldMap is a dome with a program and one map file, and delegates run to D
   });
   expect(WorldMap.$def.uses).toBeUndefined();
   expect(DrawMap.$def.uses?.()).toEqual([
-    Inspect.inspect,
+    Inspect.requireWorld,
     LoadWorld.load,
     MapFile.write,
     Failure.format,

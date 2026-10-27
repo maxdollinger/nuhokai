@@ -31,5 +31,5 @@ export const DrawMap = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.inspect, LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
+  uses: () => [Inspect.requireWorld, LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
 });

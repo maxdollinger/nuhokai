@@ -4,7 +4,7 @@ import { Inspect } from "../inspect.ts";
 import { WorldPath } from "../world-path.ts";
 import { NodeFile } from "./node-file.ts";
 
-/** The program inside New: parse, resolve, inspect, id, create, print. */
+/** The program inside New: parse, inspect, id, create, print. */
 export const AddNode = node({
   id: "01a17950-b221-7120-be93-f49dcd85d151",
   purpose:
@@ -50,5 +50,5 @@ export const AddNode = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.inspect, WorldPath.file, NodeFile.create, Failure.format, Failure.isExpected],
+  uses: () => [Inspect.requireWorld, WorldPath.file, NodeFile.create, Failure.format, Failure.isExpected],
 });
