@@ -1,4 +1,4 @@
-import { node } from "../src/index.ts";
+import { node } from "@nuhokai/world";
 
 /**
  * This package, described in its own format (a smoke test).
