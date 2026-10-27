@@ -174,3 +174,32 @@ test("a help word next to --path prints the command's help, whatever the path", 
   expect(await logged(["map", "--path", "x", "--help"])).toEqual([0, [commandUsage("map")]]);
   expect(await logged(["map", "--path=x", "-h"])).toEqual([0, [commandUsage("map")]]);
 });
+
+/** Run main with console.error captured: its exit code and the first line of each message. */
+async function failed(argv: string[]): Promise<[number, string[]]> {
+  const lines: string[] = [];
+  const error = console.error;
+  console.error = (line: string) => lines.push(line);
+  try {
+    return [await main(argv), lines.map((line) => line.split("\n")[0] ?? "")];
+  } finally {
+    console.error = error;
+  }
+}
+
+test("before a command `help` is help; after one only -h and --help are", async () => {
+  expect(await logged(["help"])).toEqual([0, [usage()]]);
+  expect(await logged(["new", "-h"])).toEqual([0, [commandUsage("new")]]);
+  expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: expected 0 arguments, got 1"]]);
+
+  const repo = mkdtempSync(join(tmpdir(), "nuhokai-bin-help-test-"));
+  try {
+    expect(await runInit(repo, { out: () => {} })).toBe(0);
+    const [code, out] = await logged(["new", "help", "--path", repo]);
+    expect(code).toBe(0);
+    expect(out[0]).toEndWith("nuhokai/help.ts");
+    expect(existsSync(join(repo, "nuhokai/help.ts"))).toBe(true);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});

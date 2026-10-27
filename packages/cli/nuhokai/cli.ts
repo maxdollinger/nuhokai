@@ -28,7 +28,7 @@ export const Cli = node({
     },
     {
       id: "R3",
-      text: "No argument or a help word → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` repeats that form, exit 0. Unknown command → usage on stderr, exit 2.",
+      text: "No argument, help, --help or -h → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` (or -h) repeats that form, exit 0; after a command `help` is an ordinary argument. Unknown command → usage on stderr, exit 2.",
     },
     { id: "R4", text: "No loading, rule, tsc or writing logic in Cli: each command is its own node." },
     {
@@ -71,6 +71,10 @@ export const Cli = node({
     {
       text: "From a parent directory: `init --path packages/app` writes packages/app/nuhokai/, `map --path=packages/app` maps it; --path without value, twice or naming no directory (missing path, file, file/x) → exit 2, nothing runs; `map --path x --help` prints map's help.",
       demonstrates: ["R7"],
+    },
+    {
+      text: "`nuhokai help` prints usage; `nuhokai new help` writes nuhokai/help.ts; `nuhokai map help` → argument error, exit 2.",
+      demonstrates: ["R3", "R6"],
     },
   ],
   decisions: [

@@ -31,7 +31,9 @@ const SYNOPSIS: Record<Command, string> = {
 /** How many positional arguments each command takes; the value is the command's to validate. */
 const ARITY: Record<Command, number> = { check: 0, init: 0, map: 0, new: 1, update: 0 };
 
+/** Help before a command; after one only the flags are help, so `nuhokai new help` adds nuhokai/help.ts. */
 const HELP_WORDS = ["help", "--help", "-h"] as const;
+const HELP_FLAGS = ["--help", "-h"] as const;
 
 /** The one flag every command takes: the project directory holding nuhokai/, instead of the cwd. */
 const PATH_FLAG = "--path";
@@ -66,12 +68,16 @@ function isHelpWord(value: string): boolean {
   return (HELP_WORDS as readonly string[]).includes(value);
 }
 
+function isHelpFlag(value: string): boolean {
+  return (HELP_FLAGS as readonly string[]).includes(value);
+}
+
 function isCommand(value: string): value is Command {
   return (COMMANDS as readonly string[]).includes(value);
 }
 
 /**
- * Split --path off the arguments, touching nothing: a missing value (a help word
+ * Split --path off the arguments, touching nothing: a missing value (a help flag
  * included) or a second --path is the invocation's fault, so it is a message and
  * never a command run.
  */
@@ -86,7 +92,7 @@ function splitPath(args: readonly string[]): { path: string | undefined; rest: s
     }
     if (path !== undefined) return { error: `${PATH_FLAG} given twice` };
     path = arg === PATH_FLAG ? args[++index] : arg.slice(PATH_FLAG.length + 1);
-    if (!path || isHelpWord(path)) return { error: `${PATH_FLAG} needs a directory` };
+    if (!path || isHelpFlag(path)) return { error: `${PATH_FLAG} needs a directory` };
   }
   return { path, rest };
 }
@@ -117,13 +123,13 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 2;
   }
   const { path, rest } = split;
-  if (rest.length === 1 && isHelpWord(rest[0] ?? "")) {
+  if (rest.length === 1 && isHelpFlag(rest[0] ?? "")) {
     console.log(commandUsage(first));
     return 0;
   }
-  const helpWord = rest.find((value) => isHelpWord(value));
-  if (helpWord !== undefined) {
-    console.error(`nuhokai ${first}: unexpected argument '${helpWord}'\n\n${commandUsage(first)}`);
+  const helpFlag = rest.find((value) => isHelpFlag(value));
+  if (helpFlag !== undefined) {
+    console.error(`nuhokai ${first}: unexpected argument '${helpFlag}'\n\n${commandUsage(first)}`);
     return 2;
   }
   // The project directory is --path against the cwd, else the cwd itself.
