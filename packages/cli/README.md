@@ -107,11 +107,12 @@ nuhokai-v<version>-<target>/
   LICENSE
 ```
 
-Only this package is versioned. To release, set `version` in `package.json`, merge, then push the matching tag
-(`git tag v0.1.0 && git push origin v0.1.0`). `.github/workflows/release.yml` runs CI, fails if the tag is not
-`v<version>`, builds and smoke-tests each target on its own runner (`init`, `map` and a dangling ref reported by the
-bundled tsgo, in an empty directory with no Node on the PATH), then publishes a GitHub Release with the archives,
-`SHA256SUMS` and generated notes. A tag with a `-` (`v0.2.0-rc.1`) publishes a pre-release.
+Only this package is versioned. To release, set `version` in `package.json`, merge, then push the matching tag (`git tag
+v0.1.0 && git push origin v0.1.0`). `.github/workflows/release.yml` runs CI, fails if the tagged commit is not on `main`
+or the tag is not `v<version>`, builds and smoke-tests each target on its own runner (`init`, `map` and a dangling ref
+reported by the bundled tsgo, in an empty directory with no Node on the PATH), then attests their build provenance and
+publishes a GitHub Release with the archives, `SHA256SUMS` and generated notes. Verify a download with `gh attestation
+verify <archive> -R maxdollinger/nuhokai`. A tag with a `-` (`v0.2.0-rc.1`) publishes a pre-release.
 
 ## Development
 

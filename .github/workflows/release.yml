@@ -22,12 +22,16 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   version:
-    name: Tag matches the CLI version
-    runs-on: ubuntu-latest
+    name: Tag is on main and matches the CLI version
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
+      # Only reviewed code ships: a tag on a commit that is not on main releases nothing.
+      - name: Tagged commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_SHA is not on main"; exit 1; }
       - name: Compare the tag with packages/cli/package.json
         env:
           TAG: ${{ github.ref_name }}
@@ -46,9 +50,9 @@ jobs:
       matrix:
         include:
           - target: darwin-arm64
-            runner: macos-latest
+            runner: macos-15
           - target: linux-x64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - target: linux-arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -67,7 +71,9 @@ jobs:
           archive="$(bun packages/cli/scripts/package-release.ts | tail -n 1)"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
       - name: Smoke-test without Node, Bun or TypeScript
-        run: packages/cli/scripts/smoke-release.sh "${{ steps.package.outputs.archive }}"
+        env:
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: packages/cli/scripts/smoke-release.sh "$ARCHIVE"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nuhokai-${{ matrix.target }}
@@ -78,9 +84,12 @@ jobs:
   release:
     name: GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
+      # Signed build provenance: `gh attestation verify <archive> -R <repo>`.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -90,6 +99,9 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: sha256sum -- *.tar.gz > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*.tar.gz
       - name: Publish
         working-directory: dist
         env:
