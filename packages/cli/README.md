@@ -93,9 +93,25 @@ world's strict options without the repo installing TypeScript. The CLI does not 
 
 ## Distribution
 
-TypeScript on Bun: `bun build src/bin.ts --target=bun` for a runnable bundle, and later `bun build --compile` for the
-four targets (macOS and Linux, arm64 and x86_64). The checker (tsgo) ships as a matching per-platform sidecar; the
-`@nuhokai/world` runtime and `.d.ts` are embedded.
+TypeScript on Bun: `bun build src/bin.ts --target=bun` for a runnable bundle, and `bun build --compile` for the
+release binaries, built natively for three targets: macOS arm64, Linux x86_64 and Linux arm64 (macOS x86_64 can join
+the matrix later). The checker (tsgo) ships as a matching per-platform sidecar from the repo's pinned TypeScript; the
+`@nuhokai/world` runtime and `.d.ts` are embedded. Users need no Node, Bun or TypeScript.
+
+Each release archive, `nuhokai-v<version>-<target>.tar.gz`, holds:
+
+```text
+nuhokai-v<version>-<target>/
+  nuhokai           the compiled CLI
+  tsgo/             tsgo, its lib.*.d.ts and Microsoft's detached signature, LICENSE and NOTICE
+  LICENSE
+```
+
+Only this package is versioned. To release, set `version` in `package.json`, merge, then push the matching tag
+(`git tag v0.1.0 && git push origin v0.1.0`). `.github/workflows/release.yml` runs CI, fails if the tag is not
+`v<version>`, builds and smoke-tests each target on its own runner (`init`, `map` and a dangling ref reported by the
+bundled tsgo, in an empty directory with no Node on the PATH), then publishes a GitHub Release with the archives,
+`SHA256SUMS` and generated notes. A tag with a `-` (`v0.2.0-rc.1`) publishes a pre-release.
 
 ## Development
 
@@ -104,6 +120,8 @@ bun run embed        # regenerate src/toolchain/world-types.gen.ts and map-asset
 bun run build        # embed, then bundle dist/bin.js
 bun run typecheck
 bun test             # fails if an embedded asset is stale
+bun scripts/package-release.ts                  # compile this machine's target into dist/release/
+scripts/smoke-release.sh dist/release/<archive>   # the release's smoke test against that archive
 ```
 
 ## License
