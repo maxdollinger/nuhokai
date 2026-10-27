@@ -174,8 +174,8 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "The node types live in this package as plain type-only TypeScript; the TypeBox schemas and JSON reader/writer are gone.",
-      why: "The TS files are the format, so nothing reads node JSON anymore, and the shipped .d.ts must be self-contained.",
+        "The node types live in this package as plain type-only TypeScript, with no TypeBox schemas and no JSON reader or writer.",
+      why: "The TS files are the format, so nothing reads node JSON, and the shipped .d.ts must be self-contained.",
       rejected: [
         {
           option: "Importing the types from @nuhokai/shared/spec",
@@ -238,7 +238,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "Overrides 'A node's id is an authored uuidv7': an id is any authored string (a NodeId), unique in the world; tsc does not check its format.",
+        "An id is any authored string (a NodeId), unique in the world, not necessarily a uuidv7; tsc does not check its format.",
       why: "The id only has to survive renames and moves, which any authored string does; uuidv7 is not settled, and validating it was about half of all instantiations.",
       rejected: [
         {

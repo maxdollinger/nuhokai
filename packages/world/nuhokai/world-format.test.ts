@@ -18,7 +18,7 @@ test("records the id, hierarchy and world-file decisions in the node spec's Deci
     find("The child declares its parent"),
     find("Overrides 'the child declares its parent'"),
     find("Overrides 'Overrides the child declares its parent'"),
-    find("Overrides 'A node's id is an authored uuidv7'"),
+    find("An id is any authored string"),
   ];
   for (const index of indices) {
     expect(decisions[index]?.why).toBeTruthy();

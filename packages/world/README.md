@@ -144,7 +144,8 @@ owns the world's tsconfig: `nuhokai init` writes one with these options instead 
 
 The node types live in `src/node-spec.ts` as plain, type-only TypeScript (no TypeBox, no runtime values), and
 `NodeDef` is derived from them, so they stay the only source of truth for node fields. The package has no dependencies
-at all; a test checks that the runtime source files import nothing.
+at all; a test checks that the runtime source files import nothing. They are also exported, type-only, as
+`@nuhokai/world/node-spec` for tooling such as the CLI's loader; world files import only `@nuhokai/world`.
 
 `src/declarations.test.ts` emits declarations for `src`, proves they are self-contained (no non-relative imports), and
 that a two-file world with a cycle and a dome, type-checked against the emitted `.d.ts` alone, still gets the brand,
