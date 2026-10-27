@@ -29,7 +29,7 @@ export const LoadWorld = node({
     },
     {
       id: "R2",
-      text: "Node = its NodeSpec per packages/world/README.md. Name: export name; exported twice → first in sorted file order; unexported → id.",
+      text: "Node = its NodeSpec per packages/world/README.md. Name: export name; exported twice → the defining file's (whose node() made it), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
     { id: "R3", text: "Order: depth-first from the world, parent before children, record order; each node once." },
     { id: "R4", text: "tbd: no edge; one placeholder per tbd object with all its users; ordered by first use." },
@@ -64,6 +64,10 @@ export const LoadWorld = node({
       text: "CLI under bun --no-install, world file importing an uncached package → one 'nuhokai map: nuhokai/<file>' line, exit 1; nothing installed. Unresolvable import in a file reached through another → names that file. Symlinked node file → named by export.",
       demonstrates: ["R1", "R2", "R5"],
     },
+    {
+      text: "Barrel index.ts re-exporting Bad from zbad.ts → named Bad, a throwing Bad.uses blames nuhokai/zbad.ts; `export { Late as Early }` keeps Late.",
+      demonstrates: ["R2", "R5"],
+    },
   ],
   decisions: [
     {
@@ -82,6 +86,17 @@ export const LoadWorld = node({
         {
           option: "Scan and reject non-relative or outside-nuhokai/ imports",
           why: "Per-file transpile and path bookkeeping for no safety: an allowed file can still do anything.",
+        },
+      ],
+    },
+    {
+      decision:
+        "Defining file = the first world file on the stack of the node() call; the CLI's runtime records it per handle.",
+      why: "Module exports cannot tell a definer from a re-exporter; the call site can, whatever the declaration's syntax.",
+      rejected: [
+        {
+          option: "Scan each file's source for a local declaration of the export's name",
+          why: "Syntax-bound: misses destructured or computed declarations, matches comments and strings.",
         },
       ],
     },

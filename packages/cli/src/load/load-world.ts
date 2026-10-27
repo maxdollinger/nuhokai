@@ -28,7 +28,7 @@ export interface LoadedWorld {
 /** A node handle and what the loader learnt about it from the exports. */
 interface Named {
   readonly name: string;
-  /** The file that first exports it, named from the cwd; errors about the node name this file. */
+  /** The file that defines it, else the first that exports it, named from the cwd; errors about the node name this file. */
   readonly file: string;
 }
 
@@ -47,6 +47,28 @@ interface WorldPaths {
 
 let runtimeRegistered = false;
 
+/** Each handle a world file made, to the stack of its node() call: the first world frame is the file that defines it. */
+const madeAt = new WeakMap<object, string>();
+
+type Draft = { edges(edges: unknown): object };
+
+/**
+ * The runtime's node(), recording where each handle is made: module exports
+ * cannot tell the file that defines a node from one that re-exports it.
+ */
+const tracedNode = ((def: unknown) => {
+  const stack = new Error().stack ?? "";
+  const draft = (worldRuntime.node as (def: unknown) => Draft)(def);
+  return Object.freeze({
+    ...draft,
+    edges: (edges: unknown) => {
+      const handle = draft.edges(edges);
+      madeAt.set(handle, stack);
+      return handle;
+    },
+  });
+}) as typeof worldRuntime.node;
+
 /**
  * Make `@nuhokai/world` in every world file the CLI's own runtime, the one this
  * module imports: one runtime per process, whatever nuhokai/tsconfig.json maps
@@ -61,7 +83,7 @@ function useCliWorldRuntime(): void {
   Bun.plugin({
     name: "nuhokai-world-runtime",
     setup(build) {
-      build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
+      build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime, node: tracedNode }, loader: "object" }));
     },
   });
 }
@@ -96,6 +118,12 @@ function nameIn(paths: WorldPaths, path: string): string | undefined {
   return dir ? inWorld(paths.root, ...relative(dir, path).split(sep)) : paths.files.get(path);
 }
 
+/** A stack's frames, innermost first: each frame's path and line. */
+function framesOf(stack: string): [path: string, line: number][] {
+  const frames = stack.matchAll(/^\s*at (?:.*?\()?(.+?):(\d+):\d+\)?$/gm);
+  return [...frames].map(([, path = "", line]) => [path, Number(line)]);
+}
+
 /**
  * Where a failed evaluation points, named from the cwd, with its line when known:
  * where a syntax or resolve error points, else the first stack frame inside the
@@ -113,15 +141,15 @@ function failingAt(error: unknown, paths: WorldPaths, imported: string): string 
   const pointed = at(position?.file, position?.line);
   if (pointed) return pointed;
   const stack = error instanceof Error ? (error.stack ?? "") : "";
-  for (const match of stack.matchAll(/^\s*at (?:.*?\()?(.+?):(\d+):\d+\)?$/gm)) {
-    const frame = at(match[1], Number(match[2]));
+  for (const [path, line] of framesOf(stack)) {
+    const frame = at(path, line);
     if (frame) return frame;
   }
   return at((error as { referrer?: string } | null)?.referrer, undefined) ?? imported;
 }
 
 /** Evaluate every world file in sorted order; each answers its exports, keyed by its name. */
-async function evaluate(root: string): Promise<Module[]> {
+async function evaluate(root: string): Promise<{ modules: Module[]; paths: WorldPaths }> {
   const files = worldFiles(root);
   const paths = worldPaths(root, files);
   const modules: Module[] = [];
@@ -134,21 +162,39 @@ async function evaluate(root: string): Promise<Module[]> {
       throw new CliError(`${failingAt(error, paths, file)}: ${oneLine(error)}`);
     }
   }
-  return modules;
+  return { modules, paths };
 }
 
 function isNode(value: unknown): value is NodeRef {
   return typeof value === "object" && value !== null && (value as { $ref?: unknown }).$ref === "node";
 }
 
-/** Names from exports: the first export in sorted file order wins; `default` names nothing. */
-function namesOf(modules: readonly Module[]): Map<NodeRef, Named> {
-  const names = new Map<NodeRef, Named>();
-  for (const [file, exports] of modules) {
-    for (const [name, value] of Object.entries(exports)) {
-      if (name !== "default" && isNode(value) && !names.has(value)) names.set(value, { name, file });
-    }
+/** The world file whose node() call made the handle, named from the cwd: its first world frame. */
+function definerOf(node: NodeRef, paths: WorldPaths): string | undefined {
+  for (const [path] of framesOf(madeAt.get(node) ?? "")) {
+    const name = nameIn(paths, path);
+    if (name) return name;
   }
+  return undefined;
+}
+
+/**
+ * Names from exports: an export of the file that defines the node wins over a
+ * re-export, else the first export in sorted file order; `default` names nothing.
+ */
+function namesOf(modules: readonly Module[], paths: WorldPaths): Map<NodeRef, Named> {
+  const names = new Map<NodeRef, Named>();
+  const name = (definersOnly: boolean) => {
+    for (const [file, exports] of modules) {
+      for (const [exported, value] of Object.entries(exports)) {
+        if (exported === "default" || !isNode(value) || names.has(value)) continue;
+        const definer = definerOf(value, paths);
+        if (!definersOnly || file === definer) names.set(value, { name: exported, file: definer ?? file });
+      }
+    }
+  };
+  name(true);
+  name(false);
   return names;
 }
 
@@ -170,9 +216,9 @@ function worldOf(modules: readonly Module[], index: string): { id: string; child
  * reference by identity and judges nothing: ids, orphans, scope and names are
  * check's rules.
  */
-function specsOf(modules: readonly Module[], index: string): LoadedWorld {
-  const names = namesOf(modules);
-  const fileOf = (node: NodeRef | null) => (node && names.get(node)?.file) ?? index;
+function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): LoadedWorld {
+  const names = namesOf(modules, paths);
+  const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? definerOf(node, paths))) ?? index;
   const nameOf = (node: NodeRef) => names.get(node)?.name ?? node.$def.id;
 
   // Depth-first: a parent before its children, record order; the first listing places a node.
@@ -285,5 +331,6 @@ function specsOf(modules: readonly Module[], index: string): LoadedWorld {
 export async function loadWorld(root: string): Promise<LoadedWorld> {
   const index = inWorld(root, WORLD_INDEX);
   if (!existsSync(index)) throw new CliError(`${index}: not found; it is the world's entry point`);
-  return specsOf(await evaluate(root), index);
+  const { modules, paths } = await evaluate(root);
+  return specsOf(modules, paths, index);
 }

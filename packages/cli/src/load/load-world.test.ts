@@ -12,7 +12,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { node } from "@nuhokai/world";
+import { defineWorld } from "@nuhokai/world";
 import { runInit } from "../init/scaffold.ts";
 import { CliError } from "../shared/failure.ts";
 import { loadWorld } from "./load-world.ts";
@@ -73,7 +73,7 @@ test("after init, without node_modules, loads Example named by its export plus i
   const repo = tempDir();
   expect(await runInit(repo, quiet)).toBe(0);
   // The init-written tsconfig maps @nuhokai/world to the .d.ts; evaluation must still get the CLI's runtime.
-  writeFileSync(join(repo, "nuhokai/runtime.ts"), 'export { node } from "@nuhokai/world";\n');
+  writeFileSync(join(repo, "nuhokai/runtime.ts"), 'export { defineWorld } from "@nuhokai/world";\n');
   expect(existsSync(join(repo, "node_modules"))).toBe(false);
 
   const loaded = await loadWorld(repo);
@@ -96,9 +96,9 @@ test("after init, without node_modules, loads Example named by its export plus i
   expect(loaded.placeholders).toEqual([
     { kind: "call", description: "Describe what this node has to do", users: [EXAMPLE_ID] },
   ]);
-  // One runtime per process: the world files built their nodes with the CLI's own `node`.
+  // One runtime per process: the world files get the CLI's own runtime, not the init-written .d.ts.
   const runtime = await import(pathToFileURL(join(repo, "nuhokai/runtime.ts")).href);
-  expect(runtime.node).toBe(node);
+  expect(runtime.defineWorld).toBe(defineWorld);
 });
 
 test("the example world: depth-first, edges grouped per target, delegates kept, inherited ports to the implementor", async () => {
@@ -232,20 +232,41 @@ export const B = node(${leaf("b")}).edges({ uses: () => [first] });
   ]);
 });
 
-test("names: the first export in sorted file order, else the id", async () => {
+test("names: the defining file's export, else the first export in sorted file order, else the id", async () => {
   const root = world({
-    "a.ts": `export { Late as Early } from "./z.ts";\n`,
+    "a.ts": `export { Late as Early } from "./z.ts";\nimport { held } from "./z.ts";\nexport const First = held.Made;\n`,
+    "b.ts": `import { held } from "./z.ts";\nexport const Second = held.Made;\n`,
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+import { First } from "./a.ts";
 import { Late } from "./z.ts";
 const Hidden = node(${leaf("hidden")}).edges({});
-export default defineWorld({ id: "w", children: [Late, Hidden] });
+export default defineWorld({ id: "w", children: [Late, First, Hidden] });
 `,
-    "z.ts": `import { node } from "@nuhokai/world";\nexport const Late = node(${leaf("late")}).edges({});\n`,
+    "z.ts": `import { node } from "@nuhokai/world";
+export const Late = node(${leaf("late")}).edges({});
+export const held = { Made: node(${leaf("made")}).edges({}) };
+`,
   });
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Early", "hidden"]);
+  // An alias re-export does not rename; a node its file does not export takes the first export.
+  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Late", "First", "hidden"]);
+});
+
+test("a barrel re-export keeps the node's name and its file's blame", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Bad } from "./zbad.ts";
+export { Bad };
+export default defineWorld({ id: "w", children: [Bad] });
+`,
+    "zbad.ts": `import { node } from "@nuhokai/world";
+export const Bad = node(${leaf("bad")}).edges({ uses: () => { throw new Error("boom"); } });
+`,
+  });
+
+  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/zbad.ts: Bad.uses: boom`);
 });
 
 test("a world that only loads is not judged: an orphan and an out-of-scope edge load", async () => {
