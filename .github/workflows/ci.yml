@@ -32,3 +32,9 @@ jobs:
       - run: bun run build
       - name: Embedded assets are committed
         run: test -z "$(git status --porcelain)" || { git status --porcelain; git diff; exit 1; }
+      # The release's linux-x64 build and smoke test, so a PR that breaks them fails here, not at tag time.
+      - name: Release package and smoke test (linux-x64)
+        shell: bash
+        run: |
+          archive="$(bun packages/cli/scripts/package-release.ts | tail -n 1)"
+          packages/cli/scripts/smoke-release.sh "$archive"
