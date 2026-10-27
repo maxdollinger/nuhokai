@@ -5,4 +5,5 @@ See README.md for the layout and packages/world/README.md for the world format. 
 - Node fields come from the types in `packages/world/src/node-spec.ts`; never redeclare them.
 - Commits follow Conventional Commits (`feat(world): …`, `fix(world): …`).
 - Before committing: `bun test && bun run typecheck && bun run check`.
+- CI runs the same checks plus `bun run build` on every PR and push to `main`. PR titles must be Conventional Commits (scope `world` or `cli`, optional); squash merging uses the title as the commit message.
 - Specs for the cli package are under `packages/cli/nuhokai`
