@@ -1,5 +1,5 @@
 /**
- * Node spec, schema `nuhokai/node@1` (MAX-5): the plain types only.
+ * Node spec, schema `nuhokai/node@1`: the plain types only.
  * The world format (`types.ts`) derives its authoring types from these, so
  * they stay the only source of truth for node fields. Type-only: nothing
  * here exists at runtime.

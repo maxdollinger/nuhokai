@@ -1,7 +1,6 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
-import { fromRoot, WORLD_DIR, WORLD_INDEX, worldFile } from "../shared/paths.ts";
-import { inspectTarget } from "../target/inspect.ts";
-import { type ResolveTargetEnvironment, resolveTarget } from "../target/resolve-target.ts";
+import { requireWorld } from "../shared/inspect.ts";
+import { inWorld, WORLD_INDEX } from "../shared/paths.ts";
 import { createNodeFile } from "./node-file.ts";
 
 /** Kebab-case, at least one letter, no extension, no dot segment, no leading dash. */
@@ -11,17 +10,10 @@ const SEGMENT = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const RESERVED = "index";
 
 /** What the run port may observe and answer; the defaults are the real process. */
-export interface NewEnvironment extends ResolveTargetEnvironment {
+export interface NewEnvironment {
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
-  /** A fresh node id; the default is a uuidv7. */
-  readonly newId?: () => string;
 }
-
-/** The run port's result, before it becomes lines and an exit code. */
-export type AddNodeOutcome =
-  | { readonly kind: "written"; readonly path: string }
-  | { readonly kind: "failed"; readonly code: 1 | 2; readonly message: string };
 
 /** A parsed argument: the kebab-case segments inside the world's folder, and the export name. */
 interface NodePath {
@@ -46,66 +38,46 @@ function parsePath(argument: string): NodePath {
   const bad = segments.some((segment) => !SEGMENT.test(segment));
   if (bad || last === RESERVED) {
     throw new CliError(
-      `invalid path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
+      `invalid node path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
     );
   }
   return { segments, name: pascalCase(last) };
 }
 
-/** Parse, resolve, inspect, id, create: the order is the program. Writes and prints nothing. */
-export async function addNode(
-  cwd: string,
-  argument: string,
-  environment: NewEnvironment = {},
-): Promise<AddNodeOutcome> {
+/**
+ * The new command: parse, inspect, id, create, print; the order is the program.
+ * Adds one node file to the world in the project directory `root`, named from
+ * the cwd, or says why not, and resolves to the process exit code; programming
+ * errors propagate and crash with their stack.
+ */
+export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
+  const out = environment.out ?? ((line: string) => console.log(line));
+  const err = environment.err ?? ((line: string) => console.error(line));
+
   let target: NodePath;
   try {
     target = parsePath(argument);
   } catch (error) {
-    // A bad path fails before any git call, prompt or write.
+    // A bad path fails before anything is read or written.
     if (!isExpected(error)) throw error;
-    return { kind: "failed", code: 2, message: oneLine(error) };
+    err(`nuhokai new: ${oneLine(error)}`);
+    return 2;
   }
 
   try {
-    const root = await resolveTarget(cwd, environment);
-    const state = inspectTarget(root);
-    if (state.kind === "absent") {
-      throw new CliError(`no world at ${WORLD_DIR}/; run \`nuhokai init\` first`);
-    }
-    if (state.kind === "occupied") {
-      throw new CliError(`${WORLD_DIR} exists but is not a directory`);
-    }
+    requireWorld(root);
 
     // The last segment is the file's stem, so it takes the extension WorldPath does not add.
     const stem = target.segments[target.segments.length - 1] ?? "";
-    const file = worldFile(root, ...target.segments.slice(0, -1), `${stem}.ts`);
-    createNodeFile(file.absolute, target.name, (environment.newId ?? Bun.randomUUIDv7)());
-    return { kind: "written", path: file.fromRoot };
+    const file = inWorld(root, ...target.segments.slice(0, -1), `${stem}.ts`);
+    createNodeFile(file, target.name, Bun.randomUUIDv7());
+    out(file);
+    out(`next: add it to ${inWorld(root, WORLD_INDEX)}`);
+    return 0;
   } catch (error) {
     // Expected failures become one stderr line; a bug crashes with its stack.
     if (!isExpected(error)) throw error;
-    return { kind: "failed", code: 1, message: oneLine(error) };
-  }
-}
-
-/**
- * The new command: add one node file to the world at the target, or say why not.
- * Prints the two possible line sets here and resolves to the process exit code;
- * programming errors propagate and crash with their stack.
- */
-export async function runNew(cwd: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
-  const out = environment.out ?? ((line: string) => console.log(line));
-  const err = environment.err ?? ((line: string) => console.error(line));
-
-  const outcome = await addNode(cwd, argument, environment);
-  switch (outcome.kind) {
-    case "written":
-      out(outcome.path);
-      out(`next: add it to ${fromRoot(WORLD_INDEX)}`);
-      return 0;
-    case "failed":
-      err(`nuhokai new: ${outcome.message}`);
-      return outcome.code;
+    err(`nuhokai new: ${oneLine(error)}`);
+    return 1;
   }
 }

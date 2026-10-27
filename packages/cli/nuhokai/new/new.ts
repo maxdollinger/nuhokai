@@ -6,27 +6,27 @@ import { NodeFile } from "./node-file.ts";
 export const New = node({
   id: "01a17950-b221-711f-90af-db2521515c8d",
   purpose:
-    "Add one node file to an existing world: nuhokai/<path>.ts with a fresh uuidv7 and TODO: placeholders, then one stdout line naming nuhokai/index.ts. Never edits, overwrites, loads or checks. run delegates to AddNode.",
+    "Add one node file to an existing world: nuhokai/<node-path>.ts with a fresh uuidv7 and TODO: placeholders. Never edits, overwrites, loads or checks. run → AddNode.",
   status: "building",
   source: ["packages/cli/src/new/**"],
   requirements: [
     {
       id: "R1",
-      text: "Exactly one new file, nuhokai/<path>.ts plus its missing parent directories; no other file changes, and the file loads as one planned leaf.",
+      text: "Exactly one new file, nuhokai/<node-path>.ts, plus missing parent directories; no other file changes; it loads as one planned leaf.",
     },
     {
       id: "R2",
-      text: "stdout: the from-root path, then a line naming nuhokai/index.ts; a failure: one stderr line, no stdout.",
+      text: "stdout: written path (cwd-relative), then a line naming nuhokai/index.ts. Failure: one stderr line, no stdout.",
     },
     {
       id: "C1",
       kind: "constraint",
-      text: "One argument, the path; --help is the only flag. Cli owns the count, New owns the path rule.",
+      text: "One argument, the node path. Cli owns count, --help and --path; New owns the path rule.",
     },
   ],
   testCases: [
     {
-      text: "After init, new new/stock-order writes and prints nuhokai/new/stock-order.ts and the index.ts line, exits 0; a second run, an existing path or no world writes no file and prints one stderr line.",
+      text: "After init, new new/stock-order writes and prints nuhokai/new/stock-order.ts and the index.ts line, exit 0; a second run, existing path or no world → no file, one stderr line.",
       demonstrates: ["R1", "R2"],
     },
   ],

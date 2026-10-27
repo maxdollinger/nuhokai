@@ -1,15 +1,18 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { fromRoot, inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
+import { inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
 
-/** The world entry point: the loader's only entry, listing the one example node. */
-export const WORLD_INDEX_TEMPLATE = `import { defineWorld } from "@nuhokai/world";
+/** The world entry point under the world id `id`: the loader's only entry, listing the one example node. */
+export function worldIndexSource(id: string): string {
+  return `import { defineWorld } from "@nuhokai/world";
 import { Example } from "./example.ts";
 
-/** The world: the loader's only entry point, listing every top-level node. */
+/** The world: the loader's only entry point, listing every top-level node under the world's own id. */
 export default defineWorld({
+  id: "${id}",
   children: [Example],
 });
 `;
+}
 
 /** One node in its own file: an own port, a typed hole and a uses edge to it. */
 export const EXAMPLE_TEMPLATE = `import { node, tbd } from "@nuhokai/world";
@@ -42,12 +45,13 @@ export const Example = node({
 });
 `;
 
-export const EXAMPLE_WORLD_PATHS = [fromRoot(WORLD_INDEX), fromRoot(WORLD_EXAMPLE)] as const;
+/** The two files, by their path inside the world folder. */
+export const EXAMPLE_WORLD_PATHS = [WORLD_INDEX, WORLD_EXAMPLE] as const;
 
-/** Lay down the authored example world inside an existing directory. */
+/** Lay down the authored example world inside an existing directory, under a fresh world id. */
 export function writeExampleWorld(dir: string): string[] {
   mkdirSync(inWorld(dir), { recursive: true });
-  writeFileSync(inWorld(dir, WORLD_INDEX), WORLD_INDEX_TEMPLATE);
+  writeFileSync(inWorld(dir, WORLD_INDEX), worldIndexSource(Bun.randomUUIDv7()));
   writeFileSync(inWorld(dir, WORLD_EXAMPLE), EXAMPLE_TEMPLATE);
   return [...EXAMPLE_WORLD_PATHS];
 }

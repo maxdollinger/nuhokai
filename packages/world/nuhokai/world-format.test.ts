@@ -9,8 +9,8 @@ test("the package describes itself as a node in the world format", () => {
   expect(WorldFormat.node.node).toBe(WorldFormat);
 });
 
-test("records the id, hierarchy and world-file decisions in the MAX-5 Decision shape", () => {
-  // The Decision shape itself is enforced by the compile-time sync with MAX-5 in src/types.ts.
+test("records the id, hierarchy and world-file decisions in the node spec's Decision shape", () => {
+  // The Decision shape itself is enforced by the compile-time sync with the node spec in src/types.ts.
   const decisions = WorldFormat.$def.decisions ?? [];
   const find = (text: string) => decisions.findIndex((d) => d.decision.includes(text));
   const indices = [
@@ -18,7 +18,7 @@ test("records the id, hierarchy and world-file decisions in the MAX-5 Decision s
     find("The child declares its parent"),
     find("Overrides 'the child declares its parent'"),
     find("Overrides 'Overrides the child declares its parent'"),
-    find("Overrides 'A node's id is an authored uuidv7'"),
+    find("An id is any authored string"),
   ];
   for (const index of indices) {
     expect(decisions[index]?.why).toBeTruthy();
@@ -31,7 +31,8 @@ test("records the id, hierarchy and world-file decisions in the MAX-5 Decision s
   expect(decisions[indices[3] ?? -1]?.rejected?.map((r) => r.option).join()).toContain("Children as an array");
 });
 
-test("the package's own world lists WorldFormat at the top level", () => {
+test("the package's own world has its own id and lists WorldFormat at the top level", () => {
   expect(world.$ref).toBe("world");
+  expect(world.id).toBeTruthy();
   expect(world.children).toEqual([WorldFormat]);
 });

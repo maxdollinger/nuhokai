@@ -1,19 +1,20 @@
 import { node } from "@nuhokai/world";
 import { Init } from "./init/init.ts";
+import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
 
 /** The CLI in world format: loader, global rules, checks, writing. */
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "The command surface: parse argv, print usage and dispatch to the command nodes. Owns exit codes and the " +
-    "distribution, so repos need no TypeScript, Bun or node_modules. Implements no command itself.",
+    "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes and the distribution. " +
+    "Implements no command.",
   status: "building",
   source: ["packages/cli/src/**", "packages/cli/scripts/**"],
   ports: {
     dispatch: {
       kind: "call",
-      purpose: "Parse argv and run the matching command node",
+      purpose: "Parse argv, run the matching command node",
       input: "argv without the executable",
       output: "exit code: 0 ok, 1 diagnostics or failure, 2 usage error",
       errors: ["unknown command"],
@@ -23,17 +24,24 @@ export const Cli = node({
     { id: "R1", text: "A repo needs no TypeScript, Bun or node_modules; the CLI ships its own pinned checker." },
     {
       id: "R2",
-      text: "A command's exit code passes through unchanged: 0 ok, 1 failure or diagnostics, 2 usage or argument error.",
+      text: "Command exit codes pass through unchanged: 0 ok, 1 failure or diagnostics, 2 usage or argument error.",
     },
     {
       id: "R3",
-      text: "No argument or a help word prints usage and exits 0. Usage lists every command with its argument form and a one-line description, and `nuhokai <command> --help` repeats that form; both exit 0. An unknown command prints usage to stderr and exits 2.",
+      text: "No argument, help, --help or -h → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` (or -h) repeats that form, exit 0; after a command `help` is an ordinary argument. Unknown command → usage on stderr, exit 2.",
     },
-    { id: "R4", text: "Cli holds no loading, rule, tsc or writing logic: each command is its own node." },
-    { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
+    { id: "R4", text: "No loading, rule, tsc or writing logic in Cli: each command is its own node." },
+    {
+      id: "R5",
+      text: "World imports type-check only as relative files and @nuhokai/world; the CLI runs with bun --no-install, so nothing is installed.",
+    },
     {
       id: "R6",
-      text: "Cli enforces the argument count per command: init, check and update take none, new takes exactly one. A wrong count is an argument error (2) and the command never runs; the arguments are passed through unchanged and never validated.",
+      text: "Cli enforces argument counts: init, check, update, map none; new exactly one. Wrong count → argument error (2), command never runs; too many names the first extra ('unexpected argument 'x''). A dash argument other than --path, --help, -h → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
+    },
+    {
+      id: "R7",
+      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. Missing value, second --path or a path that is no directory → usage error (2), command never runs. The command gets the directory, never the cwd, and prints its paths cwd-relative.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
@@ -41,26 +49,42 @@ export const Cli = node({
   ],
   testCases: [
     {
-      text: "Usage lists every command with its argument form, so `nuhokai new <path>` is visible; --help, `nuhokai init --help` and `nuhokai new --help` exit 0.",
+      text: "Usage lists every command with its argument form (`nuhokai new <node-path>` visible); --help, `nuhokai init --help`, `nuhokai new --help` exit 0.",
       demonstrates: ["R3"],
     },
     {
-      text: "An unknown command prints usage to stderr and exits 2; a command's non-zero exit reaches the process unchanged.",
+      text: "Unknown command → usage on stderr, exit 2; a command's non-zero exit reaches the process unchanged.",
       demonstrates: ["R2", "R3"],
     },
     {
-      text: "`nuhokai new new/stock-order` passes new/stock-order to New unchanged; `nuhokai new` and `nuhokai new a b` are argument errors and New never runs.",
+      text: "`nuhokai new new/stock-order` passes new/stock-order to New unchanged; `nuhokai new`, `nuhokai new a b` → argument error, New never runs.",
       demonstrates: ["R6"],
     },
     {
-      text: "With an empty node_modules the checker reports only authored violations and rejects a non-relative import.",
+      text: "Empty node_modules: the checker reports only authored violations and rejects a non-relative import.",
       demonstrates: ["R1", "R5"],
+    },
+    {
+      text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` → argument error, WorldMap never runs.",
+      demonstrates: ["R6"],
+    },
+    {
+      text: "From a parent directory: `init --path packages/app` writes packages/app/nuhokai/, `map --path=packages/app` maps it; --path without value, twice or naming no directory (missing path, file, file/x) → exit 2, nothing runs; `map --path x --help` prints map's help.",
+      demonstrates: ["R7"],
+    },
+    {
+      text: "`nuhokai help` prints usage; `nuhokai new help` writes nuhokai/help.ts; `nuhokai map help` → unexpected argument 'help', exit 2.",
+      demonstrates: ["R3", "R6"],
+    },
+    {
+      text: "`map --pth out`, `init --force` → unknown option '--pth' / '--force' with usage, exit 2; `new a b c` → unexpected argument 'b'; nothing runs.",
+      demonstrates: ["R6"],
     },
   ],
   decisions: [
     {
       decision: "TypeScript on Bun, shipped as a per-platform binary embedding Bun, @nuhokai/world and the checker.",
-      why: "Loading means executing TS (lazy edges, cycles, spreads), so Bun is required; embedding makes the repo toolchain-free.",
+      why: "Loading executes TS (lazy edges, cycles, spreads), so Bun is required; embedding keeps the repo toolchain-free.",
       rejected: [
         { option: "Go parser", why: "Cannot evaluate lazy edges, cycles or computed refs; no identity." },
         { option: "repo Bun, Node or tsc", why: "Forces a toolchain install; version-dependent results." },
@@ -68,21 +92,21 @@ export const Cli = node({
     },
     {
       decision: "Cli is a dispatcher; each command is a top-level node with its own port, reached by `uses`.",
-      why: "Commands are separate domes with separate rules, and the dispatcher stays small and stable.",
+      why: "Commands are separate domes with separate rules; the dispatcher stays small and stable.",
       rejected: [
         {
           option: "command ports on Cli",
-          why: "Delegation points down only, and duplicating each contract on the dispatcher drifts from the nodes.",
+          why: "Delegation points down only; duplicating each contract on the dispatcher drifts from the nodes.",
         },
       ],
     },
     {
-      decision: "Exit 2 covers a wrong command, flag or argument count and a command's invalid argument value.",
-      why: "One code for 'the invocation was wrong' keeps scripts to two branches: Cli owns the shape of the call, the command owns its value.",
+      decision: "Exit 2: wrong command, flag or argument count, or a command's invalid argument value.",
+      why: "One code for 'invocation wrong' keeps scripts to two branches: Cli owns the call's shape, the command its values.",
       rejected: [
         {
           option: "A fourth code for invalid values",
-          why: "More states than a script can use; the stderr line already says which.",
+          why: "More states than scripts use; the stderr line already says which.",
         },
       ],
     },
@@ -95,10 +119,19 @@ export const Cli = node({
       ],
     },
     {
-      decision:
-        "One folder nuhokai/: index.ts, nodes, tsconfig.json, .generated/world/. Same for users and this package.",
-      why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one root.",
+      decision: "One folder nuhokai/ (layout: WorldPath), same for users and this package.",
+      why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one folder.",
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
+    {
+      decision: "Project directory = the cwd or --path; nothing else.",
+      why: "One rule, no guessing or interaction; any folder holding nuhokai/ is one, also a package in a monorepo.",
+      rejected: [
+        {
+          option: "The Git root, else the cwd after a yes/no prompt",
+          why: "Cannot reach a world below the root; needs git and a terminal.",
+        },
+      ],
+    },
   ],
-}).edges({ uses: () => [Init.run, New.run] });
+}).edges({ uses: () => [Init.run, New.run, WorldMap.run] });

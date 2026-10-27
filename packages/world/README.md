@@ -1,6 +1,6 @@
 # @nuhokai/world
 
-The world format (MAX-10, MAX-16): every node is a TS file in a repo's `nuhokai/` folder, and its edges are typed
+The world format: every node is a TS file in a repo's `nuhokai/` folder, and its edges are typed
 references to other nodes. One world file, `nuhokai/index.ts`, lists the top-level nodes. `tsc` alone catches dangling
 references, and completion, go-to-definition and find-references work out of the box.
 
@@ -37,6 +37,7 @@ export const Shop = node({
 import { defineWorld } from "@nuhokai/world";
 
 export default defineWorld({
+  id: "01a17bb6-ad4d-7298-8492-a53237d45f80", // the world's own id, like a node's
   children: [Postgres, AuditLog, Shop],
 });
 ```
@@ -50,9 +51,11 @@ export default defineWorld({
   own port is a new reference bound to the dome. Direct children only: a grandchild must first be exposed by its own
   parent.
 - `children` is a record, not an array, so `ports` can name a child (`c.orders`). Child names are local to the dome.
-- `defineWorld({ children })` lists only top-level nodes. There is no `relation()`: the hierarchy lives inside the
+- `defineWorld({ id, children })` lists only top-level nodes. There is no `relation()`: the hierarchy lives inside the
   node it belongs to. A subtree can still live in its own file by exporting the dome that owns it, and node files
   never import the world file.
+- The world's `id` is required and has a node id's form. Tools key per-world state by it (the map's saved layout), so
+  every world gets its own; `nuhokai init` generates one.
 
 The runtime has no imports and no side effects: `node`, `defineWorld`, `inherited` and `tbd` only build frozen
 objects. `example/` is a complete small world: `example/index.ts` holds its top level and re-exports its nodes, so it
@@ -60,12 +63,12 @@ is the barrel and not a node file; `example/type-errors.ts` lists what must not 
 this package described as a node, including its design decisions, and `nuhokai/index.ts` is its world (`init` writes
 this kind of folder into a repo).
 
-## How it maps to MAX-5 (`nuhokai/node@1`)
+## How it maps to the node spec (`nuhokai/node@1`)
 
-`NodeDef` is `Omit<NodeSpec, …>` plus the fields below, so MAX-5 stays the only source of truth for every other field.
+`NodeDef` is `Omit<NodeSpec, …>` plus the fields below, so the node spec stays the only source of truth for every other field.
 A compile-time check fails if the two drift apart.
 
-| MAX-5                         | World format                                                                          |
+| Node spec                     | World format                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------- |
 | `schema`                      | implied                                                                               |
 | `id` (slug = file name)       | `id`: any string, stable across renames and moves                                     |
@@ -87,7 +90,7 @@ A compile-time check fails if the two drift apart.
   implements and the direct children a dome exposes. That is safe: `children` only points down, so it never forms a
   type cycle. `uses` may point anywhere, also back, so it stays in `.edges()` (TS7022).
 - **Domes are containers, not code.** A node with children cannot be external or abstract, cannot have `uses`, and
-  cannot author MAX-5 port definitions: every port must reference a direct child's port.
+  cannot author node-spec port definitions: every port must reference a direct child's port.
 - **Handles expose own ports only.** A handle has one property per own port (`Orders.place`) and the same references
   under `ports` (`Orders.ports.place`), so a dome can write `c.orders.ports.place`. An implementor's inherited port is
   `inherited(Orders, AuditLog.history)`; it fails tsc unless Orders implements AuditLog, and works in `uses` and as a
@@ -96,37 +99,38 @@ A compile-time check fails if the two drift apart.
   empty, not `__proto__`, and must not start with `$` (reserved for `$ref` and `$def`) or be `ports` (reserved for the
   handle's port namespace).
 - **A rule is in tsc when the error lands on the offending element** with a readable `Forbidden<"…">` message. Global
-  rules, where tsc could only point at `defineWorld`, are the loader's (see below).
-- **MAX-5 rules checked by tsc** through the literal flags, ids and names: abstract nodes have no `uses`, implement
+  rules, where tsc could only point at `defineWorld`, are `check`'s (see below).
+- **Node-spec rules checked by tsc** through the literal flags, ids and names: abstract nodes have no `uses`, implement
   nothing and have no children; external nodes have no children and are top level only; `externalType` only on
   external nodes; an own port must not have the name of an inherited one, a contract is listed once in `implements`,
   and two implemented contracts must not share a port name; requirement ids are unique (non-literal ids are left to
-  the loader), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
-  a contract's requirement is open in MAX-5). Flags that are not literals count as possibly true.
+  `check`), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
+  a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
 - **Dome rules checked by tsc:** `children` is a non-empty record of nodes, each neither external nor abstract (nor
   possibly so); a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
   placeholder is not a child port.
-- **World rules checked by tsc:** `defineWorld.children` is not empty and holds nodes only (externals and contracts
+- **World rules checked by tsc:** `defineWorld` needs an `id`; its `children` are not empty and holds nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an
   unresolved port reference (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have
   `"port"`, inherited ones `"inherited"`. Declare them at module level and export them, so find-references lists every
   dependent.
-- **Ids** are plain strings (MAX-5 `NodeId`); tsc does not check their format. Written as literals, they stay literal
-  types on the handle, which the contract, child and dome-port rules compare; a widened `string` id is left to the
-  loader.
+- **Ids** of nodes and worlds are plain strings (`NodeId`); tsc does not check their format. Written as literals, they stay literal
+  types on the handle, which the contract, child and dome-port rules compare; a widened `string` id is left to
+  `check`.
 
-## For the loader
+## For the loader and `check`
 
-- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object whose `children` are
-  top-level nodes, all frozen.
+- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object with the world's `id` and
+  `children`, the top-level nodes, all frozen.
 - Every exported node has `$ref: "node"`; `$def` holds both steps as authored, deep-frozen, with the edges still lazy
   functions (`uses`, `implements`). A dome's `$def.children` is its direct-children record (references kept by
-  identity), and `$def.ports` holds the resolved MAX-5 port definitions: each copies the child port and carries
+  identity), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries
   `delegate: { to: childId, port: childPortName }`. An exported `$ref: "draft"` means `.edges()` was forgotten.
-- Global rules, each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
+- The loader evaluates the world and reports evaluation failures only; it judges nothing. Global rules are `check`'s
+  (planned), each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; unique display names. The loader re-checks every tsc rule, because a cast
+  an ancestor) against the world tree; unique display names. `check` re-checks every tsc rule, because a cast
   bypasses the types.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so
@@ -142,9 +146,10 @@ owns the world's tsconfig: `nuhokai init` writes one with these options instead 
 
 ## Types and the zero-dependency goal
 
-The MAX-5 node types live in `src/node-spec.ts` as plain, type-only TypeScript (no TypeBox, no runtime values), and
+The node types live in `src/node-spec.ts` as plain, type-only TypeScript (no TypeBox, no runtime values), and
 `NodeDef` is derived from them, so they stay the only source of truth for node fields. The package has no dependencies
-at all; a test checks that the runtime source files import nothing.
+at all; a test checks that the runtime source files import nothing. They are also exported, type-only, as
+`@nuhokai/world/node-spec` for tooling such as the CLI's loader; world files import only `@nuhokai/world`.
 
 `src/declarations.test.ts` emits declarations for `src`, proves they are self-contained (no non-relative imports), and
 that a two-file world with a cycle and a dome, type-checked against the emitted `.d.ts` alone, still gets the brand,
