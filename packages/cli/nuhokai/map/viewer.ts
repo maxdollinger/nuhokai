@@ -28,7 +28,7 @@ export const Viewer = node({
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
       id: "R8",
-      text: "Layout seeded by ids. Moved islands and outer items persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
+      text: "Layout seeded by ids. Moved islands and outer items persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
     },
     { id: "R9", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
   ],
@@ -52,6 +52,10 @@ export const Viewer = node({
     {
       text: "scene.js under bun: a node without source (world files are not type-checked) → empty Source section, no crash.",
       demonstrates: ["R9"],
+    },
+    {
+      text: "scene.js under bun: two tbd placeholders with one description in one scope → two holes, each with its sorted user ids, so their saved positions stay apart.",
+      demonstrates: ["R7", "R8"],
     },
   ],
   decisions: [

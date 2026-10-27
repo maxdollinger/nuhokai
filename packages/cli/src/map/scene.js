@@ -183,6 +183,7 @@ export function scopeView(scene, scope) {
       name: placeholder.description,
       side: 1,
       portKind: placeholder.kind,
+      users: [...placeholder.users].sort(),
     });
     for (const from of users) lane(from, key, "hole", []);
   });

@@ -58,6 +58,8 @@ export type OuterItem =
       readonly name: string;
       readonly side: 1;
       readonly portKind: "call" | "event";
+      /** Every node using the placeholder, by id, sorted; with the description, the hole's saved-layout key. */
+      readonly users: readonly string[];
     }
   | {
       readonly key: "entry";

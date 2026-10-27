@@ -168,3 +168,32 @@ test("the click panel shows a node without source, as a world file may hold one"
 
   expect(detailsOf(unsourced as typeof orders).sections.at(-1)).toEqual({ label: "Source", rows: [] });
 });
+
+test("two holes sharing a description stay two, each with its sorted users", () => {
+  const leaf = (id: string) => ({
+    schema: "nuhokai/node@1" as const,
+    id,
+    name: id,
+    parent: null,
+    external: false,
+    abstract: false,
+    purpose: id,
+    status: "planned" as const,
+    source: [],
+  });
+  const loaded: LoadedWorld = {
+    id: "w",
+    nodes: [leaf("a"), leaf("b"), leaf("c")],
+    placeholders: [
+      { kind: "call", description: "notify", users: ["c", "a"] },
+      { kind: "call", description: "notify", users: ["b"] },
+    ],
+  };
+
+  const holes = scopeView(mapScene(loaded), null).items.filter((item) => item.kind === "hole");
+
+  expect(holes.map((hole) => [hole.name, hole.kind === "hole" ? hole.users : []])).toEqual([
+    ["notify", ["a", "c"]],
+    ["notify", ["b"]],
+  ]);
+});

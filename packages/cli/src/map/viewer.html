@@ -132,7 +132,8 @@ const STORE='nuhokai.map.layout.'+MAP.world.id;
 function stored(){try{const all=JSON.parse(localStorage.getItem(STORE));return all&&typeof all==='object'?all:{};}catch(e){return {};}}
 function store(all){try{localStorage.setItem(STORE,JSON.stringify(all));}catch(e){}}
 const scopeKey=scope=>scope===null?MAP.world.id:MAP.nodes[scope].id;
-const keyOf=sp=>sp.node?sp.node.id:sp.kind==='hole'?'tbd:'+sp.item.name:sp.id;
+// a hole has no id: its description and users key it, so two holes with one description keep apart
+const keyOf=sp=>sp.node?sp.node.id:sp.kind==='hole'?'tbd:'+sp.item.name+':'+sp.item.users.join(','):sp.id;
 function remember(sp,pos){const all=stored(),k=scopeKey(S.scope);all[k]=Object.assign({},all[k],{[keyOf(sp)]:pos});store(all);}
 function short(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
 
