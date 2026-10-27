@@ -37,7 +37,7 @@ export const Cli = node({
     },
     {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, update, map none; new exactly one. Wrong count → argument error (2), command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, update, map none; new exactly one. Wrong count → argument error (2), command never runs; too many names the first extra ('unexpected argument 'x''). A dash argument other than --path, --help, -h → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
@@ -73,8 +73,12 @@ export const Cli = node({
       demonstrates: ["R7"],
     },
     {
-      text: "`nuhokai help` prints usage; `nuhokai new help` writes nuhokai/help.ts; `nuhokai map help` → argument error, exit 2.",
+      text: "`nuhokai help` prints usage; `nuhokai new help` writes nuhokai/help.ts; `nuhokai map help` → unexpected argument 'help', exit 2.",
       demonstrates: ["R3", "R6"],
+    },
+    {
+      text: "`map --pth out`, `init --force` → unknown option '--pth' / '--force' with usage, exit 2; `new a b c` → unexpected argument 'b'; nothing runs.",
+      demonstrates: ["R6"],
     },
   ],
   decisions: [

@@ -132,6 +132,12 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: unexpected argument '${helpFlag}'\n\n${commandUsage(first)}`);
     return 2;
   }
+  // --path is the only option; any other dash argument is a mistyped or unknown flag, never an argument.
+  const option = rest.find((value) => value.startsWith("-"));
+  if (option !== undefined) {
+    console.error(`nuhokai ${first}: unknown option '${option}'\n\n${commandUsage(first)}`);
+    return 2;
+  }
   // The project directory is --path against the cwd, else the cwd itself.
   const cwd = process.cwd();
   const dir = resolve(cwd, path ?? ".");
@@ -139,7 +145,11 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: not a directory: ${path ?? "."}\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (rest.length !== ARITY[first]) {
+  if (rest.length > ARITY[first]) {
+    console.error(`nuhokai ${first}: unexpected argument '${rest[ARITY[first]]}'\n\n${commandUsage(first)}`);
+    return 2;
+  }
+  if (rest.length < ARITY[first]) {
     const expected = ARITY[first] === 1 ? "1 argument" : `${ARITY[first]} arguments`;
     console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
     return 2;

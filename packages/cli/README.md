@@ -61,7 +61,8 @@ Every command works in one project directory: the current directory, or the one 
 `--path=<dir>`, as in `nuhokai map --path packages/cli`). A `--path` without a value, given twice or naming no
 directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` prints map's help. Before a command,
 `help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai new help` adds
-`nuhokai/help.ts`. Without a `nuhokai/`
+`nuhokai/help.ts`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
+exit 2 and run nothing. Without a `nuhokai/`
 there, `new` and `map` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names

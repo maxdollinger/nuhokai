@@ -190,7 +190,7 @@ async function failed(argv: string[]): Promise<[number, string[]]> {
 test("before a command `help` is help; after one only -h and --help are", async () => {
   expect(await logged(["help"])).toEqual([0, [usage()]]);
   expect(await logged(["new", "-h"])).toEqual([0, [commandUsage("new")]]);
-  expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: expected 0 arguments, got 1"]]);
+  expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: unexpected argument 'help'"]]);
 
   const repo = mkdtempSync(join(tmpdir(), "nuhokai-bin-help-test-"));
   try {
@@ -201,5 +201,19 @@ test("before a command `help` is help; after one only -h and --help are", async 
     expect(existsSync(join(repo, "nuhokai/help.ts"))).toBe(true);
   } finally {
     rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("an unknown option or an extra argument is named, exit 2, nothing runs", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nuhokai-bin-args-test-"));
+  try {
+    expect(await failed(["map", "--pth", dir])).toEqual([2, ["nuhokai map: unknown option '--pth'"]]);
+    expect(await failed(["init", "--force", "--path", dir])).toEqual([2, ["nuhokai init: unknown option '--force'"]]);
+    expect(await failed(["new", "a", "b", "c", "--path", dir])).toEqual([2, ["nuhokai new: unexpected argument 'b'"]]);
+    expect(await failed(["init", "x", "--path", dir])).toEqual([2, ["nuhokai init: unexpected argument 'x'"]]);
+    expect(await failed(["new", "--path", dir])).toEqual([2, ["nuhokai new: expected 1 argument, got 0"]]);
+    expect(readdirSync(dir)).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
