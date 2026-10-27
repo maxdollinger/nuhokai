@@ -31,7 +31,8 @@ test("records the id, hierarchy and world-file decisions in the node spec's Deci
   expect(decisions[indices[3] ?? -1]?.rejected?.map((r) => r.option).join()).toContain("Children as an array");
 });
 
-test("the package's own world lists WorldFormat at the top level", () => {
+test("the package's own world has its own id and lists WorldFormat at the top level", () => {
   expect(world.$ref).toBe("world");
+  expect(world.id).toBeTruthy();
   expect(world.children).toEqual([WorldFormat]);
 });

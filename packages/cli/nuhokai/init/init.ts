@@ -29,7 +29,7 @@ export const Init = node({
     },
     {
       id: "R4",
-      text: "Exactly nuhokai/index.ts, nuhokai/example.ts, nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts, nothing outside the folder; byte-identical per CLI version.",
+      text: "Exactly nuhokai/index.ts, nuhokai/example.ts, nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts, nothing outside the folder; byte-identical per CLI version but for the world id.",
     },
     {
       id: "R5",
@@ -39,6 +39,7 @@ export const Init = node({
       id: "R6",
       text: "No TypeScript, Bun, node_modules or network in the repo; init spawns nothing.",
     },
+    { id: "R7", text: "Every init writes a fresh world id, so no two projects share per-world state." },
     {
       id: "C1",
       kind: "constraint",
@@ -47,8 +48,8 @@ export const Init = node({
   ],
   testCases: [
     {
-      text: "In an empty directory with no node_modules and no network, init writes the four files and exits 0; two repos get identical bytes, and the result type-checks and loads as one node, Example.",
-      demonstrates: ["R1", "R4", "R6"],
+      text: "In an empty directory with no node_modules and no network, init writes the four files and exits 0; two repos differ only in the world id, and the result type-checks and loads as one node, Example.",
+      demonstrates: ["R1", "R4", "R6", "R7"],
     },
     {
       text: "After init, the editor resolves @nuhokai/world through nuhokai/tsconfig.json and .generated/world.",

@@ -154,7 +154,7 @@ test("two ports of one target are one edge, a node listed twice appears once at 
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Box, Target } from "./box.ts";
-export default defineWorld({ children: [Box, Target] });
+export default defineWorld({ id: "w", children: [Box, Target] });
 `,
     "box.ts": `import { inherited, node } from "@nuhokai/world";
 export const Contract = node({ ...${leaf("contract", '{ audit: { kind: "call", purpose: "audit" } }')}, abstract: true }).edges({});
@@ -189,7 +189,7 @@ test("a node listed at the top level and then inside a dome stays at its first l
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Box, Shared } from "./box.ts";
-export default defineWorld({ children: [Shared, Box] });
+export default defineWorld({ id: "w", children: [Shared, Box] });
 `,
     "box.ts": `import { node } from "@nuhokai/world";
 export const Shared = node(${leaf("shared")}).edges({});
@@ -211,7 +211,7 @@ test("a tbd used by two nodes is one placeholder with both ids and no edges", as
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A, B } from "./nodes.ts";
-export default defineWorld({ children: [B, A] });
+export default defineWorld({ id: "w", children: [B, A] });
 `,
     "nodes.ts": `import { node, tbd } from "@nuhokai/world";
 export const first = tbd.event({ description: "first hole" });
@@ -236,7 +236,7 @@ test("names: the first export in sorted file order, else the id", async () => {
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 import { Late } from "./z.ts";
 const Hidden = node(${leaf("hidden")}).edges({});
-export default defineWorld({ children: [Late, Hidden] });
+export default defineWorld({ id: "w", children: [Late, Hidden] });
 `,
     "z.ts": `import { node } from "@nuhokai/world";\nexport const Late = node(${leaf("late")}).edges({});\n`,
   });
@@ -250,7 +250,7 @@ test("a world that only loads is not judged: an orphan and an out-of-scope edge 
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 import { Inner, Outer } from "./nodes.ts";
-export default defineWorld({ children: [Outer, Outer] });
+export default defineWorld({ id: "w", children: [Outer, Outer] });
 `,
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
@@ -268,7 +268,7 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
 test("every load failure is one CliError naming the file", async () => {
   const index = `import { defineWorld } from "@nuhokai/world";
 import { A } from "./orders.ts";
-export default defineWorld({ children: [A] });
+export default defineWorld({ id: "w", children: [A] });
 `;
   const orders = `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges({});\n`;
   const edges = (body: string) =>
@@ -322,7 +322,7 @@ test("a throwing file imported by an earlier one is named, not its importer", as
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A } from "./z-throws.ts";
-export default defineWorld({ children: [A] });
+export default defineWorld({ id: "w", children: [A] });
 `,
     "z-throws.ts": 'throw new Error("from z");\nexport const A = 1;\n',
   });
@@ -334,7 +334,7 @@ test("generated files, declarations and tests are never evaluated", async () => 
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 export const A = node(${leaf("a")}).edges({});
-export default defineWorld({ children: [A] });
+export default defineWorld({ id: "w", children: [A] });
 `,
     ".generated/world/thrower.ts": 'throw new Error("generated");\n',
     "types.d.ts": "declare const x: number;\n",
@@ -348,7 +348,7 @@ test("a symlinked node file is a node file: its export names the node", async ()
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Shared } from "./linked.ts";
-export default defineWorld({ children: [Shared] });
+export default defineWorld({ id: "w", children: [Shared] });
 `,
   });
   mkdirSync(join(root, "shared"));
@@ -365,7 +365,7 @@ test("a bare import in a symlinked node file is rejected under its world name", 
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A } from "./linked.ts";
-export default defineWorld({ children: [A] });
+export default defineWorld({ id: "w", children: [A] });
 `,
   });
   mkdirSync(join(root, "shared"));
@@ -386,7 +386,7 @@ test("an import outside nuhokai/, relative or absolute, is rejected before the f
     mkdirSync(join(root, "nuhokai"));
     writeFileSync(
       join(root, "nuhokai/index.ts"),
-      `import { defineWorld } from "@nuhokai/world";\nimport "${specifier}";\nexport default defineWorld({ children: [] });\n`,
+      `import { defineWorld } from "@nuhokai/world";\nimport "${specifier}";\nexport default defineWorld({ id: "w", children: [] });\n`,
     );
 
     expect((await loadError(root)) as Error).toMatchObject({

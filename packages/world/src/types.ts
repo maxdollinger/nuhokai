@@ -631,9 +631,11 @@ export type NodeHandle<
 /** An entry of the world's `children`: a top-level node. */
 export type WorldChild = NodeRef;
 
-/** The world, created by `defineWorld`: exactly the top-level nodes listed. */
+/** The world, created by `defineWorld`: its id and exactly the top-level nodes listed. */
 export interface World extends WorldBrand {
   readonly $ref: "world";
+  /** The world's own id, in a node id's form; tools key per-world state by it. */
+  readonly id: NodeId;
   /** Top-level nodes. */
   readonly children: readonly WorldChild[];
 }

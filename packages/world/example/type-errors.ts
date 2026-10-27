@@ -466,11 +466,13 @@ export const tbdUnicodeWhitespace = tbd.event({ description: "\u00a0\ufeff\u3000
 // ─── Worlds ──────────────────────────────────────────────────────────────
 
 export const emptyWorld = defineWorld({
+  id: "w",
   // @ts-expect-error children must not be empty
   children: [],
 });
 
 export const stringInWorld = defineWorld({
+  id: "w",
   children: [
     // @ts-expect-error a child is a node reference, not a string
     "shop",
@@ -478,6 +480,7 @@ export const stringInWorld = defineWorld({
 });
 
 export const relationInWorld = defineWorld({
+  id: "w",
   children: [
     // @ts-expect-error relation() is gone: a node lists its children itself
     { $ref: "relation", parent: Shop, children: [Orders] },
@@ -485,6 +488,7 @@ export const relationInWorld = defineWorld({
 });
 
 export const draftInWorld = defineWorld({
+  id: "w",
   children: [
     // @ts-expect-error a draft is not a node until .edges() is called
     Draft,
@@ -492,13 +496,17 @@ export const draftInWorld = defineWorld({
 });
 
 export const portInWorld = defineWorld({
+  id: "w",
   children: [
     // @ts-expect-error a child is a node, not a port
     Orders.place,
   ],
 });
 
-export const validWorld = defineWorld({ children: [Postgres, AuditLog, Shop] });
-export const reusedWorld = defineWorld({ children: validWorld.children });
+// @ts-expect-error a world needs an id
+export const worldWithoutId = defineWorld({ children: [Postgres] });
+
+export const validWorld = defineWorld({ id: "w", children: [Postgres, AuditLog, Shop] });
+export const reusedWorld = defineWorld({ id: "w", children: validWorld.children });
 const mixed = [Postgres, composedDome];
-export const mixedWorld = defineWorld({ children: mixed });
+export const mixedWorld = defineWorld({ id: "w", children: mixed });

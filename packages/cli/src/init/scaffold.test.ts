@@ -17,7 +17,7 @@ import { pathToFileURL } from "node:url";
 import { inspectTarget } from "../shared/inspect.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
-import { EXAMPLE_TEMPLATE, WORLD_INDEX_TEMPLATE } from "./example-world.ts";
+import { EXAMPLE_TEMPLATE, worldIndexSource } from "./example-world.ts";
 import { runInit } from "./scaffold.ts";
 
 const TSC = join(import.meta.dir, "../../../../node_modules/.bin/tsc");
@@ -55,6 +55,11 @@ function files(dir: string): string[] {
     .sort();
 }
 
+/** The world id init wrote into the repo's nuhokai/index.ts. */
+function worldIdOf(repo: string): string {
+  return readFileSync(join(repo, "nuhokai/index.ts"), "utf8").match(/\bid: "([^"]+)"/)?.[1] ?? "";
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) {
     chmodSync(root, 0o700);
@@ -71,7 +76,7 @@ test("init writes exactly the four world files and prints their paths", async ()
   expect(output.out).toEqual(WORLD_FILES.map((path) => join(repo, path)));
   expect(files(repo)).toEqual([...WORLD_FILES].sort());
 
-  expect(readFileSync(join(repo, "nuhokai/index.ts"), "utf8")).toBe(WORLD_INDEX_TEMPLATE);
+  expect(readFileSync(join(repo, "nuhokai/index.ts"), "utf8")).toBe(worldIndexSource(worldIdOf(repo)));
   expect(readFileSync(join(repo, "nuhokai/example.ts"), "utf8")).toBe(EXAMPLE_TEMPLATE);
   expect(readFileSync(join(repo, "nuhokai/tsconfig.json"), "utf8")).toBe(TSCONFIG_TEMPLATE);
   expect(readFileSync(join(repo, "nuhokai", WORLD_TYPES_PATH), "utf8")).toBe(WORLD_TYPES);
@@ -82,13 +87,15 @@ test("init writes exactly the four world files and prints their paths", async ()
   expect(EXAMPLE_TEMPLATE).toContain("uses: () => [later]");
 });
 
-test("two repos get byte-identical worlds", async () => {
+test("two repos get worlds that differ only in their fresh world ids", async () => {
   const first = tempDir();
   const second = tempDir();
   expect(await runInit(first, capture().environment)).toBe(0);
   expect(await runInit(second, capture().environment)).toBe(0);
 
-  for (const path of WORLD_FILES) {
+  expect(worldIdOf(first)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  expect(worldIdOf(second)).not.toBe(worldIdOf(first));
+  for (const path of WORLD_FILES.filter((path) => path !== "nuhokai/index.ts")) {
     expect(readFileSync(join(second, path))).toEqual(readFileSync(join(first, path)));
   }
 });
@@ -115,6 +122,7 @@ test("the written world loads as exactly one node, Example", async () => {
 
   const world = (await import(pathToFileURL(join(repo, "nuhokai/index.ts")).href)).default;
   expect(world.$ref).toBe("world");
+  expect(world.id).toBe(worldIdOf(repo));
   expect(world.children).toHaveLength(1);
 
   const [example] = world.children;

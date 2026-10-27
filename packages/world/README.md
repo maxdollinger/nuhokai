@@ -37,6 +37,7 @@ export const Shop = node({
 import { defineWorld } from "@nuhokai/world";
 
 export default defineWorld({
+  id: "01a17bb6-ad4d-7298-8492-a53237d45f80", // the world's own id, like a node's
   children: [Postgres, AuditLog, Shop],
 });
 ```
@@ -50,9 +51,11 @@ export default defineWorld({
   own port is a new reference bound to the dome. Direct children only: a grandchild must first be exposed by its own
   parent.
 - `children` is a record, not an array, so `ports` can name a child (`c.orders`). Child names are local to the dome.
-- `defineWorld({ children })` lists only top-level nodes. There is no `relation()`: the hierarchy lives inside the
+- `defineWorld({ id, children })` lists only top-level nodes. There is no `relation()`: the hierarchy lives inside the
   node it belongs to. A subtree can still live in its own file by exporting the dome that owns it, and node files
   never import the world file.
+- The world's `id` is required and has a node id's form. Tools key per-world state by it (the map's saved layout), so
+  every world gets its own; `nuhokai init` generates one.
 
 The runtime has no imports and no side effects: `node`, `defineWorld`, `inherited` and `tbd` only build frozen
 objects. `example/` is a complete small world: `example/index.ts` holds its top level and re-exports its nodes, so it
@@ -106,20 +109,20 @@ A compile-time check fails if the two drift apart.
 - **Dome rules checked by tsc:** `children` is a non-empty record of nodes, each neither external nor abstract (nor
   possibly so); a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
   placeholder is not a child port.
-- **World rules checked by tsc:** `defineWorld.children` is not empty and holds nodes only (externals and contracts
+- **World rules checked by tsc:** `defineWorld` needs an `id`; its `children` are not empty and holds nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an
   unresolved port reference (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have
   `"port"`, inherited ones `"inherited"`. Declare them at module level and export them, so find-references lists every
   dependent.
-- **Ids** are plain strings (`NodeId`); tsc does not check their format. Written as literals, they stay literal
+- **Ids** of nodes and worlds are plain strings (`NodeId`); tsc does not check their format. Written as literals, they stay literal
   types on the handle, which the contract, child and dome-port rules compare; a widened `string` id is left to the
   loader.
 
 ## For the loader
 
-- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object whose `children` are
-  top-level nodes, all frozen.
+- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object with the world's `id` and
+  `children`, the top-level nodes, all frozen.
 - Every exported node has `$ref: "node"`; `$def` holds both steps as authored, deep-frozen, with the edges still lazy
   functions (`uses`, `implements`). A dome's `$def.children` is its direct-children record (references kept by
   identity), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries

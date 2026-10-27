@@ -49,7 +49,7 @@ src/
 
 ```text
 nuhokai/
-  index.ts                  the world entry point
+  index.ts                  the world entry point, under the world's own id
   example.ts                one example node, to replace with the first real node
   <nodes>.ts                node files
   tsconfig.json             CLI-owned, committed
@@ -65,8 +65,9 @@ directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
 `packages/cli/nuhokai/<file>:<line>`.
 
-`init` writes those four files and nothing else. An existing `nuhokai/` directory is left untouched: it prints
-one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
+`init` writes those four files and nothing else. `index.ts` carries a fresh world id, generated per run, so two
+projects never share per-world state such as the map's saved layout; everything else is the same per CLI version. An
+existing `nuhokai/` directory is left untouched: it prints one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `new <node-path>` adds one node file, `nuhokai/<node-path>.ts`, merging the node path with the world's folder so a big world can

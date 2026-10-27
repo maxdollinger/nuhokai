@@ -10,6 +10,7 @@ import { Shop } from "./shop.ts";
  * re-exports below), so it is the one file that is not a node file.
  */
 export default defineWorld({
+  id: "01a17bb6-ad4d-7298-8492-a53237d45f80",
   children: [Postgres, AuditLog, Shop],
 });
 
