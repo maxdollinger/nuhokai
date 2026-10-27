@@ -1,4 +1,4 @@
-import { lstatSync } from "node:fs";
+import { lstatSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { CliError } from "./failure.ts";
 import { inWorld, WORLD_DIR } from "./paths.ts";
@@ -18,7 +18,10 @@ export function inspectTarget(root: string): TargetState {
   return stats.isDirectory() ? { kind: "world" } : { kind: "occupied" };
 }
 
-/** For the commands that need a world: throw unless one sits at `<root>/nuhokai`, naming init when there is none. */
+/**
+ * For the commands that need a world: throw unless one sits at `<root>/nuhokai`, naming init when there is none.
+ * A symlink to a directory is a world to read and write in; only init, which creates, finds it occupied.
+ */
 export function requireWorld(root: string): void {
   const state = inspectTarget(root);
   if (state.kind === "absent") {
@@ -28,5 +31,7 @@ export function requireWorld(root: string): void {
         : `no ${WORLD_DIR}/ in ${root}; run \`nuhokai init --path ${root}\` to start a world there`,
     );
   }
-  if (state.kind === "occupied") throw new CliError(`${inWorld(root)} exists but is not a directory`);
+  if (state.kind === "occupied" && !statSync(join(root, WORLD_DIR), { throwIfNoEntry: false })?.isDirectory()) {
+    throw new CliError(`${inWorld(root)} exists but is not a directory`);
+  }
 }

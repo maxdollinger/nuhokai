@@ -162,3 +162,16 @@ test("a file at nuhokai/ is occupied and nothing is written", async () => {
   expect(files(repo)).toEqual(["nuhokai"]);
   expect(existsSync(join(repo, "nuhokai/stock-order.ts"))).toBe(false);
 });
+
+test("a symlinked nuhokai/ is the world: the node file lands in the linked folder", async () => {
+  const repo = tempDir();
+  mkdirSync(join(repo, "shared"));
+  expect(await runInit(join(repo, "shared"), capture().environment)).toBe(0);
+  mkdirSync(join(repo, "app"));
+  symlinkSync("../shared/nuhokai", join(repo, "app/nuhokai"));
+  const output = capture();
+
+  expect(await runNew(join(repo, "app"), "stock-order", output.environment)).toBe(0);
+  expect(output.err).toEqual([]);
+  expect(existsSync(join(repo, "shared/nuhokai/stock-order.ts"))).toBe(true);
+});

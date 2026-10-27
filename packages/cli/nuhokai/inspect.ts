@@ -31,7 +31,7 @@ export const Inspect = node({
     { id: "R3", text: "Nothing there → absent." },
     {
       id: "R4",
-      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path; world passes.",
+      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path, except a symlink to a directory; world passes.",
     },
     { id: "C1", kind: "constraint", text: "Reads only; no writes, repair or content checks." },
   ],
@@ -43,6 +43,10 @@ export const Inspect = node({
     {
       text: "new and map without a world print 'no nuhokai/ here; …' in the cwd, 'no nuhokai/ in app; …' under --path app, and name app/nuhokai for a file there.",
       demonstrates: ["R4"],
+    },
+    {
+      text: "nuhokai -> ../shared/nuhokai: inspect → occupied, so init refuses it; map and new work in the linked folder.",
+      demonstrates: ["R2", "R4"],
     },
   ],
   decisions: [
@@ -59,6 +63,10 @@ export const Inspect = node({
     {
       decision: "new and map share requireWorld; init reads inspect itself, since absent is where it creates.",
       why: "Both commands that need a world fail alike, in the same words.",
+    },
+    {
+      decision: "requireWorld follows symlinks; inspect does not.",
+      why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
 }).edges({ uses: () => [WorldPath.file] });

@@ -1,5 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
@@ -104,6 +113,22 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
   expect(second.out).toEqual([]);
   expect(second.err).toEqual([`nuhokai map: ${occupied}/nuhokai exists but is not a directory`]);
   expect(snapshot(occupied)).toEqual({ nuhokai: "in the way\n" });
+});
+
+test("a symlinked nuhokai/ is the world: map draws it into the linked folder", async () => {
+  const repo = tempDir();
+  const shared = join(repo, "shared");
+  mkdirSync(shared);
+  expect(await runInit(shared, capture().environment)).toBe(0);
+  const project = join(repo, "app");
+  mkdirSync(project);
+  symlinkSync("../shared/nuhokai", join(project, "nuhokai"));
+  const output = capture();
+
+  expect(await runMap(project, output.environment)).toBe(0);
+  expect(output.err).toEqual([]);
+  expect(output.out).toEqual([join(project, MAP)]);
+  expect(existsSync(join(shared, MAP))).toBe(true);
 });
 
 test("a throwing node file: one line naming the file, exit 1, the previous map kept", async () => {
