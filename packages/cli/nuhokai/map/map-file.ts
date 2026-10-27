@@ -6,15 +6,15 @@ import { Viewer } from "./viewer.ts";
 export const MapFile = node({
   id: "01a179c9-f7cf-779b-98cd-d973d9c86279",
   purpose:
-    "Own the map file: the Viewer's page with the loaded world as its one data block and three.js inlined, written to one path. Never loads, checks, draws or picks the project directory.",
+    "Own the map file: Viewer's page with the loaded world as its one data block and three.js inlined, written to one path. Never loads, checks, draws or picks the project directory.",
   status: "building",
   source: ["packages/cli/src/map/map-file.ts", "packages/cli/scripts/embed-map.ts"],
   ports: {
     write: {
       kind: "call",
       purpose: "Write the map of the given world",
-      input: "the project directory named from the cwd, loaded world",
-      output: "the map's path named from the cwd: nuhokai/.generated/map.html under the project directory",
+      input: "project directory (cwd-relative), loaded world",
+      output: "map's path (cwd-relative), per R1",
       errors: ["the write failed"],
     },
   },
@@ -30,7 +30,7 @@ export const MapFile = node({
   ],
   testCases: [
     {
-      text: "Example world: data block parses back unchanged; a second write gives identical bytes.",
+      text: "Example world: data block parses back unchanged; second write → identical bytes.",
       demonstrates: ["R1", "R2", "R3"],
     },
     { text: "A purpose with </script><script>alert(1)</script> stays data.", demonstrates: ["R2"] },
@@ -39,7 +39,7 @@ export const MapFile = node({
   decisions: [
     {
       decision: "three.js inlined, embedded at build time from the exactly pinned three dev dependency.",
-      why: "The map opens offline, like the CLI needs no toolchain; ~630 KB per map.",
+      why: "The map opens offline, as the CLI needs no toolchain; ~630 KB per map.",
     },
   ],
 }).edges({ uses: () => [WorldPath.file, Viewer.page] });

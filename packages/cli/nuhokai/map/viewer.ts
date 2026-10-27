@@ -4,14 +4,14 @@ import { node } from "@nuhokai/world";
 export const Viewer = node({
   id: "01a17bb5-b066-71d0-a81d-ccdfa4cb5fde",
   purpose:
-    "Own the drawing: the page that turns the loaded world into islands, domes, lanes and holes in the browser. Never writes files, inlines assets or picks where the map goes.",
+    "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser. Never writes files, inlines assets or picks where the map goes.",
   status: "building",
   source: ["packages/cli/src/map/viewer.html", "packages/cli/src/map/scene.js", "packages/cli/src/map/scene.d.ts"],
   ports: {
     page: {
       kind: "call",
       purpose: "Draw the loaded world in the browser",
-      input: "the loaded world, its id, NodeSpecs and tbd placeholders, as JSON in the page's one data block",
+      input: "LoadWorld.load's output as JSON in the page's one data block",
       output: "the drawn page: islands per scope, edges, holes, saved layout, click details",
     },
   },
@@ -34,19 +34,19 @@ export const Viewer = node({
   ],
   testCases: [
     {
-      text: "scene.js under bun, example world: Stock's Postgres lane and the notifyCustomer hole start at Shop on top, at Stock inside Shop.",
+      text: "scene.js under bun, example world: Stock's Postgres lane and notifyCustomer hole start at Shop on top, at Stock inside Shop.",
       demonstrates: ["R3", "R7"],
     },
     {
-      text: "By hand: in a browser, example world, Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
+      text: "By hand, browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
       demonstrates: ["R1", "R2", "R4", "R5", "R9"],
     },
     {
-      text: "By hand: in headless Chromium, example world, a moved Shop keeps its place after a reload and after regenerating with a node added, which is seeded; Reset layout seeds again; without storage the map still draws.",
+      text: "By hand, headless Chromium, example world: moved Shop keeps its place after reload and after regenerating with a node added (seeded); Reset layout seeds again; without storage the map still draws.",
       demonstrates: ["R8"],
     },
     {
-      text: "By hand: in headless Chromium, the maps of two worlds from file:// keep their moved islands apart, each under its own world id.",
+      text: "By hand, headless Chromium: maps of two worlds from file:// keep moved islands apart, each under its world id.",
       demonstrates: ["R8"],
     },
   ],
@@ -60,7 +60,7 @@ export const Viewer = node({
     {
       decision:
         "Moved positions live in the browser's localStorage, one entry per world id, inside it by scope and node id; never in the map.",
-      why: "Same world, same bytes; ids survive a regenerated map, positions in the file would not. Every file:// page shares one storage, so the world id keeps projects apart.",
+      why: "Same world, same bytes; ids survive a regenerated map, positions in the file would not. All file:// pages share one storage, so the world id keeps projects apart.",
     },
   ],
 }).edges({});

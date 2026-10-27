@@ -15,8 +15,8 @@ export const DrawMap = node({
       kind: "call",
       purpose: "Draw the world's map",
       input: "project directory",
-      output: "exit 0 or 1; stdout: the map's path named from the cwd; stderr: one 'nuhokai map: ' line per failure",
-      errors: ["no world at nuhokai/", "a non-directory at nuhokai/", "the world failed to load", "the write failed"],
+      output: "exit 0 or 1; stdout: map's path (cwd-relative); stderr: one 'nuhokai map: ' line per failure",
+      errors: ["no world at nuhokai/", "non-directory at nuhokai/", "world failed to load", "write failed"],
     },
   },
   requirements: [
@@ -24,9 +24,9 @@ export const DrawMap = node({
     { id: "R2", text: "absent → error naming init; occupied → error; world → load and write." },
   ],
   testCases: [
-    { text: "No world, or a file at nuhokai: one stderr line, exit 1, nothing written.", demonstrates: ["R2"] },
+    { text: "No world, or a file at nuhokai → one stderr line, exit 1, nothing written.", demonstrates: ["R2"] },
     {
-      text: "A throwing node file: one line naming the file, exit 1, previous map kept.",
+      text: "Throwing node file → one line naming the file, exit 1, previous map kept.",
       demonstrates: ["R1"],
     },
   ],

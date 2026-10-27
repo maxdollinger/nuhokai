@@ -7,38 +7,38 @@ import { node } from "../src/index.ts";
 export const WorldFormat = node({
   id: "01a16dd5-888a-77a4-9c88-e7d5bb03a016",
   purpose:
-    "Lets a repo describe its world as TS files whose edges are typed references, so tsc catches dangling references " +
-    "and the IDE navigates the graph. Authors the format only: loading, rules, checks and writing are the CLI's.",
+    "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
+    "graph. Format only; loading, rules, checks and writing are the CLI's.",
   status: "building",
   source: ["packages/world/src/**"],
   ports: {
     node: {
       kind: "call",
-      purpose: "Declare a leaf or a dome: children in step one, uses in .edges()",
+      purpose: "Declare a leaf or dome: children in step one, uses in .edges()",
       input: "node-spec fields; a leaf's ports by name, or a dome's children and port references",
-      output: "typed handle exposing its own ports",
+      output: "typed handle exposing own ports",
     },
     defineWorld: {
       kind: "call",
-      purpose: "Declare the world: its id and every node, placed in one tree; the loader's only entry point",
-      input: "the world's id and its top-level nodes",
-      output: "frozen world object carrying the id",
+      purpose: "Declare the world: its id and every node in one tree; the loader's only entry point",
+      input: "world id, top-level nodes",
+      output: "frozen world object with the id",
     },
     inherited: {
       kind: "call",
-      purpose: "Reference a port a node inherited from a contract it implements",
-      input: "implementor and the contract's port",
+      purpose: "Reference a port inherited from an implemented contract",
+      input: "implementor, contract's port",
       output: "inherited port reference",
     },
     tbdCall: {
       kind: "call",
-      purpose: "Placeholder for a call port that is not designed yet",
+      purpose: "Placeholder for a call port not designed yet",
       input: "description",
       output: "unresolved port reference",
     },
     tbdEvent: {
       kind: "call",
-      purpose: "Placeholder for an event port that is not designed yet",
+      purpose: "Placeholder for an event port not designed yet",
       input: "description",
       output: "unresolved port reference",
     },
@@ -61,7 +61,7 @@ export const WorldFormat = node({
     },
     {
       id: "R10",
-      text: "A world has an authored id, required, in a node id's form (any string, not format-checked); the world object carries it.",
+      text: "A world has a required authored id in node-id form (any string, not format-checked), carried by the world object.",
     },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
@@ -77,10 +77,10 @@ export const WorldFormat = node({
       demonstrates: ["R3"],
     },
     {
-      text: "Two nodes share one placeholder; its $ref is 'unresolved', a real port's is 'port'.",
+      text: "Two nodes share one placeholder; its $ref is 'unresolved', a real port's 'port'.",
       demonstrates: ["R4"],
     },
-    { text: "Evaluating every lazy edge of the example world yields no undefined.", demonstrates: ["R5"] },
+    { text: "Every lazy edge of the example world evaluates to no undefined.", demonstrates: ["R5"] },
     { text: "The package's source files have no runtime imports.", demonstrates: ["C1"] },
     {
       text: "The example's Orders <-> Stock and Shop <-> Orders cycles compile without annotations.",
@@ -91,7 +91,7 @@ export const WorldFormat = node({
       demonstrates: ["R7"],
     },
     {
-      text: "Walking the example world's children finds every exported node once, under its parent.",
+      text: "Walking the example world's children finds each exported node once, under its parent.",
       demonstrates: ["R8"],
     },
     {
@@ -106,100 +106,90 @@ export const WorldFormat = node({
   ],
   decisions: [
     {
-      decision: "A node's id is an authored uuidv7; its display name is the export name.",
+      decision: "Node id: an authored uuidv7. Display name: the export name.",
       why: "Ids must survive renames and moves; the export name is unique per file and is what references use.",
       rejected: [
-        {
-          option: "A slug equal to the file name",
-          why: "Renaming or moving a node breaks every stored reference.",
-        },
-        { option: "Ids derived from the file path", why: "Moving a file would change the node's identity." },
+        { option: "A slug equal to the file name", why: "Renaming or moving a node breaks every stored reference." },
+        { option: "Ids derived from the file path", why: "Moving a file changes the node's identity." },
         { option: "An authored name field", why: "Duplicates the export name and drifts from it." },
       ],
     },
     {
-      decision: "The child declares its parent as a lazy node reference; no parent means top level.",
-      why: "Placement stays in the node's own file, and tsc rejects external or abstract parents through literal-typed flags.",
+      decision: "The child declares its parent as a lazy node reference; no parent = top level.",
+      why: "Placement stays in the node's file; tsc rejects external or abstract parents via literal-typed flags.",
       rejected: [
         {
           option: "Parent lists its children",
-          why: "Every new child edits the parent's file; parent/child file cycles become the rule.",
+          why: "Each new child edits the parent's file; parent/child file cycles become the rule.",
         },
         {
           option: "Folder structure decides the parent",
-          why: "Folders are a convention; moving files must not change the model.",
+          why: "Folders are convention; moving files must not change the model.",
         },
       ],
     },
     {
       decision:
-        "A node is defined in two steps: defineNode(static fields) is generic and infers the handle's type; .edges(lazy references) is not generic and returns the handle.",
-      why: "Lazy edges allow cycles. The handle's type depends only on step one, so TypeScript never infers a node's type through another node: cycles need no annotations and edge errors land on the offending element.",
+        "Two steps: defineNode(static fields) is generic, infers the handle's type; .edges(lazy references) is not generic, returns the handle.",
+      why: "Lazy edges allow cycles. The handle's type depends on step one only, so TS never infers a node's type through another node: cycles need no annotations, edge errors land on the offending element.",
       rejected: [
         {
-          option: "One generic defineNode call holding the edges, one return-type annotation per reference cycle",
-          why: "TypeScript cannot infer through a cycle (TS7022); easy to forget, and delegating parents always hit it.",
+          option: "One generic defineNode call with the edges, a return-type annotation per reference cycle",
+          why: "TS cannot infer through a cycle (TS7022); easy to forget; delegating parents always hit it.",
         },
-        { option: "Loosely typed edges that need no annotation", why: "Strings and external parents would pass tsc." },
+        { option: "Loosely typed edges needing no annotation", why: "Strings and external parents would pass tsc." },
         {
-          option: "The draft from defineNode usable as a node, .edges() optional",
-          why: "The method would take a port name, and a draft plus its node would be two handles for one node.",
+          option: "defineNode's draft usable as a node, .edges() optional",
+          why: "The method would take a port name; draft plus node = two handles for one node.",
         },
       ],
     },
     {
       decision:
-        "Ports are a record keyed by name; handles expose own ports only, inherited ports are referenced with inherited(Node, Contract.port).",
-      why: "A record makes Node.port resolve to its declaring key, so go-to-definition and find-references work. Handle properties for inherited ports would need implements evaluated at definition; inherited() checks against the contracts in the handle's type instead.",
+        "Ports: a record keyed by name. Handles expose own ports only; inherited ports via inherited(Node, Contract.port).",
+      why: "A record makes Node.port resolve to its declaring key: go-to-definition and find-references work. Handle properties for inherited ports would need implements evaluated at definition; inherited() checks against the contracts in the handle's type instead.",
       rejected: [
+        { option: "The node-spec port array", why: "Handle property access would not link to the declaration." },
         {
-          option: "The node-spec port array",
-          why: "Property access on a handle would not link back to the declaration.",
-        },
-        {
-          option: "Referencing the contract's port (AuditLog.history) for an implementor's port",
-          why: "The node spec distinguishes depending on the contract from depending on an implementation.",
+          option: "The contract's port (AuditLog.history) for an implementor's port",
+          why: "The node spec tells depending on a contract from depending on an implementation.",
         },
       ],
     },
     {
       decision:
-        "References are branded with type-only classes with a #private member; the loader resolves them by object identity.",
-      why: "No string, look-alike literal or spread of a real reference ({ ...Stock.reserve, name: 'x' }) has the member, and nothing exists at runtime.",
+        "References branded by type-only classes with a #private member; the loader resolves by object identity.",
+      why: "No string, look-alike literal or spread of a real reference ({ ...Stock.reserve, name: 'x' }) has the member; nothing exists at runtime.",
       rejected: [
         {
           option: "unique symbol phantom brands",
-          why: "Spreads copy symbol-keyed properties, so forged references passed tsc.",
+          why: "Spreads copy symbol-keyed properties: forged references passed tsc.",
         },
-        {
-          option: "Resolving references by id and name",
-          why: "A forged object cast past the types would then resolve.",
-        },
+        { option: "Resolving references by id and name", why: "A forged object cast past the types would resolve." },
       ],
     },
     {
-      decision:
-        "The node types live in this package as plain type-only TypeScript, with no TypeBox schemas and no JSON reader or writer.",
-      why: "The TS files are the format, so nothing reads node JSON, and the shipped .d.ts must be self-contained.",
+      decision: "Node types live here as plain type-only TypeScript: no TypeBox schemas, no JSON reader or writer.",
+      why: "The TS files are the format, so nothing reads node JSON; the shipped .d.ts must be self-contained.",
       rejected: [
         {
           option: "Importing the types from @nuhokai/shared/spec",
-          why: "That module also holds TypeBox schemas, so the .d.ts could not resolve without node_modules.",
+          why: "It also holds TypeBox schemas: the .d.ts would need node_modules.",
         },
       ],
     },
     {
       decision:
-        "Overrides 'the child declares its parent': the hierarchy is defined in one world file, nuhokai/index.ts, whose default export defineWorld({ children }) lists every node; nesting uses explicit relation({ parent, children }) objects, and node files never import the world file. delegate moves into step one, so relation() checks that delegate targets are direct children; .edges() keeps only uses.",
-      why: "The hierarchy was scattered across all node files and only visible to a loader; the map of islands and domes must be readable in one place. Delegation only points down, so its targets in the handle's type form no cycle; uses may point anywhere and stays in step two (TS7022). Example world (tsc 7.0.2, --extendedDiagnostics, median of 8): 3,590 → 7,394 types, 5,077 → 14,404 instantiations, 0.012s → 0.030s check; a synthetic 200-node world: 0.15s → 0.5s.",
+        "Overrides 'the child declares its parent': one world file, nuhokai/index.ts, holds the hierarchy; its default export defineWorld({ children }) lists every node; nesting via explicit relation({ parent, children }); node files never import the world file. delegate moves to step one, so relation() checks delegate targets are direct children; .edges() keeps only uses.",
+      why: "The hierarchy was scattered across node files, visible only to a loader; the map of islands and domes must read in one place. Delegation points down only, so its targets in the handle's type form no cycle; uses may point anywhere and stays in step two (TS7022). Example world (tsc 7.0.2, --extendedDiagnostics, median of 8): 3,590 → 7,394 types, 5,077 → 14,404 instantiations, 0.012s → 0.030s check; synthetic 200-node world: 0.15s → 0.5s.",
       rejected: [
         {
           option: "Tuples, children: [Postgres, [Shop, [Orders, Stock]]]",
-          why: "Unreadable: position alone tells a parent from its first child, and brackets hide the structure the file exists to show.",
+          why: "Unreadable: only position tells a parent from its first child; brackets hide the structure the file exists to show.",
         },
         {
           option: "Keeping parent in .edges()",
-          why: "The hierarchy stays scattered across node files, and tsc cannot check delegate targets against children.",
+          why: "Hierarchy stays scattered; tsc cannot check delegate targets against children.",
         },
         {
           option: "Checking uses scope in tsc",
@@ -209,31 +199,31 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A rule goes into tsc only if the error lands on the offending element with a readable Forbidden message; global rules (duplicate ids, orphans, uses scope, unique export names) go to the loader, which re-checks every tsc rule because a cast bypasses the types.",
-      why: "check prints one list, so each message must point at its culprit; an error tsc could only put on defineWorld helps no one.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, unique export names) are the loader's; it re-checks every tsc rule, since a cast bypasses the types.",
+      why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {
           option: "Every rule in tsc",
-          why: "Global rules would point at defineWorld, and uses scope would need uses in the types (TS7022).",
+          why: "Global rules would point at defineWorld; uses scope would need uses in the types (TS7022).",
         },
         {
           option: "Rules as tuples intersected with the authored arrays, also when satisfied",
-          why: "TypeScript compares the arrays method by method: a 200-node world took 2.2s instead of 0.6s (measured with the uuidv7 check, since dropped).",
+          why: "TS compares the arrays method by method: 200-node world 2.2s instead of 0.6s (measured with the since-dropped uuidv7 check).",
         },
       ],
     },
     {
       decision:
-        "Overrides 'Overrides the child declares its parent': a node with children is a dome and has no behavior of its own. A single node() constructor holds the hierarchy: children is a record of direct children, and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`). relation() is gone; the world file lists only top-level nodes, and delegate is replaced by a dome port's child reference.",
-      why: "A boundary is its children: an Init that calls its pieces as siblings is code in a node costume. Putting children inside the node makes the dome's behavior exactly its interior, keeps child names next to the port mapping, and lets tsc check that every exposed port belongs to a direct child. Child references only point down, so no type cycle appears.",
+        "Overrides 'Overrides the child declares its parent': a node with children is a dome, no behavior of its own. node() alone holds the hierarchy: children = record of direct children; a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`). No relation(); the world file lists only top-level nodes; a dome port's child reference replaces delegate.",
+      why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior, keep child names by the port mapping, and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
       rejected: [
         {
           option: "Keep relation() in the world file and delegate in the parent",
-          why: "Splits one boundary across two files and lets a parent declare behavior next to the children it owns.",
+          why: "Splits one boundary across two files; a parent could declare behavior next to its children.",
         },
         {
           option: "A dome declares its own ports and delegates by name",
-          why: "The port definitions can drift from the child port; referencing the child port copies its kind and shapes.",
+          why: "Port definitions can drift from the child port; referencing it copies kind and shapes.",
         },
         {
           option: "Children as an array without names",
@@ -243,26 +233,26 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "An id is any authored string (a NodeId), unique in the world, not necessarily a uuidv7; tsc does not check its format.",
-      why: "The id only has to survive renames and moves, which any authored string does; uuidv7 is not settled, and validating it was about half of all instantiations.",
+        "An id is any authored string (NodeId), unique in the world, not necessarily uuidv7; tsc does not check its format.",
+      why: "It only has to survive renames and moves, which any authored string does; uuidv7 is unsettled, and validating it was about half of all instantiations.",
       rejected: [
         {
           option: "Validating uuidv7 in tsc (length, hex, version, variant)",
-          why: "Commits an undecided format and costs about half the check time; uniqueness, which matters, is the loader's anyway.",
+          why: "Commits an undecided format, ~half the check time; uniqueness, which matters, is the loader's anyway.",
         },
       ],
     },
     {
-      decision: "A world has its own authored id, in the same form as a node id.",
-      why: "Tools keep per-world state apart by it, such as the map's saved layout, which all file:// pages share one storage for; the id survives renames and moves like a node's.",
+      decision: "A world has its own authored id, in node-id form.",
+      why: "Tools keep per-world state apart by it, e.g. the map's saved layout, since all file:// pages share one storage; it survives renames and moves like a node's.",
       rejected: [
         {
           option: "Key per-world state by the project directory's path",
-          why: "Not part of the world, changes on a move, and would put the path into generated bytes.",
+          why: "Not part of the world, changes on a move, puts the path into generated bytes.",
         },
         {
           option: "Key it by a node id",
-          why: "Node ids are unique within a world only; init scaffolds the same example id into every project.",
+          why: "Node ids are unique only within a world; init scaffolds the same example id into every project.",
         },
       ],
     },

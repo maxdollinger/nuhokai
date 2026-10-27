@@ -5,61 +5,60 @@ import { WorldPath } from "./world-path.ts";
 export const Inspect = node({
   id: "01a17290-3f10-7c50-9c2e-7d41b6a83e02",
   purpose:
-    "Observe the project directory: absent, a world, or a file in the way at nuhokai/; and, for the commands that " +
-    "need a world, turn anything but a world into one error. Shared by every command that reads or writes a world; " +
-    "reads only; repairs, judges and writes nothing.",
+    "Observe nuhokai/ in the project directory: absent, world or occupied; for commands needing a world, turn " +
+    "anything else into one error. Shared; reads only.",
   status: "built",
   source: ["packages/cli/src/shared/inspect.ts"],
   ports: {
     inspect: {
       kind: "call",
-      purpose: "Say what is at nuhokai/ in the project directory",
-      input: "the project directory",
-      output: "absent | world | occupied: a non-directory sits at nuhokai/",
+      purpose: "What is at nuhokai/ in the project directory",
+      input: "project directory",
+      output: "absent | world | occupied (a non-directory at nuhokai/)",
       errors: [],
     },
     requireWorld: {
       kind: "call",
-      purpose: "Go on only if a world is there",
-      input: "the project directory named from the cwd",
+      purpose: "Continue only if a world is there",
+      input: "project directory, cwd-relative",
       output: "nothing; a world is there",
       errors: ["no nuhokai/ there: names init", "nuhokai exists but is not a directory"],
     },
   },
   requirements: [
-    { id: "R1", text: "A directory at nuhokai/: world, whatever is inside it." },
-    { id: "R2", text: "Anything there that is not a directory (a file, a symlink): occupied." },
-    { id: "R3", text: "Nothing there: absent." },
+    { id: "R1", text: "Directory at nuhokai/ → world, whatever is inside." },
+    { id: "R2", text: "Non-directory there (file, symlink) → occupied." },
+    { id: "R3", text: "Nothing there → absent." },
     {
       id: "R4",
-      text: "requireWorld: absent is one error naming init and the project directory as named from the cwd ('here' for the cwd); occupied is one error naming the path; a world passes.",
+      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path; world passes.",
     },
-    { id: "C1", kind: "constraint", text: "Reads only; no writes, no repair, no content checks." },
+    { id: "C1", kind: "constraint", text: "Reads only; no writes, repair or content checks." },
   ],
   testCases: [
     {
-      text: "Nothing at nuhokai is absent; any directory is world; a file or a symlink is occupied.",
+      text: "Nothing at nuhokai → absent; any directory → world; file or symlink → occupied.",
       demonstrates: ["R1", "R2", "R3"],
     },
     {
-      text: "new and map without a world print 'no nuhokai/ here; …' in the cwd and 'no nuhokai/ in app; …' under --path app, and name app/nuhokai for a file there.",
+      text: "new and map without a world print 'no nuhokai/ here; …' in the cwd, 'no nuhokai/ in app; …' under --path app, and name app/nuhokai for a file there.",
       demonstrates: ["R4"],
     },
   ],
   decisions: [
     {
       decision: "Any directory counts as a world.",
-      why: "A command never repairs or updates; a broken world is update's and check's business.",
+      why: "Commands never repair or update; a broken world is update's and check's business.",
       rejected: [
         {
           option: "Require nuhokai/index.ts or load and validate",
-          why: "A command must work before the loader does; a half-written world is update's and check's business.",
+          why: "Commands must work before the loader does; a half-written world is update's and check's too.",
         },
       ],
     },
     {
-      decision: "new and map share requireWorld; init reads inspect itself, because absent is where it creates.",
-      why: "The two commands that need a world fail the same way with the same words.",
+      decision: "new and map share requireWorld; init reads inspect itself, since absent is where it creates.",
+      why: "Both commands that need a world fail alike, in the same words.",
     },
   ],
 }).edges({ uses: () => [WorldPath.file] });

@@ -14,14 +14,14 @@ export const WorldMap = node({
     { id: "R1", text: "Writes only nuhokai/.generated/map.html." },
     {
       id: "R2",
-      text: "stdout: the map's path named from the cwd. Failure: one stderr line; a load failure keeps the previous map.",
+      text: "stdout: map's path (cwd-relative). Failure: one stderr line; a load failure keeps the previous map.",
     },
     { id: "R3", text: "Unchecked: any world that loads gets a map." },
     { id: "C1", kind: "constraint", text: "No arguments; Cli's --help and --path only." },
   ],
   testCases: [
     {
-      text: "After init: writes and prints nuhokai/.generated/map.html, exit 0; a second run changes no other file.",
+      text: "After init: writes and prints nuhokai/.generated/map.html, exit 0; second run changes no other file.",
       demonstrates: ["R1", "R2"],
     },
     { text: "A world with an orphan and an out-of-scope uses edge still gets a map.", demonstrates: ["R3"] },

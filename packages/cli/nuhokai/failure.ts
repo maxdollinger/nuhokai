@@ -4,9 +4,8 @@ import { node } from "@nuhokai/world";
 export const Failure = node({
   id: "01a17950-b221-7126-bd52-7e93a4c10f38",
   purpose:
-    "Own the CLI's failure surface: one error type that marks a failure a command expects to explain, the test that " +
-    "tells such a failure from a bug, and the rule that flattens any thrown value into exactly one stderr line. " +
-    "Classifies and formats only: prints nothing, chooses no exit code, names no command.",
+    "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, and flattening any " +
+    "thrown value to one stderr line. Classifies and formats only.",
   status: "built",
   source: ["packages/cli/src/shared/failure.ts"],
   ports: {
@@ -14,27 +13,27 @@ export const Failure = node({
       kind: "call",
       purpose: "Flatten a thrown value to one stderr line",
       input: "any thrown value",
-      output: "one non-empty line, without newlines",
+      output: "one non-empty line, no newlines",
       errors: [],
     },
     isExpected: {
       kind: "call",
-      purpose: "Say whether a command expects to explain a thrown value",
+      purpose: "Whether a command expects to explain a thrown value",
       input: "any thrown value",
-      output: "true for a CliError or a filesystem failure, a thrown Error carrying a numeric errno, else false",
+      output: "true for a CliError or filesystem failure (Error with numeric errno), else false",
       errors: [],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "A failure a command expects is a CliError or a filesystem failure, a thrown Error carrying a numeric errno; anything else is a bug and is rethrown, not formatted.",
+      text: "Expected failure: CliError or filesystem failure (thrown Error with numeric errno). Anything else is a bug: rethrown, not formatted.",
     },
     {
       id: "R2",
-      text: "The line is the error's message, otherwise String(value); every whitespace run around a newline collapses to one space and the result is trimmed.",
+      text: "Line = the error's message, else String(value); each whitespace run around a newline → one space; trimmed.",
     },
-    { id: "R3", text: "The line is never empty: a missing or blank message becomes 'unknown error'." },
+    { id: "R3", text: "Never empty: missing or blank message → 'unknown error'." },
     {
       id: "C1",
       kind: "constraint",
@@ -43,15 +42,15 @@ export const Failure = node({
   ],
   testCases: [
     {
-      text: "A multi-line Error message becomes one space-separated line; a thrown string and a thrown plain object become their string forms.",
+      text: "Multi-line Error message → one space-separated line; thrown string or plain object → its string form.",
       demonstrates: ["R2"],
     },
     {
-      text: "An empty message, a blank message and a thrown empty string all give 'unknown error', and a CliError is a distinct type from a plain Error.",
+      text: "Empty message, blank message, thrown empty string → 'unknown error'; CliError is a type distinct from Error.",
       demonstrates: ["R1", "R3"],
     },
     {
-      text: "A CliError and a filesystem Error carrying an errno are expected; a TypeError, a thrown string, a plain object with an errno and null are bugs.",
+      text: "CliError, filesystem Error with errno: expected. TypeError, thrown string, plain object with errno, null: bugs.",
       demonstrates: ["R1"],
     },
   ],
@@ -59,26 +58,25 @@ export const Failure = node({
     {
       decision:
         "One shared error type, classifier and formatter; each command keeps its own prefix, wording and exit code.",
-      why: "LoadWorld throws while Init, New and map print, so the type must be shared for the expected-failure test to work across nodes, while the words stay with the command that knows the context.",
+      why: "LoadWorld throws while Init, New and map print, so the type must be shared for the expected-failure test to work across nodes; wording stays with the command that knows the context.",
       rejected: [
         {
-          option: "A private error class and formatter per command",
-          why: "Three copies of one rule drift and stderr stops being one line per failure.",
+          option: "Private error class and formatter per command",
+          why: "Three copies of one rule drift; stderr stops being one line per failure.",
         },
       ],
     },
     {
-      decision:
-        "A filesystem failure, a thrown Error carrying a numeric errno, counts as a failure a command expects, decided here once.",
-      why: "Reading and writing fail operationally (permissions, disk full, a path in the way) inside shared nodes whose own contracts list no errors, and both Init and New needed the same test to keep such a failure off the crash path.",
+      decision: "A filesystem failure (thrown Error with numeric errno) is expected, decided here once.",
+      why: "I/O fails operationally (permissions, disk full, a path in the way) inside shared nodes whose contracts list no errors; Init and New need the same test to keep it off the crash path.",
       rejected: [
         {
-          option: "Only a CliError counts; every leaf wraps its own filesystem errors",
-          why: "Inspect would stop deciding nothing and start naming failures, and the wrapping drifts per leaf.",
+          option: "Only CliError counts; each leaf wraps its own filesystem errors",
+          why: "Inspect would start naming failures instead of deciding nothing; wrapping drifts per leaf.",
         },
         {
-          option: "A private classifier per command",
-          why: "Identical copies drift apart and stderr stops being one line per failure.",
+          option: "Private classifier per command",
+          why: "Copies drift; stderr stops being one line per failure.",
         },
       ],
     },
