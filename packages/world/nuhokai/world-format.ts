@@ -57,7 +57,7 @@ export const WorldFormat = node({
     { id: "R8", text: "A node with children is a dome: pure container, behavior = its children." },
     {
       id: "R9",
-      text: "A rule tsc can pin on the offending element fails there with a readable Forbidden message; global rules are the loader's.",
+      text: "A rule tsc can pin on the offending element fails there with a readable Forbidden message; global rules are check's.",
     },
     {
       id: "R10",
@@ -193,13 +193,13 @@ export const WorldFormat = node({
         },
         {
           option: "Checking uses scope in tsc",
-          why: "Uses in the handle's type bring back TS7022; the loader checks scope against the world tree.",
+          why: "Uses in the handle's type bring back TS7022; check checks scope against the world tree.",
         },
       ],
     },
     {
       decision:
-        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, unique export names) are the loader's; it re-checks every tsc rule, since a cast bypasses the types.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, unique export names) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
       why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {
@@ -238,7 +238,7 @@ export const WorldFormat = node({
       rejected: [
         {
           option: "Validating uuidv7 in tsc (length, hex, version, variant)",
-          why: "Commits an undecided format, ~half the check time; uniqueness, which matters, is the loader's anyway.",
+          why: "Commits an undecided format, ~half the check time; uniqueness, which matters, is check's anyway.",
         },
       ],
     },

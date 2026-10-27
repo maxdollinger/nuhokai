@@ -99,12 +99,12 @@ A compile-time check fails if the two drift apart.
   empty, not `__proto__`, and must not start with `$` (reserved for `$ref` and `$def`) or be `ports` (reserved for the
   handle's port namespace).
 - **A rule is in tsc when the error lands on the offending element** with a readable `Forbidden<"…">` message. Global
-  rules, where tsc could only point at `defineWorld`, are the loader's (see below).
+  rules, where tsc could only point at `defineWorld`, are `check`'s (see below).
 - **Node-spec rules checked by tsc** through the literal flags, ids and names: abstract nodes have no `uses`, implement
   nothing and have no children; external nodes have no children and are top level only; `externalType` only on
   external nodes; an own port must not have the name of an inherited one, a contract is listed once in `implements`,
   and two implemented contracts must not share a port name; requirement ids are unique (non-literal ids are left to
-  the loader), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
+  `check`), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
   a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
 - **Dome rules checked by tsc:** `children` is a non-empty record of nodes, each neither external nor abstract (nor
   possibly so); a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
@@ -116,10 +116,10 @@ A compile-time check fails if the two drift apart.
   `"port"`, inherited ones `"inherited"`. Declare them at module level and export them, so find-references lists every
   dependent.
 - **Ids** of nodes and worlds are plain strings (`NodeId`); tsc does not check their format. Written as literals, they stay literal
-  types on the handle, which the contract, child and dome-port rules compare; a widened `string` id is left to the
-  loader.
+  types on the handle, which the contract, child and dome-port rules compare; a widened `string` id is left to
+  `check`.
 
-## For the loader
+## For the loader and `check`
 
 - The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object with the world's `id` and
   `children`, the top-level nodes, all frozen.
@@ -127,9 +127,10 @@ A compile-time check fails if the two drift apart.
   functions (`uses`, `implements`). A dome's `$def.children` is its direct-children record (references kept by
   identity), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries
   `delegate: { to: childId, port: childPortName }`. An exported `$ref: "draft"` means `.edges()` was forgotten.
-- Global rules, each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
+- The loader evaluates the world and reports evaluation failures only; it judges nothing. Global rules are `check`'s
+  (planned), each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; unique display names. The loader re-checks every tsc rule, because a cast
+  an ancestor) against the world tree; unique display names. `check` re-checks every tsc rule, because a cast
   bypasses the types.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so

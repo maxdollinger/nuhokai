@@ -300,7 +300,7 @@ export type DefRules<External extends boolean, Abstract extends boolean> = (true
 /** A contract's port names: the handle's keys minus the reference's own. Distributes; `never` has none. */
 type PortNamesOf<N> = N extends unknown ? Exclude<keyof N, keyof NodeRef> & string : never;
 
-/** A contract's literal id; `never` for a widened reference (left to the loader). */
+/** A contract's literal id; `never` for a widened reference (left to check). */
 type ContractIdOf<N> = NodeId extends NodeIdOf<N> ? never : NodeIdOf<N>;
 /** Whether an earlier contract in `implements` has the same literal id. */
 type ListedBefore<N, SeenIds extends string> = [ContractIdOf<N>] extends [never]
@@ -374,7 +374,7 @@ type DuplicateRequirementIds<R extends readonly unknown[], Seen = never> = R ext
     : DuplicateRequirementIds<Tail, Seen>
   : never;
 
-/** Per requirement, whether an earlier one has the same id. A non-literal id is left to the loader. */
+/** Per requirement, whether an earlier one has the same id. A non-literal id is left to check. */
 type UniqueRequirementIds<R extends readonly unknown[], Seen = never> = R extends readonly [infer Head, ...infer Tail]
   ? readonly [
       Head extends { readonly id: infer Id extends string }
@@ -394,7 +394,7 @@ export type CheckedRequirements<R extends RequirementsDef> = R &
   NoInfer<[DuplicateRequirementIds<R>] extends [never] ? unknown : UniqueRequirementIds<R>>;
 
 type DemonstratesOf<T> = T extends { readonly demonstrates?: infer D extends readonly string[] } ? D : readonly [];
-/** Demonstrated ids that are not in `Ids`; a non-literal id is left to the loader. */
+/** Demonstrated ids that are not in `Ids`; a non-literal id is left to check. */
 type UnknownIds<D extends readonly string[], Ids> = D[number] extends infer Id
   ? Id extends Ids
     ? never
