@@ -66,7 +66,7 @@ export const Cli = node({
       demonstrates: ["R6"],
     },
     {
-      text: "From a parent directory, `init --path packages/app` writes packages/app/nuhokai/ and `map --path=packages/app` maps it; --path without a value, twice or naming no directory exits 2 and nothing runs.",
+      text: "From a parent directory, `init --path packages/app` writes packages/app/nuhokai/ and `map --path=packages/app` maps it; --path without a value, twice or naming no directory (a missing path, a file, file/x) exits 2 and nothing runs; `map --path x --help` prints map's help.",
       demonstrates: ["R7"],
     },
   ],

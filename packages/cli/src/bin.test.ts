@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
@@ -127,6 +127,8 @@ test("--path names the project directory, against the cwd; without it the cwd is
 
 test("a --path without a value, given twice or not a directory is a usage error and nothing runs", async () => {
   const dir = mkdtempSync(join(tmpdir(), "nuhokai-bin-path-test-"));
+  const file = join(dir, "file");
+  writeFileSync(file, "");
   const error = console.error;
   const err: string[] = [];
   try {
@@ -134,7 +136,10 @@ test("a --path without a value, given twice or not a directory is a usage error 
     expect(await main(["init", "--path"])).toBe(2);
     expect(await main(["init", "--path", dir, "--path", dir])).toBe(2);
     expect(await main(["init", "--path", join(dir, "missing")])).toBe(2);
+    expect(await main(["init", "--path", file])).toBe(2);
+    expect(await main(["map", `--path=${file}/x`])).toBe(2);
     expect(await main(["new", "a", "--path"])).toBe(2);
+    expect(await main(["map", "--path", "--help"])).toBe(2);
   } finally {
     console.error = error;
   }
@@ -142,8 +147,24 @@ test("a --path without a value, given twice or not a directory is a usage error 
     "nuhokai init: --path needs a directory",
     "nuhokai init: --path given twice",
     `nuhokai init: not a directory: ${join(dir, "missing")}`,
+    `nuhokai init: not a directory: ${file}`,
+    `nuhokai map: not a directory: ${file}/x`,
     "nuhokai new: --path needs a directory",
+    "nuhokai map: --path needs a directory",
   ]);
-  expect(readdirSync(dir)).toEqual([]);
+  expect(readdirSync(dir)).toEqual(["file"]);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("a help word next to --path prints the command's help, whatever the path", async () => {
+  const log = console.log;
+  const out: string[] = [];
+  try {
+    console.log = (line: string) => out.push(line);
+    expect(await main(["map", "--path", "x", "--help"])).toBe(0);
+    expect(await main(["map", "--path=x", "-h"])).toBe(0);
+  } finally {
+    console.log = log;
+  }
+  expect(out).toEqual([commandUsage("map"), commandUsage("map")]);
 });

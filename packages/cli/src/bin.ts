@@ -71,14 +71,11 @@ function isCommand(value: string): value is Command {
 }
 
 /**
- * Split --path off the arguments: the project directory is --path against the cwd,
- * else the cwd itself; `base` names it from the cwd for printed paths. A missing value, a second --path or a path that is not a
- * directory is the invocation's fault, so it is a message and never a command run.
+ * Split --path off the arguments, touching nothing: a missing value (a help word
+ * included) or a second --path is the invocation's fault, so it is a message and
+ * never a command run.
  */
-function projectDirectory(
-  cwd: string,
-  args: readonly string[],
-): { dir: string; base: string; rest: string[] } | { error: string } {
+function splitPath(args: readonly string[]): { path: string | undefined; rest: string[] } | { error: string } {
   let path: string | undefined;
   const rest: string[] = [];
   for (let index = 0; index < args.length; index++) {
@@ -89,16 +86,23 @@ function projectDirectory(
     }
     if (path !== undefined) return { error: `${PATH_FLAG} given twice` };
     path = arg === PATH_FLAG ? args[++index] : arg.slice(PATH_FLAG.length + 1);
-    if (!path) return { error: `${PATH_FLAG} needs a directory` };
+    if (!path || isHelpWord(path)) return { error: `${PATH_FLAG} needs a directory` };
   }
-  const dir = resolve(cwd, path ?? ".");
-  if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return { error: `not a directory: ${dir}` };
-  return { dir, base: relative(cwd, dir).split(sep).join("/"), rest };
+  return { path, rest };
+}
+
+/** Whether `dir` is a directory; a path through a file or an unreadable one is not, whatever stat throws. */
+function isDirectory(dir: string): boolean {
+  try {
+    return statSync(dir, { throwIfNoEntry: false })?.isDirectory() ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
 export async function main(argv: readonly string[]): Promise<number> {
-  const [first, ...rest] = argv;
+  const [first, ...args] = argv;
   if (first === undefined || isHelpWord(first)) {
     console.log(usage());
     return 0;
@@ -107,6 +111,12 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai: unknown command '${first}'\n\n${usage()}`);
     return 2;
   }
+  const split = splitPath(args);
+  if ("error" in split) {
+    console.error(`nuhokai ${first}: ${split.error}\n\n${commandUsage(first)}`);
+    return 2;
+  }
+  const { path, rest } = split;
   if (rest.length === 1 && isHelpWord(rest[0] ?? "")) {
     console.log(commandUsage(first));
     return 0;
@@ -116,20 +126,22 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: unexpected argument '${helpWord}'\n\n${commandUsage(first)}`);
     return 2;
   }
-  const target = projectDirectory(process.cwd(), rest);
-  if ("error" in target) {
-    console.error(`nuhokai ${first}: ${target.error}\n\n${commandUsage(first)}`);
+  // The project directory is --path against the cwd, else the cwd itself.
+  const cwd = process.cwd();
+  const dir = resolve(cwd, path ?? ".");
+  if (!isDirectory(dir)) {
+    console.error(`nuhokai ${first}: not a directory: ${path ?? "."}\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (target.rest.length !== ARITY[first]) {
+  if (rest.length !== ARITY[first]) {
     const expected = ARITY[first] === 1 ? "1 argument" : `${ARITY[first]} arguments`;
-    console.error(`nuhokai ${first}: expected ${expected}, got ${target.rest.length}\n\n${commandUsage(first)}`);
+    console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
     return 2;
   }
-  const environment = { base: target.base };
-  if (first === "init") return runInit(target.dir, environment);
-  if (first === "map") return runMap(target.dir, environment);
-  if (first === "new") return runNew(target.dir, target.rest[0] ?? "", environment);
+  const environment = { base: relative(cwd, dir).split(sep).join("/") };
+  if (first === "init") return runInit(dir, environment);
+  if (first === "map") return runMap(dir, environment);
+  if (first === "new") return runNew(dir, rest[0] ?? "", environment);
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }
