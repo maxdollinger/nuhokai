@@ -17,8 +17,6 @@ export const LoadWorld = node({
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
-        "world file imports a package",
-        "world file imports outside nuhokai/",
         "default export not a world",
         "uses or implements returns a non-list",
       ],
@@ -27,7 +25,7 @@ export const LoadWorld = node({
   requirements: [
     {
       id: "R1",
-      text: "Evaluates all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts. @nuhokai/world = the CLI's runtime, via nuhokai/tsconfig.json paths; no node_modules. Any other non-relative import (node:, bun: included) or import outside nuhokai/ and its listed files: load error; nothing installed or run.",
+      text: "Evaluates all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts. @nuhokai/world = the CLI's runtime, via a virtual module; no node_modules. Any other import resolves as Bun resolves it, never installed (bun --no-install); unresolvable → ordinary load error naming the importing file.",
     },
     {
       id: "R2",
@@ -63,7 +61,7 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R5", "R6"],
     },
     {
-      text: "Bare package or node: import (also in a symlinked file), ../ or absolute import outside nuhokai/ → one CliError naming the importing file; nothing installed or run. Symlinked node file → named by export.",
+      text: "CLI under bun --no-install, world file importing an uncached package → one 'nuhokai map: nuhokai/<file>' line, exit 1; nothing installed. Unresolvable import in a file reached through another → names that file. Symlinked node file → named by export.",
       demonstrates: ["R1", "R2", "R5"],
     },
   ],
@@ -75,6 +73,17 @@ export const LoadWorld = node({
     {
       decision: "Evaluate every node file, not only index.ts's imports.",
       why: "Handles carry no name; names come from exports.",
+    },
+    {
+      decision:
+        "No import guard: world files import what Bun resolves; the CLI runs with bun --no-install, so nothing is installed. Not a sandbox.",
+      why: "World files are the user's code and may still read, fetch or spawn; only network installs are stopped. 'Plain data' imports are a convention a future check may diagnose.",
+      rejected: [
+        {
+          option: "Scan and reject non-relative or outside-nuhokai/ imports",
+          why: "Per-file transpile and path bookkeeping for no safety: an allowed file can still do anything.",
+        },
+      ],
     },
   ],
 }).edges({ uses: () => [WorldPath.file, Failure.format] });

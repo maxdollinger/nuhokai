@@ -31,7 +31,10 @@ export const Cli = node({
       text: "No argument or a help word → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` repeats that form, exit 0. Unknown command → usage on stderr, exit 2.",
     },
     { id: "R4", text: "No loading, rule, tsc or writing logic in Cli: each command is its own node." },
-    { id: "R5", text: "World imports are only relative files and @nuhokai/world." },
+    {
+      id: "R5",
+      text: "World imports type-check only as relative files and @nuhokai/world; the CLI runs with bun --no-install, so nothing is installed.",
+    },
     {
       id: "R6",
       text: "Cli enforces argument counts: init, check, update, map none; new exactly one. Wrong count → argument error (2), command never runs. Arguments pass through unchanged, never validated.",

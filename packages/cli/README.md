@@ -80,8 +80,10 @@ overwrites an existing file and never edits `index.ts` or a parent: the run prin
 `map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
 coloured by its status. It never opens a browser. The map remembers moved islands per browser, under the world's id
-and by node id, so a regenerated map keeps them and two projects' maps never share them. World files import only `@nuhokai/world` and relative files inside `nuhokai/`; any other
-import is a load error, so nothing is installed or run.
+and by node id, so a regenerated map keeps them and two projects' maps never share them. `@nuhokai/world` in a world file is
+the CLI's own runtime; any other import resolves as Bun resolves it. The CLI runs with `bun --no-install`, so nothing
+is installed: an unresolvable import is an ordinary load error. The loader is no sandbox; world files are the
+project's own code.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
