@@ -160,3 +160,11 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
     { name: "R1", meta: "Every change is listed with author and time." },
   ]);
 });
+
+test("the click panel shows a node without source, as a world file may hold one", () => {
+  const orders = world.nodes[indexOf("Orders")];
+  if (!orders) throw new Error("no Orders");
+  const { source: _source, ...unsourced } = orders;
+
+  expect(detailsOf(unsourced as typeof orders).sections.at(-1)).toEqual({ label: "Source", rows: [] });
+});

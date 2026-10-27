@@ -49,6 +49,10 @@ export const Viewer = node({
       text: "By hand, headless Chromium: maps of two worlds from file:// keep moved islands apart, each under its world id.",
       demonstrates: ["R8"],
     },
+    {
+      text: "scene.js under bun: a node without source (world files are not type-checked) → empty Source section, no crash.",
+      demonstrates: ["R9"],
+    },
   ],
   decisions: [
     {

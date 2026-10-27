@@ -272,7 +272,7 @@ export function detailsOf(node) {
           meta: requirement.text,
         })),
       },
-      { label: "Source", rows: node.source.map((glob) => ({ name: glob, meta: "" })) },
+      { label: "Source", rows: (node.source ?? []).map((glob) => ({ name: glob, meta: "" })) },
     ],
   };
 }
