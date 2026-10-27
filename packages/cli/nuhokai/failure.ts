@@ -59,7 +59,7 @@ export const Failure = node({
     {
       decision:
         "One shared error type, classifier and formatter; each command keeps its own prefix, wording and exit code.",
-      why: "ResolveTarget throws while Init and New print, so the type must be shared for the expected-failure test to work across nodes, while the words stay with the command that knows the context.",
+      why: "LoadWorld throws while Init, New and map print, so the type must be shared for the expected-failure test to work across nodes, while the words stay with the command that knows the context.",
       rejected: [
         {
           option: "A private error class and formatter per command",

@@ -12,7 +12,7 @@ src/
   new/          add one node file to an existing world: the program and the file's bytes
   load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
-  target/       resolve the repo root, inspect what sits at nuhokai/ (shared by every command)
+  target/       inspect what sits at nuhokai/ (shared by every command)
   shared/       the world layout and path forms, and the one error type with its one-line rule
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
@@ -58,8 +58,11 @@ nuhokai/
   .generated/map.html       the map, written by `map`
 ```
 
-`init` writes those four files and nothing else. It targets the Git root; without Git or outside a repo it asks before
-using the cwd, and refuses when there is no terminal. An existing `nuhokai/` directory is left untouched: it prints
+Every command works in one project directory: the current directory, or the one given with `--path <dir>`
+(`nuhokai map --path packages/cli`). There is no Git lookup and no prompt; without a `nuhokai/` there, `new` and `map`
+fail with one line.
+
+`init` writes those four files and nothing else. An existing `nuhokai/` directory is left untouched: it prints
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 

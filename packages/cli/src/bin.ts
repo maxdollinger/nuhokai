@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
 import { runInit } from "./init/index.ts";
 import { runMap } from "./map/index.ts";
 import { runNew } from "./new/index.ts";
@@ -31,11 +33,14 @@ const ARITY: Record<Command, number> = { check: 0, init: 0, map: 0, new: 1, upda
 
 const HELP_WORDS = ["help", "--help", "-h"] as const;
 
+/** The one flag every command takes: the project directory holding nuhokai/, instead of the cwd. */
+const PATH_FLAG = "--path";
+
 export function usage(): string {
   return [
     "nuhokai — the world format toolchain",
     "",
-    "Usage: nuhokai <command> [options]",
+    "Usage: nuhokai <command> [--path <dir>] [arguments]",
     "",
     "Commands:",
     ...COMMANDS.map((command) => `  ${SYNOPSIS[command].padEnd(21)}${DESCRIPTIONS[command]}`),
@@ -44,7 +49,7 @@ export function usage(): string {
   ].join("\n");
 }
 
-/** One help text per command, answered by Cli before dispatch; commands stay flag-free. */
+/** One help text per command, answered by Cli before dispatch; commands stay flag-free, Cli owns --path. */
 export function commandUsage(command: Command): string {
   return [
     `nuhokai ${command} — ${DESCRIPTIONS[command]}`,
@@ -52,7 +57,8 @@ export function commandUsage(command: Command): string {
     `Usage: ${SYNOPSIS[command]}`,
     "",
     "Options:",
-    "  --help    show this help",
+    "  --path <dir>  the project directory holding nuhokai/ (default: the current directory)",
+    "  --help        show this help",
   ].join("\n");
 }
 
@@ -62,6 +68,29 @@ function isHelpWord(value: string): boolean {
 
 function isCommand(value: string): value is Command {
   return (COMMANDS as readonly string[]).includes(value);
+}
+
+/**
+ * Split --path off the arguments: the project directory is --path against the cwd,
+ * else the cwd itself. A missing value, a second --path or a path that is not a
+ * directory is the invocation's fault, so it is a message and never a command run.
+ */
+function projectDirectory(cwd: string, args: readonly string[]): { dir: string; rest: string[] } | { error: string } {
+  let path: string | undefined;
+  const rest: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index] ?? "";
+    if (arg !== PATH_FLAG && !arg.startsWith(`${PATH_FLAG}=`)) {
+      rest.push(arg);
+      continue;
+    }
+    if (path !== undefined) return { error: `${PATH_FLAG} given twice` };
+    path = arg === PATH_FLAG ? args[++index] : arg.slice(PATH_FLAG.length + 1);
+    if (!path) return { error: `${PATH_FLAG} needs a directory` };
+  }
+  const dir = resolve(cwd, path ?? ".");
+  if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return { error: `not a directory: ${dir}` };
+  return { dir, rest };
 }
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
@@ -84,14 +113,19 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: unexpected argument '${helpWord}'\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (rest.length !== ARITY[first]) {
-    const expected = ARITY[first] === 1 ? "1 argument" : `${ARITY[first]} arguments`;
-    console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
+  const target = projectDirectory(process.cwd(), rest);
+  if ("error" in target) {
+    console.error(`nuhokai ${first}: ${target.error}\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (first === "init") return runInit(process.cwd());
-  if (first === "map") return runMap(process.cwd());
-  if (first === "new") return runNew(process.cwd(), rest[0] ?? "");
+  if (target.rest.length !== ARITY[first]) {
+    const expected = ARITY[first] === 1 ? "1 argument" : `${ARITY[first]} arguments`;
+    console.error(`nuhokai ${first}: expected ${expected}, got ${target.rest.length}\n\n${commandUsage(first)}`);
+    return 2;
+  }
+  if (first === "init") return runInit(target.dir);
+  if (first === "map") return runMap(target.dir);
+  if (first === "new") return runNew(target.dir, target.rest[0] ?? "");
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

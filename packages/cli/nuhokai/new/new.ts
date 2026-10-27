@@ -21,7 +21,7 @@ export const New = node({
     {
       id: "C1",
       kind: "constraint",
-      text: "One argument, the path; --help is the only flag. Cli owns the count, New owns the path rule.",
+      text: "One argument, the node path. Cli owns the count, --help and --path; New owns the path rule.",
     },
   ],
   testCases: [

@@ -13,7 +13,7 @@ export const WorldMap = node({
     { id: "R1", text: "Writes only nuhokai/.generated/map.html." },
     { id: "R2", text: "stdout: the from-root path. Failure: one stderr line; a load failure keeps the previous map." },
     { id: "R3", text: "Unchecked: any world that loads gets a map." },
-    { id: "C1", kind: "constraint", text: "No arguments; --help only." },
+    { id: "C1", kind: "constraint", text: "No arguments; Cli's --help and --path only." },
   ],
   testCases: [
     {

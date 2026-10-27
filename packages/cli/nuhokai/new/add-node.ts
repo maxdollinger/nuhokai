@@ -1,7 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
-import { ResolveTarget } from "../resolve-target.ts";
 import { WorldPath } from "../world-path.ts";
 import { NodeFile } from "./node-file.ts";
 
@@ -16,13 +15,11 @@ export const AddNode = node({
     run: {
       kind: "call",
       purpose: "Add the node file to the world",
-      input: "the cwd and the path",
+      input: "the project directory and the path",
       output:
         "exit 0 written, 1 operational failure, 2 argument error; stdout: the from-root path, then a line naming nuhokai/index.ts; stderr: one line per failure, prefixed 'nuhokai new: '",
       errors: [
         "invalid path",
-        "no git and no terminal",
-        "the user declined the cwd",
         "no world at nuhokai/",
         "the file already exists",
         "a parent directory cannot be created",
@@ -33,7 +30,7 @@ export const AddNode = node({
   requirements: [
     {
       id: "R1",
-      text: "Order: parse, resolve, inspect, id, create, print; a bad path fails before any git call, prompt or write.",
+      text: "Order: parse, inspect, id, create, print; a bad path fails before anything is read or written.",
     },
     {
       id: "R2",
@@ -66,12 +63,5 @@ export const AddNode = node({
     },
   ],
 }).edges({
-  uses: () => [
-    ResolveTarget.resolve,
-    Inspect.inspect,
-    WorldPath.file,
-    NodeFile.create,
-    Failure.format,
-    Failure.isExpected,
-  ],
+  uses: () => [Inspect.inspect, WorldPath.file, NodeFile.create, Failure.format, Failure.isExpected],
 });

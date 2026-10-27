@@ -61,12 +61,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test("an invalid path exits 2 with one line and before any git call", async () => {
+test("an invalid path exits 2 with one line and writes nothing", async () => {
   const dir = tempDir();
-  const boom = new TypeError("git must not be called");
-  const gitRoot = () => {
-    throw boom;
-  };
 
   for (const argument of [
     "new/StockOrder",
@@ -78,7 +74,7 @@ test("an invalid path exits 2 with one line and before any git call", async () =
     "",
   ]) {
     const output = capture();
-    const code = await runNew(dir, argument, { ...output.environment, gitRoot });
+    const code = await runNew(dir, argument, output.environment);
 
     expect(code).toBe(2);
     expect(output.out).toEqual([]);

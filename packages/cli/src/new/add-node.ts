@@ -1,7 +1,6 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
 import { fromRoot, WORLD_DIR, WORLD_INDEX, worldFile } from "../shared/paths.ts";
 import { inspectTarget } from "../target/inspect.ts";
-import { type ResolveTargetEnvironment, resolveTarget } from "../target/resolve-target.ts";
 import { createNodeFile } from "./node-file.ts";
 
 /** Kebab-case, at least one letter, no extension, no dot segment, no leading dash. */
@@ -11,7 +10,7 @@ const SEGMENT = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const RESERVED = "index";
 
 /** What the run port may observe and answer; the defaults are the real process. */
-export interface NewEnvironment extends ResolveTargetEnvironment {
+export interface NewEnvironment {
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
   /** A fresh node id; the default is a uuidv7. */
@@ -52,9 +51,9 @@ function parsePath(argument: string): NodePath {
   return { segments, name: pascalCase(last) };
 }
 
-/** Parse, resolve, inspect, id, create: the order is the program. Writes and prints nothing. */
+/** Parse, inspect, id, create: the order is the program. Writes and prints nothing. */
 export async function addNode(
-  cwd: string,
+  root: string,
   argument: string,
   environment: NewEnvironment = {},
 ): Promise<AddNodeOutcome> {
@@ -62,16 +61,15 @@ export async function addNode(
   try {
     target = parsePath(argument);
   } catch (error) {
-    // A bad path fails before any git call, prompt or write.
+    // A bad path fails before anything is read or written.
     if (!isExpected(error)) throw error;
     return { kind: "failed", code: 2, message: oneLine(error) };
   }
 
   try {
-    const root = await resolveTarget(cwd, environment);
     const state = inspectTarget(root);
     if (state.kind === "absent") {
-      throw new CliError(`no world at ${WORLD_DIR}/; run \`nuhokai init\` first`);
+      throw new CliError(`no ${WORLD_DIR}/ in ${root}; run \`nuhokai init\` or pass --path <dir>`);
     }
     if (state.kind === "occupied") {
       throw new CliError(`${WORLD_DIR} exists but is not a directory`);
@@ -90,15 +88,15 @@ export async function addNode(
 }
 
 /**
- * The new command: add one node file to the world at the target, or say why not.
+ * The new command: add one node file to the world in the project directory, or say why not.
  * Prints the two possible line sets here and resolves to the process exit code;
  * programming errors propagate and crash with their stack.
  */
-export async function runNew(cwd: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
+export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
   const err = environment.err ?? ((line: string) => console.error(line));
 
-  const outcome = await addNode(cwd, argument, environment);
+  const outcome = await addNode(root, argument, environment);
   switch (outcome.kind) {
     case "written":
       out(outcome.path);

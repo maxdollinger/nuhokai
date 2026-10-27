@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
@@ -76,11 +76,10 @@ test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument e
   const error = console.error;
   const out: string[] = [];
   try {
-    expect(Bun.spawnSync(["git", "init", "-q", repo]).exitCode).toBe(0);
     expect(await runInit(repo, { out: () => {} })).toBe(0);
     console.log = (line: string) => out.push(line);
     console.error = () => {};
-    process.chdir(join(repo, "nuhokai"));
+    process.chdir(repo);
 
     expect(await main(["map", "x"])).toBe(2);
     expect(existsSync(join(repo, "nuhokai/.generated/map.html"))).toBe(false);
@@ -92,4 +91,56 @@ test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument e
     rmSync(repo, { recursive: true, force: true });
   }
   expect(out).toEqual(["nuhokai/.generated/map.html"]);
+});
+
+test("--path names the project directory, against the cwd; without it the cwd is the directory", async () => {
+  const parent = mkdtempSync(join(tmpdir(), "nuhokai-bin-path-test-"));
+  const project = join(parent, "packages", "app");
+  mkdirSync(project, { recursive: true });
+  const cwd = process.cwd();
+  const log = console.log;
+  const error = console.error;
+  const out: string[] = [];
+  const err: string[] = [];
+  try {
+    console.log = (line: string) => out.push(line);
+    console.error = (line: string) => err.push(line);
+    process.chdir(parent);
+
+    expect(await main(["map"])).toBe(1);
+    expect(err[0]).toStartWith(`nuhokai map: no nuhokai/ in ${parent}`);
+    expect(await main(["init", "--path", "packages/app"])).toBe(0);
+    expect(existsSync(join(project, "nuhokai/index.ts"))).toBe(true);
+    expect(existsSync(join(parent, "nuhokai"))).toBe(false);
+    expect(await main(["map", "--path=packages/app"])).toBe(0);
+    expect(existsSync(join(project, "nuhokai/.generated/map.html"))).toBe(true);
+  } finally {
+    process.chdir(cwd);
+    console.log = log;
+    console.error = error;
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("a --path without a value, given twice or not a directory is a usage error and nothing runs", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nuhokai-bin-path-test-"));
+  const error = console.error;
+  const err: string[] = [];
+  try {
+    console.error = (line: string) => err.push(line);
+    expect(await main(["init", "--path"])).toBe(2);
+    expect(await main(["init", "--path", dir, "--path", dir])).toBe(2);
+    expect(await main(["init", "--path", join(dir, "missing")])).toBe(2);
+    expect(await main(["new", "a", "--path"])).toBe(2);
+  } finally {
+    console.error = error;
+  }
+  expect(err.map((line) => line.split("\n")[0])).toEqual([
+    "nuhokai init: --path needs a directory",
+    "nuhokai init: --path given twice",
+    `nuhokai init: not a directory: ${join(dir, "missing")}`,
+    "nuhokai new: --path needs a directory",
+  ]);
+  expect(readdirSync(dir)).toEqual([]);
+  rmSync(dir, { recursive: true, force: true });
 });

@@ -58,7 +58,7 @@ test("after init, map writes and prints the map; a second run changes no other f
   expect(after[MAP]).toContain('"name":"Example"');
 
   const again = capture();
-  expect(await runMap(join(repo, "nuhokai"), again.environment)).toBe(0);
+  expect(await runMap(repo, again.environment)).toBe(0);
   expect(again.out).toEqual([MAP]);
   expect(snapshot(repo)).toEqual(after);
 });
@@ -99,7 +99,7 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
 
   expect(await runMap(empty, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual(["nuhokai map: no world at nuhokai/; run `nuhokai init` first"]);
+  expect(output.err).toEqual([`nuhokai map: no nuhokai/ in ${empty}; run \`nuhokai init\` or pass --path <dir>`]);
   expect(snapshot(empty)).toEqual({});
 
   const occupied = gitRepo();
@@ -110,16 +110,6 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
   expect(second.out).toEqual([]);
   expect(second.err).toEqual(["nuhokai map: nuhokai exists but is not a directory"]);
   expect(snapshot(occupied)).toEqual({ nuhokai: "in the way\n" });
-});
-
-test("without git and without a terminal it is one error and nothing is written", async () => {
-  const dir = tempDir();
-  const output = capture();
-
-  expect(await runMap(dir, { ...output.environment, gitRoot: () => null, isTTY: false })).toBe(1);
-  expect(output.err).toHaveLength(1);
-  expect(output.err[0]).toStartWith("nuhokai map: no Git repository");
-  expect(snapshot(dir)).toEqual({});
 });
 
 test("a throwing node file: one line naming the file, exit 1, the previous map kept", async () => {

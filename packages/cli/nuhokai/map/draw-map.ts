@@ -2,10 +2,9 @@ import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
-import { ResolveTarget } from "../resolve-target.ts";
 import { MapFile } from "./map-file.ts";
 
-/** The program inside WorldMap: resolve, inspect, load, write, print. */
+/** The program inside WorldMap: inspect, load, write, print. */
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
   purpose: "The program inside WorldMap: order and exit codes only.",
@@ -15,20 +14,13 @@ export const DrawMap = node({
     run: {
       kind: "call",
       purpose: "Draw the world's map",
-      input: "cwd",
+      input: "project directory",
       output: "exit 0 or 1; stdout: the from-root path; stderr: one 'nuhokai map: ' line per failure",
-      errors: [
-        "no git and no terminal",
-        "the user declined the cwd",
-        "no world at nuhokai/",
-        "a non-directory at nuhokai/",
-        "the world failed to load",
-        "the write failed",
-      ],
+      errors: ["no world at nuhokai/", "a non-directory at nuhokai/", "the world failed to load", "the write failed"],
     },
   },
   requirements: [
-    { id: "R1", text: "Order: resolve, inspect, load, write, print; a load failure writes nothing." },
+    { id: "R1", text: "Order: inspect, load, write, print; a load failure writes nothing." },
     { id: "R2", text: "absent → error naming init; occupied → error; world → load and write." },
   ],
   testCases: [
@@ -39,12 +31,5 @@ export const DrawMap = node({
     },
   ],
 }).edges({
-  uses: () => [
-    ResolveTarget.resolve,
-    Inspect.inspect,
-    LoadWorld.load,
-    MapFile.write,
-    Failure.format,
-    Failure.isExpected,
-  ],
+  uses: () => [Inspect.inspect, LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
 });

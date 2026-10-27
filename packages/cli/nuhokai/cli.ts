@@ -36,6 +36,10 @@ export const Cli = node({
       id: "R6",
       text: "Cli enforces the argument count per command: init, check, update and map take none, new takes exactly one. A wrong count is an argument error (2) and the command never runs; the arguments are passed through unchanged and never validated.",
     },
+    {
+      id: "R7",
+      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. No Git lookup, no prompt. A missing value, a second --path or a path that is no directory is a usage error (2) and the command never runs; the command gets the directory, never the cwd.",
+    },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
@@ -60,6 +64,10 @@ export const Cli = node({
     {
       text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs.",
       demonstrates: ["R6"],
+    },
+    {
+      text: "From a parent directory, `init --path packages/app` writes packages/app/nuhokai/ and `map --path=packages/app` maps it; --path without a value, twice or naming no directory exits 2 and nothing runs.",
+      demonstrates: ["R7"],
     },
   ],
   decisions: [
@@ -104,6 +112,16 @@ export const Cli = node({
         "One folder nuhokai/: index.ts, nodes, tsconfig.json, .generated/world/. Same for users and this package.",
       why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one root.",
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
+    },
+    {
+      decision: "The project directory is the cwd or --path; nothing else.",
+      why: "One rule with no guessing and no interaction; any folder holding nuhokai/ is a target, also a package inside a monorepo.",
+      rejected: [
+        {
+          option: "The Git root, else the cwd after a yes/no prompt",
+          why: "Cannot reach a world below the root, and needs git and a terminal.",
+        },
+      ],
     },
   ],
 }).edges({ uses: () => [Init.run, New.run, WorldMap.run] });

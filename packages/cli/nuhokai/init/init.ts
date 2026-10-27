@@ -7,7 +7,7 @@ import { Scaffold } from "./scaffold.ts";
 /**
  * The init boundary: one public contract, the interior free to be re-cut.
  * Inside: Scaffold (program), Publish, ExampleWorld, CliFiles.
- * ResolveTarget, Inspect, WorldPath and Failure are shared top-level nodes.
+ * Inspect, WorldPath and Failure are shared top-level nodes.
  */
 export const Init = node({
   id: "01a17233-ebfc-772d-abf4-0bd32b81656d",
@@ -15,7 +15,7 @@ export const Init = node({
     "Create a repo's world from nothing: nuhokai/ with an example node and world, the CLI-owned tsconfig and the " +
     "embedded @nuhokai/world types, so the loader and the editor work at once. Writes only; never checks, repairs or " +
     "updates. A boundary: run is delegated to Scaffold; target, layout and failure concerns are shared top-level nodes.",
-  status: "built",
+  status: "building",
   source: ["packages/cli/src/init/**"],
   requirements: [
     {
@@ -37,17 +37,17 @@ export const Init = node({
     },
     {
       id: "R6",
-      text: "No TypeScript, Bun, node_modules or network in the repo; the only process init may spawn is git.",
+      text: "No TypeScript, Bun, node_modules or network in the repo; init spawns nothing.",
     },
     {
       id: "C1",
       kind: "constraint",
-      text: "No flags reach run in v1: Cli answers --help; confirming a cwd fallback is the only interaction.",
+      text: "No flags reach run: Cli answers --help and --path; init asks nothing.",
     },
   ],
   testCases: [
     {
-      text: "In an empty Git repo with no node_modules and no network, init writes the four files and exits 0; two repos get identical bytes, and the result type-checks and loads as one node, Example.",
+      text: "In an empty directory with no node_modules and no network, init writes the four files and exits 0; two repos get identical bytes, and the result type-checks and loads as one node, Example.",
       demonstrates: ["R1", "R4", "R6"],
     },
     {
@@ -59,14 +59,14 @@ export const Init = node({
       demonstrates: ["R5"],
     },
     {
-      text: "Without git and without a terminal, init writes nothing and exits 1; on a terminal, 'no' writes nothing and 'yes' uses the cwd; a failed write leaves no partial nuhokai/ or temporary path.",
-      demonstrates: ["R3", "C1"],
+      text: "A failed write leaves no partial nuhokai/ or temporary path.",
+      demonstrates: ["R3"],
     },
   ],
   decisions: [
     {
-      decision: "An existing nuhokai/ is a no-op (exit 0); v1 has no flags and only writes, never checks.",
-      why: "Scripts and agents re-run init; once the world exists the answer is 'nothing to do' and changing files is update's job. Check owns diagnostics, and the cwd confirmation covers the only real ambiguity.",
+      decision: "An existing nuhokai/ is a no-op (exit 0); init only writes, never checks.",
+      why: "Scripts and agents re-run init; once the world exists the answer is 'nothing to do' and changing files is update's job. Check owns diagnostics.",
       rejected: [
         { option: "Error when the folder exists", why: "Common re-runs would fail for no reason." },
         {
@@ -74,8 +74,8 @@ export const Init = node({
           why: "Update and check own that; init would mix generated and authored files.",
         },
         {
-          option: "Any flag (--dir, --force)",
-          why: "The Git root plus one confirmation resolves the target; nothing is ever overwritten.",
+          option: "A --force flag",
+          why: "Nothing is ever overwritten.",
         },
       ],
     },
@@ -86,7 +86,7 @@ export const Init = node({
       rejected: [
         { option: "Init's body as loose code", why: "The interior stays unreadable in the map." },
         {
-          option: "Duplicate ResolveTarget and Inspect inside New",
+          option: "Duplicate Inspect inside New",
           why: "Two owners of one behavior and two copies to drift.",
         },
         {
