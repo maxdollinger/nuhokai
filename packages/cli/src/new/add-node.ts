@@ -1,5 +1,5 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
-import { fromRoot, WORLD_DIR, WORLD_INDEX, worldFile } from "../shared/paths.ts";
+import { fromRoot, shown, WORLD_DIR, WORLD_INDEX, worldFile } from "../shared/paths.ts";
 import { inspectTarget } from "../target/inspect.ts";
 import { createNodeFile } from "./node-file.ts";
 
@@ -11,6 +11,8 @@ const RESERVED = "index";
 
 /** What the run port may observe and answer; the defaults are the real process. */
 export interface NewEnvironment {
+  /** The project directory as named from the cwd, `/`-separated; printed paths start with it. Empty: the cwd. */
+  readonly base?: string;
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
   /** A fresh node id; the default is a uuidv7. */
@@ -45,7 +47,7 @@ function parsePath(argument: string): NodePath {
   const bad = segments.some((segment) => !SEGMENT.test(segment));
   if (bad || last === RESERVED) {
     throw new CliError(
-      `invalid path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
+      `invalid node path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
     );
   }
   return { segments, name: pascalCase(last) };
@@ -95,12 +97,13 @@ export async function addNode(
 export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
   const err = environment.err ?? ((line: string) => console.error(line));
+  const base = environment.base ?? "";
 
   const outcome = await addNode(root, argument, environment);
   switch (outcome.kind) {
     case "written":
-      out(outcome.path);
-      out(`next: add it to ${fromRoot(WORLD_INDEX)}`);
+      out(shown(base, outcome.path));
+      out(`next: add it to ${shown(base, fromRoot(WORLD_INDEX))}`);
       return 0;
     case "failed":
       err(`nuhokai new: ${outcome.message}`);

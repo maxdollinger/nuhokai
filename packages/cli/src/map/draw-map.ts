@@ -1,11 +1,13 @@
 import { loadWorld } from "../load/load-world.ts";
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
-import { WORLD_DIR } from "../shared/paths.ts";
+import { shown, WORLD_DIR } from "../shared/paths.ts";
 import { inspectTarget } from "../target/inspect.ts";
 import { writeMap } from "./map-file.ts";
 
 /** What the run port may observe and answer; the defaults are the real process. */
 export interface MapEnvironment {
+  /** The project directory as named from the cwd, `/`-separated; printed paths start with it. Empty: the cwd. */
+  readonly base?: string;
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
 }
@@ -44,11 +46,12 @@ export async function drawMap(root: string): Promise<DrawMapOutcome> {
 export async function runMap(root: string, environment: MapEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
   const err = environment.err ?? ((line: string) => console.error(line));
+  const base = environment.base ?? "";
 
   const outcome = await drawMap(root);
   switch (outcome.kind) {
     case "written":
-      out(outcome.path);
+      out(shown(base, outcome.path));
       return 0;
     case "failed":
       err(`nuhokai map: ${outcome.message}`);

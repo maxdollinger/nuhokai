@@ -23,6 +23,11 @@ export function fromRoot(...parts: string[]): string {
     .join("/");
 }
 
+/** A from-root path as stdout shows it: under `base`, the project directory as the user named it from the cwd. */
+export function shown(base: string, path: string): string {
+  return base ? `${base}/${path}` : path;
+}
+
 /** A file in the world, named both ways: absolute under the root, and from-root for stdout. */
 export function worldFile(root: string, ...parts: string[]): { readonly absolute: string; readonly fromRoot: string } {
   return { absolute: inWorld(root, ...parts), fromRoot: fromRoot(...parts) };

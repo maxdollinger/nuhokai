@@ -49,7 +49,7 @@ test("`nuhokai init --help` prints init's help and exits 0", async () => {
 
 test("`nuhokai new --help` shows that new takes a path", async () => {
   expect(await main(["new", "--help"])).toBe(0);
-  expect(commandUsage("new")).toContain("Usage: nuhokai new <path>");
+  expect(commandUsage("new")).toContain("Usage: nuhokai new <node-path>");
 });
 
 test("Cli enforces the argument count without validating the argument", async () => {
@@ -114,6 +114,9 @@ test("--path names the project directory, against the cwd; without it the cwd is
     expect(existsSync(join(parent, "nuhokai"))).toBe(false);
     expect(await main(["map", "--path=packages/app"])).toBe(0);
     expect(existsSync(join(project, "nuhokai/.generated/map.html"))).toBe(true);
+    // Printed paths are named from the cwd, so they can be opened as printed.
+    expect(out).toContain("packages/app/nuhokai/index.ts");
+    expect(out.at(-1)).toBe("packages/app/nuhokai/.generated/map.html");
   } finally {
     process.chdir(cwd);
     console.log = log;

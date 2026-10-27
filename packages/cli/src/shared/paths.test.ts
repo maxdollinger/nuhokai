@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { WORLD_INDEX, WORLD_MAP, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE, worldFile } from "./paths.ts";
+import {
+  shown,
+  WORLD_INDEX,
+  WORLD_MAP,
+  WORLD_TSCONFIG,
+  WORLD_TYPES_DIR,
+  WORLD_TYPES_FILE,
+  worldFile,
+} from "./paths.ts";
 
 const ROOT = join("/", "repo");
 
@@ -29,4 +37,9 @@ test("segments pass through unchanged and nothing is touched", () => {
 
   expect(worldFile(missing, "-Odd.Name", "x.y.ts").fromRoot).toBe("nuhokai/-Odd.Name/x.y.ts");
   expect(worldFile(missing, "-Odd.Name", "x.y.ts").absolute).toBe(join(missing, "nuhokai", "-Odd.Name", "x.y.ts"));
+});
+
+test("stdout shows a from-root path under the project directory as named from the cwd", () => {
+  expect(shown("packages/cli", "nuhokai/.generated/map.html")).toBe("packages/cli/nuhokai/.generated/map.html");
+  expect(shown("", "nuhokai/.generated/map.html")).toBe("nuhokai/.generated/map.html");
 });

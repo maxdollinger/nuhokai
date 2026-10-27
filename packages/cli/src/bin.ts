@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
 import { runMap } from "./map/index.ts";
 import { runNew } from "./new/index.ts";
@@ -24,7 +24,7 @@ const SYNOPSIS: Record<Command, string> = {
   check: "nuhokai check",
   init: "nuhokai init",
   map: "nuhokai map",
-  new: "nuhokai new <path>",
+  new: "nuhokai new <node-path>",
   update: "nuhokai update",
 };
 
@@ -43,7 +43,7 @@ export function usage(): string {
     "Usage: nuhokai <command> [--path <dir>] [arguments]",
     "",
     "Commands:",
-    ...COMMANDS.map((command) => `  ${SYNOPSIS[command].padEnd(21)}${DESCRIPTIONS[command]}`),
+    ...COMMANDS.map((command) => `  ${SYNOPSIS[command].padEnd(25)}${DESCRIPTIONS[command]}`),
     "",
     "Run `nuhokai <command> --help` for command options.",
   ].join("\n");
@@ -72,10 +72,13 @@ function isCommand(value: string): value is Command {
 
 /**
  * Split --path off the arguments: the project directory is --path against the cwd,
- * else the cwd itself. A missing value, a second --path or a path that is not a
+ * else the cwd itself; `base` names it from the cwd for printed paths. A missing value, a second --path or a path that is not a
  * directory is the invocation's fault, so it is a message and never a command run.
  */
-function projectDirectory(cwd: string, args: readonly string[]): { dir: string; rest: string[] } | { error: string } {
+function projectDirectory(
+  cwd: string,
+  args: readonly string[],
+): { dir: string; base: string; rest: string[] } | { error: string } {
   let path: string | undefined;
   const rest: string[] = [];
   for (let index = 0; index < args.length; index++) {
@@ -90,7 +93,7 @@ function projectDirectory(cwd: string, args: readonly string[]): { dir: string; 
   }
   const dir = resolve(cwd, path ?? ".");
   if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return { error: `not a directory: ${dir}` };
-  return { dir, rest };
+  return { dir, base: relative(cwd, dir).split(sep).join("/"), rest };
 }
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
@@ -123,9 +126,10 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: expected ${expected}, got ${target.rest.length}\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (first === "init") return runInit(target.dir);
-  if (first === "map") return runMap(target.dir);
-  if (first === "new") return runNew(target.dir, target.rest[0] ?? "");
+  const environment = { base: target.base };
+  if (first === "init") return runInit(target.dir, environment);
+  if (first === "map") return runMap(target.dir, environment);
+  if (first === "new") return runNew(target.dir, target.rest[0] ?? "", environment);
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

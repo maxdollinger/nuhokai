@@ -31,6 +31,10 @@ export const WorldPath = node({
       id: "R3",
       text: "Segments are appended as given: no validation, normalization, extension or renaming. Which paths a command may create is that command's rule.",
     },
+    {
+      id: "R4",
+      text: "stdout shows a from-root path under the project directory as named from the cwd (packages/cli/nuhokai/...), unchanged when that is the cwd.",
+    },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, no read, no write, no mkdir." },
   ],
   testCases: [
@@ -41,6 +45,10 @@ export const WorldPath = node({
     {
       text: "A segment with dots, uppercase or a leading dash passes through unchanged, and no call creates, reads or stats anything.",
       demonstrates: ["R3", "C1"],
+    },
+    {
+      text: "shown('packages/cli', 'nuhokai/.generated/map.html') is packages/cli/nuhokai/.generated/map.html; with an empty base the path is unchanged.",
+      demonstrates: ["R4"],
     },
   ],
   decisions: [

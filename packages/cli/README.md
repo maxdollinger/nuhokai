@@ -43,7 +43,7 @@ src/
 | `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `new`    | add one node file, `nuhokai/<path>.ts`, with a fresh id and `TODO:` placeholders       |
+| `new`    | add one node file, `nuhokai/<node-path>.ts`, with a fresh id and `TODO:` placeholders  |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
 
 `init` writes one folder, with everything the tool needs inside it:
@@ -60,13 +60,14 @@ nuhokai/
 
 Every command works in one project directory: the current directory, or the one given with `--path <dir>`
 (`nuhokai map --path packages/cli`). There is no Git lookup and no prompt; without a `nuhokai/` there, `new` and `map`
-fail with one line.
+fail with one line. Printed paths are named from the current directory, so `--path packages/cli` prints
+`packages/cli/nuhokai/.generated/map.html`.
 
 `init` writes those four files and nothing else. An existing `nuhokai/` directory is left untouched: it prints
 one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
-`new <path>` adds one node file, `nuhokai/<path>.ts`, merging the path with the world's folder so a big world can
+`new <node-path>` adds one node file, `nuhokai/<node-path>.ts`, merging the node path with the world's folder so a big world can
 split into folders. Every segment is kebab-case; the file exports the PascalCase of the last segment, carries a fresh
 uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the parent directories it needs, never
 overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names

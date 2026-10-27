@@ -6,13 +6,13 @@ import { NodeFile } from "./node-file.ts";
 export const New = node({
   id: "01a17950-b221-711f-90af-db2521515c8d",
   purpose:
-    "Add one node file to an existing world: nuhokai/<path>.ts with a fresh uuidv7 and TODO: placeholders, then one stdout line naming nuhokai/index.ts. Never edits, overwrites, loads or checks. run delegates to AddNode.",
+    "Add one node file to an existing world: nuhokai/<node-path>.ts with a fresh uuidv7 and TODO: placeholders, then one stdout line naming nuhokai/index.ts. Never edits, overwrites, loads or checks. run delegates to AddNode.",
   status: "building",
   source: ["packages/cli/src/new/**"],
   requirements: [
     {
       id: "R1",
-      text: "Exactly one new file, nuhokai/<path>.ts plus its missing parent directories; no other file changes, and the file loads as one planned leaf.",
+      text: "Exactly one new file, nuhokai/<node-path>.ts plus its missing parent directories; no other file changes, and the file loads as one planned leaf.",
     },
     {
       id: "R2",
