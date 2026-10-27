@@ -1,8 +1,9 @@
 import { node } from "@nuhokai/world";
 import { DrawMap } from "./draw-map.ts";
 import { MapFile } from "./map-file.ts";
+import { Viewer } from "./viewer.ts";
 
-/** `nuhokai map`: the world as one HTML file. Inside: DrawMap (program), MapFile (the map). */
+/** `nuhokai map`: the world as one HTML file. Inside: DrawMap (program), MapFile (the file), Viewer (the drawing). */
 export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
   purpose:
@@ -36,6 +37,6 @@ export const WorldMap = node({
       why: "The CLI owns only nuhokai/; .generated/ holds what it regenerates. Committing is the repo's choice.",
     },
   ],
-  children: { drawMap: DrawMap, mapFile: MapFile },
+  children: { drawMap: DrawMap, mapFile: MapFile, viewer: Viewer },
   ports: (c) => ({ run: c.drawMap.ports.run }),
 }).edges({});

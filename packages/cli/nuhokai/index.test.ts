@@ -8,6 +8,7 @@ import { Inspect } from "./inspect.ts";
 import { LoadWorld } from "./load-world.ts";
 import { DrawMap } from "./map/draw-map.ts";
 import { MapFile } from "./map/map-file.ts";
+import { Viewer } from "./map/viewer.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { AddNode } from "./new/add-node.ts";
 import { New } from "./new/new.ts";
@@ -75,9 +76,9 @@ test("New's interior is a program plus one node file, with no shared code of its
   expect(Object.keys(NodeFile.$def.ports ?? {})).toEqual(["create"]);
 });
 
-test("WorldMap is a dome with a program and one map file, and delegates run to DrawMap", () => {
+test("WorldMap is a dome with a program, the map file and its viewer, and delegates run to DrawMap", () => {
   expect(WorldMap.$ref).toBe("node");
-  expect(Object.keys(WorldMap.$def.children ?? {})).toEqual(["drawMap", "mapFile"]);
+  expect(Object.keys(WorldMap.$def.children ?? {})).toEqual(["drawMap", "mapFile", "viewer"]);
   expect(WorldMap.$def.ports?.run).toMatchObject({
     kind: "call",
     delegate: { to: DrawMap.$def.id, port: "run" },
@@ -91,6 +92,8 @@ test("WorldMap is a dome with a program and one map file, and delegates run to D
     Failure.isExpected,
   ]);
   expect(Object.keys(MapFile.$def.ports ?? {})).toEqual(["write"]);
-  expect(MapFile.$def.uses?.()).toEqual([WorldPath.file]);
+  expect(MapFile.$def.uses?.()).toEqual([WorldPath.file, Viewer.page]);
+  expect(Object.keys(Viewer.$def.ports ?? {})).toEqual(["page"]);
+  expect(Viewer.$def.uses).toBeUndefined();
   expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run]);
 });
