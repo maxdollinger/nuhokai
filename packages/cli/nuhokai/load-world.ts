@@ -18,6 +18,7 @@ export const LoadWorld = node({
         "no nuhokai/index.ts",
         "a world file failed to evaluate",
         "a world file imports a package",
+        "a world file imports outside nuhokai/",
         "default export is not a world",
         "uses or implements does not return a list",
       ],
@@ -26,7 +27,7 @@ export const LoadWorld = node({
   requirements: [
     {
       id: "R1",
-      text: "Evaluates every nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts; @nuhokai/world is the CLI's runtime, over nuhokai/tsconfig.json paths; no node_modules. Any other non-relative import in a world file, node: and bun: included, is a load error: nothing installed or run.",
+      text: "Evaluates every nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts; @nuhokai/world is the CLI's runtime, over nuhokai/tsconfig.json paths; no node_modules. Any other non-relative import in a world file, node: and bun: included, and any import outside nuhokai/ and its listed files is a load error: nothing installed or run.",
     },
     {
       id: "R2",
@@ -61,7 +62,7 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R5"],
     },
     {
-      text: "A bare package or node: import, also in a symlinked file: one CliError naming the importing file; nothing installed. A symlinked node file is named by its export.",
+      text: "A bare package or node: import, also in a symlinked file, and a ../ or absolute import of a file outside nuhokai/: one CliError naming the importing file; nothing installed or run. A symlinked node file is named by its export.",
       demonstrates: ["R1", "R2", "R5"],
     },
   ],

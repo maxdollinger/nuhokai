@@ -1,11 +1,11 @@
 import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { extname, join, relative, sep } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
 import * as worldRuntime from "@nuhokai/world";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import { CliError, oneLine } from "../shared/failure.ts";
-import { fromRoot, inWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
+import { fromRoot, inWorld, WORLD_DIR, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -42,12 +42,10 @@ interface WorldPaths {
 }
 
 const transpiler = new Bun.Transpiler({ loader: "ts" });
-let runtimeRegistered = false;
 
-/** A regular expression matching `text` literally. */
-function literally(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+/** The worlds loaded in this process, by their folder's absolute path; the import guard covers their files. */
+const guarded = new Map<string, WorldPaths>();
+let runtimeRegistered = false;
 
 /**
  * Make `@nuhokai/world` in every world file the CLI's own runtime, the one this
@@ -55,33 +53,42 @@ function literally(text: string): string {
  * the specifier to and whether the repo has node_modules. A virtual module wins
  * over tsconfig paths, in the bundle and in a compiled binary alike.
  *
- * Every other import from a file in this world must be relative: Bun would
- * install a bare specifier's package from the network and run it.
+ * Every other import from a file in a guarded world must be relative and stay
+ * inside it: Bun would install a bare specifier's package from the network and
+ * run it, also from a file outside the world that a world file reached. So every
+ * file a world reaches is a world file, and is guarded in turn. Registered once
+ * per process; a file outside every guarded world loads unchanged.
  */
-function useCliWorldRuntime(paths: WorldPaths): void {
-  const dirs = paths.dirs.map((dir) => `${literally(`${dir}${sep}`)}.*\\.[jt]sx?$`);
-  const files = [...paths.files.keys()].map((file) => `${literally(file)}$`);
+function useCliWorldRuntime(): void {
+  if (runtimeRegistered) return;
+  runtimeRegistered = true;
   Bun.plugin({
     name: "nuhokai-world-runtime",
     setup(build) {
-      if (!runtimeRegistered) {
-        build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
-        runtimeRegistered = true;
-      }
-      build.onLoad({ filter: new RegExp(`^(?:${[...dirs, ...files].join("|")})`) }, async ({ path }) => {
+      build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
+      build.onLoad({ filter: /\.[jt]sx?$/ }, async ({ path }) => {
         const contents = await Bun.file(path).text();
-        const bare = importsOf(contents).find(
-          (specifier) => !/^[./]/.test(specifier) && specifier !== "@nuhokai/world",
-        );
-        if (bare !== undefined) {
-          throw new CliError(
-            `${nameIn(paths, path)}: imports are only relative files and @nuhokai/world, got '${bare}'`,
-          );
-        }
+        const paths = [...guarded.values()].find((world) => nameIn(world, path) !== undefined);
+        if (paths) guardImports(paths, path, contents);
         return { contents, loader: extname(path).slice(1) as "ts" | "tsx" | "js" | "jsx" };
       });
     },
   });
+}
+
+/** Throw if the world file at `path` imports a package, or a file outside its world. */
+function guardImports(paths: WorldPaths, path: string, contents: string): void {
+  for (const specifier of importsOf(contents)) {
+    if (specifier === "@nuhokai/world") continue;
+    if (!/^[./]/.test(specifier)) {
+      throw new CliError(
+        `${nameIn(paths, path)}: imports are only relative files and @nuhokai/world, got '${specifier}'`,
+      );
+    }
+    if (nameIn(paths, resolve(dirname(path), specifier)) === undefined) {
+      throw new CliError(`${nameIn(paths, path)}: imports outside ${WORLD_DIR}/ are not allowed, got '${specifier}'`);
+    }
+  }
 }
 
 /** Every specifier a file imports, requires or dynamically imports by a literal; a syntax error is Bun's to report. */
@@ -150,7 +157,8 @@ async function evaluate(root: string): Promise<Module[]> {
   const files = worldFiles(root);
   const paths = worldPaths(root, files);
   const modules: Module[] = [];
-  useCliWorldRuntime(paths);
+  guarded.set(inWorld(root), paths);
+  useCliWorldRuntime();
   for (const path of files) {
     const absolute = inWorld(root, ...path.split("/"));
     try {

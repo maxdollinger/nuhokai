@@ -384,3 +384,21 @@ export default defineWorld({ children: [A] });
     message: "nuhokai/linked.ts: imports are only relative files and @nuhokai/world, got 'nuhokai-no-such-package'",
   });
 });
+
+test("an import outside nuhokai/, relative or absolute, is rejected before the file outside runs", async () => {
+  for (const absolute of [false, true]) {
+    const root = tempDir();
+    const helper = join(root, "helper.ts");
+    writeFileSync(helper, 'import pad from "nuhokai-no-such-package";\nthrow new Error(pad);\n');
+    const specifier = absolute ? helper : "../helper.ts";
+    mkdirSync(join(root, "nuhokai"));
+    writeFileSync(
+      join(root, "nuhokai/index.ts"),
+      `import { defineWorld } from "@nuhokai/world";\nimport "${specifier}";\nexport default defineWorld({ children: [] });\n`,
+    );
+
+    expect((await loadError(root)) as Error).toMatchObject({
+      message: `nuhokai/index.ts: imports outside nuhokai/ are not allowed, got '${specifier}'`,
+    });
+  }
+});
