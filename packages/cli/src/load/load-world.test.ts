@@ -9,7 +9,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { node } from "@nuhokai/world";
@@ -18,6 +18,7 @@ import { CliError } from "../shared/failure.ts";
 import { loadWorld } from "./load-world.ts";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
+const BIN = join(import.meta.dir, "../bin.ts");
 const EXAMPLE_ID = "01a17290-3f10-7c54-8e51-0b63d9f2a7c4";
 const roots: string[] = [];
 
@@ -274,7 +275,6 @@ export default defineWorld({ id: "w", children: [A] });
   const orders = `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges({});\n`;
   const edges = (body: string) =>
     `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges(${body} as never);\n`;
-  const guard = "imports are only relative files and @nuhokai/world, got";
   const cases: [Record<string, string>, string][] = [
     [{ "orders.ts": orders }, "nuhokai/index.ts: not found"],
     [{ "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` }, "nuhokai/orders.ts:3: Unexpected ;"],
@@ -301,16 +301,12 @@ export default defineWorld({ id: "w", children: [A] });
       "nuhokai/orders.ts: A.implements does not",
     ],
     [
-      { "index.ts": index, "orders.ts": `import pad from "nuhokai-no-such-package";\npad;\n${orders}` },
-      `nuhokai/orders.ts: ${guard} 'nuhokai-no-such-package'`,
-    ],
-    [
       {
         "index.ts": index,
         "orders.ts": `export { A } from "./sub/a.ts";\n`,
-        "sub/a.ts": `${orders}export const fs = require("node:fs");\n`,
+        "sub/a.ts": `${orders}export { pad } from "nuhokai-no-such-package";\n`,
       },
-      `nuhokai/sub/a.ts: ${guard} 'node:fs'`,
+      "nuhokai/sub/a.ts: Cannot find package 'nuhokai-no-such-package'",
     ],
   ];
 
@@ -366,36 +362,24 @@ export default defineWorld({ id: "w", children: [Shared] });
   expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["Shared"]);
 });
 
-test("a bare import in a symlinked node file is rejected under its world name", async () => {
-  const root = world({
-    "index.ts": `import { defineWorld } from "@nuhokai/world";
-import { A } from "./linked.ts";
-export default defineWorld({ id: "w", children: [A] });
-`,
-  });
-  mkdirSync(join(root, "shared"));
-  writeFileSync(join(root, "shared/node.ts"), 'export { A } from "nuhokai-no-such-package";\n');
-  symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
+test("the CLI under bun --no-install: an uncached package import is one load error, nothing installed", () => {
+  // A real package, so a lost --no-install would install it; the project has no node_modules.
+  const pkg = "is-positive";
+  const cache = join(process.env.BUN_INSTALL_CACHE_DIR ?? join(homedir(), ".bun/install/cache"));
+  const cached = () => (existsSync(cache) ? readdirSync(cache).filter((entry) => entry.startsWith(pkg)) : []);
+  const before = cached();
+  const repo = tempDir();
+  expect(Bun.spawnSync([process.execPath, "--no-install", BIN, "init"], { cwd: repo }).exitCode).toBe(0);
+  const example = join(repo, "nuhokai/example.ts");
+  writeFileSync(example, `import positive from "${pkg}";\npositive;\n${readFileSync(example, "utf8")}`);
 
-  expect((await loadError(root)) as Error).toMatchObject({
-    message: `${root}/nuhokai/linked.ts: imports are only relative files and @nuhokai/world, got 'nuhokai-no-such-package'`,
-  });
-});
+  const result = Bun.spawnSync([process.execPath, "--no-install", BIN, "map"], { cwd: repo });
 
-test("an import outside nuhokai/, relative or absolute, is rejected before the file outside runs", async () => {
-  for (const absolute of [false, true]) {
-    const root = tempDir();
-    const helper = join(root, "helper.ts");
-    writeFileSync(helper, 'import pad from "nuhokai-no-such-package";\nthrow new Error(pad);\n');
-    const specifier = absolute ? helper : "../helper.ts";
-    mkdirSync(join(root, "nuhokai"));
-    writeFileSync(
-      join(root, "nuhokai/index.ts"),
-      `import { defineWorld } from "@nuhokai/world";\nimport "${specifier}";\nexport default defineWorld({ id: "w", children: [] });\n`,
-    );
-
-    expect((await loadError(root)) as Error).toMatchObject({
-      message: `${root}/nuhokai/index.ts: imports outside nuhokai/ are not allowed, got '${specifier}'`,
-    });
-  }
+  expect(result.exitCode).toBe(1);
+  const lines = result.stderr.toString().trimEnd().split("\n");
+  expect(lines).toHaveLength(1);
+  expect(lines[0]).toStartWith("nuhokai map: nuhokai/example.ts");
+  expect(lines[0]).toContain(pkg);
+  expect(existsSync(join(repo, "node_modules"))).toBe(false);
+  expect(cached()).toEqual(before);
 });

@@ -1,11 +1,11 @@
 import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
 import * as worldRuntime from "@nuhokai/world";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import { CliError, oneLine } from "../shared/failure.ts";
-import { inWorld, WORLD_DIR, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
+import { inWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -45,23 +45,15 @@ interface WorldPaths {
   readonly files: ReadonlyMap<string, string>;
 }
 
-const transpiler = new Bun.Transpiler({ loader: "ts" });
-
-/** The worlds loaded in this process, by their folder's absolute path; the import guard covers their files. */
-const guarded = new Map<string, WorldPaths>();
 let runtimeRegistered = false;
 
 /**
  * Make `@nuhokai/world` in every world file the CLI's own runtime, the one this
  * module imports: one runtime per process, whatever nuhokai/tsconfig.json maps
  * the specifier to and whether the repo has node_modules. A virtual module wins
- * over tsconfig paths, in the bundle and in a compiled binary alike.
- *
- * Every other import from a file in a guarded world must be relative and stay
- * inside it: Bun would install a bare specifier's package from the network and
- * run it, also from a file outside the world that a world file reached. So every
- * file a world reaches is a world file, and is guarded in turn. Registered once
- * per process; a file outside every guarded world loads unchanged.
+ * over tsconfig paths, in the bundle and in a compiled binary alike. Every other
+ * import resolves as Bun resolves it; the CLI runs with --no-install, so an
+ * unresolvable one is a load error, never an install. Registered once per process.
  */
 function useCliWorldRuntime(): void {
   if (runtimeRegistered) return;
@@ -70,38 +62,8 @@ function useCliWorldRuntime(): void {
     name: "nuhokai-world-runtime",
     setup(build) {
       build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime }, loader: "object" }));
-      build.onLoad({ filter: /\.[jt]sx?$/ }, async ({ path }) => {
-        const contents = await Bun.file(path).text();
-        const paths = [...guarded.values()].find((world) => nameIn(world, path) !== undefined);
-        if (paths) guardImports(paths, path, contents);
-        return { contents, loader: extname(path).slice(1) as "ts" | "tsx" | "js" | "jsx" };
-      });
     },
   });
-}
-
-/** Throw if the world file at `path` imports a package, or a file outside its world. */
-function guardImports(paths: WorldPaths, path: string, contents: string): void {
-  for (const specifier of importsOf(contents)) {
-    if (specifier === "@nuhokai/world") continue;
-    if (!/^[./]/.test(specifier)) {
-      throw new CliError(
-        `${nameIn(paths, path)}: imports are only relative files and @nuhokai/world, got '${specifier}'`,
-      );
-    }
-    if (nameIn(paths, resolve(dirname(path), specifier)) === undefined) {
-      throw new CliError(`${nameIn(paths, path)}: imports outside ${WORLD_DIR}/ are not allowed, got '${specifier}'`);
-    }
-  }
-}
-
-/** Every specifier a file imports, requires or dynamically imports by a literal; a syntax error is Bun's to report. */
-function importsOf(contents: string): string[] {
-  try {
-    return transpiler.scanImports(contents).map((entry) => entry.path);
-  } catch {
-    return [];
-  }
 }
 
 /** Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests. */
@@ -137,9 +99,10 @@ function nameIn(paths: WorldPaths, path: string): string | undefined {
 /**
  * Where a failed evaluation points, named from the cwd, with its line when known:
  * where a syntax or resolve error points, else the first stack frame inside the
- * world, else the file whose import failed (an import of a throwing file fails
- * with that file's error). A thrown non-Error has no stack, so a file that
- * throws one while imported by another is blamed on that importer.
+ * world, else the file whose import did not resolve, else the file whose import
+ * failed (an import of a throwing file fails with that file's error). A thrown
+ * non-Error has no stack, so a file that throws one while imported by another is
+ * blamed on that importer.
  */
 function failingAt(error: unknown, paths: WorldPaths, imported: string): string {
   const at = (path: string | undefined, line: unknown) => {
@@ -154,7 +117,7 @@ function failingAt(error: unknown, paths: WorldPaths, imported: string): string 
     const frame = at(match[1], Number(match[2]));
     if (frame) return frame;
   }
-  return imported;
+  return at((error as { referrer?: string } | null)?.referrer, undefined) ?? imported;
 }
 
 /** Evaluate every world file in sorted order; each answers its exports, keyed by its name. */
@@ -162,15 +125,12 @@ async function evaluate(root: string): Promise<Module[]> {
   const files = worldFiles(root);
   const paths = worldPaths(root, files);
   const modules: Module[] = [];
-  guarded.set(resolve(inWorld(root)), paths);
   useCliWorldRuntime();
   for (const path of files) {
     const file = inWorld(root, path);
     try {
       modules.push([file, (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>]);
     } catch (error) {
-      // The import guard's error already names its file.
-      if (error instanceof CliError) throw error;
       throw new CliError(`${failingAt(error, paths, file)}: ${oneLine(error)}`);
     }
   }

@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env -S bun --no-install
 
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
