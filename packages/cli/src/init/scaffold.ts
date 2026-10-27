@@ -1,12 +1,10 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
-import { fromRoot, shown, WORLD_DIR } from "../shared/paths.ts";
+import { inWorld } from "../shared/paths.ts";
 import { inspectTarget } from "../target/inspect.ts";
 import { publishWorld } from "./publish.ts";
 
 /** What the run port may observe and answer; the defaults are the real process. */
 export interface InitEnvironment {
-  /** The project directory as named from the cwd, `/`-separated; printed paths start with it. Empty: the cwd. */
-  readonly base?: string;
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
 }
@@ -24,7 +22,7 @@ export async function scaffold(root: string): Promise<ScaffoldOutcome> {
 
     if (state.kind === "world") return { kind: "world" };
     if (state.kind === "occupied") {
-      throw new CliError(`${fromRoot(WORLD_DIR)} exists but is not a directory`);
+      throw new CliError(`${inWorld(root)} exists but is not a directory`);
     }
 
     return { kind: "written", paths: publishWorld(root) };
@@ -43,15 +41,14 @@ export async function scaffold(root: string): Promise<ScaffoldOutcome> {
 export async function runInit(root: string, environment: InitEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
   const err = environment.err ?? ((line: string) => console.error(line));
-  const base = environment.base ?? "";
 
   const outcome = await scaffold(root);
   switch (outcome.kind) {
     case "written":
-      for (const path of outcome.paths) out(shown(base, path));
+      for (const path of outcome.paths) out(path);
       return 0;
     case "world":
-      out(`${shown(base, fromRoot(WORLD_DIR))} already exists; nothing to do`);
+      out(`${inWorld(root)}/ already exists; nothing to do`);
       return 0;
     case "error":
       err(`nuhokai init: ${outcome.message}`);

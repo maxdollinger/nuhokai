@@ -16,7 +16,7 @@ export const Publish = node({
       kind: "call",
       purpose: "Stage the world and commit it",
       input: "the root directory",
-      output: "the paths written, relative to the root",
+      output: "the paths written, named from the cwd",
       errors: ["the root is not writable", "a writer failed", "the commit failed"],
     },
   },

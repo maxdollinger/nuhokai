@@ -64,7 +64,7 @@ test("the example world's data block parses back unchanged, and a second write g
   const world = await loadWorld(root);
   const before = files(root);
 
-  expect(writeMap(root, world)).toBe("nuhokai/.generated/map.html");
+  expect(writeMap(root, world)).toBe(`${root}/nuhokai/.generated/map.html`);
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
   expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(world)));

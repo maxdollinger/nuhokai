@@ -1,13 +1,14 @@
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { WORLD_DIR } from "../shared/paths.ts";
+import { inWorld, WORLD_DIR } from "../shared/paths.ts";
 import { writeCliFiles } from "./cli-files.ts";
 import { writeExampleWorld } from "./example-world.ts";
 
 /**
  * Make the complete world appear at the root or leave nothing behind: stage a
  * dot-prefixed directory inside the root, let the two content domains fill it,
- * then commit with one rename. Content belongs to the writers, not here.
+ * then commit with one rename. Content belongs to the writers, not here. Answers
+ * the written paths, named as `root` names the project directory.
  */
 export function publishWorld(root: string): string[] {
   const staging = mkdtempSync(join(root, ".nuhokai-init-"));
@@ -15,7 +16,7 @@ export function publishWorld(root: string): string[] {
     const authored = writeExampleWorld(staging);
     const owned = writeCliFiles(staging);
     renameSync(join(staging, WORLD_DIR), join(root, WORLD_DIR));
-    return [...authored, ...owned.written];
+    return [...authored, ...owned.written].map((path) => inWorld(root, path));
   } finally {
     try {
       rmSync(staging, { recursive: true, force: true });

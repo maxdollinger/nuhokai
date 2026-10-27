@@ -1,6 +1,6 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
-import { fromRoot, shown, WORLD_DIR, WORLD_INDEX, worldFile } from "../shared/paths.ts";
-import { inspectTarget } from "../target/inspect.ts";
+import { inWorld, WORLD_INDEX } from "../shared/paths.ts";
+import { requireWorld } from "../target/inspect.ts";
 import { createNodeFile } from "./node-file.ts";
 
 /** Kebab-case, at least one letter, no extension, no dot segment, no leading dash. */
@@ -11,8 +11,6 @@ const RESERVED = "index";
 
 /** What the run port may observe and answer; the defaults are the real process. */
 export interface NewEnvironment {
-  /** The project directory as named from the cwd, `/`-separated; printed paths start with it. Empty: the cwd. */
-  readonly base?: string;
   readonly out?: (line: string) => void;
   readonly err?: (line: string) => void;
   /** A fresh node id; the default is a uuidv7. */
@@ -69,19 +67,13 @@ export async function addNode(
   }
 
   try {
-    const state = inspectTarget(root);
-    if (state.kind === "absent") {
-      throw new CliError(`no ${WORLD_DIR}/ in ${root}; run \`nuhokai init\` or pass --path <dir>`);
-    }
-    if (state.kind === "occupied") {
-      throw new CliError(`${WORLD_DIR} exists but is not a directory`);
-    }
+    requireWorld(root);
 
     // The last segment is the file's stem, so it takes the extension WorldPath does not add.
     const stem = target.segments[target.segments.length - 1] ?? "";
-    const file = worldFile(root, ...target.segments.slice(0, -1), `${stem}.ts`);
-    createNodeFile(file.absolute, target.name, (environment.newId ?? Bun.randomUUIDv7)());
-    return { kind: "written", path: file.fromRoot };
+    const file = inWorld(root, ...target.segments.slice(0, -1), `${stem}.ts`);
+    createNodeFile(file, target.name, (environment.newId ?? Bun.randomUUIDv7)());
+    return { kind: "written", path: file };
   } catch (error) {
     // Expected failures become one stderr line; a bug crashes with its stack.
     if (!isExpected(error)) throw error;
@@ -97,13 +89,12 @@ export async function addNode(
 export async function runNew(root: string, argument: string, environment: NewEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
   const err = environment.err ?? ((line: string) => console.error(line));
-  const base = environment.base ?? "";
 
   const outcome = await addNode(root, argument, environment);
   switch (outcome.kind) {
     case "written":
-      out(shown(base, outcome.path));
-      out(`next: add it to ${shown(base, fromRoot(WORLD_INDEX))}`);
+      out(outcome.path);
+      out(`next: add it to ${inWorld(root, WORLD_INDEX)}`);
       return 0;
     case "failed":
       err(`nuhokai new: ${outcome.message}`);

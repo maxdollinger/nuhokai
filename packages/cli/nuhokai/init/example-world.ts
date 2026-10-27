@@ -14,14 +14,14 @@ export const ExampleWorld = node({
       kind: "call",
       purpose: "Lay down the authored example world",
       input: "an existing directory",
-      output: "the two paths from the project root, nuhokai/index.ts and nuhokai/example.ts",
+      output: "the two paths inside the world folder, index.ts and example.ts",
       errors: [],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Exactly two files, nuhokai/index.ts and nuhokai/example.ts from the project root; nothing outside the given directory.",
+      text: "Exactly two files, nuhokai/index.ts and nuhokai/example.ts in the project directory; nothing outside the given directory.",
     },
     {
       id: "R2",

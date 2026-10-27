@@ -51,7 +51,7 @@ test("after init, map writes and prints the map; a second run changes no other f
   const output = capture();
 
   expect(await runMap(repo, output.environment)).toBe(0);
-  expect(output.out).toEqual([MAP]);
+  expect(output.out).toEqual([join(repo, MAP)]);
   expect(output.err).toEqual([]);
   const after = snapshot(repo);
   expect(Object.keys(after)).toEqual([...Object.keys(before), MAP].sort());
@@ -59,7 +59,7 @@ test("after init, map writes and prints the map; a second run changes no other f
 
   const again = capture();
   expect(await runMap(repo, again.environment)).toBe(0);
-  expect(again.out).toEqual([MAP]);
+  expect(again.out).toEqual([join(repo, MAP)]);
   expect(snapshot(repo)).toEqual(after);
 });
 
@@ -89,7 +89,7 @@ export default defineWorld({ children: [Example, Box] });
   const output = capture();
 
   expect(await runMap(repo, output.environment)).toBe(0);
-  expect(output.out).toEqual([MAP]);
+  expect(output.out).toEqual([join(repo, MAP)]);
   expect(readFileSync(join(repo, MAP), "utf8")).toContain('"name":"Box"');
 });
 
@@ -99,7 +99,9 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
 
   expect(await runMap(empty, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([`nuhokai map: no nuhokai/ in ${empty}; run \`nuhokai init\` or pass --path <dir>`]);
+  expect(output.err).toEqual([
+    `nuhokai map: no nuhokai/ in ${empty}; run \`nuhokai init --path ${empty}\` to start a world there`,
+  ]);
   expect(snapshot(empty)).toEqual({});
 
   const occupied = gitRepo();
@@ -108,7 +110,7 @@ test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written",
 
   expect(await runMap(occupied, second.environment)).toBe(1);
   expect(second.out).toEqual([]);
-  expect(second.err).toEqual(["nuhokai map: nuhokai exists but is not a directory"]);
+  expect(second.err).toEqual([`nuhokai map: ${occupied}/nuhokai exists but is not a directory`]);
   expect(snapshot(occupied)).toEqual({ nuhokai: "in the way\n" });
 });
 
@@ -122,7 +124,7 @@ test("a throwing node file: one line naming the file, exit 1, the previous map k
 
   expect(await runMap(repo, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual(["nuhokai map: nuhokai/orders.ts:1: orders broke"]);
+  expect(output.err).toEqual([`nuhokai map: ${repo}/nuhokai/orders.ts:1: orders broke`]);
   expect(readFileSync(join(repo, MAP), "utf8")).toBe(map);
 });
 

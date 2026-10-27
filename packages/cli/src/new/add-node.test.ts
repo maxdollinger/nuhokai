@@ -91,7 +91,7 @@ test("new writes one node file and names index.ts, which type-checks", async () 
 
   expect(await runNew(repo, "new/stock-order", output.environment)).toBe(0);
   expect(output.err).toEqual([]);
-  expect(output.out).toEqual(["nuhokai/new/stock-order.ts", "next: add it to nuhokai/index.ts"]);
+  expect(output.out).toEqual([`${repo}/nuhokai/new/stock-order.ts`, `next: add it to ${repo}/nuhokai/index.ts`]);
   expect(files(repo)).toEqual([...INIT_FILES, "nuhokai/new/stock-order.ts"].sort());
 
   const source = readFileSync(join(repo, "nuhokai/new/stock-order.ts"), "utf8");

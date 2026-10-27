@@ -138,10 +138,11 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
     return 2;
   }
-  const environment = { base: relative(cwd, dir).split(sep).join("/") };
-  if (first === "init") return runInit(dir, environment);
-  if (first === "map") return runMap(dir, environment);
-  if (first === "new") return runNew(dir, rest[0] ?? "", environment);
+  // Commands get the directory as named from the cwd, so every path they print opens as printed.
+  const root = relative(cwd, dir).split(sep).join("/") || ".";
+  if (first === "init") return runInit(root);
+  if (first === "map") return runMap(root);
+  if (first === "new") return runNew(root, rest[0] ?? "");
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

@@ -15,14 +15,14 @@ export const CliFiles = node({
       purpose: "Lay down the CLI-owned files",
       input: "an existing directory",
       output:
-        "which of nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts were written, and which were already identical",
+        "which of tsconfig.json and .generated/world/index.d.ts, inside the world folder, were written, and which were already identical",
       errors: ["the directory is not writable"],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Exactly two files, nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts from the project root; nothing outside the given directory.",
+      text: "Exactly two files, nuhokai/tsconfig.json and nuhokai/.generated/world/index.d.ts in the project directory; nothing outside the given directory.",
     },
     { id: "R2", text: "tsconfig: the strict options and the @nuhokai/world path mapping to .generated/world." },
     {

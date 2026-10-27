@@ -17,7 +17,7 @@ export const AddNode = node({
       purpose: "Add the node file to the world",
       input: "the project directory and the node path",
       output:
-        "exit 0 written, 1 operational failure, 2 argument error; stdout: the from-root path, then a line naming nuhokai/index.ts; stderr: one line per failure, prefixed 'nuhokai new: '",
+        "exit 0 written, 1 operational failure, 2 argument error; stdout: the written path named from the cwd, then a line naming nuhokai/index.ts; stderr: one line per failure, prefixed 'nuhokai new: '",
       errors: [
         "invalid node path",
         "no world at nuhokai/",

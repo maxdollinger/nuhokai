@@ -16,7 +16,7 @@ export const New = node({
     },
     {
       id: "R2",
-      text: "stdout: the from-root path, then a line naming nuhokai/index.ts; a failure: one stderr line, no stdout.",
+      text: "stdout: the written path named from the cwd, then a line naming nuhokai/index.ts; a failure: one stderr line, no stdout.",
     },
     {
       id: "C1",

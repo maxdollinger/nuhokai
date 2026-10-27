@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
-import { WORLD_MAP, worldFile } from "../shared/paths.ts";
+import { inWorld, WORLD_MAP } from "../shared/paths.ts";
 import { ORBIT_CONTROLS_JS, SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain/map-assets.gen.ts";
 
 /** The viewer's slots, each held exactly once: a comment in a script, the data block's placeholder string. */
@@ -33,12 +33,12 @@ function mapHtml(world: LoadedWorld): string {
 /**
  * Write the map of `world` to nuhokai/.generated/map.html under `root`, creating
  * .generated/ and replacing any previous map; touches no other path. Answers the
- * from-root path.
+ * path written, named as `root` names the project directory.
  */
 export function writeMap(root: string, world: LoadedWorld): string {
-  const file = worldFile(root, WORLD_MAP);
+  const file = inWorld(root, WORLD_MAP);
   const html = mapHtml(world);
-  mkdirSync(dirname(file.absolute), { recursive: true });
-  writeFileSync(file.absolute, html);
-  return file.fromRoot;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, html);
+  return file;
 }

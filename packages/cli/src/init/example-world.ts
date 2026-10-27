@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { fromRoot, inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
+import { inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
 
 /** The world entry point: the loader's only entry, listing the one example node. */
 export const WORLD_INDEX_TEMPLATE = `import { defineWorld } from "@nuhokai/world";
@@ -42,7 +42,8 @@ export const Example = node({
 });
 `;
 
-export const EXAMPLE_WORLD_PATHS = [fromRoot(WORLD_INDEX), fromRoot(WORLD_EXAMPLE)] as const;
+/** The two files, by their path inside the world folder. */
+export const EXAMPLE_WORLD_PATHS = [WORLD_INDEX, WORLD_EXAMPLE] as const;
 
 /** Lay down the authored example world inside an existing directory. */
 export function writeExampleWorld(dir: string): string[] {

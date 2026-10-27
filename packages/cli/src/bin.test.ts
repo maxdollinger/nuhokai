@@ -108,7 +108,9 @@ test("--path names the project directory, against the cwd; without it the cwd is
     process.chdir(parent);
 
     expect(await main(["map"])).toBe(1);
-    expect(err[0]).toStartWith(`nuhokai map: no nuhokai/ in ${parent}`);
+    expect(err[0]).toBe(
+      "nuhokai map: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>",
+    );
     expect(await main(["init", "--path", "packages/app"])).toBe(0);
     expect(existsSync(join(project, "nuhokai/index.ts"))).toBe(true);
     expect(existsSync(join(parent, "nuhokai"))).toBe(false);
@@ -117,6 +119,14 @@ test("--path names the project directory, against the cwd; without it the cwd is
     // Printed paths are named from the cwd, so they can be opened as printed.
     expect(out).toContain("packages/app/nuhokai/index.ts");
     expect(out.at(-1)).toBe("packages/app/nuhokai/.generated/map.html");
+    // So are the paths in failures, the loader's included.
+    writeFileSync(join(project, "nuhokai/orders.ts"), 'throw new Error("boom");\n');
+    expect(await main(["map", "--path", "packages/app"])).toBe(1);
+    expect(err.at(-1)).toBe("nuhokai map: packages/app/nuhokai/orders.ts:1: boom");
+    expect(await main(["map", "--path", "packages"])).toBe(1);
+    expect(err.at(-1)).toBe(
+      "nuhokai map: no nuhokai/ in packages; run `nuhokai init --path packages` to start a world there",
+    );
   } finally {
     process.chdir(cwd);
     console.log = log;

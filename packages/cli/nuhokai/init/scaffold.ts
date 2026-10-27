@@ -18,7 +18,7 @@ export const Scaffold = node({
       purpose: "Create the world in the project directory",
       input: "the project directory",
       output:
-        "exit code 0 or 1; the four written paths from the project root, or the nothing-to-do line on stdout, errors on stderr",
+        "exit code 0 or 1; the four written paths named from the cwd, or the nothing-to-do line on stdout, errors on stderr",
       errors: ["nuhokai exists but is not a directory", "the write failed"],
     },
   },

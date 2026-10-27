@@ -76,13 +76,13 @@ test("init writes exactly the four world files and prints their paths", async ()
 
   expect(await runInit(repo, output.environment)).toBe(0);
   expect(output.err).toEqual([]);
-  expect(output.out).toEqual(WORLD_FILES);
+  expect(output.out).toEqual(WORLD_FILES.map((path) => join(repo, path)));
   expect(files(repo)).toEqual([...WORLD_FILES].sort());
 
   expect(readFileSync(join(repo, "nuhokai/index.ts"), "utf8")).toBe(WORLD_INDEX_TEMPLATE);
   expect(readFileSync(join(repo, "nuhokai/example.ts"), "utf8")).toBe(EXAMPLE_TEMPLATE);
   expect(readFileSync(join(repo, "nuhokai/tsconfig.json"), "utf8")).toBe(TSCONFIG_TEMPLATE);
-  expect(readFileSync(join(repo, WORLD_TYPES_PATH), "utf8")).toBe(WORLD_TYPES);
+  expect(readFileSync(join(repo, "nuhokai", WORLD_TYPES_PATH), "utf8")).toBe(WORLD_TYPES);
 
   // The example shows a port, a typed hole and a uses edge to it.
   expect(EXAMPLE_TEMPLATE).toContain("ports:");
@@ -143,8 +143,7 @@ test("an existing world stays untouched, exit 0 with one line", async () => {
 
   expect(await runInit(repo, output.environment)).toBe(0);
   expect(output.err).toEqual([]);
-  expect(output.out).toHaveLength(1);
-  expect(output.out[0]).toContain("nothing to do");
+  expect(output.out).toEqual([`${repo}/nuhokai/ already exists; nothing to do`]);
   expect(files(repo)).toEqual(before);
   expect(readFileSync(join(repo, "nuhokai/example.ts"), "utf8")).toBe("// edited by hand\n");
 });
@@ -156,7 +155,7 @@ test("a file at nuhokai/ is one error line and leaves it alone", async () => {
 
   expect(await runInit(repo, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toHaveLength(1);
+  expect(output.err).toEqual([`nuhokai init: ${repo}/nuhokai exists but is not a directory`]);
   expect(readFileSync(join(repo, "nuhokai"), "utf8")).toBe("in the way\n");
 });
 
@@ -168,7 +167,7 @@ test("a symlink at nuhokai/ is occupied, not a world", async () => {
 
   expect(inspectTarget(repo)).toEqual({ kind: "occupied" });
   expect(await runInit(repo, output.environment)).toBe(1);
-  expect(output.err).toHaveLength(1);
+  expect(output.err).toEqual([`nuhokai init: ${repo}/nuhokai exists but is not a directory`]);
 });
 
 test("init writes into the directory it is given, even a subdirectory of a Git repository", async () => {
@@ -184,7 +183,8 @@ test("init writes into the directory it is given, even a subdirectory of a Git r
 
 test("a second write of identical CLI-owned files rewrites nothing", () => {
   const repo = tempDir();
-  const modificationTimes = () => [TSCONFIG_PATH, WORLD_TYPES_PATH].map((path) => statSync(join(repo, path)).mtimeMs);
+  const modificationTimes = () =>
+    [TSCONFIG_PATH, WORLD_TYPES_PATH].map((path) => statSync(join(repo, "nuhokai", path)).mtimeMs);
 
   expect(writeCliFiles(repo)).toEqual({ written: [TSCONFIG_PATH, WORLD_TYPES_PATH], unchanged: [] });
   const written = modificationTimes();
@@ -202,7 +202,7 @@ test("without Git, init writes into the directory and asks nothing", async () =>
   const output = capture();
 
   expect(await runInit(dir, output.environment)).toBe(0);
-  expect(output.out).toEqual(WORLD_FILES);
+  expect(output.out).toEqual(WORLD_FILES.map((path) => join(dir, path)));
   expect(files(dir)).toEqual([...WORLD_FILES].sort());
 });
 

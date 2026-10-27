@@ -1,6 +1,6 @@
-import { join } from "node:path";
+import { join, sep } from "node:path";
 
-/** The one folder init writes, and every path inside it, relative to the project root. */
+/** The one folder init writes, and every path inside it. */
 export const WORLD_DIR = "nuhokai";
 export const WORLD_INDEX = "index.ts";
 export const WORLD_EXAMPLE = "example.ts";
@@ -11,24 +11,13 @@ export const WORLD_TYPES_DIR = `${WORLD_GENERATED_DIR}/world`;
 export const WORLD_TYPES_FILE = "index.d.ts";
 export const WORLD_MAP = `${WORLD_GENERATED_DIR}/map.html`;
 
-/** An absolute path to a file in the world folder at `dir`. */
-export function inWorld(dir: string, ...parts: string[]): string {
-  return join(dir, WORLD_DIR, ...parts);
-}
-
-/** The same file, as init prints and tests expect it: relative to the project root, `/`-separated. */
-export function fromRoot(...parts: string[]): string {
-  return join(WORLD_DIR, ...parts)
-    .split("\\")
+/**
+ * A path in the world folder of the project directory `root`, named as `root` names
+ * it and `/`-separated: `nuhokai/…` when `root` is `.`, else `<root>/nuhokai/…`.
+ * Opens as printed, from the cwd that named `root`.
+ */
+export function inWorld(root: string, ...parts: string[]): string {
+  return join(root, WORLD_DIR, ...parts)
+    .split(sep)
     .join("/");
-}
-
-/** A from-root path as stdout shows it: under `base`, the project directory as the user named it from the cwd. */
-export function shown(base: string, path: string): string {
-  return base ? `${base}/${path}` : path;
-}
-
-/** A file in the world, named both ways: absolute under the root, and from-root for stdout. */
-export function worldFile(root: string, ...parts: string[]): { readonly absolute: string; readonly fromRoot: string } {
-  return { absolute: inWorld(root, ...parts), fromRoot: fromRoot(...parts) };
 }

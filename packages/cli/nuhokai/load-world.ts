@@ -11,8 +11,8 @@ export const LoadWorld = node({
   ports: {
     load: {
       kind: "call",
-      purpose: "Load the world at the root",
-      input: "project root",
+      purpose: "Load the world in the project directory",
+      input: "the project directory named from the cwd",
       output: "nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
       errors: [
         "no nuhokai/index.ts",
@@ -37,7 +37,7 @@ export const LoadWorld = node({
     { id: "R4", text: "tbd: no edge; one placeholder per tbd object with all its users; ordered by first use." },
     {
       id: "R5",
-      text: "Load errors: one CliError naming the file, and the line when known, e.g. 'nuhokai/orders.ts:3: <message>'.",
+      text: "Load errors: one CliError naming the file, and the line when known, named from the cwd, e.g. 'nuhokai/orders.ts:3: <message>' or under --path app 'app/nuhokai/orders.ts:3: <message>'.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Loader writes, spawns and prompts nothing." },

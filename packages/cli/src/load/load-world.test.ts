@@ -317,25 +317,24 @@ export default defineWorld({ children: [A] });
   ];
 
   for (const [files, prefix] of cases) {
-    const error = await loadError(world(files));
+    const root = world(files);
+    const error = await loadError(root);
     expect(error, prefix).toBeInstanceOf(CliError);
-    expect((error as Error).message).toStartWith(prefix);
+    expect((error as Error).message).toStartWith(`${root}/${prefix}`);
     expect((error as Error).message).not.toContain("\n");
   }
 });
 
 test("a throwing file imported by an earlier one is named, not its importer", async () => {
-  const error = await loadError(
-    world({
-      "index.ts": `import { defineWorld } from "@nuhokai/world";
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A } from "./z-throws.ts";
 export default defineWorld({ children: [A] });
 `,
-      "z-throws.ts": 'throw new Error("from z");\nexport const A = 1;\n',
-    }),
-  );
+    "z-throws.ts": 'throw new Error("from z");\nexport const A = 1;\n',
+  });
 
-  expect((error as Error).message).toBe("nuhokai/z-throws.ts:1: from z");
+  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/z-throws.ts:1: from z`);
 });
 
 test("generated files, declarations and tests are never evaluated", async () => {
@@ -381,7 +380,7 @@ export default defineWorld({ children: [A] });
   symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
 
   expect((await loadError(root)) as Error).toMatchObject({
-    message: "nuhokai/linked.ts: imports are only relative files and @nuhokai/world, got 'nuhokai-no-such-package'",
+    message: `${root}/nuhokai/linked.ts: imports are only relative files and @nuhokai/world, got 'nuhokai-no-such-package'`,
   });
 });
 
@@ -398,7 +397,7 @@ test("an import outside nuhokai/, relative or absolute, is rejected before the f
     );
 
     expect((await loadError(root)) as Error).toMatchObject({
-      message: `nuhokai/index.ts: imports outside nuhokai/ are not allowed, got '${specifier}'`,
+      message: `${root}/nuhokai/index.ts: imports outside nuhokai/ are not allowed, got '${specifier}'`,
     });
   }
 });

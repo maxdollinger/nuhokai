@@ -15,7 +15,7 @@ export const DrawMap = node({
       kind: "call",
       purpose: "Draw the world's map",
       input: "project directory",
-      output: "exit 0 or 1; stdout: the from-root path; stderr: one 'nuhokai map: ' line per failure",
+      output: "exit 0 or 1; stdout: the map's path named from the cwd; stderr: one 'nuhokai map: ' line per failure",
       errors: ["no world at nuhokai/", "a non-directory at nuhokai/", "the world failed to load", "the write failed"],
     },
   },
