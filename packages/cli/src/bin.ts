@@ -3,7 +3,6 @@
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
-import { runMap } from "./map/index.ts";
 import { runNew } from "./new/index.ts";
 
 /** The commands the CLI exposes; `check` and `update` are planned, `init`, `map` and `new` run today. */
@@ -157,7 +156,11 @@ export async function main(argv: readonly string[]): Promise<number> {
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
   if (first === "init") return runInit(root);
-  if (first === "map") return runMap(root);
+  if (first === "map") {
+    // The map's assets weigh hundreds of KB; only map loads them.
+    const { runMap } = await import("./map/index.ts");
+    return runMap(root);
+  }
   if (first === "new") return runNew(root, rest[0] ?? "");
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
