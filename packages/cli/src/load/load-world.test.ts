@@ -77,6 +77,7 @@ test("after init, without node_modules, loads Example named by its export plus i
 
   const loaded = await loadWorld(repo);
 
+  expect(readFileSync(join(repo, "nuhokai/index.ts"), "utf8")).toContain(`id: "${loaded.id}"`);
   expect(loaded.nodes).toEqual([
     {
       schema: "nuhokai/node@1",
@@ -283,6 +284,10 @@ export default defineWorld({ id: "w", children: [A] });
     ],
     [{ "index.ts": index, "orders.ts": orders, "sub/deep.ts": 'import "./gone.ts";\n' }, "nuhokai/sub/deep.ts: "],
     [{ "index.ts": "export default { children: [] };\n", "orders.ts": orders }, "nuhokai/index.ts: the default export"],
+    [
+      { "index.ts": 'export default { $ref: "world", children: [] };\n', "orders.ts": orders },
+      "nuhokai/index.ts: the default export is not a world",
+    ],
     [
       { "index.ts": index, "orders.ts": edges('{ uses: () => { throw new Error("lazy"); } }') },
       "nuhokai/orders.ts: A.uses: lazy",

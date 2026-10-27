@@ -38,6 +38,7 @@ function files(dir: string): string[] {
 /** A one-node world whose node has the given purpose. */
 function oneNode(purpose: string): LoadedWorld {
   return {
+    id: "w",
     nodes: [
       {
         schema: "nuhokai/node@1",

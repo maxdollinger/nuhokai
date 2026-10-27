@@ -1189,12 +1189,13 @@ const GRIDF='uniform vec2 uC;uniform float uR;uniform vec3 uCol;varying vec3 vW;
 // ---------- model: the loaded world, as scene.js sees it ----------
 const MAP=mapScene(JSON.parse(document.getElementById('nuhokai-world').textContent));
 const LAYOUTS={};const layoutOf=scope=>LAYOUTS[scope===null?'world':scope]=LAYOUTS[scope===null?'world':scope]||{};
-// moved positions, kept per browser under one key: {scope: {item: {x,z} or {ang}}}. The scope is its dome's node id or
-// 'world', the item its node id, so a regenerated map reuses them for the nodes it still has. Storage may be unavailable.
-const STORE='nuhokai.map.layout';
+// moved positions, kept per browser under one key per world: {scope: {item: {x,z} or {ang}}}. The key ends in the world's
+// id, since every file:// map shares one storage; the scope is the world's id or its dome's node id, the item its node
+// id, so a regenerated map reuses them for the nodes it still has. Storage may be unavailable.
+const STORE='nuhokai.map.layout.'+MAP.world.id;
 function stored(){try{const all=JSON.parse(localStorage.getItem(STORE));return all&&typeof all==='object'?all:{};}catch(e){return {};}}
 function store(all){try{localStorage.setItem(STORE,JSON.stringify(all));}catch(e){}}
-const scopeKey=scope=>scope===null?'world':MAP.nodes[scope].id;
+const scopeKey=scope=>scope===null?MAP.world.id:MAP.nodes[scope].id;
 const keyOf=sp=>sp.node?sp.node.id:sp.kind==='hole'?'tbd:'+sp.item.name:sp.id;
 function remember(sp,pos){const all=stored(),k=scopeKey(S.scope);all[k]=Object.assign({},all[k],{[keyOf(sp)]:pos});store(all);}
 function short(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
@@ -1265,8 +1266,9 @@ if(moved<SETTLED)break;}
 comps.forEach((s,i)=>{if(fresh[i])L[s.id]={x:X[i],z:Z[i]};});}
 let cx=0,cz=0;comps.forEach(s=>{cx+=L[s.id].x;cz+=L[s.id].z;});if(n){cx/=n;cz/=n;}let rr=0;comps.forEach(s=>rr=Math.max(rr,Math.hypot(L[s.id].x-cx,L[s.id].z-cz)+s.R));
 const ring=L.ring=L.ring||{cx:cx,cz:cz,r:Math.max(10,rr+6.5)};
-// a scope's first layout: seeded as if nothing moved, then what the user moved here before, kept inside this ring
-if(first){const kept=stored()[scopeKey(scope)]||{};const ok=Number.isFinite;specs.forEach(s=>{const p=kept[keyOf(s)];if(!p)return;if(s.side===0&&ok(p.x)&&ok(p.z))L[s.id]=inRing(ring,p.x,p.z,s.R);else if(s.side!==0&&ok(p.ang))L[s.id]={ang:p.ang};});}
+// a scope's first layout: seeded as if nothing moved, then what the user moved here before, kept inside this ring;
+// saved items the scope no longer draws are dropped
+if(first){const all=stored(),kept=all[scopeKey(scope)]||{},drawn=new Set(specs.map(keyOf));const gone=Object.keys(kept).filter(k=>!drawn.has(k));if(gone.length){gone.forEach(k=>delete kept[k]);all[scopeKey(scope)]=kept;store(all);}const ok=Number.isFinite;specs.forEach(s=>{const p=kept[keyOf(s)];if(!p)return;if(s.side===0&&ok(p.x)&&ok(p.z))L[s.id]=inRing(ring,p.x,p.z,s.R);else if(s.side!==0&&ok(p.ang))L[s.id]={ang:p.ang};});}
 const ins=specs.filter(s=>s.side<0),outs=specs.filter(s=>s.side>0);
 // the outer edge: at most 0.36 rad apart, closer when a side holds many, so a side never wraps past the other
 [[ins,Math.PI],[outs,0]].forEach(([list,c])=>{const step=Math.min(0.36,Math.PI*0.9/Math.max(1,list.length));list.forEach((s,i)=>{if(!L[s.id]||L[s.id].ang===undefined)L[s.id]={ang:c+(i-(list.length-1)/2)*step};});});
@@ -1477,7 +1479,7 @@ loop();
 
 export const SCENE_JS: string = `/**
  * The map's scene: what the viewer draws for each scope, computed from the
- * loaded world ({ nodes, placeholders }, LoadWorld's answer). No imports, no
+ * loaded world ({ id, nodes, placeholders }, LoadWorld's answer). No imports, no
  * DOM and no three.js: MapFile inlines this module into the page, and the bun
  * tests import it. Types: scene.d.ts.
  *

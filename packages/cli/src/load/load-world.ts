@@ -17,6 +17,8 @@ export interface Placeholder {
 
 /** The world as plain data: what `map` draws and `check` will judge. */
 export interface LoadedWorld {
+  /** The world's own id, as `defineWorld` holds it; per-world state is keyed by it. */
+  readonly id: string;
   /** Depth-first from the world: a parent before its children, children in record order, each node once. */
   readonly nodes: NodeSpec[];
   /** Ordered by first use. */
@@ -190,17 +192,21 @@ function namesOf(modules: readonly Module[]): Map<NodeRef, Named> {
   return names;
 }
 
-/** The world's top-level nodes, from the default export of `index`, the entry point's name. */
-function topLevelOf(modules: readonly Module[], index: string): readonly unknown[] {
-  const world = modules.find(([file]) => file === index)?.[1].default as { $ref?: unknown; children?: unknown };
-  if (world?.$ref !== "world" || !Array.isArray(world.children)) {
-    throw new CliError(`${index}: the default export is not a world; export default defineWorld({ children: [...] })`);
+/** The world's id and top-level nodes, from the default export of `index`, the entry point's name. */
+function worldOf(modules: readonly Module[], index: string): { id: string; children: readonly unknown[] } {
+  const world = modules.find(([file]) => file === index)?.[1].default as
+    | { $ref?: unknown; id?: unknown; children?: unknown }
+    | undefined;
+  if (world?.$ref !== "world" || typeof world.id !== "string" || !Array.isArray(world.children)) {
+    throw new CliError(
+      `${index}: the default export is not a world; export default defineWorld({ id: "...", children: [...] })`,
+    );
   }
-  return world.children;
+  return { id: world.id, children: world.children };
 }
 
 /**
- * Turn evaluated world files into NodeSpecs and placeholders. Resolves every
+ * Turn evaluated world files into the world's id, NodeSpecs and placeholders. Resolves every
  * reference by identity and judges nothing: ids, orphans, scope and names are
  * check's rules.
  */
@@ -224,7 +230,8 @@ function specsOf(modules: readonly Module[], index: string): LoadedWorld {
       place(Object.values(child.$def.children ?? {}), child);
     }
   };
-  place(topLevelOf(modules, index), null);
+  const world = worldOf(modules, index);
+  place(world.children, null);
 
   const placeholders = new Map<UnresolvedPortRef, Placeholder>();
 
@@ -303,12 +310,12 @@ function specsOf(modules: readonly Module[], index: string): LoadedWorld {
     return spec;
   });
 
-  return { nodes, placeholders: [...placeholders.values()] };
+  return { id: world.id, nodes, placeholders: [...placeholders.values()] };
 }
 
 /**
  * Load the world at `root`, the project directory as named from the cwd: evaluate
- * every world file in-process and answer the world as NodeSpecs plus its tbd
+ * every world file in-process and answer the world as its id, NodeSpecs and tbd
  * placeholders. Writes, spawns and prompts nothing, and checks no rule. Every
  * failure is one CliError naming the file from the cwd.
  *

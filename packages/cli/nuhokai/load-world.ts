@@ -6,7 +6,7 @@ import { WorldPath } from "./world-path.ts";
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose:
-    "Evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders. Shared; checks no rule, writes nothing.",
+    "Evaluate nuhokai/ and answer the world as its id, NodeSpecs and tbd placeholders. Shared; checks no rule, writes nothing.",
   status: "building",
   source: ["packages/cli/src/load/**"],
   ports: {
@@ -14,7 +14,7 @@ export const LoadWorld = node({
       kind: "call",
       purpose: "Load the world in the project directory",
       input: "the project directory named from the cwd",
-      output: "nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
+      output: "id: the world's id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
       errors: [
         "no nuhokai/index.ts",
         "a world file failed to evaluate",
@@ -40,6 +40,7 @@ export const LoadWorld = node({
       id: "R5",
       text: "Load errors: one CliError naming the file, and the line when known, named from the cwd, e.g. 'nuhokai/orders.ts:3: <message>' or under --path app 'app/nuhokai/orders.ts:3: <message>'.",
     },
+    { id: "R6", text: "The world's id as defineWorld holds it; a default export without a string id is not a world." },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Loader writes, spawns and prompts nothing." },
     {
@@ -50,8 +51,8 @@ export const LoadWorld = node({
   ],
   testCases: [
     {
-      text: "After init, no node_modules: loads Example, named by its export, plus its tbd placeholder.",
-      demonstrates: ["R1", "R2", "R4"],
+      text: "After init, no node_modules: loads the world id written by init and Example, named by its export, plus its tbd placeholder.",
+      demonstrates: ["R1", "R2", "R4", "R6"],
     },
     {
       text: "Child using two ports of one target: one edge, both ports; dome ports keep delegates; a node listed twice appears once, first listing.",
@@ -59,8 +60,8 @@ export const LoadWorld = node({
     },
     { text: "A tbd used by two nodes: one placeholder, both ids, no edges.", demonstrates: ["R4"] },
     {
-      text: "Syntax error, throwing file, non-world default export, uses returning a non-list: one CliError each, naming the file, with the line for the first two. Unexported node: named by id.",
-      demonstrates: ["R2", "R5"],
+      text: "Syntax error, throwing file, non-world default export, a world without an id, uses returning a non-list: one CliError each, naming the file, with the line for the first two. Unexported node: named by id.",
+      demonstrates: ["R2", "R5", "R6"],
     },
     {
       text: "A bare package or node: import, also in a symlinked file, and a ../ or absolute import of a file outside nuhokai/: one CliError naming the importing file; nothing installed or run. A symlinked node file is named by its export.",
@@ -69,8 +70,8 @@ export const LoadWorld = node({
   ],
   decisions: [
     {
-      decision: "Top-level shared loader; output NodeSpec plus tbd placeholders.",
-      why: "check needs the same load; node-spec.ts stays the only node shape; NodeSpec has no edge without a target.",
+      decision: "Top-level shared loader; output the world id, NodeSpecs and tbd placeholders.",
+      why: "check needs the same load; node-spec.ts stays the only node shape; NodeSpec has no edge without a target; the world id keys per-world state.",
     },
     {
       decision: "Evaluate every node file, not just index.ts's imports.",

@@ -88,6 +88,7 @@ test("an edge listing a call and an event port is a lane and an air route; group
     ...extra,
   });
   const loaded: LoadedWorld = {
+    id: "w",
     nodes: [
       leaf("a", "A", {
         group: "core",
@@ -127,7 +128,7 @@ test("a call cycle between islands still gets finite levels", () => {
     source: [],
     edges: [{ kind: "uses" as const, to, port: ["p"] }],
   });
-  const view = scopeView(mapScene({ nodes: [leaf("a", "b"), leaf("b", "a")], placeholders: [] }), null);
+  const view = scopeView(mapScene({ id: "w", nodes: [leaf("a", "b"), leaf("b", "a")], placeholders: [] }), null);
 
   expect(view.items.map((item) => (item.kind === "island" ? item.level : null))).toEqual([1, 0]);
 });
