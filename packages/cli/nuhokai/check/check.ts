@@ -13,12 +13,12 @@ export const Check = node({
   requirements: [
     {
       id: "R1",
-      text: "One run reports every violation, not just the first, one line each: file:line, node name, one sentence.",
+      text: "One run reports every violation, not just the first, one line each.",
     },
   ],
   testCases: [
     {
-      text: "After init: check prints nothing, exit 0. Two violations in different files → two stdout lines, each file:line, node name, one sentence, exit 1. No world or a load failure → one 'nuhokai check: ' stderr line, exit 1.",
+      text: "After init: check prints nothing, exit 0. Two violations in different files → two stdout lines, exit 1. No world or a load failure → one 'nuhokai check: ' stderr line, exit 1.",
       demonstrates: ["R1"],
     },
   ],
