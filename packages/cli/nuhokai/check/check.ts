@@ -1,13 +1,19 @@
 import { node } from "@nuhokai/world";
-import { Code } from "./code.ts";
-import { Errors } from "./errors.ts";
-import { Specs } from "./specs.ts";
+import { CodeCheck } from "./code-check.ts";
+import { Diagnostics } from "./diagnostics.ts";
+import { SpecCheck } from "./spec-check.ts";
 
-/** `nuhokai check`. Inside: Specs (spec rules), Code (planned), Errors (shared by both). */
+/** `nuhokai check`. Inside: SpecCheck (spec rules), CodeCheck (planned), Diagnostics (shared by both). */
 export const Check = node({
   id: "01a18319-89bb-7640-a85c-2a46040966af",
   purpose: "Ensure the specs follow the rules.",
   status: "planned",
   source: [],
-  children: { specs: Specs, code: Code, errors: Errors },
+  decisions: [
+    {
+      decision: "Children SpecCheck, CodeCheck and Diagnostics.",
+      why: "Names are unique world-wide, so generic ones clash; Diagnostics are findings, Failure is thrown failures.",
+    },
+  ],
+  children: { specCheck: SpecCheck, codeCheck: CodeCheck, diagnostics: Diagnostics },
 }).edges({});

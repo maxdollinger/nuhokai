@@ -1,4 +1,8 @@
 import { expect, test } from "bun:test";
+import { Check } from "./check/check.ts";
+import { CodeCheck } from "./check/code-check.ts";
+import { Diagnostics } from "./check/diagnostics.ts";
+import { SpecCheck } from "./check/spec-check.ts";
 import { Cli } from "./cli.ts";
 import { Failure } from "./failure.ts";
 import cliWorld from "./index.ts";
@@ -17,7 +21,7 @@ import { WorldPath } from "./world-path.ts";
 
 test("the package's own world lists Cli, the commands and the shared nodes at the top level", () => {
   expect(cliWorld.$ref).toBe("world");
-  expect(cliWorld.children).toEqual([Cli, Init, New, WorldMap, Inspect, LoadWorld, WorldPath, Failure]);
+  expect(cliWorld.children).toEqual([Cli, Init, New, WorldMap, Check, Inspect, LoadWorld, WorldPath, Failure]);
 });
 
 test("the shared nodes are leaves that name their own code", () => {
@@ -96,4 +100,10 @@ test("WorldMap is a dome with a program, the map file and its viewer, and delega
   expect(Object.keys(Viewer.$def.ports ?? {})).toEqual(["page"]);
   expect(Viewer.$def.uses).toBeUndefined();
   expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run]);
+});
+
+test("Check is a dome of SpecCheck, CodeCheck and Diagnostics", () => {
+  expect(Check.$ref).toBe("node");
+  expect(Check.$def.children).toEqual({ specCheck: SpecCheck, codeCheck: CodeCheck, diagnostics: Diagnostics });
+  expect(Check.$def.uses).toBeUndefined();
 });
