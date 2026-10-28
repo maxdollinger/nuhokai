@@ -6,4 +6,7 @@ export const Diagnostics = node({
   purpose: "Turn findings into lines a human or agent can act on without opening the world.",
   status: "planned",
   source: [],
+  requirements: [
+    { id: "R1", text: "Each line is enough to act on alone: it names the node, the broken rule and the fix." },
+  ],
 }).edges({});
