@@ -6,4 +6,10 @@ export const SpecCheck = node({
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
   status: "planned",
   source: [],
+  requirements: [
+    {
+      id: "R1",
+      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation naming both places.",
+    },
+  ],
 }).edges({});
