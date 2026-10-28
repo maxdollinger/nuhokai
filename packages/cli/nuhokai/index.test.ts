@@ -100,7 +100,7 @@ test("WorldMap is a dome with a program, the map file and its viewer, and delega
   expect(MapFile.$def.uses?.()).toEqual([WorldPath.file, Viewer.page]);
   expect(Object.keys(Viewer.$def.ports ?? {})).toEqual(["page"]);
   expect(Viewer.$def.uses).toBeUndefined();
-  expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run]);
+  expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run, Check.run]);
 });
 
 test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () => {
@@ -110,6 +110,10 @@ test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () =
     specCheck: SpecCheck,
     codeCheck: CodeCheck,
     diagnostics: Diagnostics,
+  });
+  expect(Check.$def.ports?.run).toMatchObject({
+    kind: "call",
+    delegate: { to: CheckWorld.$def.id, port: "run" },
   });
   expect(Check.$def.uses).toBeUndefined();
 });

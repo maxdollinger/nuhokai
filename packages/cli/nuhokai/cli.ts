@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Check } from "./check/check.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
@@ -134,4 +135,4 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, New.run, WorldMap.run] });
+}).edges({ uses: () => [Init.run, New.run, WorldMap.run, Check.run] });

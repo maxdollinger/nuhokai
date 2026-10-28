@@ -30,4 +30,5 @@ export const Check = node({
     },
   ],
   children: { checkWorld: CheckWorld, specCheck: SpecCheck, codeCheck: CodeCheck, diagnostics: Diagnostics },
+  ports: (c) => ({ run: c.checkWorld.ports.run }),
 }).edges({});
