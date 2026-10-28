@@ -16,6 +16,12 @@ export const Check = node({
       text: "One run reports every violation, not just the first, one line each: file:line, node name, one sentence.",
     },
   ],
+  testCases: [
+    {
+      text: "After init: check prints nothing, exit 0. Two violations in different files → two stdout lines, each file:line, node name, one sentence, exit 1. No world or a load failure → one 'nuhokai check: ' stderr line, exit 1.",
+      demonstrates: ["R1"],
+    },
+  ],
   decisions: [
     {
       decision: "Children SpecCheck, CodeCheck and Diagnostics.",
