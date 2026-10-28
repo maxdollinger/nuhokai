@@ -9,6 +9,12 @@ export const Check = node({
   purpose: "Ensure the specs follow the rules.",
   status: "planned",
   source: [],
+  requirements: [
+    {
+      id: "R1",
+      text: "One run reports every violation, not just the first, one line each: file:line, node name, one sentence.",
+    },
+  ],
   decisions: [
     {
       decision: "Children SpecCheck, CodeCheck and Diagnostics.",
