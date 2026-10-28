@@ -13,7 +13,8 @@ export const LoadWorld = node({
       kind: "call",
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
-      output: "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
+      output:
+        "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -38,6 +39,10 @@ export const LoadWorld = node({
       text: "Load error: one CliError naming the cwd-relative file and, if known, line: 'nuhokai/orders.ts:3: <message>', under --path app 'app/nuhokai/orders.ts:3: <message>'.",
     },
     { id: "R6", text: "World id as in defineWorld; a default export without a string id is not a world." },
+    {
+      id: "R7",
+      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -52,8 +57,8 @@ export const LoadWorld = node({
       demonstrates: ["R1", "R2", "R4", "R6"],
     },
     {
-      text: "Child using two ports of one target → one edge, both ports; dome ports keep delegates; node listed twice → once, at first listing.",
-      demonstrates: ["R2", "R3"],
+      text: "Child using two ports of one target → one edge, both ports; dome ports keep delegates; node listed twice → once, at first listing, and two listings.",
+      demonstrates: ["R2", "R3", "R7"],
     },
     { text: "tbd used by two nodes → one placeholder, both ids, no edges.", demonstrates: ["R4"] },
     {
@@ -73,6 +78,11 @@ export const LoadWorld = node({
     {
       decision: "Top-level shared loader; outputs world id, NodeSpecs, tbd placeholders.",
       why: "check needs the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
+    },
+    {
+      decision: "listings keeps every listing, also the repeats R3 drops from nodes.",
+      why: "A node listed twice is check's violation and must name both places; the walk already sees them.",
+      rejected: [{ option: "check walks the handles itself", why: "A second loader; check shares this load." }],
     },
     {
       decision: "Evaluate every node file, not only index.ts's imports.",
