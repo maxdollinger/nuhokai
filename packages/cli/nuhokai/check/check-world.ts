@@ -30,6 +30,16 @@ export const CheckWorld = node({
     },
     { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found no errors." },
   ],
+  testCases: [
+    {
+      text: "A syntax error in a node file → its tsc error line, then one 'nuhokai check: ' stderr line, exit 1; SpecCheck never runs.",
+      demonstrates: ["R1"],
+    },
+    {
+      text: "A tsc error, spec clean → CodeCheck never runs; only an orphan warning → CodeCheck runs, exit 0.",
+      demonstrates: ["R2"],
+    },
+  ],
 }).edges({
   uses: () => [
     Inspect.requireWorld,

@@ -23,4 +23,10 @@ export const Diagnostics = node({
       text: "Each line is enough to act on alone: it names the broken rule, the node when the file defines one, and the fix when the rule has one.",
     },
   ],
+  testCases: [
+    {
+      text: "A multi-line tsc error in a file defining no node → one line 'error: nuhokai/x.ts:3: <message>', no node or fix part.",
+      demonstrates: ["R1"],
+    },
+  ],
 }).edges({ uses: () => [Failure.format] });

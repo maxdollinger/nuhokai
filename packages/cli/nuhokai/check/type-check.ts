@@ -15,4 +15,10 @@ export const TypeCheck = node({
     },
   },
   requirements: [{ id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." }],
+  testCases: [
+    {
+      text: "A type error in nuhokai/index.test.ts → one error; the same in nuhokai/.generated/x.ts → none.",
+      demonstrates: ["R1"],
+    },
+  ],
 }).edges({});
