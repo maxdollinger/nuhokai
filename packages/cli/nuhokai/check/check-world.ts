@@ -1,4 +1,7 @@
 import { node } from "@nuhokai/world";
+import { Failure } from "../failure.ts";
+import { Inspect } from "../inspect.ts";
+import { LoadWorld } from "../load-world.ts";
 import { CodeCheck } from "./code-check.ts";
 import { SpecCheck } from "./spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
@@ -25,4 +28,14 @@ export const CheckWorld = node({
       text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
     },
   ],
-}).edges({ uses: () => [TypeCheck.run, SpecCheck.run, CodeCheck.run] });
+}).edges({
+  uses: () => [
+    Inspect.requireWorld,
+    TypeCheck.run,
+    LoadWorld.load,
+    SpecCheck.run,
+    CodeCheck.run,
+    Failure.format,
+    Failure.isExpected,
+  ],
+});

@@ -118,5 +118,13 @@ test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () =
     delegate: { to: CheckWorld.$def.id, port: "run" },
   });
   expect(Check.$def.uses).toBeUndefined();
-  expect(CheckWorld.$def.uses?.()).toEqual([TypeCheck.run, SpecCheck.run, CodeCheck.run]);
+  expect(CheckWorld.$def.uses?.()).toEqual([
+    Inspect.requireWorld,
+    TypeCheck.run,
+    LoadWorld.load,
+    SpecCheck.run,
+    CodeCheck.run,
+    Failure.format,
+    Failure.isExpected,
+  ]);
 });
