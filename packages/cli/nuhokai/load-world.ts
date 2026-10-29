@@ -14,7 +14,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]",
+        "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -43,6 +43,10 @@ export const LoadWorld = node({
       id: "R7",
       text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children.",
     },
+    {
+      id: "R8",
+      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -61,6 +65,10 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R3", "R7"],
     },
     { text: "tbd used by two nodes → one placeholder, both ids, no edges.", demonstrates: ["R4"] },
+    {
+      text: "Exported node listed nowhere → one orphan with its name and file, not in nodes; exported twice → one orphan.",
+      demonstrates: ["R8"],
+    },
     {
       text: "Syntax error, throwing file, non-world default export, world without id, uses returning a non-list → one CliError each naming the file, with line for the first two. Unexported node → named by id.",
       demonstrates: ["R2", "R5", "R6"],
@@ -83,6 +91,10 @@ export const LoadWorld = node({
       decision: "listings keeps every listing, also the repeats R3 drops from nodes.",
       why: "A node listed twice is check's violation and must name both places; the walk already sees them.",
       rejected: [{ option: "check walks the handles itself", why: "A second loader; check shares this load." }],
+    },
+    {
+      decision: "orphans lists exported nodes the walk misses.",
+      why: "Orphans are check's violation; only the loader sees every export.",
     },
     {
       decision: "Evaluate every node file, not only index.ts's imports.",

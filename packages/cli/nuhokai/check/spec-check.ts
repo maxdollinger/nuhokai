@@ -11,5 +11,6 @@ export const SpecCheck = node({
       id: "R1",
       text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation naming both places.",
     },
+    { id: "R2", text: "Every exported node is reachable from the world; an orphan is a violation naming its file." },
   ],
 }).edges({});
