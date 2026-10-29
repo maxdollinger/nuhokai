@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Check } from "./check/check.ts";
 import { CheckWorld } from "./check/check-world.ts";
-import { CodeCheck } from "./check/code-check.ts";
+import { codeCheck } from "./check/code-check.ts";
 import { Diagnostics } from "./check/diagnostics.ts";
 import { SpecCheck } from "./check/spec-check.ts";
 import { TypeCheck } from "./check/type-check.ts";
@@ -104,13 +104,12 @@ test("WorldMap is a dome with a program, the map file and its viewer, and delega
   expect(Cli.$def.uses?.()).toEqual([Init.run, New.run, WorldMap.run, Check.run]);
 });
 
-test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () => {
+test("Check is a dome of CheckWorld, TypeCheck, SpecCheck and Diagnostics", () => {
   expect(Check.$ref).toBe("node");
   expect(Check.$def.children).toEqual({
     checkWorld: CheckWorld,
     typeCheck: TypeCheck,
     specCheck: SpecCheck,
-    codeCheck: CodeCheck,
     diagnostics: Diagnostics,
   });
   expect(Check.$def.ports?.run).toMatchObject({
@@ -123,7 +122,7 @@ test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () =
     TypeCheck.run,
     LoadWorld.load,
     SpecCheck.run,
-    CodeCheck.run,
+    codeCheck,
     Failure.format,
     Failure.isExpected,
   ]);

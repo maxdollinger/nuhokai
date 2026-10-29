@@ -39,7 +39,7 @@ export const SpecCheck = node({
   decisions: [
     {
       decision: "One owner per file, nesting aside.",
-      why: "CodeCheck attributes code to one node; shared code is its own node.",
+      why: "The code check attributes code to one node; shared code is its own node.",
       rejected: [{ option: "Siblings share files", why: "Couples past ports." }],
     },
   ],
