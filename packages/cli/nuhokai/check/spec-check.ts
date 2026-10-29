@@ -36,6 +36,10 @@ export const SpecCheck = node({
       text: "A file matched by the source of two nodes is a violation naming both and the file, unless one is the other's ancestor.",
     },
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
+    {
+      id: "R9",
+      text: "A node with status building or built, not external or abstract, lists at least one source entry.",
+    },
   ],
   testCases: [
     {
@@ -66,6 +70,10 @@ export const SpecCheck = node({
     {
       text: "An out-of-scope uses edge → its fix lists both ways out: expose the port through the parent, or move the node.",
       demonstrates: ["R3", "R8"],
+    },
+    {
+      text: "A built leaf with source [] → error naming the node; the same planned, or an external, passes.",
+      demonstrates: ["R9"],
     },
   ],
   decisions: [
