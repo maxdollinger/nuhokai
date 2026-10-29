@@ -14,7 +14,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]",
+        "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -47,6 +47,10 @@ export const LoadWorld = node({
       id: "R8",
       text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2.",
     },
+    {
+      id: "R9",
+      text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call; in nodes order.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -68,6 +72,10 @@ export const LoadWorld = node({
     {
       text: "Exported node listed nowhere → one orphan with its name and file, not in nodes; exported twice → one orphan.",
       demonstrates: ["R8"],
+    },
+    {
+      text: "Barrel index.ts re-exporting Orders from orders.ts, node() on line 3 → files names nuhokai/orders.ts, line 3.",
+      demonstrates: ["R9"],
     },
     {
       text: "Syntax error, throwing file, non-world default export, world without id, uses returning a non-list → one CliError each naming the file, with line for the first two. Unexported node → named by id.",
@@ -95,6 +103,10 @@ export const LoadWorld = node({
     {
       decision: "orphans lists exported nodes the walk misses.",
       why: "Orphans are check's violation; only the loader sees every export.",
+    },
+    {
+      decision: "files gives each node's defining file and node() line.",
+      why: "Every check finding needs a location; the node() call's stack frame already has both.",
     },
     {
       decision: "Evaluate every node file, not only index.ts's imports.",
