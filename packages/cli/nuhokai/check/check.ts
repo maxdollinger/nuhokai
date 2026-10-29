@@ -2,7 +2,7 @@ import { node } from "@nuhokai/world";
 import { CheckWorld } from "./check-world.ts";
 import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
-import { SpecCheck } from "./spec-check.ts";
+import { SpecCheck } from "./spec-check/spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
 /** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), CodeCheck (stub), Diagnostics (findings). */

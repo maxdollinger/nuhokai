@@ -4,7 +4,7 @@ import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
 import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
-import { SpecCheck } from "./spec-check.ts";
+import { SpecCheck } from "./spec-check/spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
 /** The program inside Check. */

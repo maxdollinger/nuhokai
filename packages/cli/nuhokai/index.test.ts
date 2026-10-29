@@ -3,7 +3,11 @@ import { Check } from "./check/check.ts";
 import { CheckWorld } from "./check/check-world.ts";
 import { CodeCheck } from "./check/code-check.ts";
 import { Diagnostics } from "./check/diagnostics.ts";
-import { SpecCheck } from "./check/spec-check.ts";
+import { ApplyRules } from "./check/spec-check/apply-rules.ts";
+import { DataRules } from "./check/spec-check/data-rules.ts";
+import { FormatRules } from "./check/spec-check/format-rules.ts";
+import { SourceRules } from "./check/spec-check/source-rules.ts";
+import { SpecCheck } from "./check/spec-check/spec-check.ts";
 import { TypeCheck } from "./check/type-check.ts";
 import { Cli } from "./cli.ts";
 import { Failure } from "./failure.ts";
@@ -129,4 +133,14 @@ test("Check is a dome of CheckWorld, TypeCheck, SpecCheck, CodeCheck and Diagnos
     Failure.format,
     Failure.isExpected,
   ]);
+});
+
+test("SpecCheck is a dome of ApplyRules and three rule groups, and delegates run to ApplyRules", () => {
+  expect(SpecCheck.$def.children).toEqual({
+    applyRules: ApplyRules,
+    dataRules: DataRules,
+    formatRules: FormatRules,
+    sourceRules: SourceRules,
+  });
+  expect(SpecCheck.$def.ports?.run).toMatchObject({ kind: "call", delegate: { to: ApplyRules.$def.id, port: "run" } });
 });

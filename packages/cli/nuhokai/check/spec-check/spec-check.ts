@@ -1,6 +1,10 @@
 import { node } from "@nuhokai/world";
+import { ApplyRules } from "./apply-rules.ts";
+import { DataRules } from "./data-rules.ts";
+import { FormatRules } from "./format-rules.ts";
+import { SourceRules } from "./source-rules.ts";
 
-/** The spec check. */
+/** The spec check. Inside: ApplyRules (program), DataRules, FormatRules, SourceRules. */
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
@@ -83,16 +87,17 @@ export const SpecCheck = node({
       rejected: [{ option: "Siblings share files", why: "Couples past ports." }],
     },
     {
+      decision: "Three rule groups by what they read, wired by ApplyRules's uses edges.",
+      why: "A new group needs a new input, which is rare; the wiring stays visible without a contract.",
+      rejected: [
+        { option: "A Rule contract and a RuleEngine", why: "Two nodes for a set of groups that hardly grows." },
+      ],
+    },
+    {
       decision: "A file may belong to no node; a node's source must exist (R6).",
       why: "Generated and glue files need no owner; a source entry pointing nowhere is a broken spec.",
     },
   ],
-  ports: {
-    run: {
-      kind: "call",
-      purpose: "Judge the loaded world against the spec rules",
-      input: "the loaded world, as LoadWorld.load answers it",
-      output: "findings as Diagnostics.format takes them: one per violation",
-    },
-  },
+  children: { applyRules: ApplyRules, dataRules: DataRules, formatRules: FormatRules, sourceRules: SourceRules },
+  ports: (c) => ({ run: c.applyRules.ports.run }),
 }).edges({});
