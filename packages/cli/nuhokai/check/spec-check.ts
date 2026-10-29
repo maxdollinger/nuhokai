@@ -16,5 +16,9 @@ export const SpecCheck = node({
       id: "R3",
       text: "A uses edge targets a port of a sibling or of an ancestor's sibling, the top level included, never a node inside one. Any other target is a violation naming the edge.",
     },
+    {
+      id: "R4",
+      text: "Node names are unique among siblings, the top level included. A node's name in diagnostics is its path from the world, Check/SpecCheck. A clash is a violation naming both files.",
+    },
   ],
 }).edges({});

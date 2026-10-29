@@ -130,8 +130,9 @@ A compile-time check fails if the two drift apart.
 - The loader evaluates the world and reports evaluation failures only; it judges nothing. Global rules are `check`'s
   (planned), each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; unique display names. `check` re-checks every tsc rule, because a cast
-  bypasses the types.
+  an ancestor) against the world tree; display names unique among siblings, the top level included. A node's name
+  in diagnostics is its path from the world (`Check/SpecCheck`), so a name only has to be unique next to its siblings.
+  `check` re-checks every tsc rule, because a cast bypasses the types.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so
   never resolve by `$ref` plus id and name. `node()` also checks at runtime that every dome port belongs to one of its

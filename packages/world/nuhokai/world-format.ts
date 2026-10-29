@@ -115,6 +115,11 @@ export const WorldFormat = node({
       ],
     },
     {
+      decision: "Names are unique among siblings; tools show a node by its path from the world (Check/SpecCheck).",
+      why: "The path says where a node sits, and names stay short: a child competes only with its siblings.",
+      rejected: [{ option: "Unique across the world", why: "Large worlds force long, prefixed names." }],
+    },
+    {
       decision: "The child declares its parent as a lazy node reference; no parent = top level.",
       why: "Placement stays in the node's file; tsc rejects external or abstract parents via literal-typed flags.",
       rejected: [
@@ -199,7 +204,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, unique export names) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, export names unique among siblings) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
       why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {

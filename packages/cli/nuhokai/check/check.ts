@@ -25,7 +25,7 @@ export const Check = node({
   decisions: [
     {
       decision: "Children SpecCheck, CodeCheck and Diagnostics.",
-      why: "Names are unique world-wide, so generic ones clash; Diagnostics are findings, Failure is thrown failures.",
+      why: "Specific names read better on the map; Diagnostics are findings, Failure is thrown failures.",
     },
     {
       decision: "A program child, CheckWorld, exposes run; it loads once and runs SpecCheck and CodeCheck.",
