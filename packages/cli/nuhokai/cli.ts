@@ -17,7 +17,7 @@ export const Cli = node({
       kind: "call",
       purpose: "Parse argv, run the matching command node",
       input: "argv without the executable",
-      output: "exit code: 0 ok, 1 diagnostics or failure, 2 usage error",
+      output: "exit code: 0 ok, 1 errors or failure, 2 usage error",
       errors: ["unknown command"],
     },
   },
@@ -25,7 +25,7 @@ export const Cli = node({
     { id: "R1", text: "A repo needs no TypeScript, Bun or node_modules; the CLI ships its own pinned checker." },
     {
       id: "R2",
-      text: "Command exit codes pass through unchanged: 0 ok, 1 failure or diagnostics, 2 usage or argument error.",
+      text: "Command exit codes pass through unchanged: 0 ok, 1 failure or errors, 2 usage or argument error.",
     },
     {
       id: "R3",
