@@ -11,7 +11,10 @@ export const SpecCheck = node({
       id: "R1",
       text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation naming both places.",
     },
-    { id: "R2", text: "Every exported node is reachable from the world; an orphan is a violation naming its file." },
+    {
+      id: "R2",
+      text: "Judges only nodes reachable from the world. An exported node that is not is a warning naming its file, never an error.",
+    },
     {
       id: "R3",
       text: "A uses edge targets a port of a sibling or of an ancestor's sibling, the top level included, never a node inside one. Any other target is a violation naming the edge.",

@@ -18,7 +18,7 @@ export const CheckWorld = node({
       purpose: "Check the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "exit 0 no violations, 1 diagnostics or failure; stdout: one line per diagnostic; stderr: one 'nuhokai check: ' line per failure",
+        "exit 0 no errors (warnings allowed), 1 errors or failure; stdout: one line per diagnostic; stderr: one 'nuhokai check: ' line per failure",
       errors: ["no world at nuhokai/", "world failed to load"],
     },
   },
@@ -27,7 +27,7 @@ export const CheckWorld = node({
       id: "R1",
       text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
     },
-    { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found nothing." },
+    { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found no errors." },
   ],
 }).edges({
   uses: () => [
