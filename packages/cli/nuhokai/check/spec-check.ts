@@ -49,7 +49,7 @@ export const SpecCheck = node({
       kind: "call",
       purpose: "Judge the loaded world against the spec rules",
       input: "the loaded world, as LoadWorld.load answers it",
-      output: "findings: one per violation",
+      output: "findings as Diagnostics.format takes them: one per violation",
     },
   },
 }).edges({});

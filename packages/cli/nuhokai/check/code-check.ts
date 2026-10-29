@@ -11,7 +11,7 @@ export const CodeCheck = node({
       kind: "call",
       purpose: "Judge the code against the loaded world; a stub that finds nothing until MAX-23",
       input: "the loaded world, as LoadWorld.load answers it",
-      output: "findings: none yet",
+      output: "findings as Diagnostics.format takes them: none yet",
     },
   },
 }).edges({});

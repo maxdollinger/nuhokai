@@ -11,7 +11,7 @@ export const TypeCheck = node({
       kind: "call",
       purpose: "Type-check the project directory's world",
       input: "project directory, cwd-relative",
-      output: "findings: one per tsc error, at its file:line",
+      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line",
     },
   },
   requirements: [{ id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." }],
