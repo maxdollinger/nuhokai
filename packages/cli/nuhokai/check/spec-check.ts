@@ -20,5 +20,9 @@ export const SpecCheck = node({
       id: "R4",
       text: "Node names are unique among siblings, the top level included. A node's name in diagnostics is its path from the world, Check/SpecCheck. A clash is a violation naming both files.",
     },
+    {
+      id: "R5",
+      text: "Every rule tsc enforces (node-spec, dome and world rules in packages/world/README.md) also holds in the loaded world: casts, suppressed errors and values tsc cannot see get past it. Each break is a violation.",
+    },
   ],
 }).edges({});
