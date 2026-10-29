@@ -28,6 +28,17 @@ export const SpecCheck = node({
       id: "R6",
       text: "Every source entry, relative to the project directory, matches at least one file; one matching nothing is a violation naming the node and the entry.",
     },
+    {
+      id: "R7",
+      text: "A file matched by the source of two nodes is a violation naming both and the file, unless one is the other's ancestor.",
+    },
+  ],
+  decisions: [
+    {
+      decision: "One owner per file, nesting aside.",
+      why: "CodeCheck attributes code to one node; shared code is its own node.",
+      rejected: [{ option: "Siblings share files", why: "Couples past ports." }],
+    },
   ],
   ports: {
     run: {
