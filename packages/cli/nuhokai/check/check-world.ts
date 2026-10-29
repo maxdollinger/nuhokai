@@ -27,6 +27,7 @@ export const CheckWorld = node({
       id: "R1",
       text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
     },
+    { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found nothing." },
   ],
 }).edges({
   uses: () => [
