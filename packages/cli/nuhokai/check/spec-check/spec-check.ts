@@ -44,6 +44,10 @@ export const SpecCheck = node({
       id: "R9",
       text: "A node with status building or built, not external or abstract, lists at least one source entry.",
     },
+    {
+      id: "R10",
+      text: "Every file a node's source matches is matched by the world's source; the world's entries stay inside the project directory and follow R6. Else an error naming the node or the world, and the entry.",
+    },
   ],
   testCases: [
     {
@@ -78,6 +82,10 @@ export const SpecCheck = node({
     {
       text: "A built leaf with source [] → error naming the node; the same planned, or an external, passes.",
       demonstrates: ["R9"],
+    },
+    {
+      text: "World source ['src/**'], a node claiming scripts/x.ts → error naming the node and the entry; world source ['../shared/**'] → error naming the world.",
+      demonstrates: ["R10"],
     },
   ],
   decisions: [

@@ -63,6 +63,10 @@ export const WorldFormat = node({
       id: "R10",
       text: "A world has a required authored id in node-id form (any string, not format-checked), carried by the world object.",
     },
+    {
+      id: "R11",
+      text: "A world has a required, non-blank name and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
+    },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
   ],
@@ -103,6 +107,10 @@ export const WorldFormat = node({
       demonstrates: ["R9"],
     },
     { text: "defineWorld without an id fails typecheck; a world keeps its id.", demonstrates: ["R10"] },
+    {
+      text: "defineWorld without a name, with a blank name or without source fails typecheck; the world keeps both.",
+      demonstrates: ["R11"],
+    },
   ],
   decisions: [
     {
@@ -118,6 +126,10 @@ export const WorldFormat = node({
       decision: "Names are unique among siblings; tools show a node by its path from the world (Check/SpecCheck).",
       why: "The path says where a node sits, and names stay short: a child competes only with its siblings.",
       rejected: [{ option: "Unique across the world", why: "Large worlds force long, prefixed names." }],
+    },
+    {
+      decision: "The world is the outermost container: it has a name and a source.",
+      why: "Tools need a title; a world's source bounds its code, so nothing a node claims lies outside it.",
     },
     {
       decision: "A contract may be a dome's child.",
