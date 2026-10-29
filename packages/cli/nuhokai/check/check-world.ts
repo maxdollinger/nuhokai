@@ -10,7 +10,7 @@ import { TypeCheck } from "./type-check.ts";
 /** The program inside Check. */
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
-  purpose: "Run TypeCheck, load the world once, then run SpecCheck and CodeCheck on it.",
+  purpose: "Run TypeCheck beside loading the world once and running SpecCheck on it, then CodeCheck.",
   status: "planned",
   source: [],
   ports: {
@@ -26,7 +26,7 @@ export const CheckWorld = node({
   requirements: [
     {
       id: "R1",
-      text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
+      text: "TypeCheck runs in parallel with load and SpecCheck, then CodeCheck. Output: TypeCheck's findings, then SpecCheck's, then CodeCheck's; a load failure ends the run after TypeCheck's findings.",
     },
     { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found no errors." },
   ],
