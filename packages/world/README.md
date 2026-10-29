@@ -106,8 +106,8 @@ A compile-time check fails if the two drift apart.
   and two implemented contracts must not share a port name; requirement ids are unique (non-literal ids are left to
   `check`), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
   a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
-- **Dome rules checked by tsc:** `children` is a non-empty record of nodes, each neither external nor abstract (nor
-  possibly so); a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
+- **Dome rules checked by tsc:** `children` is a non-empty record of nodes, none external (nor possibly so); a contract
+  may be a child; a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
   placeholder is not a child port.
 - **World rules checked by tsc:** `defineWorld` needs an `id`; its `children` are not empty and holds nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.

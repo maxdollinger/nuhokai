@@ -95,7 +95,7 @@ export const WorldFormat = node({
       demonstrates: ["R8"],
     },
     {
-      text: "An external or abstract child, a port of a non-child, and empty children fail typecheck in node().",
+      text: "An external child, a port of a non-child, and empty children fail typecheck in node(); an abstract child compiles.",
       demonstrates: ["R3", "R9"],
     },
     {
@@ -118,6 +118,11 @@ export const WorldFormat = node({
       decision: "Names are unique among siblings; tools show a node by its path from the world (Check/SpecCheck).",
       why: "The path says where a node sits, and names stay short: a child competes only with its siblings.",
       rejected: [{ option: "Unique across the world", why: "Large worlds force long, prefixed names." }],
+    },
+    {
+      decision: "A contract may be a dome's child.",
+      why: "Contracts can be as specific as one dome's interior; forcing them to the top level misplaces them.",
+      rejected: [{ option: "Abstract children forbidden", why: "No reason beyond 'abstract nodes have no children'." }],
     },
     {
       decision: "The child declares its parent as a lazy node reference; no parent = top level.",
