@@ -2,7 +2,7 @@ import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
-import { codeCheck } from "./code-check.ts";
+import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
@@ -10,7 +10,7 @@ import { TypeCheck } from "./type-check.ts";
 /** The program inside Check. */
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
-  purpose: "Run TypeCheck, load the world once, then run SpecCheck and the code check on it.",
+  purpose: "Run TypeCheck, load the world once, then run SpecCheck and CodeCheck on it.",
   status: "planned",
   source: [],
   ports: {
@@ -26,9 +26,9 @@ export const CheckWorld = node({
   requirements: [
     {
       id: "R1",
-      text: "Order: TypeCheck, load, SpecCheck, the code check. A load failure ends the run; TypeCheck's findings print before the failure line.",
+      text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
     },
-    { id: "R2", text: "The code check runs only when TypeCheck and SpecCheck found no errors." },
+    { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found no errors." },
   ],
 }).edges({
   uses: () => [
@@ -36,7 +36,7 @@ export const CheckWorld = node({
     TypeCheck.run,
     LoadWorld.load,
     SpecCheck.run,
-    codeCheck,
+    CodeCheck.run,
     Diagnostics.format,
     Failure.format,
     Failure.isExpected,

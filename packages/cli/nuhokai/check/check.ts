@@ -1,10 +1,11 @@
 import { node } from "@nuhokai/world";
 import { CheckWorld } from "./check-world.ts";
+import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
-/** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), Diagnostics (findings). */
+/** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), CodeCheck (stub), Diagnostics (findings). */
 export const Check = node({
   id: "01a18319-89bb-7640-a85c-2a46040966af",
   purpose: "Ensure the specs follow the rules.",
@@ -40,14 +41,16 @@ export const Check = node({
       rejected: [{ option: "A tsc requirement on SpecCheck", why: "SpecCheck judges loaded data; tsc reads files." }],
     },
     {
-      decision: "The code check is a tbd port, codeCheck, instead of a CodeCheck child.",
-      why: "tbd marks it as a stub on the map; MAX-23 designs it.",
+      decision: "CodeCheck is a planned child with a stub run port; MAX-23 designs it.",
+      why: "The node is decided, only its contract is open.",
+      rejected: [{ option: "A tbd port", why: "tbd stands for an unknown target; this one is known." }],
     },
   ],
   children: {
     checkWorld: CheckWorld,
     typeCheck: TypeCheck,
     specCheck: SpecCheck,
+    codeCheck: CodeCheck,
     diagnostics: Diagnostics,
   },
   ports: (c) => ({ run: c.checkWorld.ports.run }),
