@@ -3,6 +3,7 @@ import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
 import { codeCheck } from "./code-check.ts";
+import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
@@ -36,6 +37,7 @@ export const CheckWorld = node({
     LoadWorld.load,
     SpecCheck.run,
     codeCheck,
+    Diagnostics.format,
     Failure.format,
     Failure.isExpected,
   ],
