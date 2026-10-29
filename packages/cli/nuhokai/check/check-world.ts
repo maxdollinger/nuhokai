@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { CodeCheck } from "./code-check.ts";
 import { SpecCheck } from "./spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
@@ -18,4 +19,10 @@ export const CheckWorld = node({
       errors: ["no world at nuhokai/", "world failed to load"],
     },
   },
-}).edges({ uses: () => [TypeCheck.run, SpecCheck.run] });
+  requirements: [
+    {
+      id: "R1",
+      text: "Order: TypeCheck, load, SpecCheck, CodeCheck. A load failure ends the run; TypeCheck's findings print before the failure line.",
+    },
+  ],
+}).edges({ uses: () => [TypeCheck.run, SpecCheck.run, CodeCheck.run] });

@@ -6,4 +6,12 @@ export const CodeCheck = node({
   purpose: "Check the code against the specs.",
   status: "planned",
   source: [],
+  ports: {
+    run: {
+      kind: "call",
+      purpose: "Judge the code against the loaded world; a stub that finds nothing for now",
+      input: "the loaded world, as LoadWorld.load answers it",
+      output: "findings: none yet",
+    },
+  },
 }).edges({});
