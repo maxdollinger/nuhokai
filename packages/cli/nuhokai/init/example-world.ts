@@ -8,7 +8,7 @@ export const ExampleWorld = node({
     "Own the example world: world file under a fresh world id, plus one node, Example, in its own file. " +
     "Writes only into the given directory; never picks where a world goes.",
   status: "built",
-  source: ["packages/cli/src/init/example-world.ts"],
+  source: ["src/init/example-world.ts"],
   ports: {
     write: {
       kind: "call",

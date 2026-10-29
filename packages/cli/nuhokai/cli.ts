@@ -11,7 +11,7 @@ export const Cli = node({
     "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes and the distribution. " +
     "Implements no command.",
   status: "building",
-  source: ["packages/cli/src/**", "packages/cli/scripts/**"],
+  source: ["src/**", "scripts/**"],
   ports: {
     dispatch: {
       kind: "call",

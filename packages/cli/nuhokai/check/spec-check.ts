@@ -24,6 +24,10 @@ export const SpecCheck = node({
       id: "R5",
       text: "Every rule tsc enforces (node-spec, dome and world rules in packages/world/README.md) also holds in the loaded world: casts, suppressed errors and values tsc cannot see get past it. Each break is a violation.",
     },
+    {
+      id: "R6",
+      text: "Every source entry, relative to the project directory, matches at least one file; one matching nothing is a violation naming the node and the entry.",
+    },
   ],
   ports: {
     run: {

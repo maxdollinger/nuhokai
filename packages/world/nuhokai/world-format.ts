@@ -10,7 +10,7 @@ export const WorldFormat = node({
     "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
     "graph. Format only; loading, rules, checks and writing are the CLI's.",
   status: "building",
-  source: ["packages/world/src/**"],
+  source: ["src/**"],
   ports: {
     node: {
       kind: "call",

@@ -7,7 +7,7 @@ export const WorldPath = node({
     "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
     "/-separated name of a path in it, which opens as printed. Pure: no I/O.",
   status: "built",
-  source: ["packages/cli/src/shared/paths.ts"],
+  source: ["src/shared/paths.ts"],
   ports: {
     file: {
       kind: "call",

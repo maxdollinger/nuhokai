@@ -8,7 +8,7 @@ export const Inspect = node({
     "Observe nuhokai/ in the project directory: absent, world or occupied; for commands needing a world, turn " +
     "anything else into one error. Shared; reads only.",
   status: "built",
-  source: ["packages/cli/src/shared/inspect.ts"],
+  source: ["src/shared/inspect.ts"],
   ports: {
     inspect: {
       kind: "call",

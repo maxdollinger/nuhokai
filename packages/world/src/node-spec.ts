@@ -166,7 +166,7 @@ export interface NodeSpec {
    */
   status: NodeStatus;
   /**
-   * Where the node lives in code: paths or globs relative to the repo root,
+   * Where the node lives in code: paths or globs relative to the project directory (the folder holding nuhokai/),
    * e.g. ["src/billing/**"]. Empty while there is no code yet; always empty for externals.
    */
   source: string[];

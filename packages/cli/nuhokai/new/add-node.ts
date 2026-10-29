@@ -10,7 +10,7 @@ export const AddNode = node({
   purpose:
     "The program inside New: owns order, path rule, id and exit mapping; no template, layout or filesystem of its own.",
   status: "building",
-  source: ["packages/cli/src/new/add-node.ts"],
+  source: ["src/new/add-node.ts"],
   ports: {
     run: {
       kind: "call",
