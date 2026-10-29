@@ -74,6 +74,10 @@ export const SpecCheck = node({
       why: "CodeCheck attributes code to one node; shared code is its own node.",
       rejected: [{ option: "Siblings share files", why: "Couples past ports." }],
     },
+    {
+      decision: "A file may belong to no node; a node's source must exist (R6).",
+      why: "Generated and glue files need no owner; a source entry pointing nowhere is a broken spec.",
+    },
   ],
   ports: {
     run: {

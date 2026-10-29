@@ -14,7 +14,6 @@ export const Cli = node({
   source: [
     "src/bin.ts",
     "src/bin.test.ts",
-    "src/toolchain/world-types.gen.ts",
     "scripts/embed-world.ts",
     "scripts/embed-world.test.ts",
     "scripts/package-release.ts",
