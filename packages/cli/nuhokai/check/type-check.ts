@@ -14,4 +14,5 @@ export const TypeCheck = node({
       output: "findings: one per tsc error, at its file:line",
     },
   },
+  requirements: [{ id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." }],
 }).edges({});
