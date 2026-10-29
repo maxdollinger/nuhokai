@@ -37,6 +37,37 @@ export const SpecCheck = node({
     },
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
   ],
+  testCases: [
+    {
+      text: "A node listed in the world and in a dome → one error naming nuhokai/index.ts and the dome's file.",
+      demonstrates: ["R1"],
+    },
+    {
+      text: "An exported node missing from index.ts → one warning naming its file, exit 0; its own broken edges go unreported.",
+      demonstrates: ["R2"],
+    },
+    {
+      text: "A leaf using a port of a sibling's child → error naming the edge; the same port exposed by the sibling passes.",
+      demonstrates: ["R3"],
+    },
+    {
+      text: "Two children of one dome named Store → error naming both files; Store under two domes passes as Orders/Store and Stock/Store.",
+      demonstrates: ["R4"],
+    },
+    { text: "children: { a: Contract as any } → error at the dome, though tsc passes.", demonstrates: ["R5"] },
+    {
+      text: "source ['src/gone/**'] → error naming the node and the entry; under --path app it resolves in app/, not the cwd.",
+      demonstrates: ["R6"],
+    },
+    {
+      text: "Two siblings claiming src/shared.ts → error naming both and the file; a dome's src/new/** over its child's src/new/add-node.ts passes.",
+      demonstrates: ["R7"],
+    },
+    {
+      text: "An out-of-scope uses edge → its fix lists both ways out: expose the port through the parent, or move the node.",
+      demonstrates: ["R3", "R8"],
+    },
+  ],
   decisions: [
     {
       decision: "One owner per file, nesting aside.",
