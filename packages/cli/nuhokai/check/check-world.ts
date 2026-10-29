@@ -1,9 +1,11 @@
 import { node } from "@nuhokai/world";
+import { SpecCheck } from "./spec-check.ts";
+import { TypeCheck } from "./type-check.ts";
 
 /** The program inside Check. */
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
-  purpose: "Load the world once, then run SpecCheck and CodeCheck on it.",
+  purpose: "Run TypeCheck, load the world once, then run SpecCheck and CodeCheck on it.",
   status: "planned",
   source: [],
   ports: {
@@ -16,4 +18,4 @@ export const CheckWorld = node({
       errors: ["no world at nuhokai/", "world failed to load"],
     },
   },
-}).edges({});
+}).edges({ uses: () => [TypeCheck.run, SpecCheck.run] });

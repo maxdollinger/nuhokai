@@ -4,6 +4,7 @@ import { CheckWorld } from "./check/check-world.ts";
 import { CodeCheck } from "./check/code-check.ts";
 import { Diagnostics } from "./check/diagnostics.ts";
 import { SpecCheck } from "./check/spec-check.ts";
+import { TypeCheck } from "./check/type-check.ts";
 import { Cli } from "./cli.ts";
 import { Failure } from "./failure.ts";
 import cliWorld from "./index.ts";
@@ -107,6 +108,7 @@ test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () =
   expect(Check.$ref).toBe("node");
   expect(Check.$def.children).toEqual({
     checkWorld: CheckWorld,
+    typeCheck: TypeCheck,
     specCheck: SpecCheck,
     codeCheck: CodeCheck,
     diagnostics: Diagnostics,
@@ -116,4 +118,5 @@ test("Check is a dome of CheckWorld, SpecCheck, CodeCheck and Diagnostics", () =
     delegate: { to: CheckWorld.$def.id, port: "run" },
   });
   expect(Check.$def.uses).toBeUndefined();
+  expect(CheckWorld.$def.uses?.()).toEqual([TypeCheck.run, SpecCheck.run]);
 });

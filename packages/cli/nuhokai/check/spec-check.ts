@@ -25,4 +25,12 @@ export const SpecCheck = node({
       text: "Every rule tsc enforces (node-spec, dome and world rules in packages/world/README.md) also holds in the loaded world: casts, suppressed errors and values tsc cannot see get past it. Each break is a violation.",
     },
   ],
+  ports: {
+    run: {
+      kind: "call",
+      purpose: "Judge the loaded world against the spec rules",
+      input: "the loaded world, as LoadWorld.load answers it",
+      output: "findings: one per violation",
+    },
+  },
 }).edges({});
