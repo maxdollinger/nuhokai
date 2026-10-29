@@ -6,4 +6,12 @@ export const SourceRules = node({
   purpose: "Hold every source entry against the project's files: each exists, each file has one owner.",
   status: "planned",
   source: [],
+  ports: {
+    check: {
+      kind: "call",
+      purpose: "Judge the source rules",
+      input: "project directory, cwd-relative; the loaded world, as LoadWorld.load answers it",
+      output: "findings as Diagnostics.format takes them",
+    },
+  },
 }).edges({});

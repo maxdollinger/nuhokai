@@ -6,4 +6,12 @@ export const DataRules = node({
   purpose: "Judge the world's graph: ids, orphans, scope, names, built nodes with code.",
   status: "planned",
   source: [],
+  ports: {
+    check: {
+      kind: "call",
+      purpose: "Judge the graph rules",
+      input: "the loaded world, as LoadWorld.load answers it",
+      output: "findings as Diagnostics.format takes them",
+    },
+  },
 }).edges({});

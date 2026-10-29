@@ -142,5 +142,6 @@ test("SpecCheck is a dome of ApplyRules and three rule groups, and delegates run
     formatRules: FormatRules,
     sourceRules: SourceRules,
   });
+  expect(ApplyRules.$def.uses?.()).toEqual([DataRules.check, FormatRules.check, SourceRules.check]);
   expect(SpecCheck.$def.ports?.run).toMatchObject({ kind: "call", delegate: { to: ApplyRules.$def.id, port: "run" } });
 });

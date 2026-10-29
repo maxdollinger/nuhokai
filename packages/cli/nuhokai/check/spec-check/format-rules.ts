@@ -6,4 +6,12 @@ export const FormatRules = node({
   purpose: "Catch what casts and suppressed errors slip past tsc.",
   status: "planned",
   source: [],
+  ports: {
+    check: {
+      kind: "call",
+      purpose: "Judge the tsc rules on loaded data",
+      input: "the loaded world, as LoadWorld.load answers it",
+      output: "findings as Diagnostics.format takes them",
+    },
+  },
 }).edges({});

@@ -1,4 +1,7 @@
 import { node } from "@nuhokai/world";
+import { DataRules } from "./data-rules.ts";
+import { FormatRules } from "./format-rules.ts";
+import { SourceRules } from "./source-rules.ts";
 
 /** The program inside SpecCheck: the wiring of the three rule groups. */
 export const ApplyRules = node({
