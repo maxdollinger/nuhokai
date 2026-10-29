@@ -148,29 +148,13 @@ export const externalChild = node({
   },
 }).edges({});
 
-export const abstractChild = node({
-  ...base,
-  children: {
-    // @ts-expect-error abstract nodes cannot have children, so they cannot be a child
-    audit: AuditLog,
-  },
-}).edges({});
-
 declare const unknownFlag: boolean;
 const MaybeExternal = node({ ...base, external: unknownFlag }).edges({});
-const MaybeAbstract = node({ ...base, abstract: unknownFlag }).edges({});
 export const maybeExternalChild = node({
   ...base,
   children: {
     // @ts-expect-error MaybeExternal may be external
     maybe: MaybeExternal,
-  },
-}).edges({});
-export const maybeAbstractChild = node({
-  ...base,
-  children: {
-    // @ts-expect-error MaybeAbstract may be abstract
-    maybe: MaybeAbstract,
   },
 }).edges({});
 

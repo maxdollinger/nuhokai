@@ -141,6 +141,26 @@ describe("dome", () => {
       }).edges({}),
     ).toThrow("not one of this dome's direct children");
   });
+
+  test("a contract may be a dome's child", () => {
+    const Rule = node({
+      id: "01a16dd2-bc65-7a2b-8c3d-4e5f6a7b8c9d",
+      abstract: true,
+      purpose: "Contract.",
+      status: "planned",
+      source: [],
+      ports: { check: { kind: "call", purpose: "Check" } },
+    }).edges({});
+    const Rules = node({
+      id: "01a16dd2-bc66-7b3c-9d4e-5f6a7b8c9d0e",
+      purpose: "Dome.",
+      status: "planned",
+      source: [],
+      children: { rule: Rule, billing: Billing },
+      ports: (c) => ({ charge: c.billing.ports.charge }),
+    }).edges({});
+    expect(Rules.$def.children?.rule).toBe(Rule);
+  });
 });
 
 describe("inherited", () => {

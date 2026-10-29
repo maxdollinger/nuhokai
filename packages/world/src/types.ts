@@ -133,6 +133,8 @@ export type EventRef = PortRef<"event">;
 export type DomePortRef<K extends PortKind = PortKind> = ResolvedPortRef<K> | InheritedPortRef<K>;
 /** Neither external nor abstract nodes can contain other nodes. */
 export type ParentRef<Id extends NodeId = NodeId> = NodeRef<false, false, Id>;
+/** What can sit in a dome: any node but an external one; a contract may. */
+export type ChildRef = NodeRef<false, boolean>;
 /** A node that can be implemented. */
 export type ContractRef = NodeRef<boolean, true>;
 
@@ -170,7 +172,7 @@ export type StoredPortsDef = { readonly [name: string]: StoredWorldPort };
 export type PortsDef = { readonly [name: string]: WorldPort } & { readonly [name: `$${string}`]: never };
 
 /** Direct children keyed by the name a dome uses to reference them, e.g. `{ cmd: Cmd }`. */
-export type ChildNodes = { readonly [name: string]: ParentRef };
+export type ChildNodes = { readonly [name: string]: ChildRef };
 
 /** What a dome's ports function returns: one direct child's port per own port name. */
 export type DomePortsDef = { readonly [name: string]: DomePortRef };
@@ -445,7 +447,6 @@ export type NodeRules<
 
 type FlagsOf<N> = N extends { readonly [nodeFlags]: infer Flags } ? Flags : never;
 type ExternalOf<N> = FlagsOf<N> extends { readonly external: infer E } ? E : never;
-type AbstractOf<N> = FlagsOf<N> extends { readonly abstract: infer A } ? A : never;
 
 /** Why a child entry is not a node at all. */
 type NotANode<V> = V extends string
@@ -461,21 +462,14 @@ type NotANode<V> = V extends string
 /**
  * Why a node cannot be a child of a dome, as messages; `never` if it can.
  * Distributes, so each node of a union (an inferred mixed array) is judged
- * by its own flags. Externals are top level only; abstract nodes have no
- * children, so they cannot sit in a tree.
+ * by its own flags. Externals are top level only; a contract may be a child.
  */
 type NodeChildProblems<C> = C extends unknown
-  ?
-      | ([ExternalOf<C>] extends [false]
-          ? never
-          : [ExternalOf<C>] extends [true]
-            ? "external nodes are top level only"
-            : "this node may be external (its flag is not a literal), so it cannot be a child")
-      | ([AbstractOf<C>] extends [false]
-          ? never
-          : [AbstractOf<C>] extends [true]
-            ? "abstract nodes cannot have children, so they cannot be a child"
-            : "this node may be abstract (its flag is not a literal), so it cannot be a child")
+  ? [ExternalOf<C>] extends [false]
+    ? never
+    : [ExternalOf<C>] extends [true]
+      ? "external nodes are top level only"
+      : "this node may be external (its flag is not a literal), so it cannot be a child"
   : never;
 
 type NodeChildRule<C> = [C] extends [NodeRef]
@@ -491,7 +485,7 @@ type HasNodeChildErrors<C extends Record<string, unknown>> = [
   ? false
   : true;
 
-/** `children` of a dome: not empty, only non-external, non-abstract nodes. */
+/** `children` of a dome: not empty, only non-external nodes. */
 export type ChildNodesRules<C extends Record<string, unknown>> = [keyof C] extends [never]
   ? Forbidden<"children must not be empty">
   : HasNodeChildErrors<C> extends true
