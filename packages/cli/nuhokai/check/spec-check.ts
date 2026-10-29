@@ -35,6 +35,7 @@ export const SpecCheck = node({
       id: "R7",
       text: "A file matched by the source of two nodes is a violation naming both and the file, unless one is the other's ancestor.",
     },
+    { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
   ],
   decisions: [
     {

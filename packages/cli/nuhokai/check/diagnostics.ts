@@ -7,6 +7,9 @@ export const Diagnostics = node({
   status: "planned",
   source: [],
   requirements: [
-    { id: "R1", text: "Each line is enough to act on alone: it names the node, the broken rule and the fix." },
+    {
+      id: "R1",
+      text: "Each line is enough to act on alone: it names the broken rule, the node when the file defines one, and the fix when the rule has one.",
+    },
   ],
 }).edges({});
