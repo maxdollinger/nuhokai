@@ -11,7 +11,6 @@ reference to another node's port. You describe the code as it is today. You do n
 code, and you never invent behaviour the code does not have.
 
 Settings:
-
 - Project directory: `<path, the folder holding pom.xml or build.gradle>`
 - Base package: `<e.g. com.acme.shop>`, or "detect" (the package of the `@SpringBootApplication` class)
 - World name: `<e.g. acme-shop>`, or "detect" (`spring.application.name`, else the artifactId)
@@ -20,7 +19,6 @@ Settings:
 
 Run `nuhokai init` in the project directory, then read `nuhokai/.generated/world/index.d.ts`. It holds the format's
 types and their docs, and it wins over anything in this prompt. The essentials:
-
 - `node({ id, purpose, status, source, ports?, children?, implements?, abstract?, external?, externalType?, group?,
   requirements?, testCases?, decisions? }).edges({ uses?: () => [...] })`. `.edges()` is required, also as
   `.edges({})`.
@@ -43,7 +41,6 @@ Read the whole of `src/main/java` (and `src/main/resources/application*.{yml,yam
 and write it to `nuhokai/inventory.md` as one table row per type: fully qualified name, kind (class,
 interface, enum, record, annotation), Spring stereotype, the node it will become, its node file, its parent (top level
 or `SpringRouter`), and its outgoing dependencies. List separately:
-
 - every HTTP entry point: HTTP method, full path (class-level `@RequestMapping` prefix plus method mapping, with
   `server.servlet.context-path` and `spring.mvc.servlet.path` applied), handler class and method, request body,
   path and query parameters, response type and status, mapped errors;
@@ -185,7 +182,6 @@ exits 0. Fix the world, never the Java. Then run `nuhokai map` to write `nuhokai
 ## 5. Report
 
 Finish with:
-
 1. counts: classes in the inventory vs. nodes written (they must match, minus nested types), HTTP endpoints vs.
    `SpringRouter` ports (they must match);
 2. every `tbd` placeholder and why it is unresolved;
