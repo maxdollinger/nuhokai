@@ -4355,6 +4355,8 @@ const GRIDF='uniform vec2 uC;uniform float uR;uniform vec3 uCol;varying vec3 vW;
 
 // ---------- model: the loaded world, as scene.js sees it ----------
 const MAP=mapScene(JSON.parse(document.getElementById('nuhokai-world').textContent));
+// the page's title is the top level's name: the world's name, as the first breadcrumb shows it
+document.title=scopeView(MAP,null).name;
 const LAYOUTS={};const layoutOf=scope=>LAYOUTS[scope===null?'world':scope]=LAYOUTS[scope===null?'world':scope]||{};
 // moved positions, kept per browser under one key per world: {scope: {item: {x,z} or {ang}}}. The key ends in the world's
 // id, since every file:// map shares one storage; the scope is the world's id or its dome's node id, the item its node
@@ -4663,8 +4665,8 @@ export const SCENE_JS: string = `/**
  * drawn from the island that contains the user.
  */
 
-/** The name of the top-level scope, which no node owns. */
-const WORLD_NAME = "World";
+/** The top-level scope's name when the world has none: the map draws unchecked worlds too. */
+const FALLBACK_WORLD_NAME = "World";
 
 /** How an external is drawn, by externalType: callers come in from the left, the rest is used on the right. */
 const EXTERNAL_LOOKS = {
@@ -4718,13 +4720,19 @@ function portKind(scene, index, name) {
   return "call";
 }
 
+/** The top-level scope's name, which no node owns: the world's name (from defineWorld), else the fallback. */
+function worldName(scene) {
+  const name = scene.world.name;
+  return typeof name === "string" && name.trim() !== "" ? name : FALLBACK_WORLD_NAME;
+}
+
 /** The breadcrumbs from the world to \`scope\`. */
 function pathTo(scene, scope) {
   const path = [];
   for (let current = scope; current !== null; current = scene.parents[current]) {
     path.unshift({ scope: current, name: scene.nodes[current].name });
   }
-  return [{ scope: null, name: WORLD_NAME }, ...path];
+  return [{ scope: null, name: worldName(scene) }, ...path];
 }
 
 /**
@@ -4866,7 +4874,7 @@ export function scopeView(scene, scope) {
 
   return {
     scope,
-    name: scope === null ? WORLD_NAME : scene.nodes[scope].name,
+    name: scope === null ? worldName(scene) : scene.nodes[scope].name,
     path: pathTo(scene, scope),
     items: [...items.values()],
     lanes: [...lanes.values()],

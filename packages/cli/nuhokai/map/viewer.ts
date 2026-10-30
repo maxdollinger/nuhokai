@@ -17,7 +17,10 @@ export const Viewer = node({
   },
   requirements: [
     { id: "R1", text: "Top level: top-level nodes as islands. A dome: its direct children as islands." },
-    { id: "R2", text: "Double-click opens a dome; breadcrumbs lead back." },
+    {
+      id: "R2",
+      text: "Double-click opens a dome; breadcrumbs lead back. The top level, first breadcrumb and page title carry the world's name, else World.",
+    },
     {
       id: "R3",
       text: "uses: lanes labelled with their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome.",
@@ -49,6 +52,10 @@ export const Viewer = node({
     {
       text: "By hand, headless Chromium: maps of two worlds from file:// keep moved islands apart, each under its world id.",
       demonstrates: ["R8"],
+    },
+    {
+      text: "scene.js under bun: the example world's top level and first breadcrumb are Shop, its name; a world without a name or with a blank one → World.",
+      demonstrates: ["R2"],
     },
     {
       text: "scene.js under bun: a node without source (world files are not type-checked) → empty Source section, no crash.",

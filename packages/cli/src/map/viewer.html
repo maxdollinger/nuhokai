@@ -125,6 +125,8 @@ const GRIDF='uniform vec2 uC;uniform float uR;uniform vec3 uCol;varying vec3 vW;
 
 // ---------- model: the loaded world, as scene.js sees it ----------
 const MAP=mapScene(JSON.parse(document.getElementById('nuhokai-world').textContent));
+// the page's title is the top level's name: the world's name, as the first breadcrumb shows it
+document.title=scopeView(MAP,null).name;
 const LAYOUTS={};const layoutOf=scope=>LAYOUTS[scope===null?'world':scope]=LAYOUTS[scope===null?'world':scope]||{};
 // moved positions, kept per browser under one key per world: {scope: {item: {x,z} or {ang}}}. The key ends in the world's
 // id, since every file:// map shares one storage; the scope is the world's id or its dome's node id, the item its node
