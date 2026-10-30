@@ -17,4 +17,11 @@ export const ApplyRules = node({
       output: "findings as Diagnostics.format takes them: one per violation",
     },
   },
+  requirements: [
+    {
+      id: "R1",
+      text: "Findings sorted by file, line, rule, then node; the same world gives byte-identical output.",
+    },
+    { id: "R2", text: "A rule group that throws is a bug: it propagates, never a finding." },
+  ],
 }).edges({ uses: () => [DataRules.check, FormatRules.check, SourceRules.check] });
