@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /**
@@ -42,11 +42,12 @@ mkdirSync(out, { recursive: true });
 run([process.execPath, "build", "src/bin.ts", "--compile", "--outfile", join(out, "nuhokai")], PACKAGE_DIR);
 copyFileSync(join(PACKAGE_DIR, "LICENSE"), join(out, "LICENSE"));
 
-// tsgo finds its lib.*.d.ts next to the executable, so the directory ships whole, with Microsoft's detached signature.
+// tsgo finds its lib.*.d.ts next to the executable, so the directory ships whole, with Microsoft's signature:
+// detached as tsc.sig on Linux, embedded in the binary on macOS.
 const tsgoDir = join(out, "tsgo");
 cpSync(tsgoLib, tsgoDir, { recursive: true });
 renameSync(join(tsgoDir, "tsc"), join(tsgoDir, "tsgo"));
-renameSync(join(tsgoDir, "tsc.sig"), join(tsgoDir, "tsgo.sig"));
+if (existsSync(join(tsgoDir, "tsc.sig"))) renameSync(join(tsgoDir, "tsc.sig"), join(tsgoDir, "tsgo.sig"));
 for (const file of ["LICENSE", "NOTICE.txt"]) copyFileSync(join(typescriptDir, file), join(tsgoDir, file));
 
 const archive = `${name}.tar.gz`;
