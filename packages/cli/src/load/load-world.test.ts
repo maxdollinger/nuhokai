@@ -273,7 +273,7 @@ test("a world that only loads is not judged: an orphan and an out-of-scope edge 
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 import { Inner, Outer } from "./nodes.ts";
-export default defineWorld({ id: "w", name: "w", source: [], children: [Outer, Outer] });
+export default defineWorld({ id: "w", name: "Shop", source: ["src/**"], children: [Outer, Outer] });
 `,
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
@@ -286,6 +286,33 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
 
   expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Outer", "Inner"]);
   expect(loaded.nodes[1]?.edges).toEqual([{ kind: "uses", to: "orphan", port: ["x"] }]);
+  // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
+  expect([loaded.name, loaded.source]).toEqual(["Shop", ["src/**"]]);
+  expect(loaded.listings).toEqual([
+    { node: "same-id", parent: null },
+    { node: "same-id", parent: "same-id" },
+    { node: "same-id", parent: null },
+  ]);
+  expect(loaded.orphans).toEqual([{ id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts` }]);
+  expect(loaded.files).toEqual([
+    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
+    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 3 },
+  ]);
+});
+
+test("a world without a name or source still loads; both are absent, for check to judge", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const A = node(${leaf("a")}).edges({});
+export default defineWorld({ id: "w", children: [A] } as never);
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded).not.toHaveProperty("name");
+  expect(loaded).not.toHaveProperty("source");
+  expect(loaded.files).toEqual([{ node: "a", file: `${root}/nuhokai/index.ts`, line: 2 }]);
 });
 
 test("every load failure is one CliError naming the file", async () => {
