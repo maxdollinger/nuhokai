@@ -16,7 +16,7 @@ interface Place {
  */
 export function checkDataRules(world: LoadedWorld): Finding[] {
   const tree = worldTree(world);
-  // R1 first: every other rule skips the nodes whose id is duplicated.
+  // SpecCheck R1 first: every other rule skips the nodes whose id is duplicated.
   const judged = tree.nodes.filter((node) => !tree.duplicated.has(node.spec.id));
   return [
     ...worldName(world),
@@ -43,7 +43,7 @@ function worldName(world: LoadedWorld): Finding[] {
   ];
 }
 
-/** R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
+/** SpecCheck R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
 function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
   const first = new Map<string, string>([[world.id, `the world (${world.file})`]]);
   const findings: Finding[] = [];
@@ -64,7 +64,7 @@ function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
   return findings;
 }
 
-/** R1: a node listed in two places is one error at the repeated listing, naming both places. */
+/** SpecCheck R1: a node listed in two places is one error at the repeated listing, naming both places. */
 function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
   const place = (parent: string | null): Place => {
     if (parent === null) return { file: world.file, name: `the world's children (${world.file})` };
@@ -75,7 +75,7 @@ function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
   const seen = new Map<string, Place>();
   const findings: Finding[] = [];
   for (const listing of world.listings) {
-    // Distinct nodes sharing an id are R1's other half: each node is listed once, only a repeat is the same node.
+    // Distinct nodes sharing an id are SpecCheck R1's other half: each node is listed once, only a repeat is the same node.
     if (tree.duplicated.has(listing.node)) continue;
     const here = place(listing.parent);
     const before = seen.get(listing.node);
@@ -96,7 +96,7 @@ function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
   return findings;
 }
 
-/** R2: an exported node the world never reaches is a warning naming its file, and nothing else is judged of it. */
+/** SpecCheck R2: an exported node the world never reaches is a warning naming its file, and nothing else is judged of it. */
 function orphans(world: LoadedWorld): Finding[] {
   return world.orphans.map((orphan) => ({
     severity: "warning",
@@ -117,7 +117,7 @@ function usesEdge(node: TreeNode, target: string, ports: readonly string[]): str
   return `${node.spec.name} uses ${ports.map((port) => `${target}.${port}`).join(", ")}`;
 }
 
-/** R3: a uses edge targets a sibling or an ancestor's sibling, top level included; never a node inside one. */
+/** SpecCheck R3: a uses edge targets a sibling or an ancestor's sibling, top level included; never a node inside one. */
 function scope(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) =>
@@ -160,7 +160,7 @@ function inScope(tree: WorldTree, node: TreeNode, target: TreeNode): boolean {
   return false;
 }
 
-/** R4: names are unique among siblings, the top level included; a clash names both files. */
+/** SpecCheck R4: names are unique among siblings, the top level included; a clash names both files. */
 function siblingNames(tree: WorldTree): Finding[] {
   const findings: Finding[] = [];
   const parents = [null, ...tree.nodes.map((node) => node.index)];
@@ -185,7 +185,7 @@ function siblingNames(tree: WorldTree): Finding[] {
   return findings;
 }
 
-/** R5: the node-spec rules tsc only checks on literal ids and flags, held against the loaded values. */
+/** SpecCheck R5: the node-spec rules tsc only checks on literal ids and flags, held against the loaded values. */
 function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
   const spec = node.spec;
   const findings: Finding[] = [];
@@ -212,18 +212,37 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Findi
   if (isDome && !spec.abstract && usesSomething) {
     error("a dome has uses edges; its behavior is its children", "move the uses to the child that needs them");
   }
-  const ids = (spec.requirements ?? []).map((requirement) => requirement.id);
+  /** A field that must be a list of objects, as [position, object]; anything else is an error, never a crash. */
+  const objects = (field: "requirements" | "testCases"): [number, Record<string, unknown>][] => {
+    const value: unknown = spec[field];
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      error(`${field} is not a list`, `make ${field} a list of objects, or drop it`);
+      return [];
+    }
+    return [...value.entries()].flatMap(([index, item]): [number, Record<string, unknown>][] => {
+      if (typeof item === "object" && item !== null && !Array.isArray(item)) return [[index, item]];
+      error(`${field}[${index}] is not an object`, `make it an object, or drop it from ${field}`);
+      return [];
+    });
+  };
+  const ids = objects("requirements").map(([, requirement]) => requirement.id);
   for (const [index, id] of ids.entries()) {
     if (ids.indexOf(id) !== index) {
-      error(`requirement id "${id}" is used twice`, "give each requirement its own id");
+      error(`requirement id "${String(id)}" is used twice`, "give each requirement its own id");
     }
   }
-  for (const [index, testCase] of (spec.testCases ?? []).entries()) {
-    for (const id of testCase.demonstrates ?? []) {
+  for (const [index, testCase] of objects("testCases")) {
+    const demonstrates = testCase.demonstrates ?? [];
+    if (!Array.isArray(demonstrates)) {
+      error(`test case ${index}'s demonstrates is not a list`, "make it a list of requirement ids, or drop it");
+      continue;
+    }
+    for (const id of demonstrates) {
       if (!ids.includes(id)) {
         error(
-          `test case ${index} demonstrates "${id}", which is not one of its requirement ids`,
-          `name one of ${ids.length ? ids.map((known) => `"${known}"`).join(", ") : "its requirements (it has none)"}, or drop "${id}"`,
+          `test case ${index} demonstrates "${String(id)}", which is not one of its requirement ids`,
+          `name one of ${ids.length ? ids.map((known) => `"${String(known)}"`).join(", ") : "its requirements (it has none)"}, or drop "${String(id)}"`,
         );
       }
     }
@@ -231,7 +250,7 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Findi
   return findings;
 }
 
-/** R5: implements lists each contract once; no own port shares an inherited port's name, no two contracts a port name. */
+/** SpecCheck R5: implements lists each contract once; no own port shares an inherited port's name, no two contracts a port name. */
 function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) =>
@@ -246,7 +265,7 @@ function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding
       error(`${node.spec.name} implements ${name} twice`, `list ${name} once in implements`);
       continue;
     }
-    // R11: the target is a reachable contract.
+    // SpecCheck R11: the target is a reachable contract.
     if (!contract) {
       error(
         `${node.spec.name} implements ${name}, which is not reachable from the world`,
@@ -284,7 +303,7 @@ function portNames(spec: NodeSpec): string[] {
   return (spec.ports ?? []).map((port) => port.name);
 }
 
-/** R9: a building or built node, not external or abstract, lists at least one source entry. */
+/** SpecCheck R9: a building or built node, not external or abstract, lists at least one source entry. */
 function builtWithoutSource(node: TreeNode): Finding[] {
   const spec = node.spec;
   if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];

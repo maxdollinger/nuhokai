@@ -187,6 +187,20 @@ test("R4: Store under two domes passes as Orders/Store and Stock/Store", async (
   expect(await check(project(STORES("")))).toEqual([]);
 });
 
+test("R5: malformed requirements and test cases are errors naming the node and field, never a crash", async () => {
+  const root = project({
+    "nuhokai/index.ts": index("A, B", `import { A, B } from "./a.ts";`),
+    "nuhokai/a.ts": `${HEADER}${leaf("A", "a", "requirements: 5 as any, testCases: 7 as any")}${leaf("B", "b", 'requirements: [null, { id: "R1", text: "t" }] as any, testCases: [null, { text: "t", demonstrates: 5 }] as any')}`,
+  });
+  expect(await check(root)).toEqual([
+    "error: nuhokai/a.ts:2: A: requirements is not a list; make requirements a list of objects, or drop it",
+    "error: nuhokai/a.ts:2: A: testCases is not a list; make testCases a list of objects, or drop it",
+    "error: nuhokai/a.ts:3: B: requirements[0] is not an object; make it an object, or drop it from requirements",
+    "error: nuhokai/a.ts:3: B: test case 1's demonstrates is not a list; make it a list of requirement ids, or drop it",
+    "error: nuhokai/a.ts:3: B: testCases[0] is not an object; make it an object, or drop it from testCases",
+  ]);
+});
+
 test("R5: two requirements whose ids come from one variable are an error naming the node", async () => {
   const root = project({
     "nuhokai/index.ts": index("A", `import { A } from "./a.ts";`),
@@ -273,6 +287,16 @@ test("R10: world source ['src/**'] and a node claiming scripts/x.ts is an error 
   ]);
 });
 
+test("R10: absolute entries and entries with a .. segment are refused as written, plain paths and globs alike", async () => {
+  const root = project(SOURCES({ A: `["src/../src/shared.ts", "/etc/passwd"]`, B: `["src/**/../*.ts", "../x/**"]` }));
+  expect(await check(root)).toEqual([
+    "error: nuhokai/a.ts:3: A: source entry \"/etc/passwd\" lies outside the project directory, so outside the world's source; list only paths inside the world's source, without ..",
+    'error: nuhokai/a.ts:3: A: source entry "src/../src/shared.ts" has a .. segment; list only paths inside the world\'s source, without ..',
+    "error: nuhokai/a.ts:4: B: source entry \"../x/**\" lies outside the project directory, so outside the world's source; list only paths inside the world's source, without ..",
+    'error: nuhokai/a.ts:4: B: source entry "src/**/../*.ts" has a .. segment; list only paths inside the world\'s source, without ..',
+  ]);
+});
+
 test("R10: world source ['../shared/**'] is an error naming the world", async () => {
   const root = project(SOURCES({}));
   writeFileSync(
@@ -280,7 +304,7 @@ test("R10: world source ['../shared/**'] is an error naming the world", async ()
     index("A, B, Dome", `import { A, B, Dome } from "./a.ts";`, `["../shared/**"]`),
   );
   expect(await check(root)).toEqual([
-    'error: nuhokai/index.ts: the world\'s source entry "../shared/**" lies outside the project directory; list only paths inside the project directory, or run check with --path at the directory holding the code',
+    'error: nuhokai/index.ts: the world\'s source entry "../shared/**" lies outside the project directory; list only paths inside the project directory, without .., or run check with --path at the directory holding the code',
   ]);
 });
 
