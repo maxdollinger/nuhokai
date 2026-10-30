@@ -14,7 +14,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -40,7 +40,7 @@ export const LoadWorld = node({
     },
     {
       id: "R6",
-      text: "World id, name and source as in defineWorld; a default export without a string id is not a world.",
+      text: "World id, name and source as in defineWorld, plus the world file's cwd-relative name; a default export without a string id is not a world.",
     },
     {
       id: "R7",

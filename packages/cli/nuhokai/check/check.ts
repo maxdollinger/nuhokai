@@ -10,7 +10,7 @@ export const Check = node({
   id: "01a18319-89bb-7640-a85c-2a46040966af",
   purpose: "Ensure the specs follow the rules.",
   status: "planned",
-  source: [],
+  source: ["src/check/**"],
   requirements: [
     {
       id: "R1",

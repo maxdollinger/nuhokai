@@ -2,7 +2,7 @@ import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, posix, resolve, sep } from "node:path";
 import type { LoadedWorld } from "../../load/load-world.ts";
 import type { Finding } from "../diagnostics.ts";
-import { at, type TreeNode, WORLD_FILE, worldTree } from "./world-tree.ts";
+import { at, type TreeNode, worldTree } from "./world-tree.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
 const GLOB_CHARS = /[*?[\]{}!\\]/;
@@ -132,7 +132,7 @@ export function checkSources(root: string, world: LoadedWorld): Finding[] {
   };
 
   // The world's source: inside the project directory, every entry matching a file (R10, R6).
-  const worldOwner: Owner = { file: WORLD_FILE, label: "the world" };
+  const worldOwner: Owner = { file: world.file, label: "the world" };
   const worldEntries = entriesOf(worldOwner, world.source);
   let covered: Set<string> | undefined;
   if (worldEntries) {
@@ -183,7 +183,7 @@ export function checkSources(root: string, world: LoadedWorld): Finding[] {
         error(
           owner,
           `source entry "${entry}" matches ${uncovered}, which is not under the world's source`,
-          `narrow the entry to the world's source, or add the file to the world's source in ${WORLD_FILE}`,
+          `narrow the entry to the world's source, or add the file to the world's source in ${world.file}`,
         );
       }
       for (const file of expansion.files) {

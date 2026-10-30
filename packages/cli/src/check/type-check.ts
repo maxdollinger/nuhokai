@@ -58,6 +58,12 @@ function isAllowedCallee(callee: Node): boolean {
   );
 }
 
+/** Whether a cast is `as const` (or `<const>`): it only narrows a literal, so it bypasses no rule. */
+function isConstAssertion(cast: Node): boolean {
+  const type = (cast as Node & { type?: Node & { typeName?: Node & { text?: string } } }).type;
+  return type?.kind === SyntaxKind.TypeReference && type.typeName?.text === "const";
+}
+
 /**
  * TypeCheck R2 on one world file: calls only to the declarative calls, imports only @nuhokai/world and files under
  * the world folder, and no cast, non-null assertion, any or @ts- directive. One finding per offence, at its line.
@@ -117,6 +123,8 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
       }
       case SyntaxKind.AsExpression:
       case SyntaxKind.TypeAssertionExpression:
+        // `as const` only narrows a literal: it bypasses nothing, so it is allowed.
+        if (isConstAssertion(node)) break;
         error(
           node,
           "world files use no cast; it bypasses the rules tsc checks",
@@ -154,12 +162,14 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
 /**
  * Type-check the world of the project directory `root` (named from the cwd) with the CLI's pinned checker and
  * nuhokai/tsconfig.json: one error per tsc error and per breach of the declarative rule, in every *.ts under
- * nuhokai/ but .generated/, test files included. Without the tsconfig, one failure naming init.
+ * nuhokai/ but .generated/, test files included. Without the tsconfig, one failure saying how to restore it.
  */
 export async function runTypeCheck(root: string): Promise<Finding[]> {
   const tsconfig = inWorld(root, WORLD_TSCONFIG);
   if (!existsSync(tsconfig)) {
-    throw new CliError(`${tsconfig}: not found; \`nuhokai init\` writes it, the world's type-check settings`);
+    throw new CliError(
+      `${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\` (\`nuhokai update\` will restore it)`,
+    );
   }
   const worldDir = resolve(inWorld(root));
   const generated = resolve(inWorld(root, WORLD_GENERATED_DIR));

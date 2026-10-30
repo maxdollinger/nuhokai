@@ -41,6 +41,8 @@ export interface NodeFile {
 export interface LoadedWorld {
   /** The world's own id, as `defineWorld` holds it; per-world state is keyed by it. */
   readonly id: string;
+  /** The world file, nuhokai/index.ts, named from the cwd: where findings about the world point. */
+  readonly file: string;
   /** The world's name, as given; absent if it is no string. */
   readonly name?: string;
   /** The world's source, as given; absent if it is no list. */
@@ -382,7 +384,7 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
   });
 
   const { children: _children, ...head } = world;
-  return { ...head, nodes, placeholders: [...placeholders.values()], listings, orphans, files };
+  return { ...head, file: index, nodes, placeholders: [...placeholders.values()], listings, orphans, files };
 }
 
 /**

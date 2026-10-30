@@ -1,7 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
 import type { Finding } from "../diagnostics.ts";
-import { at, type TreeNode, WORLD_FILE, type WorldTree, worldTree } from "./world-tree.ts";
+import { at, type TreeNode, type WorldTree, worldTree } from "./world-tree.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
 interface Place {
@@ -36,7 +36,7 @@ function worldName(world: LoadedWorld): Finding[] {
   return [
     {
       severity: "error",
-      file: WORLD_FILE,
+      file: world.file,
       rule: typeof world.name === "string" ? "the world's name is blank" : "the world has no name",
       fix: 'give defineWorld a name, e.g. name: "Shop"',
     },
@@ -45,7 +45,7 @@ function worldName(world: LoadedWorld): Finding[] {
 
 /** R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
 function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
-  const first = new Map<string, string>([[world.id, `the world (${WORLD_FILE})`]]);
+  const first = new Map<string, string>([[world.id, `the world (${world.file})`]]);
   const findings: Finding[] = [];
   for (const node of tree.nodes) {
     const holder = first.get(node.spec.id);
@@ -67,9 +67,9 @@ function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
 /** R1: a node listed in two places is one error at the repeated listing, naming both places. */
 function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
   const place = (parent: string | null): Place => {
-    if (parent === null) return { file: WORLD_FILE, name: `the world's children (${WORLD_FILE})` };
+    if (parent === null) return { file: world.file, name: `the world's children (${world.file})` };
     const dome = tree.byId(parent) ?? tree.nodes.find((node) => node.spec.id === parent);
-    if (!dome) return { file: WORLD_FILE, name: `the children of ${parent}` };
+    if (!dome) return { file: world.file, name: `the children of ${parent}` };
     return { ...at(dome), name: `${dome.path}'s children (${dome.file})` };
   };
   const seen = new Map<string, Place>();
@@ -103,7 +103,7 @@ function orphans(world: LoadedWorld): Finding[] {
     file: orphan.file,
     node: orphan.name,
     rule: `${orphan.name} is exported but not reachable from the world`,
-    fix: `list it in a dome's children or in the world's (${WORLD_FILE}), or delete it`,
+    fix: `list it in a dome's children or in the world's (${world.file}), or delete it`,
   }));
 }
 

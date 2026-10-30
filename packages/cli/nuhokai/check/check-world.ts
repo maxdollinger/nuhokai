@@ -12,7 +12,7 @@ export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
   purpose: "Run TypeCheck beside loading the world once and running SpecCheck on it, then CodeCheck.",
   status: "planned",
-  source: [],
+  source: ["src/check/check-world.ts"],
   ports: {
     run: {
       kind: "call",

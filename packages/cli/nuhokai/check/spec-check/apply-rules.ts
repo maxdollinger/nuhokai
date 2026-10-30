@@ -7,7 +7,7 @@ export const ApplyRules = node({
   id: "01a188c9-49f6-71df-8840-816a2bd99c14",
   purpose: "Apply DataRules and SourceRules to the loaded world and put their findings in one order.",
   status: "planned",
-  source: [],
+  source: ["src/check/spec-check/apply-rules.ts"],
   ports: {
     run: {
       kind: "call",

@@ -1,12 +1,12 @@
 import { node } from "@nuhokai/world";
 
-/** The rules that read the filesystem: R6, R7. */
+/** The rules that read the filesystem: R6, R7, R10. */
 export const SourceRules = node({
   id: "01a188c9-4a10-737f-97f6-8dfc24bc08b6",
   purpose:
     "Hold every source entry against the project's files: each exists, lies under the world's source, and each file has one owner.",
   status: "planned",
-  source: [],
+  source: ["src/check/spec-check/source-rules.ts"],
   requirements: [
     {
       id: "R1",
@@ -18,7 +18,7 @@ export const SourceRules = node({
     },
     {
       id: "R3",
-      text: "A missing source, or an entry that is no string, is an error at its node or the world (nuhokai/index.ts), never a crash.",
+      text: "A missing source, or an entry that is no string, is an error at its node or the world file, never a crash.",
     },
   ],
   ports: {

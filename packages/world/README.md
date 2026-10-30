@@ -138,7 +138,9 @@ A compile-time check fails if the two drift apart.
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
   an ancestor) against the world tree; every node's `source` under the world's; display names unique among siblings, the top level included. A node's name
   in diagnostics is its path from the world (`Check/SpecCheck`), so a name only has to be unique next to its siblings.
-  `check` re-checks every tsc rule, because a cast bypasses the types.
+  `check` type-checks the world and forbids casts, `any` and `@ts-` directives in world files, so the tsc rules
+  hold; it re-checks on the loaded data only what tsc leaves to it (non-literal ids and flags) and the node-spec
+  structure.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so
   never resolve by `$ref` plus id and name. `node()` also checks at runtime that every dome port belongs to one of its

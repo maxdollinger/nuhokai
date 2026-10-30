@@ -1,13 +1,6 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
 
-/**
- * Where world-level findings point (SpecCheck DataRules R3, SourceRules R3): the spec names the world file as
- * `nuhokai/index.ts`, and no rule group has the world folder's path (WorldPath.file is not among their edges), so the
- * name stays literal. Correct for the cwd; under --path it lacks the project directory (reported as a spec gap).
- */
-export const WORLD_FILE = "nuhokai/index.ts";
-
 /** One reachable node, by its position in the loaded world's `nodes`. */
 export interface TreeNode {
   readonly index: number;
@@ -51,7 +44,7 @@ export function worldTree(world: LoadedWorld): WorldTree {
       spec,
       parent: parent ? parent.index : null,
       path: parent ? `${parent.path}/${spec.name}` : spec.name,
-      file: file?.file ?? WORLD_FILE,
+      file: file?.file ?? world.file,
       ...(file?.line === undefined ? {} : { line: file.line }),
     };
     nodes.push(node);

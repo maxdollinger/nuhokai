@@ -114,7 +114,7 @@ test("CheckWorld R2: a tsc error with a clean spec never runs CodeCheck; an orph
     expect(await check(orphan)).toEqual({
       code: 0,
       out: [
-        "warning: <root>/nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+        "warning: <root>/nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (<root>/nuhokai/index.ts), or delete it",
       ],
       err: [],
     });
@@ -175,13 +175,13 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example,
   });
 });
 
-test("a missing nuhokai/tsconfig.json is a failure naming init; the spec findings still print", async () => {
+test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the spec findings still print", async () => {
   const root = await world({ "nuhokai/orphan.ts": ORPHAN });
   rmSync(join(root, "nuhokai/tsconfig.json"));
   const result = await check(root);
   expect(result.code).toBe(1);
   expect(result.out).toHaveLength(1);
   expect(result.err).toEqual([
-    "nuhokai check: <root>/nuhokai/tsconfig.json: not found; `nuhokai init` writes it, the world's type-check settings",
+    "nuhokai check: <root>/nuhokai/tsconfig.json: not found; it is CLI-owned: copy it from a fresh `nuhokai init` (`nuhokai update` will restore it)",
   ]);
 });

@@ -53,6 +53,7 @@ function oneNode(purpose: string): LoadedWorld {
       },
     ],
     placeholders: [],
+    file: "nuhokai/index.ts",
     listings: [],
     orphans: [],
     files: [],
@@ -71,7 +72,7 @@ test("the example world's data block parses back unchanged, and a second write g
   expect(writeMap(root, world)).toBe(`${root}/nuhokai/.generated/map.html`);
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
-  const { listings: _listings, orphans: _orphans, files: _files, ...drawn } = world;
+  const { file: _file, listings: _listings, orphans: _orphans, files: _files, ...drawn } = world;
   expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(drawn)));
 
   writeMap(root, world);

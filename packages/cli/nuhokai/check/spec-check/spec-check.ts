@@ -8,7 +8,7 @@ export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
   status: "planned",
-  source: [],
+  source: ["src/check/spec-check/**"],
   requirements: [
     {
       id: "R1",
@@ -67,7 +67,7 @@ export const SpecCheck = node({
       demonstrates: ["R4"],
     },
     {
-      text: "Two requirements whose ids come from one variable, equal at load → error naming the node; literal ids are tsc's.",
+      text: "Two requirements whose ids come from one variable, equal at load → error naming the node.",
       demonstrates: ["R5"],
     },
     {

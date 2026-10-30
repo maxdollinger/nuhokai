@@ -69,6 +69,16 @@ export const read = Reflect.get(Dome, "$def");
   ]);
 });
 
+test("R2: as const is no cast", async () => {
+  const root = await world({
+    "nuhokai/a.ts": `import { node } from "@nuhokai/world";
+export const ports = { run: { kind: "call", purpose: "Run" } } as const;
+export const A = node({ id: "a", purpose: "p", status: "planned", source: [], ports }).edges({});
+`,
+  });
+  expect(await typeCheck(root)).toEqual([]);
+});
+
 test("R2: a test file importing bun:test fails too", async () => {
   const root = await world({ "nuhokai/index.test.ts": 'import { test } from "bun:test";\n\ntest("x", () => {});\n' });
   const findings = await typeCheck(root);
@@ -100,5 +110,5 @@ test("R3: without nuhokai/tsconfig.json, one failure naming init and no findings
   rmSync(join(root, "nuhokai/tsconfig.json"));
   const failure = runTypeCheck(root);
   await expect(failure).rejects.toBeInstanceOf(CliError);
-  await expect(failure).rejects.toThrow(`${root}/nuhokai/tsconfig.json: not found; \`nuhokai init\``);
+  await expect(failure).rejects.toThrow(`${root}/nuhokai/tsconfig.json: not found; it is CLI-owned`);
 });

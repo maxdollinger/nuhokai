@@ -287,7 +287,7 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
   expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Outer", "Inner"]);
   expect(loaded.nodes[1]?.edges).toEqual([{ kind: "uses", to: "orphan", port: ["x"] }]);
   // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
-  expect([loaded.name, loaded.source]).toEqual(["Shop", ["src/**"]]);
+  expect([loaded.file, loaded.name, loaded.source]).toEqual([`${root}/nuhokai/index.ts`, "Shop", ["src/**"]]);
   expect(loaded.listings).toEqual([
     { node: "same-id", parent: null },
     { node: "same-id", parent: "same-id" },
