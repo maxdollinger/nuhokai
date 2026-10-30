@@ -1202,9 +1202,12 @@ function remember(sp,pos){const all=stored(),k=scopeKey(S.scope);all[k]=Object.a
 function short(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
 
 // ---------- geometry helpers ----------
-function rrShape(w,h,r){const s=new THREE.Shape();const x=-w/2,y=-h/2;s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);return s;}
-function slabGeo(w,d,h,r){const g=new THREE.ExtrudeGeometry(rrShape(w,d,r),{depth:h,bevelEnabled:false,curveSegments:8});g.rotateX(-Math.PI/2);return g;}
-function outlinePts(w,r){return rrShape(w,w,r).getPoints(12).map(p=>V(p.x,0,-p.y));}
+function discGeo(r,h){const g=new THREE.ExtrudeGeometry(circShape(r),{depth:h,bevelEnabled:false,curveSegments:24});g.rotateX(-Math.PI/2);return g;}
+// children on top of an island: concentric rings (one ring up to 6, else a centre and rings of 6, 12, …) in a disc of radius a
+function ringSpots(n,a){const rings=n<=6?[n]:[1];if(n>6){let left=n-1;for(let k=1;left>0;k++){rings.push(Math.min(6*k,left));left-=6*k;}}
+const outer=rings[0]===1&&rings.length>1?rings.length-1:1;const d=a/(outer+0.4);const spots=[];
+rings.forEach((m,i)=>{const k=rings[0]===1&&rings.length>1?i:i+1;for(let j=0;j<m;j++){const t=j*2*Math.PI/m+k*0.5;spots.push({x:Math.cos(t)*k*d,z:Math.sin(t)*k*d});}});
+if(n===1)spots[0]={x:0,z:0};return{spots:spots,s:n===1?a*0.5:d*0.4};}
 function circShape(r){const s=new THREE.Shape();s.absarc(0,0,r,0,Math.PI*2,false);return s;}
 function circlePts(r){const a=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2;a.push(V(Math.cos(t)*r,0,Math.sin(t)*r));}return a;}
 function radius(parts){return Math.min(2.4,0.9*Math.sqrt(Math.max(1,parts)));}
@@ -1281,17 +1284,17 @@ const it={id:sp.id,sp:sp,kind:sp.kind,side:sp.side,name:sp.item?sp.item.name:'',
 const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh&&pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}return obj;};
 const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let footShape,lab,labY=0.9;
-if(sp.kind==='comp'){const c=sp.item;const hw=sp.R-1.15+0.35,w=hw*2,cr=hw*0.35;it.rr=hw*1.06+0.15;it.ah=SH/2;
-const geo=slabGeo(w,w,SH,cr);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
+if(sp.kind==='comp'){const c=sp.item;const ro=(sp.R-1.15+0.35)*1.1;it.rr=ro+0.15;it.ah=SH/2;
+const geo=discGeo(ro,SH);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
 const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.85});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.85;
-add(at(new THREE.Mesh(slabGeo(w+0.08,w+0.08,0.36,cr+0.04),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
-add(at(new THREE.Mesh(slabGeo(w-0.32,w-0.32,0.05,cr*0.8),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
+add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
+add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
 // a contract: a dashed rim around a translucent island
-if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(outlinePts(w+0.5,cr+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
-const kids=MAP.children.get(c.node);const n=kids.length;if(n){const cols=Math.ceil(Math.sqrt(n)),rows=Math.ceil(n/cols);const cell=(w-0.9)/Math.max(cols,rows);const s=cell*0.5;
-kids.forEach((k,j)=>{const ch=MAP.nodes[k];const ci=j%cols,ri=Math.floor(j/cols);const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(slabGeo(s,s,hgt,s*0.2),M(TOP[ch.status]||TOP.planned,{roughness:0.5}));add(at(b,(ci-(cols-1)/2)*cell,SH+0.05,(ri-(rows-1)/2)*cell),false);});}
+if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(ro+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
+const kids=MAP.children.get(c.node);const n=kids.length;if(n){const{spots,s}=ringSpots(n,ro-0.45);
+kids.forEach((k,j)=>{const ch=MAP.nodes[k];const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(discGeo(s,hgt),M(TOP[ch.status]||TOP.planned,{roughness:0.5}));add(at(b,spots[j].x,SH+0.05,spots[j].z),false);});}
 const sub=(c.abstract?'contract · ':'')+c.status+' · level '+sp.level;
-footShape=rrShape(w,w,cr);lab=labelSprite(c.name,sub);labY=SH+0.35;
+footShape=circShape(ro);lab=labelSprite(c.name,sub);labY=SH+0.35;
 S.labels[sp.id]=c.name+' · '+sub+' · '+(n?n+' inside':'leaf')+'\\nClick for details · drag to move'+(c.dome?' · double-click to look inside':'');}
 else if(sp.kind==='ext'){const t=sp.item.look;it.rr=sp.R-0.35;it.ah=0.45;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(sp.R-0.7,sp.R-0.55,0.2,48),M(EXTPAD)),0,0.1,0));
@@ -1313,7 +1316,7 @@ add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.04,40),M(PIT,{trans
 const em=new THREE.LineDashedMaterial({color:GHOST,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.05)),em);ol.computeLineDistances();ol.position.y=0.06;add(ol);
 footShape=circShape(0.95);lab=labelSprite(short(sp.item.name,42),'tbd '+sp.item.portKind+' · not designed yet',GHOST);labY=0.3;
 S.labels[sp.id]=sp.item.name+'\\ntbd '+sp.item.portKind+' · not designed yet';}
-else{it.rr=2.2;const em=new THREE.LineDashedMaterial({color:LANEC,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(outlinePts(4,0.8)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
+else{it.rr=2.2;const em=new THREE.LineDashedMaterial({color:LANEC,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(2)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
 lab=labelSprite('No islands here yet',null);labY=0.3;S.labels[sp.id]='No islands here yet';}
 lab.position.y=labY;g.add(lab);it.label=lab;
 if(footShape&&sp.ty>0){const sm=new THREE.MeshBasicMaterial({color:LANEC,transparent:true,opacity:0.35});const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,6),sm);g.add(stem);it.mats.push(sm);it.baseOp.push(0.35);it.stem=stem;
