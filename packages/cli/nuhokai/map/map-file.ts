@@ -42,12 +42,12 @@ export const MapFile = node({
   decisions: [
     {
       decision: "three.js inlined, embedded at build time from the exactly pinned three dev dependency.",
-      why: "The map opens offline, as the CLI needs no toolchain; ~610 KB per map.",
+      why: "The map opens offline, as the CLI needs no toolchain; about 600 KB of three.js per map.",
     },
     {
       decision:
         "three.js and OrbitControls bundled into one classic script that sets THREE, keeping only the names viewer.html reads off THREE.",
-      why: "three.js ships only ES modules now; the cut-down bundle is smaller than all of three.js and needs no list kept by hand.",
+      why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
 }).edges({ uses: () => [WorldPath.file, Viewer.page] });

@@ -20,9 +20,12 @@ function threeDir(): string {
   return dirname(manifest);
 }
 
-/** The names the viewer reads off THREE, so the bundle keeps exactly those. */
+/**
+ * The names the viewer reads off THREE, so the bundle keeps exactly those. Every
+ * `THREE.<name>` in viewer.html counts, comments too, so prose there must not write one.
+ */
 function threeNames(viewer: string): string[] {
-  return [...new Set(Array.from(viewer.matchAll(/\bTHREE\.(\w+)/g), (m) => m[1] ?? ""))].sort();
+  return [...new Set(Array.from(viewer.matchAll(/\bTHREE\.(\w+)/g), ([, name]) => name as string))].sort();
 }
 
 /**
@@ -74,7 +77,7 @@ function literal(text: string): string {
 export async function renderMapAssets(): Promise<string> {
   const assets = await mapAssets();
   const exports = Object.entries(assets).map(([name, text]) => `export const ${name}: string = ${literal(text)};\n`);
-  return `${HEADER}// The map's assets: three.js ${THREE_VERSION} with OrbitControls under its license header, the viewer page and the scene module.\n\n${exports.join("\n")}`;
+  return `${HEADER}// The map's assets: three.js ${THREE_VERSION} with OrbitControls under three's license header, the viewer page and the scene module.\n\n${exports.join("\n")}`;
 }
 
 /** Write the generated asset; `unchanged` when it is already byte-identical. */

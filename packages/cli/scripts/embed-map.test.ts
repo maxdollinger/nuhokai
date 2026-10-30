@@ -12,7 +12,7 @@ test("three is pinned exactly, to the release the map inlines", () => {
   const manifest = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8"));
   expect(manifest.devDependencies.three).toBe(THREE_VERSION);
   expect(THREE_JS).toMatch(/^\/\*\*\n \* @license\n \* Copyright 2010-\d{4} Three\.js Authors/);
-  expect(THREE_JS).toContain(`"${THREE_VERSION.split(".")[1]}"`);
+  expect(THREE_JS).toContain(`window.__THREE__="${THREE_VERSION.split(".")[1]}"`);
 });
 
 test("no inlined asset can end its script or open a comment in the page", () => {
