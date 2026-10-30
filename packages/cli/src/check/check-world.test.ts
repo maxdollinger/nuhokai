@@ -175,6 +175,55 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example,
   });
 });
 
+test("CheckWorld R3: an orphan counts as a node its file defines", async () => {
+  const root = await world();
+  writeFileSync(
+    join(root, "nuhokai/example.ts"),
+    `import { node } from "@nuhokai/world";
+
+export const Example = node({ id: "e", purpose: "p", source: [], status: "done" }).edges({});
+export const Orphan = node({ id: "o", purpose: "p", source: [], status: "planned" }).edges({});
+`,
+  );
+  writeFileSync(
+    join(root, "nuhokai/index.ts"),
+    `import { defineWorld } from "@nuhokai/world";
+import { Example } from "./example.ts";
+
+export default defineWorld({ id: "w", name: "W", source: [], children: [Example] });
+`,
+  );
+  const result = await check(root);
+  expect(result.out).toContain(
+    "error: <root>/nuhokai/example.ts:3: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+  );
+});
+
+test("CheckWorld R3: a node is named by its path even when a sibling shares its dome's id", async () => {
+  const root = await world();
+  writeFileSync(
+    join(root, "nuhokai/c2.ts"),
+    `import { node } from "@nuhokai/world";
+
+export const C2 = node({ id: "c2", purpose: "p", source: [], status: "done" }).edges({});
+`,
+  );
+  writeFileSync(
+    join(root, "nuhokai/index.ts"),
+    `import { defineWorld, node } from "@nuhokai/world";
+import { C2 } from "./c2.ts";
+
+export const C1 = node({ id: "x", purpose: "p", source: [], status: "planned" }).edges({});
+export const P = node({ id: "x", purpose: "p", source: [], status: "planned", children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+export default defineWorld({ id: "w", name: "W", source: [], children: [P] });
+`,
+  );
+  const result = await check(root);
+  expect(result.out).toContain(
+    "error: <root>/nuhokai/c2.ts:3: P/C2: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+  );
+});
+
 test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the spec findings still print", async () => {
   const root = await world({ "nuhokai/orphan.ts": ORPHAN });
   rmSync(join(root, "nuhokai/tsconfig.json"));

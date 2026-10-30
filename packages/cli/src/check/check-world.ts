@@ -4,6 +4,7 @@ import { requireWorld } from "../shared/inspect.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
 import { runSpecCheck } from "./spec-check/index.ts";
+import { worldTree } from "./spec-check/world-tree.ts";
 import { runTypeCheck } from "./type-check.ts";
 
 /** What the run port may observe and answer; the defaults are the real process. */
@@ -25,29 +26,19 @@ async function outcome(check: () => Promise<Finding[]>): Promise<Outcome> {
 
 /**
  * CheckWorld R3: a TypeCheck finding names its node only when the load succeeded and its file defines exactly one
- * node, by the node's path from the world.
+ * node, an orphan counted too, by the node's path from the world.
  */
 function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | undefined): Finding[] {
   if (!world) return [...findings];
-  const defined = new Map<string, number[]>();
-  for (const [index, entry] of world.files.entries()) {
-    defined.set(entry.file, [...(defined.get(entry.file) ?? []), index]);
-  }
-  const byId = new Map(world.nodes.map((spec, index) => [spec.id, index]));
-  const pathOf = (index: number): string => {
-    const names: string[] = [];
-    // Bounded: with duplicated ids a parent id can lead back to the node itself.
-    let spec = world.nodes[index];
-    while (spec && names.length < world.nodes.length) {
-      names.unshift(spec.name);
-      spec = spec.parent === null ? undefined : world.nodes[byId.get(spec.parent) ?? -1];
-    }
-    return names.join("/");
-  };
+  const tree = worldTree(world);
+  const defined = new Map<string, (string | undefined)[]>();
+  const define = (file: string, path: string | undefined) => defined.set(file, [...(defined.get(file) ?? []), path]);
+  for (const [index, entry] of world.files.entries()) define(entry.file, tree.nodes[index]?.path);
+  for (const orphan of world.orphans) define(orphan.file, undefined);
   return findings.map((finding) => {
-    const nodes = defined.get(finding.file);
-    if (finding.node !== undefined || nodes?.length !== 1 || nodes[0] === undefined) return finding;
-    return { ...finding, node: pathOf(nodes[0]) };
+    const paths = defined.get(finding.file);
+    if (finding.node !== undefined || paths?.length !== 1 || paths[0] === undefined) return finding;
+    return { ...finding, node: paths[0] };
   });
 }
 

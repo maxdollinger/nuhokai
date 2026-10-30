@@ -49,6 +49,8 @@ export interface LoadedWorld {
   readonly source?: readonly unknown[];
   /** Depth-first from the world: a parent before its children, children in record order, each node once. */
   readonly nodes: NodeSpec[];
+  /** Each node's parent as its position in `nodes`, null at the top level; aligned with `nodes`, unambiguous under duplicate ids. */
+  readonly parents: (number | null)[];
   /** Ordered by first use. */
   readonly placeholders: Placeholder[];
   /** Every listing in walk order, a repeat included: what `nodes` drops, check reports. */
@@ -383,14 +385,17 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
       : { node: node.$def.id, file: fileOf(node) };
   });
 
+  const position = new Map(placed.map(({ node }, at) => [node, at]));
+  const parents = placed.map(({ parent }) => (parent === null ? null : (position.get(parent) ?? null)));
+
   const { children: _children, ...head } = world;
-  return { ...head, file: index, nodes, placeholders: [...placeholders.values()], listings, orphans, files };
+  return { ...head, file: index, nodes, parents, placeholders: [...placeholders.values()], listings, orphans, files };
 }
 
 /**
  * Load the world at `root`, the project directory as named from the cwd: evaluate
  * every world file in-process and answer the world as its id, name, source,
- * NodeSpecs, tbd placeholders, listings, orphans and node files. Writes, spawns and prompts nothing, and checks no rule. Every
+ * NodeSpecs, parents, tbd placeholders, listings, orphans and node files. Writes, spawns and prompts nothing, and checks no rule. Every
  * failure is one CliError naming the file from the cwd.
  *
  * Once per root per process: Bun caches every evaluated module by its path, so

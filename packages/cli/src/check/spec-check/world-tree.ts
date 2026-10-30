@@ -27,28 +27,22 @@ export interface WorldTree {
   childrenOf(parent: number | null): readonly TreeNode[];
 }
 
-/**
- * Rebuild the tree from the loaded world: `nodes` is depth-first with a parent before its children, so a node's
- * parent is on the path to the node before it, the deepest one there with its parent id.
- */
+/** The loaded world as a tree: each node under the parent LoadWorld placed it in, by position. */
 export function worldTree(world: LoadedWorld): WorldTree {
   const nodes: TreeNode[] = [];
-  const stack: TreeNode[] = [];
   world.nodes.forEach((spec, index) => {
-    if (spec.parent === null) stack.length = 0;
-    else while (stack.length && stack.at(-1)?.spec.id !== spec.parent) stack.pop();
-    const parent = stack.at(-1) ?? null;
+    const at = world.parents[index] ?? null;
+    // A parent comes before its children, so it is already in the tree.
+    const parent = at === null ? undefined : nodes[at];
     const file = world.files[index];
-    const node: TreeNode = {
+    nodes.push({
       index,
       spec,
       parent: parent ? parent.index : null,
       path: parent ? `${parent.path}/${spec.name}` : spec.name,
       file: file?.file ?? world.file,
       ...(file?.line === undefined ? {} : { line: file.line }),
-    };
-    nodes.push(node);
-    stack.push(node);
+    });
   });
   const counts = new Map<string, number>([[world.id, 1]]);
   for (const node of nodes) counts.set(node.spec.id, (counts.get(node.spec.id) ?? 0) + 1);

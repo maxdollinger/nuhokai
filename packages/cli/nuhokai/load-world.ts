@@ -14,7 +14,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -54,6 +54,10 @@ export const LoadWorld = node({
       id: "R9",
       text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call when known; in nodes order.",
     },
+    {
+      id: "R10",
+      text: "parents: each node's parent as its position in nodes, null at the top level; in nodes order; unambiguous under duplicate ids.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -79,6 +83,10 @@ export const LoadWorld = node({
     {
       text: "Barrel index.ts re-exporting Orders from orders.ts, node() on line 3 → files names nuhokai/orders.ts, line 3.",
       demonstrates: ["R9"],
+    },
+    {
+      text: "Dome P (id x) with children C1 (id x) and C2 → parents [null, 0, 0]: C2's parent is P, not C1.",
+      demonstrates: ["R10"],
     },
     {
       text: "Syntax error, throwing file, non-world default export, world without id, uses returning a non-list → one CliError each naming the file, with line for the first two. Unexported node → named by id.",
@@ -110,6 +118,10 @@ export const LoadWorld = node({
     {
       decision: "files gives each node's defining file and node() line.",
       why: "Every check finding needs a location; the node() call's stack frame already has both.",
+    },
+    {
+      decision: "parents gives each node's parent by position, not by id.",
+      why: "Duplicate ids are check's to report, so a parent id cannot rebuild the tree; the walk knows each parent by reference.",
     },
     {
       decision: "Evaluate every node file, not only index.ts's imports.",

@@ -84,6 +84,19 @@ export const Dome = node({ id: "dome", purpose: "p", status: "planned", source: 
   ]);
 });
 
+test("R1: a child sharing its dome's id leaves its siblings under the dome", async () => {
+  const root = project({
+    "nuhokai/index.ts": index("P, T", `import { P, T } from "./p.ts";`),
+    "nuhokai/p.ts": `${HEADER}${leaf("C1", "x")}${leaf("C2", "c2", 'status: "built"')}${leaf("T", "t", "", "{ uses: () => [C2.run] }")}export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: { c1: C1, c2: C2 }, ports: (c) => ({ run: c.c2.ports.run }) }).edges({});
+`,
+  });
+  expect(await check(root)).toEqual([
+    'error: nuhokai/p.ts:2: P/C1: id "x" is already the id of P (nuhokai/p.ts); give one of them a fresh, unique id',
+    'error: nuhokai/p.ts:3: P/C2: a built node lists no source; list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
+    "error: nuhokai/p.ts:4: T: T uses C2.run, but P/C2 is inside P; a node uses only its siblings and its ancestors' siblings; expose the port through P's ports and use that, or move T into P",
+  ]);
+});
+
 test("R1: the world's own id is taken too", async () => {
   const root = project({
     "nuhokai/index.ts": index("A", `import { A } from "./a.ts";`),

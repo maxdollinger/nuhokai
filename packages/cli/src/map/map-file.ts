@@ -8,13 +8,12 @@ import { ORBIT_CONTROLS_JS, SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain
 const SLOTS = /\/\*nuhokai:(three|orbit-controls|scene)\*\/|"nuhokai:(world)"/g;
 
 /**
- * The world as the page's one data block: the loaded world without check's
- * file, listings, orphans and files (which name paths from the cwd), as JSON with
- * every `<` escaped, so no text in it can close the script or open a comment.
+ * The world as the page's one data block: only what the map draws (id, name, source, nodes, placeholders), never
+ * check's paths from the cwd, as JSON with every `<` escaped, so no text in it can close the script or open a comment.
  */
 function dataBlock(world: LoadedWorld): string {
-  const { file: _file, listings: _listings, orphans: _orphans, files: _files, ...drawn } = world;
-  return JSON.stringify(drawn).replaceAll("<", "\\u003c");
+  const { id, name, source, nodes, placeholders } = world;
+  return JSON.stringify({ id, name, source, nodes, placeholders }).replaceAll("<", "\\u003c");
 }
 
 /**

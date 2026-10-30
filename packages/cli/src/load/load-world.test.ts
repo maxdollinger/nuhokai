@@ -209,6 +209,26 @@ export const Box = node({ id: "box", purpose: "box", status: "planned", source: 
   ]);
 });
 
+test("parents: each node's parent by position, unambiguous when a child shares its dome's id", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { P, T } from "./p.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [P, T] });
+`,
+    "p.ts": `import { node } from "@nuhokai/world";
+export const C1 = node(${leaf("x")}).edges({});
+export const C2 = node(${leaf("c2")}).edges({});
+export const T = node(${leaf("t")}).edges({});
+export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["P", "C1", "C2", "T"]);
+  expect(loaded.parents).toEqual([null, 0, 0, null]);
+});
+
 test("a tbd used by two nodes is one placeholder with both ids and no edges", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
