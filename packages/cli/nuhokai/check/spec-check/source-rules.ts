@@ -6,6 +6,12 @@ export const SourceRules = node({
   purpose: "Hold every source entry against the project's files: each exists, each file has one owner.",
   status: "planned",
   source: [],
+  requirements: [
+    {
+      id: "R1",
+      text: "A plain path is checked directly. A glob is expanded only below its static prefix (src/new/** → src/new/), each directory read at most once; R6, R7 and R10 share the expansions.",
+    },
+  ],
   ports: {
     check: {
       kind: "call",
