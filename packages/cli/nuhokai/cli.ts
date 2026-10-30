@@ -4,7 +4,7 @@ import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
 
-/** The CLI in world format: loader, global rules, checks, writing. */
+/** The command surface: argv, usage, exit codes and dispatch to the command nodes. */
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:

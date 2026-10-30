@@ -10,7 +10,7 @@ src/
   bin.ts        argv, exit codes, command dispatch
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
   new/          add one node file to an existing world: the program and the file's bytes
-  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
+  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   shared/       the world layout and its one path form, what sits at nuhokai/, and the one error type with its one-line rule
@@ -34,7 +34,7 @@ stale. A test also type-checks a consumer world against the bundled declarations
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
 | `new`    | add one node file, `nuhokai/<node-path>.ts`, with a fresh id and `TODO:` placeholders  |
-| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types*(planned)*        |
+| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types (planned)         |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -54,7 +54,7 @@ directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` pri
 `help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai new help` adds
 `nuhokai/help.ts`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
 exit 2 and run nothing. Without a `nuhokai/`
-there, `new` and `map` fail with one line. Every printed path, on stdout and in errors, is named from the current
+there, `check`, `new` and `map` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
 `packages/cli/nuhokai/<file>:<line>`.
@@ -70,6 +70,14 @@ uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the 
 overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
 `new` needs an existing world.
+
+`check` type-checks the world with the CLI's pinned checker and `nuhokai/tsconfig.json`, beside one load of the world
+and the spec rules on it (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
+`source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
+yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
+from the world. World files must stay declarative: calls only to the format's functions, imports only
+`@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive. It
+exits 1 on any error and 0 otherwise; orphans are warnings. A missing world or a load failure is one stderr line.
 
 `map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island

@@ -1480,7 +1480,7 @@ loop();
 
 export const SCENE_JS: string = `/**
  * The map's scene: what the viewer draws for each scope, computed from the
- * loaded world ({ id, nodes, placeholders }, LoadWorld's answer). No imports, no
+ * loaded world ({ id, name, source, nodes, placeholders } of LoadWorld's answer). No imports, no
  * DOM and no three.js: MapFile inlines this module into the page, and the bun
  * tests import it. Types: scene.d.ts.
  *

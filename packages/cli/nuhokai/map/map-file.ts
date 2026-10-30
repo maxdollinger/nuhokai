@@ -20,7 +20,10 @@ export const MapFile = node({
   },
   requirements: [
     { id: "R1", text: "Writes only nuhokai/.generated/map.html; creates .generated/; replaces any previous map." },
-    { id: "R2", text: "Loaded world embedded unchanged as one JSON block; every < escaped." },
+    {
+      id: "R2",
+      text: "The drawn part of the loaded world (id, name, source, nodes, placeholders) embedded unchanged as one JSON block; every < escaped.",
+    },
     { id: "R3", text: "Same world, same bytes: no timestamp, project directory path or randomness." },
     {
       id: "C1",

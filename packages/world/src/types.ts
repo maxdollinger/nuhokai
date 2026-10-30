@@ -59,7 +59,7 @@ export type PortKind = Port["kind"];
 
 /**
  * A type no value has; the message shows up in the compiler error,
- * e.g. "not assignable to type 'Forbidden<"external nodes cannot be parents">'".
+ * e.g. "not assignable to type 'Forbidden<"abstract nodes cannot have children">'".
  */
 export type Forbidden<Message extends string> = { readonly [K in Message]: never };
 
@@ -231,7 +231,7 @@ export type RequirementsDef = Authored<NonNullable<NodeSpec["requirements"]>>;
 /** Node-spec `testCases`, authored. */
 export type TestCasesDef = Authored<NonNullable<NodeSpec["testCases"]>>;
 
-/** Lazy node-spec `implements` edges; an alias, so that `NodeRules` can repeat the exact type. */
+/** Lazy node-spec `implements` edges; an alias, so that `ContractRules` can repeat the exact type. */
 export type Implements<Contracts extends readonly ContractRef[]> = () => Contracts;
 
 /**
@@ -288,7 +288,7 @@ export interface NodeShape<
 export interface NodeEdges {
   /**
    * Node-spec `uses` edges: every port this leaf depends on. The loader groups them
-   * by node and checks the scope against the world tree. Not in step one:
+   * by node; `check` checks the scope against the world tree. Not in step one:
    * `uses` may point anywhere, also back, so it would form type cycles (TS7022).
    */
   readonly uses?: () => readonly PortRef[];
@@ -666,7 +666,7 @@ export interface World extends WorldBrand {
   readonly $ref: "world";
   /** The world's own id, in a node id's form; tools key per-world state by it. */
   readonly id: NodeId;
-  /** Shown by tools, e.g. as the map's title. Not blank. */
+  /** For tools to show, e.g. as a title. Not blank. */
   readonly name: string;
   /** What the world is for. */
   readonly description?: string;

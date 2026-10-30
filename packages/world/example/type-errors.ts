@@ -351,7 +351,7 @@ export const demonstratesUnknownId = node({
   ],
 }).edges({});
 
-// A non-literal id is left to the loader, and does not make a literal one a duplicate.
+// A non-literal id is left to check, and does not make a literal one a duplicate.
 declare const requirementId: string;
 export const wideRequirementId = node({
   ...base,

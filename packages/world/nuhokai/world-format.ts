@@ -20,9 +20,9 @@ export const WorldFormat = node({
     },
     defineWorld: {
       kind: "call",
-      purpose: "Declare the world: its id and every node in one tree; the loader's only entry point",
-      input: "world id, top-level nodes",
-      output: "frozen world object with the id",
+      purpose: "Declare the world, the outermost container; the loader's only entry point",
+      input: "world id, name, optional description, source, top-level nodes",
+      output: "frozen world object",
     },
     inherited: {
       kind: "call",

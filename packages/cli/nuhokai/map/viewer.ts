@@ -11,7 +11,7 @@ export const Viewer = node({
     page: {
       kind: "call",
       purpose: "Draw the loaded world in the browser",
-      input: "LoadWorld.load's output as JSON in the page's one data block",
+      input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
       output: "the drawn page: islands per scope, edges, holes, saved layout, click details",
     },
   },

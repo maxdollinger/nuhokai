@@ -5,7 +5,9 @@ import { WorldPath } from "./world-path.ts";
 /** The world as plain NodeSpec data. Evaluates, judges nothing. */
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
-  purpose: "Evaluate nuhokai/ → world id, NodeSpecs, tbd placeholders. Shared; checks no rule, writes nothing.",
+  purpose:
+    "Evaluate nuhokai/ → the world's id, name and source, NodeSpecs, tbd placeholders, and where each node is listed " +
+    "and defined. Shared; checks no rule, writes nothing.",
   status: "building",
   source: ["src/load/**"],
   ports: {

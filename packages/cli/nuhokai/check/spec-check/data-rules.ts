@@ -14,7 +14,7 @@ export const DataRules = node({
       text: "A finding's location is the offending node's entry in LoadWorld's files; one about a listing points at the file of the list it is in.",
     },
     { id: "R3", text: "A finding about the world itself points at the world file (LoadWorld's file), without a line." },
-    { id: "R4", text: "A missing or non-string world name is an error, never a crash." },
+    { id: "R4", text: "A missing, non-string or blank world name is an error, never a crash." },
   ],
   ports: {
     check: {
