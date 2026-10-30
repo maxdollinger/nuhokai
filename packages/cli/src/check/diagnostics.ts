@@ -26,3 +26,18 @@ export function formatFinding(finding: Finding): string {
   parts.push(finding.fix === undefined ? rule : `${rule}; ${oneLine(finding.fix)}`);
   return parts.join(": ");
 }
+
+/** Plain code-unit order, so the same findings sort byte-identically on every machine. */
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** The one order of findings: file, then line (a finding without one first), then rule, then node; code-unit order. */
+export function compareFindings(a: Finding, b: Finding): number {
+  return (
+    compareText(a.file, b.file) ||
+    (a.line ?? 0) - (b.line ?? 0) ||
+    compareText(a.rule, b.rule) ||
+    compareText(a.node ?? "", b.node ?? "")
+  );
+}

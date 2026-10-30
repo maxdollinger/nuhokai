@@ -14,7 +14,7 @@ interface Place {
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
  * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
  */
-export function checkData(world: LoadedWorld): Finding[] {
+export function checkDataRules(world: LoadedWorld): Finding[] {
   const tree = worldTree(world);
   // R1 first: every other rule skips the nodes whose id is duplicated.
   const judged = tree.nodes.filter((node) => !tree.duplicated.has(node.spec.id));

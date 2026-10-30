@@ -101,7 +101,7 @@ interface Owner {
  * each file has one owner, nesting aside. Reads the project directory `root`, named from the cwd; every glob shares one
  * set of directory reads.
  */
-export function checkSources(root: string, world: LoadedWorld): Finding[] {
+export function checkSourceRules(root: string, world: LoadedWorld): Finding[] {
   const tree = worldTree(world);
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
