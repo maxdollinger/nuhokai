@@ -591,7 +591,8 @@ type DomePortsRules<
 
 /**
  * Everything `node` checks on one shape: a leaf needs own port definitions,
- * a dome needs non-external children and a ports function over their ports.
+ * a dome needs non-external children and a ports function over their ports;
+ * both get the flag rules of the fields they author.
  */
 export type NodeShapeRules<
   C extends Record<string, unknown> | undefined,
@@ -603,7 +604,8 @@ export type NodeShapeRules<
   ? {
       readonly children: NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
       readonly ports?: (children: NonNullable<C>) => P & NoInfer<DomePortsRules<NonNullable<C>, P, Contracts>>;
-    } & DomeRules<External, Abstract>
+    } & DomeRules<External, Abstract> &
+      DefRules<External, Abstract>
   : {
       readonly ports?: P & NoInfer<LeafPortsRules<P, Contracts>>;
     } & DefRules<External, Abstract>) &
