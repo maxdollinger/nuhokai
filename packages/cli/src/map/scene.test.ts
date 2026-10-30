@@ -52,11 +52,38 @@ test("top level: Stock's Postgres lane and the notifyCustomer hole start at Shop
   expect(top.items[HOLE]).toMatchObject({ kind: "hole", side: 1, portKind: "call" });
 });
 
+test("the top level is named after the world, as its view and first breadcrumb", () => {
+  const top = scopeView(scene, null);
+
+  expect(world.name).toBe("Shop");
+  expect(top.name).toBe("Shop");
+  expect(top.path).toEqual([{ scope: null, name: "Shop" }]);
+});
+
+test("a world without a name, or with a blank one, still calls its top level World", () => {
+  const unnamed: LoadedWorld = {
+    id: "w",
+    nodes: [],
+    placeholders: [],
+    file: "nuhokai/index.ts",
+    parents: [],
+    listings: [],
+    orphans: [],
+    files: [],
+  };
+
+  for (const loaded of [unnamed, { ...unnamed, name: "  " }]) {
+    const top = scopeView(mapScene(loaded), null);
+    expect(top.name).toBe("World");
+    expect(top.path).toEqual([{ scope: null, name: "World" }]);
+  }
+});
+
 test("inside Shop: the same lane and hole start at Stock, entries lead to their delegate", () => {
   const view = scopeView(scene, indexOf("Shop"));
   const shop = named(view);
 
-  expect(view.path.map((crumb) => crumb.name)).toEqual(["World", "Shop"]);
+  expect(view.path.map((crumb) => crumb.name)).toEqual(["Shop", "Shop"]);
   expect(view.items.filter((item) => item.kind === "island").map((item) => item.name)).toEqual(["Orders", "Stock"]);
   expect(shop.lanes).toEqual([
     ["uses", "Orders", "Stock", ["reserve"]],
