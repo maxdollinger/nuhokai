@@ -58,7 +58,8 @@ export default defineWorld({
   never import the world file.
 - The world's `id` is required and has a node id's form. Tools key per-world state by it (the map's saved layout), so
   every world gets its own; `nuhokai init` generates one.
-- The world is the outermost container. Its `name` is required and not blank; tools show it (the map's title). Its
+- The world is the outermost container. Its `name` is required and not blank; tools show it (the map's title). An
+  optional `description` says what the world is for. Its
   `source` lists the code the world covers, like a node's, relative to the project directory; every node's `source`
   lies under it (`check`).
 

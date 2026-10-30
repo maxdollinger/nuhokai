@@ -63,6 +63,42 @@ export type PortKind = Port["kind"];
  */
 export type Forbidden<Message extends string> = { readonly [K in Message]: never };
 
+/** What `String.prototype.trim()` removes: ECMAScript WhiteSpace and LineTerminator. */
+type Whitespace =
+  | " "
+  | "\t"
+  | "\n"
+  | "\v"
+  | "\f"
+  | "\r"
+  | "\u00a0"
+  | "\u1680"
+  | "\u2000"
+  | "\u2001"
+  | "\u2002"
+  | "\u2003"
+  | "\u2004"
+  | "\u2005"
+  | "\u2006"
+  | "\u2007"
+  | "\u2008"
+  | "\u2009"
+  | "\u200a"
+  | "\u2028"
+  | "\u2029"
+  | "\u202f"
+  | "\u205f"
+  | "\u3000"
+  | "\ufeff";
+export type Trim<S extends string> = S extends `${Whitespace}${infer Rest}`
+  ? Trim<Rest>
+  : S extends `${infer Rest}${Whitespace}`
+    ? Trim<Rest>
+    : S;
+
+/** Whether a literal string is empty or whitespace only, as `trim()` sees it. */
+export type Blank<S extends string> = Trim<S> extends "" ? true : false;
+
 // ─── References ──────────────────────────────────────────────────────────
 
 /**
@@ -625,11 +661,17 @@ export type NodeHandle<
 /** An entry of the world's `children`: a top-level node. */
 export type WorldChild = NodeRef;
 
-/** The world, created by `defineWorld`: its id and exactly the top-level nodes listed. */
+/** The world, created by `defineWorld`: the outermost container, with exactly the top-level nodes listed. */
 export interface World extends WorldBrand {
   readonly $ref: "world";
   /** The world's own id, in a node id's form; tools key per-world state by it. */
   readonly id: NodeId;
+  /** Shown by tools, e.g. as the map's title. Not blank. */
+  readonly name: string;
+  /** What the world is for. */
+  readonly description?: string;
+  /** The code the world covers, like a node's `source`; every node's `source` lies under it. */
+  readonly source: readonly string[];
   /** Top-level nodes. */
   readonly children: readonly WorldChild[];
 }

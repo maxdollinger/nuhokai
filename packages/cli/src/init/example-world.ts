@@ -9,6 +9,9 @@ import { Example } from "./example.ts";
 /** The world: the loader's only entry point, listing every top-level node under the world's own id. */
 export default defineWorld({
   id: "${id}",
+  name: "TODO: the world's name",
+  // The code the world covers, e.g. ["src/**"]; every node's source lies under it.
+  source: [],
   children: [Example],
 });
 `;

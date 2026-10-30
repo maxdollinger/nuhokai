@@ -197,18 +197,30 @@ describe("defineWorld", () => {
 
   test("builds a frozen world that keeps the references by identity", () => {
     const children = [Db, Billing];
-    const world = defineWorld({ id: "01a17bb6-ad4d-7298-8492-a53237d45f80", children });
+    const world = defineWorld({
+      id: "01a17bb6-ad4d-7298-8492-a53237d45f80",
+      name: "Shop",
+      description: "Sells things.",
+      source: ["src/**"],
+      children,
+    });
     expect(world.$ref).toBe("world");
     expect(world.id).toBe("01a17bb6-ad4d-7298-8492-a53237d45f80");
+    expect(world.name).toBe("Shop");
+    expect(world.description).toBe("Sells things.");
+    expect(world.source).toEqual(["src/**"]);
     expect(world.children).toEqual([Db, Billing]);
     expect(world.children[1]).toBe(Billing);
-    for (const part of [world, world.children]) expect(Object.isFrozen(part)).toBe(true);
+    for (const part of [world, world.children, world.source]) expect(Object.isFrozen(part)).toBe(true);
   });
 
   test("copies the children instead of freezing the caller's array", () => {
     const children = [Billing];
-    defineWorld({ id: "w", children });
+    const source = ["src/**"];
+    const world = defineWorld({ id: "w", name: "w", source, children });
     expect(Object.isFrozen(children)).toBe(false);
+    expect(Object.isFrozen(source)).toBe(false);
+    expect(world).not.toHaveProperty("description");
   });
 });
 

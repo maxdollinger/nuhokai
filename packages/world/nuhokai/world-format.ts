@@ -65,7 +65,7 @@ export const WorldFormat = node({
     },
     {
       id: "R11",
-      text: "A world has a required, non-blank name and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
+      text: "A world has a required, non-blank name, an optional description and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
     },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },

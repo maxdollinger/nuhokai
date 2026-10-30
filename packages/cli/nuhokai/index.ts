@@ -12,5 +12,8 @@ import { WorldPath } from "./world-path.ts";
 /** The package's own world: the loader's only entry point. */
 export default defineWorld({
   id: "01a17bb5-b066-71d1-9cc3-aa3378eae8e1",
+  name: "@nuhokai/cli",
+  description: "The toolchain around the world format: init, new, map and check.",
+  source: ["src/**", "scripts/**"],
   children: [Cli, Init, New, WorldMap, Check, Inspect, LoadWorld, WorldPath, Failure],
 });

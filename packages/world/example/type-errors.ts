@@ -451,12 +451,16 @@ export const tbdUnicodeWhitespace = tbd.event({ description: "\u00a0\ufeff\u3000
 
 export const emptyWorld = defineWorld({
   id: "w",
+  name: "w",
+  source: [],
   // @ts-expect-error children must not be empty
   children: [],
 });
 
 export const stringInWorld = defineWorld({
   id: "w",
+  name: "w",
+  source: [],
   children: [
     // @ts-expect-error a child is a node reference, not a string
     "shop",
@@ -465,6 +469,8 @@ export const stringInWorld = defineWorld({
 
 export const relationInWorld = defineWorld({
   id: "w",
+  name: "w",
+  source: [],
   children: [
     // @ts-expect-error relation() is gone: a node lists its children itself
     { $ref: "relation", parent: Shop, children: [Orders] },
@@ -473,6 +479,8 @@ export const relationInWorld = defineWorld({
 
 export const draftInWorld = defineWorld({
   id: "w",
+  name: "w",
+  source: [],
   children: [
     // @ts-expect-error a draft is not a node until .edges() is called
     Draft,
@@ -481,6 +489,8 @@ export const draftInWorld = defineWorld({
 
 export const portInWorld = defineWorld({
   id: "w",
+  name: "w",
+  source: [],
   children: [
     // @ts-expect-error a child is a node, not a port
     Orders.place,
@@ -488,9 +498,23 @@ export const portInWorld = defineWorld({
 });
 
 // @ts-expect-error a world needs an id
-export const worldWithoutId = defineWorld({ children: [Postgres] });
+export const worldWithoutId = defineWorld({ name: "w", source: [], children: [Postgres] });
 
-export const validWorld = defineWorld({ id: "w", children: [Postgres, AuditLog, Shop] });
-export const reusedWorld = defineWorld({ id: "w", children: validWorld.children });
+// @ts-expect-error a world needs a name
+export const worldWithoutName = defineWorld({ id: "w", source: [], children: [Postgres] });
+
+export const blankNameWorld = defineWorld({
+  id: "w",
+  // @ts-expect-error name must not be empty or whitespace
+  name: " \t",
+  source: [],
+  children: [Postgres],
+});
+
+// @ts-expect-error a world needs a source
+export const worldWithoutSource = defineWorld({ id: "w", name: "w", children: [Postgres] });
+
+export const validWorld = defineWorld({ id: "w", name: "w", source: [], children: [Postgres, AuditLog, Shop] });
+export const reusedWorld = defineWorld({ id: "w", name: "w", source: [], children: validWorld.children });
 const mixed = [Postgres, composedDome];
-export const mixedWorld = defineWorld({ id: "w", children: mixed });
+export const mixedWorld = defineWorld({ id: "w", name: "w", source: [], children: mixed });
