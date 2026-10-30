@@ -50,7 +50,7 @@ export const ExampleWorld = node({
       rejected: [
         {
           option: "Relax defineWorld to accept an empty world",
-          why: "Weakens a rule for one state; empty relation children stay invalid.",
+          why: "Weakens a rule for one state; a dome's empty children stay invalid.",
         },
         {
           option: "A constant world id",

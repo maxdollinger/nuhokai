@@ -207,15 +207,12 @@ interface NodeSpec {
     externalType?: "caller" | "api" | "db";
     /** Requirements and constraints; see Requirement. */
     requirements?: Requirement[];
-    /**
-     * Append-only. A test case's id is its zero-based array index, so entries
-     * are never removed or reordered.
-     */
+    /** How the requirements are shown to hold; kept current with the node, like every other field. */
     testCases?: TestCase[];
     /**
-     * Append-only log; a decision's id is its zero-based array index.
-     * Entries are never removed, edited or reordered. When decisions conflict,
-     * the later one wins.
+     * The design decisions that hold now, each with why and what was rejected.
+     * Kept current: a changed decision is edited or replaced, never left beside
+     * the one that overrides it.
      */
     decisions?: Decision[];
 }
@@ -327,7 +324,7 @@ declare const nodeFlags: unique symbol;
 export type PortKind = Port["kind"];
 /**
  * A type no value has; the message shows up in the compiler error,
- * e.g. "not assignable to type 'Forbidden<"external nodes cannot be parents">'".
+ * e.g. "not assignable to type 'Forbidden<"abstract nodes cannot have children">'".
  */
 export type Forbidden<Message extends string> = {
     readonly [K in Message]: never;
@@ -449,7 +446,7 @@ type Replaced = "schema" | "id" | "name" | "parent" | "external" | "abstract" | 
 export type RequirementsDef = Authored<NonNullable<NodeSpec["requirements"]>>;
 /** Node-spec `testCases`, authored. */
 export type TestCasesDef = Authored<NonNullable<NodeSpec["testCases"]>>;
-/** Lazy node-spec `implements` edges; an alias, so that `NodeRules` can repeat the exact type. */
+/** Lazy node-spec `implements` edges; an alias, so that `ContractRules` can repeat the exact type. */
 export type Implements<Contracts extends readonly ContractRef[]> = () => Contracts;
 /**
  * The fields every node authors. All fields not declared here are
@@ -487,7 +484,7 @@ export interface NodeShape<C extends Record<string, unknown> | undefined = undef
 export interface NodeEdges {
     /**
      * Node-spec `uses` edges: every port this leaf depends on. The loader groups them
-     * by node and checks the scope against the world tree. Not in step one:
+     * by node; `check` checks the scope against the world tree. Not in step one:
      * `uses` may point anywhere, also back, so it would form type cycles (TS7022).
      */
     readonly uses?: () => readonly PortRef[];
@@ -670,12 +667,13 @@ type DomePortsRules<C extends Record<string, unknown>, P, Contracts extends read
 };
 /**
  * Everything `node` checks on one shape: a leaf needs own port definitions,
- * a dome needs non-external children and a ports function over their ports.
+ * a dome needs non-external children and a ports function over their ports;
+ * both get the flag rules of the fields they author.
  */
 export type NodeShapeRules<C extends Record<string, unknown> | undefined, P, External extends boolean, Abstract extends boolean, Contracts extends readonly ContractRef[]> = (IsDome<C> extends true ? {
     readonly children: NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
     readonly ports?: (children: NonNullable<C>) => P & NoInfer<DomePortsRules<NonNullable<C>, P, Contracts>>;
-} & DomeRules<External, Abstract> : {
+} & DomeRules<External, Abstract> & DefRules<External, Abstract> : {
     readonly ports?: P & NoInfer<LeafPortsRules<P, Contracts>>;
 } & DefRules<External, Abstract>) & NoInfer<ContractRules<Contracts>>;
 /** The handle's port kinds: a leaf's own ports, or the child ports a dome exposes. */
@@ -713,7 +711,7 @@ export interface World extends WorldBrand {
     readonly $ref: "world";
     /** The world's own id, in a node id's form; tools key per-world state by it. */
     readonly id: NodeId;
-    /** Shown by tools, e.g. as the map's title. Not blank. */
+    /** For tools to show, e.g. as a title. Not blank. */
     readonly name: string;
     /** What the world is for. */
     readonly description?: string;

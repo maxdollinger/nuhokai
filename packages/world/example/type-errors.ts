@@ -188,6 +188,13 @@ export const maybeAbstractDome = node({
   children: { cmd: Cmd },
 }).edges({});
 
+export const domeWithExternalType = node({
+  ...base,
+  children: { cmd: Cmd },
+  // @ts-expect-error a dome is never external, so externalType is for external nodes only
+  externalType: "db",
+}).edges({});
+
 export const domeUses = node({ ...base, children: { cmd: Cmd } }).edges({
   // @ts-expect-error a dome has no behavior of its own: put uses in one of its children
   uses: () => [Stock.reserve],
@@ -351,7 +358,7 @@ export const demonstratesUnknownId = node({
   ],
 }).edges({});
 
-// A non-literal id is left to the loader, and does not make a literal one a duplicate.
+// A non-literal id is left to check, and does not make a literal one a duplicate.
 declare const requirementId: string;
 export const wideRequirementId = node({
   ...base,

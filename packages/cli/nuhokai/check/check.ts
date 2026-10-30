@@ -25,7 +25,7 @@ export const Check = node({
   ],
   decisions: [
     {
-      decision: "Children SpecCheck, CodeCheck and Diagnostics.",
+      decision: "Children CheckWorld, TypeCheck, SpecCheck, CodeCheck and Diagnostics.",
       why: "Specific names read better on the map; Diagnostics are findings, Failure is thrown failures.",
     },
     {

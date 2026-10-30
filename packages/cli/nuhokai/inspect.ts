@@ -61,8 +61,8 @@ export const Inspect = node({
       ],
     },
     {
-      decision: "new and map share requireWorld; init reads inspect itself, since absent is where it creates.",
-      why: "Both commands that need a world fail alike, in the same words.",
+      decision: "check, new and map share requireWorld; init reads inspect itself, since absent is where it creates.",
+      why: "The commands that need a world fail alike, in the same words.",
     },
     {
       decision: "requireWorld follows symlinks; inspect does not.",
