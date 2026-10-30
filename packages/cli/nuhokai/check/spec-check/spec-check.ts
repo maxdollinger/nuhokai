@@ -95,7 +95,7 @@ export const SpecCheck = node({
       demonstrates: ["R11"],
     },
     {
-      text: "A child copy-pasted with its parent's id → one R1 error; no scope or ownership findings for that id, and the run ends.",
+      text: "A child copy-pasted with its parent's id → one R1 error; no scope, name or ownership findings for that id.",
       demonstrates: ["R1"],
     },
   ],
