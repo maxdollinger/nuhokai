@@ -114,6 +114,27 @@ export interface Details {
   }[];
 }
 
+/** A search result: a node or port by its name, a tbd hole by its description. */
+export interface Hit {
+  readonly kind: "node" | "port" | "hole";
+  /** What the results list shows: the node's name, `Owner › port`, or `tbd: description`. */
+  readonly label: string;
+  /** The matched characters, as ascending indexes into label. */
+  readonly positions: readonly number[];
+  /** 1 exact, 2 prefix, 3 word starts, 4 substring, 5 subsequence. */
+  readonly tier: 1 | 2 | 3 | 4 | 5;
+  /** Where a jump lands: the node's parent (a port's: its node's), a hole's deepest scope holding all its users. */
+  readonly scope: Scope;
+  /** The breadcrumbs to scope. */
+  readonly path: ScopeView["path"];
+  /** The item scope draws for it: node:<index> (a port's node), tbd:<placeholder index>. */
+  readonly key: string;
+  /** The node, a port's node; null for a hole. */
+  readonly node: number | null;
+}
+
 export function mapScene(world: LoadedWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
 export function detailsOf(node: NodeSpec): Details;
+export function search(scene: Scene, query: string): Hit[];
+export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): string[];

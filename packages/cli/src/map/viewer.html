@@ -31,6 +31,18 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #crumbs .link:hover{color:var(--text);text-decoration:underline}
 #crumbs .cur{font-weight:600}
 #crumbs .sep{opacity:0.45;margin:0 6px}
+#find{position:absolute;left:16px;top:58px;z-index:4;width:min(320px,calc(100% - 32px));padding:4px;cursor:default}
+#find:focus-within{border-color:var(--accent)}
+#q{display:block;width:100%;padding:6px 8px;border:0;border-radius:7px;background:transparent;color:var(--text);font:inherit;font-size:13px;outline:none;cursor:text}
+#q::placeholder{color:var(--text-2)}
+#hits{margin-top:4px;padding-top:4px;border-top:0.5px solid var(--panel-border);max-height:min(360px,calc(100vh - 160px));overflow:auto}
+#hits[hidden]{display:none}
+#hits .hit{padding:5px 8px;border-radius:7px;cursor:pointer}
+#hits .hit:hover,#hits .hit[aria-selected="true"]{background:rgba(127,127,127,0.14)}
+#hits .h-name,#hits .h-path{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hits .h-name b{font-weight:600;color:var(--accent)}
+#hits .h-path{font-size:11px;color:var(--text-2)}
+#hits .h-none{padding:5px 8px;color:var(--text-2)}
 #controls{position:absolute;left:16px;top:50%;transform:translateY(-50%);z-index:3;
   display:flex;flex-direction:column;gap:4px;padding:6px}
 #controls button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;border-radius:7px;
@@ -70,6 +82,10 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 <body>
 <section id="wrap" aria-label="3D map of the world">
   <div id="crumbs" class="panel"></div>
+  <div id="find" class="panel">
+    <input id="q" type="text" placeholder="Search  /" aria-label="Search nodes, ports and holes" role="combobox" aria-controls="hits" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+    <div id="hits" role="listbox" aria-label="Search results" hidden></div>
+  </div>
   <div id="controls" class="panel">
     <button id="resetBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>Reset view</button>
     <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h3a3 3 0 0 1 3 3"/><path d="M10 17H7a3 3 0 0 1-3-3"/></svg>Reset layout</button>
@@ -85,7 +101,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 /*nuhokai:scene*/
 
 // ---------- viewer ----------
-const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs');
+const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs'),q=document.getElementById('q'),hitList=document.getElementById('hits');
 const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
 // colours and light as three.js r128 drew them: hex values used as given, no sRGB conversion, legacy light units (×π)
@@ -326,11 +342,11 @@ function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r
 it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{if(l.from===id||l.to===id)routeLane(l);});S.air.forEach(a=>{if(a.from===id||a.to===id)routeAir(a);});S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
 
 // ---------- state ----------
-let sel=null;
+let sel=null,HITS=[],cur=0;const SHOWN=50;
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
 t('Height = call depth. Lanes are calls labelled with their ports (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
 ['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background='#'+new THREE.Color(BAND[s]).getHexString();info.appendChild(sw);t(s);});
-t('. Click for details, drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(path.length>1?', Esc to go up.':'.'));}
+t('. Click for details, drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside, / to search'+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
@@ -343,12 +359,13 @@ mk('p','d-purpose',info.purpose);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}}
 function setLaneLook(l,col,a){if(l.tag)l.tag.material.opacity=a<0.5?0.15:1;l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
-function applyState(){const fid=S.hover||sel;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
-Object.values(S.items).forEach(it=>{const o=fid&&!near.has(it.id)?0.22:1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));it.label.material.opacity=o<1?0.35:1;
-if(it.edge){const f=fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}});
-S.lanes.forEach(l=>{if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
-S.air.forEach(a=>{a.vis=!fid||a.from===fid||a.to===fid;a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.material.opacity=a.vis?1:0.15;});
-S.pillars.forEach(r=>{const o=fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
+function applyState(){const lit=searching()?new Set(lightsFor(MAP,S.view,HITS)):null;const fid=lit?null:S.hover||sel;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
+// a query lights its hits' items and dims the rest, over hover and selection
+Object.values(S.items).forEach(it=>{const o=lit?(lit.has(it.id)?1:0.22):fid&&!near.has(it.id)?0.22:1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));it.label.material.opacity=o<1?0.35:1;
+if(it.edge){const f=lit?lit.has(it.id):fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}});
+S.lanes.forEach(l=>{if(lit)setLaneLook(l,laneColor(l),0.08);else if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
+S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.material.opacity=a.vis?1:0.15;});
+S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
 legend();}
 function select(id){sel=selectable(id)?id:null;applyState();renderDetails();}
 function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementById('raiseBtn');b.querySelector('span').textContent=raiseTarget?'Land nodes':'Lift nodes';b.querySelector('svg').innerHTML=raiseTarget?'<path d="M12 19V5"/><path d="M6 11l6 6 6-6"/>':'<path d="M12 5v14"/><path d="M6 13l6-6 6 6"/>';}
@@ -361,7 +378,7 @@ function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaled
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
 function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans={kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,scope:it.sp.item.node};controls.enabled=false;tip.style.display='none';}
-function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,depth:d,childId:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
+function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:path.slice(0,d+1),from:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
 function resetView(){if(trans)return;computeHome();trans={kind:'home',t:0,fromT:controls.target.clone(),toT:HOME.t.clone(),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone()};controls.enabled=false;}
 // forget what the user moved in this scope, in memory and in storage, and seed it again
@@ -369,6 +386,30 @@ function resetLayout(){if(trans)return;const all=stored();delete all[scopeKey(S.
 document.getElementById('resetBtn').addEventListener('click',resetView);
 document.getElementById('layoutBtn').addEventListener('click',resetLayout);
 document.getElementById('raiseBtn').addEventListener('click',toggleRaise);
+
+// ---------- search ----------
+// every node, port and tbd hole in the world, whatever scope is open; a hit lands in its home scope, centred and selected
+function searching(){return q.value.trim()!=='';}
+function onQuery(){HITS=search(MAP,q.value);cur=0;renderHits();applyState();}
+function renderHits(){hitList.innerHTML='';const on=searching();hitList.hidden=!on;q.setAttribute('aria-expanded',String(on));q.removeAttribute('aria-activedescendant');if(!on)return;
+const mk=(tag,cls,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;parent.appendChild(e);return e;};
+if(!HITS.length){mk('div','h-none',hitList).textContent='No matches';return;}
+HITS.slice(0,SHOWN).forEach((h,i)=>{const row=mk('div','hit',hitList);row.id='hit'+i;row.setAttribute('role','option');row.setAttribute('aria-selected',String(i===cur));
+// the label in runs, the matched characters bold
+const name=mk('div','h-name',row),bold=new Set(h.positions);let from=0;for(let j=1;j<=h.label.length;j++)if(j===h.label.length||bold.has(j)!==bold.has(from)){const s=h.label.slice(from,j);if(bold.has(from))mk('b',null,name).textContent=s;else name.appendChild(document.createTextNode(s));from=j;}
+mk('div','h-path',row).textContent=h.path.map(c=>c.name).join(' › ');
+row.addEventListener('mousedown',e=>e.preventDefault());row.addEventListener('click',()=>jump(h));
+if(i===cur){q.setAttribute('aria-activedescendant',row.id);row.scrollIntoView({block:'nearest'});}});}
+// same scope: glide there; another scope: fade out as going up does, load it, fade in centred on the hit
+function jump(h){if(trans)return;q.value='';onQuery();q.blur();
+if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:Math.max(camera.zoom,HOME.zoom*1.5),fromP:camera.position.clone(),sel:h.key};}
+else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:h.path.map(c=>c.scope),sel:h.key};
+controls.enabled=false;tip.style.display='none';}
+q.addEventListener('input',onQuery);
+q.addEventListener('keydown',e=>{if(e.isComposing)return;const n=Math.min(HITS.length,SHOWN);
+if((e.key==='ArrowDown'||e.key==='ArrowUp')&&n){e.preventDefault();cur=(cur+(e.key==='ArrowDown'?1:n-1))%n;renderHits();}
+else if(e.key==='Enter'){e.preventDefault();if(HITS[cur])jump(HITS[cur]);}
+else if(e.key==='Escape'){e.preventDefault();if(q.value){q.value='';onQuery();}else q.blur();}});
 
 // ---------- input ----------
 const ray=new THREE.Raycaster();let down=null,drag=null;
@@ -391,7 +432,12 @@ if(down&&down.b===0&&!trans&&e.target===el){const dx=e.clientX-down.x,dy=e.clien
 el.addEventListener('dblclick',e=>{if(trans)return;const h=hitAt(e);if(h&&h.id){enter(h.id);return;}if(path.length>1&&outsideBoard(e))goUp();});
 el.addEventListener('pointerleave',()=>{tip.style.display='none';if(S.hover){S.hover=null;applyState();}});
 el.addEventListener('contextmenu',e=>e.preventDefault());
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&sel){select(null);return;}if((e.key==='Escape'||e.key==='Backspace')&&path.length>1){e.preventDefault();goUp();}});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='k'||e.key==='K')){e.preventDefault();q.focus();q.select();return;}
+// keys typed in the search box are the box's own: never a way up
+if(e.target===q)return;
+if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();q.focus();q.select();return;}
+if(e.key==='Escape'&&searching()){q.value='';onQuery();return;}
+if(e.key==='Escape'&&sel){select(null);return;}if((e.key==='Escape'||e.key==='Backspace')&&path.length>1){e.preventDefault();goUp();}});
 window.addEventListener('resize',()=>{renderer.setSize(W(),H());frustum();computeHome();});
 load(null);camAt(HOME.t,HOME.zoom);controls.update();
 
@@ -402,9 +448,11 @@ if(trans){trans.t+=dt;const k=Math.min(1,trans.t/0.7),e=io2(k);
 if(trans.kind==='in1'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.position.copy(trans.fromP).add(tt.clone().sub(trans.fromT));controls.target.copy(tt);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();camera.lookAt(tt);el.style.opacity=String(1-Math.max(0,(k-0.5)/0.5));
 if(k>=1){path.push(trans.scope);load(trans.scope);camAt(HOME.t,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:HOME.t.clone(),toT:HOME.t.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom};}}
 else if(trans.kind==='out1'){camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();el.style.opacity=String(1-Math.max(0,(k-0.4)/0.6));
-if(k>=1){path=path.slice(0,trans.depth+1);load(path[path.length-1]);const it=S.items[trans.childId];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();camAt(c,HOME.zoom*6);trans={kind:'in2',t:0,fromT:c,toT:HOME.t.clone(),fromZ:HOME.zoom*6,toZ:HOME.zoom};}}
-else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){trans=null;controls.enabled=true;controls.update();}}
-else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){trans=null;controls.enabled=true;controls.update();}}}
+if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=S.items[tr.sel||tr.from];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();
+// going up starts close on the dome just left and widens to the scope; a search hit starts close and stays centred on it
+const z=tr.sel?HOME.zoom*1.5:HOME.zoom,z0=z*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:z,sel:tr.sel};}}
+else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel;trans=null;controls.enabled=true;controls.update();if(s)select(s);}}
+else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel;trans=null;controls.enabled=true;controls.update();if(s)select(s);}}}
 else if(!drag)controls.update();
 const prf=rf;rf+=(raiseTarget-rf)*Math.min(1,dt*2.5);if(Math.abs(rf-raiseTarget)<1e-3)rf=raiseTarget;const raising=rf!==prf;
 const lt=T-S.T0;

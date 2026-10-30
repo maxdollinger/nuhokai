@@ -12,7 +12,7 @@ export const Viewer = node({
       kind: "call",
       purpose: "Draw the loaded world in the browser",
       input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
-      output: "the drawn page: islands per scope, edges, holes, saved layout, click details",
+      output: "the drawn page: islands per scope, edges, holes, saved layout, click details, search",
     },
   },
   requirements: [
@@ -35,6 +35,14 @@ export const Viewer = node({
     },
     { id: "R9", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
+    {
+      id: "R11",
+      text: "Search (/ or Ctrl/⌘K): every node and port by name, every tbd hole by description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, never holes, tighter first); ties: nodes, holes, ports, then world order.",
+    },
+    {
+      id: "R12",
+      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node) and dims the rest. Enter or click lands in the hit's home scope (a node's or port's parent, a hole's deepest scope holding all its users), centred and selected; keys typed in the box never go up.",
+    },
   ],
   testCases: [
     {
@@ -69,6 +77,22 @@ export const Viewer = node({
       text: "By hand, headless Chromium: wheel over an island → it stays under the cursor while the map zooms.",
       demonstrates: ["R10"],
     },
+    {
+      text: "scene.js under bun, example world: `or` → Orders, Shop › orderHistory, the hole, Shop › placeOrder, AuditLog › history; `ore` → tighter subsequences first; `hist` skips the hole; `pg` and blank → none.",
+      demonstrates: ["R11"],
+    },
+    {
+      text: "scene.js under bun: Stock lands in Shop, Shop on top, Stock › reserve on Stock, the hole once in Shop; a hole used on top and inside a dome → top.",
+      demonstrates: ["R12"],
+    },
+    {
+      text: "scene.js under bun, example world: on top, stock and reserve light Shop; inside Shop, audit lights its outside proxy, shop lights nothing.",
+      demonstrates: ["R12"],
+    },
+    {
+      text: "By hand, headless Chromium, example world: on top, / then Stock and Enter → Shop open, Stock selected; Backspace and Escape in the box stay in Shop.",
+      demonstrates: ["R11", "R12"],
+    },
   ],
   decisions: [
     {
@@ -89,6 +113,18 @@ export const Viewer = node({
       decision:
         "Moved positions live in the browser's localStorage, one entry per world id, inside it by scope and node id; never in the map.",
       why: "Same world, same bytes; ids survive a regenerated map, positions in the file would not. All file:// pages share one storage, so the world id keeps projects apart.",
+    },
+    {
+      decision: "Search: a hand-written tiered matcher in scene.js; no library, no typo tolerance.",
+      why: "The map opens offline with nothing loaded; tiers rank predictably under unit tests, and edit distance on short names floods the list.",
+    },
+    {
+      decision: "Holes match up to substring, never as a subsequence.",
+      why: "A description is a sentence: almost any query's letters appear in it in order.",
+    },
+    {
+      decision: "A hit lands in its home scope, never on an outside proxy.",
+      why: "There it is drawn as itself, with its own lanes and details.",
     },
   ],
 }).edges({});
