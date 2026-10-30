@@ -18,7 +18,7 @@ export const TypeCheck = node({
     { id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." },
     {
       id: "R2",
-      text: "World files, *.test.ts aside, contain no cast, non-null assertion, explicit any or @ts- directive; each is an error at its line.",
+      text: "World files are declarative: calls only to node, .edges, defineWorld, tbd.call, tbd.event and inherited; imports only @nuhokai/world and files under nuhokai/; no cast, non-null assertion, any or @ts- directive. Anything else is an error at its line.",
     },
   ],
   testCases: [
@@ -27,7 +27,7 @@ export const TypeCheck = node({
       demonstrates: ["R1"],
     },
     {
-      text: "children: { a: Contract as any } and a @ts-expect-error line → two errors; the same cast in index.test.ts → none.",
+      text: "children: { a: Contract as any }, a @ts-expect-error line and Reflect.get(...) → three errors; a test file importing bun:test fails too.",
       demonstrates: ["R2"],
     },
   ],
