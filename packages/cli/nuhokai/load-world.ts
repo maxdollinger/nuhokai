@@ -20,6 +20,7 @@ export const LoadWorld = node({
         "world file failed to evaluate",
         "default export not a world",
         "uses or implements returns a non-list",
+        "a symlink in nuhokai/ cannot be resolved",
       ],
     },
   },
