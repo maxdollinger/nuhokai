@@ -12,6 +12,7 @@ src/
   new/          add one node file to an existing world: the program and the file's bytes
   load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
+  check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   shared/       the world layout and its one path form, what sits at nuhokai/, and the one error type with its one-line rule
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
@@ -25,21 +26,11 @@ the exactly pinned `three` dev dependency plus `src/map/viewer.html` and `src/ma
 stale. A test also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
 `@nuhokai/world`.
 
-Planned modules, added as they are implemented:
-
-```
-src/
-  rules/        global rules: duplicate ids, orphans, uses scope, names
-  check/        run the embedded tsc, merge its diagnostics with the rules'
-  report/       one file:line diagnostic list
-  toolchain/    embedded @nuhokai/world runtime and tsc; the world types are already generated
-```
-
 ## Commands
 
 | Command  | Purpose                                                                                |
 | -------- | -------------------------------------------------------------------------------------- |
-| `check`  | load the world, run tsc and the global rules, exit 1 on any diagnostic _(planned)_     |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
 | `new`    | add one node file, `nuhokai/<node-path>.ts`, with a fresh id and `TODO:` placeholders  |

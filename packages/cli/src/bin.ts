@@ -5,7 +5,7 @@ import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
 import { runNew } from "./new/index.ts";
 
-/** The commands the CLI exposes; `check` and `update` are planned, `init`, `map` and `new` run today. */
+/** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `new` run today. */
 export const COMMANDS = ["check", "init", "map", "new", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -155,6 +155,11 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
+  if (first === "check") {
+    // The checker's client is only check's to load.
+    const { runCheck } = await import("./check/index.ts");
+    return runCheck(root);
+  }
   if (first === "init") return runInit(root);
   if (first === "map") {
     // The map's assets weigh hundreds of KB; only map loads them.
