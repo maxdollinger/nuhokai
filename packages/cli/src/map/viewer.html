@@ -81,7 +81,6 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 </section>
 <script type="application/json" id="nuhokai-world">"nuhokai:world"</script>
 <script>/*nuhokai:three*/</script>
-<script>/*nuhokai:orbit-controls*/</script>
 <script type="module">
 /*nuhokai:scene*/
 
@@ -89,17 +88,19 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs');
 const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+// colours and light as three.js r128 drew them: hex values used as given, no sRGB conversion, legacy light units (×π)
+THREE.ColorManagement.enabled=false;
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(W(),H());renderer.setClearColor(0x000000,0);
 const el=renderer.domElement;wrap.prepend(el);
 const scene=new THREE.Scene();
 const FR=30;const camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,700);
 function frustum(){const a=W()/H();camera.left=-FR*a/2;camera.right=FR*a/2;camera.top=FR/2;camera.bottom=-FR/2;camera.updateProjectionMatrix();}
 frustum();
-const controls=new THREE.OrbitControls(camera,el);controls.enableDamping=true;controls.dampingFactor=0.1;controls.minZoom=0.15;controls.maxZoom=14;controls.screenSpacePanning=true;controls.maxPolarAngle=Math.PI/2-0.12;
+const controls=new THREE.OrbitControls(camera,el);controls.enableDamping=true;controls.dampingFactor=0.1;controls.minZoom=0.15;controls.maxZoom=14;controls.zoomToCursor=true;controls.screenSpacePanning=true;controls.maxPolarAngle=Math.PI/2-0.12;
 const CAMDIR=new THREE.Vector3(0.8,1.1,-1).normalize();
-scene.add(new THREE.HemisphereLight(0xffffff,DARK?0x30302e:0xd8d6cf,DARK?0.75:0.85));
-const sun=new THREE.DirectionalLight(0xffffff,DARK?0.5:0.55);sun.position.set(18,40,-24);scene.add(sun);scene.add(sun.target);
+scene.add(new THREE.HemisphereLight(0xffffff,DARK?0x30302e:0xd8d6cf,(DARK?0.75:0.85)*Math.PI));
+const sun=new THREE.DirectionalLight(0xffffff,(DARK?0.5:0.55)*Math.PI);sun.position.set(18,40,-24);scene.add(sun);scene.add(sun.target);
 const world=new THREE.Group();scene.add(world);
 function M(color,o){return new THREE.MeshStandardMaterial(Object.assign({color:color,roughness:0.8,metalness:0},o||{}));}
 function op(mat,o){mat.transparent=o<1;mat.opacity=o;mat.depthWrite=o>=1;}
@@ -138,10 +139,14 @@ function remember(sp,pos){const all=stored(),k=scopeKey(S.scope);all[k]=Object.a
 function short(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
 
 // ---------- geometry helpers ----------
-function rrShape(w,h,r){const s=new THREE.Shape();const x=-w/2,y=-h/2;s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);return s;}
-function slabGeo(w,d,h,r){const g=new THREE.ExtrudeGeometry(rrShape(w,d,r),{depth:h,bevelEnabled:false,curveSegments:8});g.rotateX(-Math.PI/2);return g;}
-function outlinePts(w,r){return rrShape(w,w,r).getPoints(12).map(p=>V(p.x,0,-p.y));}
-function circShape(r){const s=new THREE.Shape();s.absarc(0,0,r,0,Math.PI*2,false);return s;}
+function discGeo(r,h){return new THREE.CylinderGeometry(r,r,h,48).translate(0,h/2,0);}
+// children on top of an island: one ring of up to 6, else a centre and rings of 6, 12, … in a disc of radius a; childR is each child's radius
+function ringSpots(n,a){if(n===1)return{spots:[{x:0,z:0}],childR:a*0.5};
+const centre=n>6,rings=[];for(let k=1,left=centre?n-1:n;left>0;k++){const m=centre?Math.min(6*k,left):left;rings.push(m);left-=m;}
+const d=a/(rings.length+0.4),spots=centre?[{x:0,z:0}]:[];
+rings.forEach((m,i)=>{const k=i+1;for(let j=0;j<m;j++){const t=j*2*Math.PI/m+k*0.5;spots.push({x:Math.cos(t)*k*d,z:Math.sin(t)*k*d});}});
+return{spots:spots,childR:d*0.4};}
+function discShape(r){const s=new THREE.Shape();s.absarc(0,0,r,0,Math.PI*2,false);return s;}
 function circlePts(r){const a=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2;a.push(V(Math.cos(t)*r,0,Math.sin(t)*r));}return a;}
 function radius(parts){return Math.min(2.4,0.9*Math.sqrt(Math.max(1,parts)));}
 function convexHull(P){P=P.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);const lo=[],up=[];for(const p of P){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}for(let i=P.length-1;i>=0;i--){const p=P[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p);}up.pop();lo.pop();return lo.concat(up);}
@@ -217,17 +222,18 @@ const it={id:sp.id,sp:sp,kind:sp.kind,side:sp.side,name:sp.item?sp.item.name:'',
 const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh&&pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}return obj;};
 const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let footShape,lab,labY=0.9;
-if(sp.kind==='comp'){const c=sp.item;const hw=sp.R-1.15+0.35,w=hw*2,cr=hw*0.35;it.rr=hw*1.06+0.15;it.ah=SH/2;
-const geo=slabGeo(w,w,SH,cr);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
+if(sp.kind==='comp'){const c=sp.item;// ro: the island disc's radius
+const ro=(sp.R-1.15+0.35)*1.1;it.rr=ro+0.15;it.ah=SH/2;
+const geo=discGeo(ro,SH);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
 const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.85});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.85;
-add(at(new THREE.Mesh(slabGeo(w+0.08,w+0.08,0.36,cr+0.04),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
-add(at(new THREE.Mesh(slabGeo(w-0.32,w-0.32,0.05,cr*0.8),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
+add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
+add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
 // a contract: a dashed rim around a translucent island
-if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(outlinePts(w+0.5,cr+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
-const kids=MAP.children.get(c.node);const n=kids.length;if(n){const cols=Math.ceil(Math.sqrt(n)),rows=Math.ceil(n/cols);const cell=(w-0.9)/Math.max(cols,rows);const s=cell*0.5;
-kids.forEach((k,j)=>{const ch=MAP.nodes[k];const ci=j%cols,ri=Math.floor(j/cols);const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(slabGeo(s,s,hgt,s*0.2),M(TOP[ch.status]||TOP.planned,{roughness:0.5}));add(at(b,(ci-(cols-1)/2)*cell,SH+0.05,(ri-(rows-1)/2)*cell),false);});}
+if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(ro+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
+const kids=MAP.children.get(c.node);const n=kids.length;if(n){const{spots,childR}=ringSpots(n,ro-0.45);
+kids.forEach((k,j)=>{const ch=MAP.nodes[k];const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(discGeo(childR,hgt),M(TOP[ch.status]||TOP.planned,{roughness:0.5}));add(at(b,spots[j].x,SH+0.05,spots[j].z),false);});}
 const sub=(c.abstract?'contract · ':'')+c.status+' · level '+sp.level;
-footShape=rrShape(w,w,cr);lab=labelSprite(c.name,sub);labY=SH+0.35;
+footShape=discShape(ro);lab=labelSprite(c.name,sub);labY=SH+0.35;
 S.labels[sp.id]=c.name+' · '+sub+' · '+(n?n+' inside':'leaf')+'\nClick for details · drag to move'+(c.dome?' · double-click to look inside':'');}
 else if(sp.kind==='ext'){const t=sp.item.look;it.rr=sp.R-0.35;it.ah=0.45;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(sp.R-0.7,sp.R-0.55,0.2,48),M(EXTPAD)),0,0.1,0));
@@ -235,21 +241,21 @@ if(t==='village'){[[-0.9,0],[0,0.5],[0.9,-0.25]].forEach(([hx,hz])=>{add(at(new 
 else if(t==='db'){[0.38,0.76,1.14].forEach((y,j)=>add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.32,32),M(j%2?EXTD:EXTC)),0,y,0)));labY=1.5;}
 else{add(at(new THREE.Mesh(new THREE.BoxGeometry(1.7,0.75,1.1),M(EXTC)),0,0.58,0));add(at(new THREE.Mesh(new THREE.BoxGeometry(1.85,0.1,1.25),M(EXTD)),0,1.0,0));labY=1.25;}
 const type=sp.node.externalType||'api';
-footShape=circShape(sp.R-0.55);lab=labelSprite(sp.item.name,'external · '+type,EXTC);
+footShape=discShape(sp.R-0.55);lab=labelSprite(sp.item.name,'external · '+type,EXTC);
 S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'used from here')+')'+(sp.item.ports.length?'\nused for '+sp.item.ports.join(', '):'')+'\nClick for details';}
 else if(sp.kind==='ghost'){it.rr=1.15;it.ah=0.15;const col=sp.orange?ORANGE:GHOST;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.3,40),M(col,{transparent:true,opacity:0.45})),0,0.15,0));
 const em=new THREE.LineDashedMaterial({color:col,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.9});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.0)),em);ol.computeLineDistances();ol.position.y=0.31;add(ol);
-const ports=sp.item.ports.join(', ');footShape=circShape(0.95);
+const ports=sp.item.ports.join(', ');footShape=discShape(0.95);
 const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:where),col);labY=0.5;
 S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\nClick for details':'');}
 else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 // a tbd: a dark pit with a dashed rim, labelled with what the missing port has to do
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.04,40),M(PIT,{transparent:true,opacity:0.6})),0,0.02,0));
 const em=new THREE.LineDashedMaterial({color:GHOST,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.05)),em);ol.computeLineDistances();ol.position.y=0.06;add(ol);
-footShape=circShape(0.95);lab=labelSprite(short(sp.item.name,42),'tbd '+sp.item.portKind+' · not designed yet',GHOST);labY=0.3;
+footShape=discShape(0.95);lab=labelSprite(short(sp.item.name,42),'tbd '+sp.item.portKind+' · not designed yet',GHOST);labY=0.3;
 S.labels[sp.id]=sp.item.name+'\ntbd '+sp.item.portKind+' · not designed yet';}
-else{it.rr=2.2;const em=new THREE.LineDashedMaterial({color:LANEC,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(outlinePts(4,0.8)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
+else{it.rr=2.2;const em=new THREE.LineDashedMaterial({color:LANEC,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(2)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
 lab=labelSprite('No islands here yet',null);labY=0.3;S.labels[sp.id]='No islands here yet';}
 lab.position.y=labY;g.add(lab);it.label=lab;
 if(footShape&&sp.ty>0){const sm=new THREE.MeshBasicMaterial({color:LANEC,transparent:true,opacity:0.35});const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,6),sm);g.add(stem);it.mats.push(sm);it.baseOp.push(0.35);it.stem=stem;
@@ -308,7 +314,7 @@ S.pick.push(tube,fill);rec.tube=tube;rec.fill=fill;let best=sp[0];sp.forEach(p=>
 function makeBoard(ring){const cx=ring.cx,cz=ring.cz,D=S.D;
 const top=new THREE.Mesh(new THREE.CircleGeometry(D,128),M(GROUND,{roughness:1}));top.rotation.x=-Math.PI/2;top.position.set(cx,0,cz);world.add(top);
 const side=new THREE.Mesh(new THREE.CylinderGeometry(D,D*0.995,0.5,128,1,true),M(BOARDSIDE,{roughness:0.9}));side.position.set(cx,-0.25,cz);world.add(side);
-const gm=new THREE.ShaderMaterial({uniforms:{uC:{value:new THREE.Vector2(cx,cz)},uR:{value:D},uCol:{value:new THREE.Color(GRIDC)}},vertexShader:PVS,fragmentShader:GRIDF,transparent:true,depthWrite:false,extensions:{derivatives:true}});
+const gm=new THREE.ShaderMaterial({uniforms:{uC:{value:new THREE.Vector2(cx,cz)},uR:{value:D},uCol:{value:new THREE.Color(GRIDC)}},vertexShader:PVS,fragmentShader:GRIDF,transparent:true,depthWrite:false});
 const grid=new THREE.Mesh(new THREE.CircleGeometry(D,128),gm);grid.rotation.x=-Math.PI/2;grid.position.set(cx,0.005,cz);grid.renderOrder=0;world.add(grid);
 const pts=[];for(let i=0;i<=160;i++){const a=i/160*Math.PI*2;pts.push(V(cx+Math.cos(a)*ring.r,0.02,cz+Math.sin(a)*ring.r));}const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:GRIDC,dashSize:0.5,gapSize:0.4,transparent:true,opacity:0.45}));l.computeLineDistances();world.add(l);}
 
@@ -388,8 +394,8 @@ window.addEventListener('resize',()=>{renderer.setSize(W(),H());frustum();comput
 load(null);camAt(HOME.t,HOME.zoom);controls.update();
 
 // ---------- loop ----------
-const clock=new THREE.Clock();const ease=t=>1-Math.pow(1-Math.max(0,Math.min(1,t)),3);const io2=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),0.05);T+=dt;
+const timer=new THREE.Timer();timer.connect(document);const ease=t=>1-Math.pow(1-Math.max(0,Math.min(1,t)),3);const io2=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+function loop(t){requestAnimationFrame(loop);timer.update(t);const dt=Math.min(timer.getDelta(),0.05);T+=dt;
 if(trans){trans.t+=dt;const k=Math.min(1,trans.t/0.7),e=io2(k);
 if(trans.kind==='in1'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.position.copy(trans.fromP).add(tt.clone().sub(trans.fromT));controls.target.copy(tt);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();camera.lookAt(tt);el.style.opacity=String(1-Math.max(0,(k-0.5)/0.5));
 if(k>=1){path.push(trans.scope);load(trans.scope);camAt(HOME.t,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:HOME.t.clone(),toT:HOME.t.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom};}}

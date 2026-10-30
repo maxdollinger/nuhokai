@@ -31,6 +31,7 @@ export const Viewer = node({
       text: "Layout seeded by ids. Moved islands and outer items persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
     },
     { id: "R9", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
+    { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
   ],
   testCases: [
     {
@@ -57,6 +58,10 @@ export const Viewer = node({
       text: "scene.js under bun: two tbd placeholders with one description in one scope → two holes, each with its sorted user ids, so their saved positions stay apart.",
       demonstrates: ["R7", "R8"],
     },
+    {
+      text: "By hand, headless Chromium: wheel over an island → it stays under the cursor while the map zooms.",
+      demonstrates: ["R10"],
+    },
   ],
   decisions: [
     {
@@ -65,6 +70,14 @@ export const Viewer = node({
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
     { decision: "Island colour = status.", why: "The one lifecycle field every node has." },
+    {
+      decision: "Islands are discs, their children on concentric rings.",
+      why: "The board, the ring the outer items sit on and the spacing between items are all round.",
+    },
+    {
+      decision: "Colour management off, linear output, light intensities ×π.",
+      why: "Keeps the palette as three.js r128 drew it; newer three.js converts hex colours from sRGB and uses physical light units.",
+    },
     {
       decision:
         "Moved positions live in the browser's localStorage, one entry per world id, inside it by scope and node id; never in the map.",

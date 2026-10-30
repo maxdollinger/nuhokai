@@ -28,7 +28,7 @@ export const MapFile = node({
     {
       id: "C1",
       kind: "constraint",
-      text: "Loads nothing: three.js 0.128.0 and OrbitControls inlined, license headers kept.",
+      text: "Loads nothing: three.js 0.186.1 with OrbitControls inlined, three's license header kept.",
     },
   ],
   testCases: [
@@ -42,7 +42,12 @@ export const MapFile = node({
   decisions: [
     {
       decision: "three.js inlined, embedded at build time from the exactly pinned three dev dependency.",
-      why: "The map opens offline, as the CLI needs no toolchain; ~630 KB per map.",
+      why: "The map opens offline, as the CLI needs no toolchain; about 600 KB of three.js per map.",
+    },
+    {
+      decision:
+        "three.js and OrbitControls bundled into one classic script that sets THREE, keeping only the names viewer.html reads off THREE.",
+      why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
 }).edges({ uses: () => [WorldPath.file, Viewer.page] });
