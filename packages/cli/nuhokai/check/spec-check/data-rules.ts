@@ -1,6 +1,6 @@
 import { node } from "@nuhokai/world";
 
-/** The rules on the loaded world alone: R1–R5, R9. */
+/** The rules on the loaded world alone: R1–R5, R9, R11. */
 export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
   purpose:

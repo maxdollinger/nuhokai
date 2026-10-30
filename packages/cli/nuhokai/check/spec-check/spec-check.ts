@@ -12,7 +12,7 @@ export const SpecCheck = node({
   requirements: [
     {
       id: "R1",
-      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation naming both places.",
+      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation naming both places. Every other rule skips nodes whose id is duplicated.",
     },
     {
       id: "R2",
@@ -47,6 +47,7 @@ export const SpecCheck = node({
       id: "R10",
       text: "Every file a node's source matches is matched by the world's source; the world's entries stay inside the project directory and follow R6. Else an error naming the node or the world, and the entry.",
     },
+    { id: "R11", text: "Every implements target is a reachable contract (abstract); else an error naming the edge." },
   ],
   testCases: [
     {
@@ -88,6 +89,14 @@ export const SpecCheck = node({
     {
       text: "World source ['src/**'], a node claiming scripts/x.ts → error naming the node and the entry; world source ['../shared/**'] → error naming the world.",
       demonstrates: ["R10"],
+    },
+    {
+      text: "Orders implements a contract listed nowhere → error naming the edge; implementing a non-abstract node → error.",
+      demonstrates: ["R11"],
+    },
+    {
+      text: "A child copy-pasted with its parent's id → one R1 error; no scope or ownership findings for that id, and the run ends.",
+      demonstrates: ["R1"],
     },
   ],
   decisions: [

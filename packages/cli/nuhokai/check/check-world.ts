@@ -29,6 +29,10 @@ export const CheckWorld = node({
       text: "TypeCheck runs in parallel with load and SpecCheck, then CodeCheck. Output: TypeCheck's findings, then SpecCheck's, then CodeCheck's; a load failure ends the run after TypeCheck's findings.",
     },
     { id: "R2", text: "CodeCheck runs only when TypeCheck and SpecCheck found no errors." },
+    {
+      id: "R3",
+      text: "A TypeCheck finding names its node only when the load succeeded and its file defines exactly one node.",
+    },
   ],
   testCases: [
     {
