@@ -355,17 +355,26 @@ function subsequence(low, q) {
   return best;
 }
 
-/** How `text` matches the query at its best tier, subsequences only if allowed: { tier, score, positions } or null. */
-function matchText(text, query, subsequences) {
+/**
+ * How `text` matches the query at its best tier: { tier, score, positions } or null. A `sentence` (a hole's
+ * description) matches word starts only as one run from a single word start, and never as a subsequence: its words
+ * are many, so skipping some would match almost any query.
+ */
+function matchText(text, query, sentence) {
   const low = fold(text);
   const { full, compact } = query;
   if (low === full) return { tier: 1, score: 0, positions: range(0, full.length) };
   if (low.startsWith(full)) return { tier: 2, score: 0, positions: range(0, full.length) };
-  const words = compact ? wordMatch(low, wordStarts(text), compact, 0, 0, new Set()) : null;
-  if (words) return { tier: 3, score: 0, positions: words };
+  if (sentence) {
+    const start = wordStarts(text).find((at) => low.startsWith(full, at));
+    if (start !== undefined) return { tier: 3, score: 0, positions: range(start, full.length) };
+  } else {
+    const words = compact ? wordMatch(low, wordStarts(text), compact, 0, 0, new Set()) : null;
+    if (words) return { tier: 3, score: 0, positions: words };
+  }
   const at = low.indexOf(full);
   if (at !== -1) return { tier: 4, score: 0, positions: range(at, full.length) };
-  return subsequences && compact.length >= SUBSEQUENCE_FROM ? subsequence(low, compact) : null;
+  return !sentence && compact.length >= SUBSEQUENCE_FROM ? subsequence(low, compact) : null;
 }
 
 /** A hole's home: the deepest scope holding every user, so each is drawn there as an island or inside one; undefined if no user resolves. */
@@ -388,7 +397,8 @@ function holeHome(scene, placeholder) {
 /**
  * Every node and port matching `query` by name and every tbd hole by its description, across all scopes, best
  * first: by tier (exact, prefix, word starts, substring, subsequence), a subsequence by its span, then nodes, holes,
- * ports, each in world order. Case-insensitive; holes stop at substring; subsequences need 3 characters. A blank
+ * ports, each in world order. Case-insensitive; holes match word starts only as one run and stop at substring;
+ * subsequences need 3 characters. A blank
  * query matches nothing. Each hit lands in its home scope as `key`.
  */
 export function search(scene, query) {
@@ -396,8 +406,8 @@ export function search(scene, query) {
   if (full === "") return [];
   const q = { full, compact: full.replace(/[^\p{L}\p{N}]/gu, "") };
   const found = [];
-  const add = (kind, name, prefix, subsequences, scope, key, node) => {
-    const match = matchText(name, q, subsequences);
+  const add = (kind, name, prefix, sentence, scope, key, node) => {
+    const match = matchText(name, q, sentence);
     if (!match) return;
     found.push({
       score: match.score,
@@ -414,15 +424,15 @@ export function search(scene, query) {
     });
   };
   scene.nodes.forEach((node, index) => {
-    add("node", node.name, "", true, scene.parents[index], `node:${index}`, index);
+    add("node", node.name, "", false, scene.parents[index], `node:${index}`, index);
   });
   scene.world.placeholders.forEach((placeholder, index) => {
     const home = holeHome(scene, placeholder);
-    if (home !== undefined) add("hole", placeholder.description, "tbd: ", false, home, `tbd:${index}`, null);
+    if (home !== undefined) add("hole", placeholder.description, "tbd: ", true, home, `tbd:${index}`, null);
   });
   scene.nodes.forEach((node, index) => {
     for (const port of node.ports ?? []) {
-      add("port", port.name, `${node.name} › `, true, scene.parents[index], `node:${index}`, index);
+      add("port", port.name, `${node.name} › `, false, scene.parents[index], `node:${index}`, index);
     }
   });
   // Stable: equal tier and score keep nodes, holes, ports, each in world order.

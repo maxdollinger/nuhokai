@@ -289,6 +289,18 @@ test("search: case-insensitive, word starts on camelCase, holes stop at substrin
   ]);
 });
 
+test("search: a hole matches word starts only as one run from a single word start", () => {
+  // "a customer" and "customer" start words; "ustom" is inside one.
+  expect(search(scene, "cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [12, 13, 14, 15] }]);
+  expect(search(scene, "a cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [10, 11, 12, 13, 14, 15] }]);
+  expect(search(scene, "ustom")).toMatchObject([{ kind: "hole", tier: 4, positions: [13, 14, 15, 16, 17] }]);
+  // Word starts across words ("order … push", "Tell … order") are no match for a hole: substring only.
+  expect(search(scene, "op").map((hit) => hit.label)).toEqual(["Shop"]);
+  const to = search(scene, "to");
+  expect(to.map((hit) => hit.label)).toEqual(["Stock", `tbd: ${HOLE}`, "AuditLog › history", "Shop › orderHistory"]);
+  expect(to.map((hit) => hit.tier)).toEqual([4, 4, 4, 4]);
+});
+
 test("search: subsequences from 3 characters; a blank query finds nothing", () => {
   expect(labels("pg")).toEqual([]);
   expect(search(scene, "pgs")).toMatchObject([{ label: "Postgres", tier: 5, positions: [0, 4, 7] }]);

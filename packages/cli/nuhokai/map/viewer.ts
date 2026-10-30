@@ -37,11 +37,11 @@ export const Viewer = node({
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
       id: "R11",
-      text: "Search (/ or Ctrl/⌘K): every node and port by name, every tbd hole by description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, never holes, tighter first); ties: nodes, holes, ports, then world order.",
+      text: "Search (/ or Ctrl/⌘K): every node and port by name, every tbd hole by description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole: word starts only as one run, no subsequence; ties: nodes, holes, ports, then world order. Results: matches bold, the home scope's breadcrumbs; arrows, Enter or click, Escape.",
     },
     {
       id: "R12",
-      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node) and dims the rest. Enter or click lands in the hit's home scope (a node's or port's parent, a hole's deepest scope holding all its users), centred and selected; keys typed in the box never go up.",
+      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node) and dims the rest. Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred; a node or port's node selected; keys typed in the box never go up.",
     },
   ],
   testCases: [
@@ -78,7 +78,7 @@ export const Viewer = node({
       demonstrates: ["R10"],
     },
     {
-      text: "scene.js under bun, example world: `or` → Orders, Shop › orderHistory, the hole, Shop › placeOrder, AuditLog › history; `ore` → tighter subsequences first; `hist` skips the hole; `pg` and blank → none.",
+      text: "scene.js under bun, example world: `or` → Orders, Shop › orderHistory, the hole, Shop › placeOrder, AuditLog › history; `ore` → tighter subsequences first; `hist` skips the hole; `pg` and blank → none; holes: `cust`, `a cust` word starts, `ustom` substring, `op` none, `to` substring.",
       demonstrates: ["R11"],
     },
     {
@@ -119,8 +119,9 @@ export const Viewer = node({
       why: "The map opens offline with nothing loaded; tiers rank predictably under unit tests, and edit distance on short names floods the list.",
     },
     {
-      decision: "Holes match up to substring, never as a subsequence.",
-      why: "A description is a sentence: almost any query's letters appear in it in order.",
+      decision:
+        "Holes match word starts only as one run from one word start, then substring; never skipping words, never as a subsequence.",
+      why: "A description is a sentence: across its many words almost any query's letters appear in order.",
     },
     {
       decision: "A hit lands in its home scope, never on an outside proxy.",
