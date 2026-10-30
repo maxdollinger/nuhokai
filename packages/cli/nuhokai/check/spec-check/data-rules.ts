@@ -5,7 +5,7 @@ export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
   purpose:
     "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, rules tsc leaves to check, built nodes with code.",
-  status: "planned",
+  status: "built",
   source: ["src/check/spec-check/data-rules.ts"],
   requirements: [
     { id: "R1", text: "Pure: reads only the loaded world, no filesystem." },
