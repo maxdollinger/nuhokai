@@ -14,11 +14,21 @@ export const TypeCheck = node({
       output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line",
     },
   },
-  requirements: [{ id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." }],
+  requirements: [
+    { id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." },
+    {
+      id: "R2",
+      text: "World files, *.test.ts aside, contain no cast, non-null assertion, explicit any or @ts- directive; each is an error at its line.",
+    },
+  ],
   testCases: [
     {
       text: "A type error in nuhokai/index.test.ts → one error; the same in nuhokai/.generated/x.ts → none.",
       demonstrates: ["R1"],
+    },
+    {
+      text: "children: { a: Contract as any } and a @ts-expect-error line → two errors; the same cast in index.test.ts → none.",
+      demonstrates: ["R2"],
     },
   ],
 }).edges({});

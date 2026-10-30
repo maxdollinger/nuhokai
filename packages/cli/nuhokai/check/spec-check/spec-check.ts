@@ -1,10 +1,9 @@
 import { node } from "@nuhokai/world";
 import { ApplyRules } from "./apply-rules.ts";
 import { DataRules } from "./data-rules.ts";
-import { FormatRules } from "./format-rules.ts";
 import { SourceRules } from "./source-rules.ts";
 
-/** The spec check. Inside: ApplyRules (program), DataRules, FormatRules, SourceRules. */
+/** The spec check. Inside: ApplyRules (program), DataRules, SourceRules. */
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
@@ -29,7 +28,7 @@ export const SpecCheck = node({
     },
     {
       id: "R5",
-      text: "Every rule tsc enforces (node-spec, dome and world rules in packages/world/README.md) also holds in the loaded world: casts, suppressed errors and values tsc cannot see get past it. Each break is a violation.",
+      text: "Rules tsc leaves to check (non-literal ids and flags, per packages/world/README.md) hold in the loaded world; each break is a violation.",
     },
     {
       id: "R6",
@@ -66,7 +65,10 @@ export const SpecCheck = node({
       text: "Two children of one dome named Store → error naming both files; Store under two domes passes as Orders/Store and Stock/Store.",
       demonstrates: ["R4"],
     },
-    { text: "children: { a: Contract as any } → error at the dome, though tsc passes.", demonstrates: ["R5"] },
+    {
+      text: "Two requirements whose ids come from one variable, equal at load → error naming the node; literal ids are tsc's.",
+      demonstrates: ["R5"],
+    },
     {
       text: "source ['src/gone/**'] → error naming the node and the entry; under --path app it resolves in app/, not the cwd.",
       demonstrates: ["R6"],
@@ -95,7 +97,7 @@ export const SpecCheck = node({
       rejected: [{ option: "Siblings share files", why: "Couples past ports." }],
     },
     {
-      decision: "Three rule groups by what they read, wired by ApplyRules's uses edges.",
+      decision: "Rule groups by what they read, wired by ApplyRules's uses edges.",
       why: "A new group needs a new input, which is rare; the wiring stays visible without a contract.",
       rejected: [
         { option: "A Rule contract and a RuleEngine", why: "Two nodes for a set of groups that hardly grows." },
@@ -105,7 +107,12 @@ export const SpecCheck = node({
       decision: "A file may belong to no node; a node's source must exist (R6).",
       why: "Generated and glue files need no owner; a source entry pointing nowhere is a broken spec.",
     },
+    {
+      decision: "No FormatRules: TypeCheck forbids casts and @ts- directives, so tsc's rules hold.",
+      why: "Re-implementing every tsc rule on data would be SpecCheck's largest part and drift with the format.",
+      rejected: [{ option: "FormatRules re-checks every tsc rule", why: "A second copy of the rules." }],
+    },
   ],
-  children: { applyRules: ApplyRules, dataRules: DataRules, formatRules: FormatRules, sourceRules: SourceRules },
+  children: { applyRules: ApplyRules, dataRules: DataRules, sourceRules: SourceRules },
   ports: (c) => ({ run: c.applyRules.ports.run }),
 }).edges({});

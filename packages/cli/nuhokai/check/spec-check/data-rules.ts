@@ -1,10 +1,10 @@
 import { node } from "@nuhokai/world";
 
-/** The rules on the loaded world alone: R1–R4, R9. */
+/** The rules on the loaded world alone: R1–R5, R9. */
 export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
   purpose:
-    "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, built nodes with code.",
+    "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, rules tsc leaves to check, built nodes with code.",
   status: "planned",
   source: [],
   requirements: [
