@@ -58,17 +58,17 @@ export const Failure = node({
     {
       decision:
         "One shared error type, classifier and formatter; each command keeps its own prefix, wording and exit code.",
-      why: "LoadWorld throws while Init, New and map print, so the type must be shared for the expected-failure test to work across nodes; wording stays with the command that knows the context.",
+      why: "LoadWorld throws while Init, New, WorldMap and Check print, so the type must be shared for the expected-failure test to work across nodes; wording stays with the command that knows the context.",
       rejected: [
         {
           option: "Private error class and formatter per command",
-          why: "Three copies of one rule drift; stderr stops being one line per failure.",
+          why: "One copy of the rule per command drifts; stderr stops being one line per failure.",
         },
       ],
     },
     {
       decision: "A filesystem failure (thrown Error with numeric errno) is expected, decided here once.",
-      why: "I/O fails operationally (permissions, disk full, a path in the way) inside shared nodes whose contracts list no errors; Init and New need the same test to keep it off the crash path.",
+      why: "I/O fails operationally (permissions, disk full, a path in the way) inside shared nodes whose contracts list no errors; every command needs the same test to keep it off the crash path.",
       rejected: [
         {
           option: "Only CliError counts; each leaf wraps its own filesystem errors",

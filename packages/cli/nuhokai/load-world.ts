@@ -106,8 +106,9 @@ export const LoadWorld = node({
   ],
   decisions: [
     {
-      decision: "Top-level shared loader; outputs world id, NodeSpecs, tbd placeholders.",
-      why: "check needs the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
+      decision:
+        "Top-level shared loader for map and check; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
+      why: "map and check need the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
     },
     {
       decision: "listings keeps every listing, also the repeats R3 drops from nodes.",
@@ -132,12 +133,12 @@ export const LoadWorld = node({
     },
     {
       decision:
-        "No import guard: world files import what Bun resolves; the CLI runs with bun --no-install, so nothing is installed. Not a sandbox.",
-      why: "World files are the user's code and may still read, fetch or spawn; only network installs are stopped. 'Plain data' imports are a convention a future check may diagnose.",
+        "No import guard in the loader: world files import what Bun resolves; the CLI runs with bun --no-install, so nothing is installed. Not a sandbox.",
+      why: "World files are the user's code and may still read, fetch or spawn; only network installs are stopped. Imports outside @nuhokai/world and the world are TypeCheck's finding (R2), not a load error, so map still draws such a world.",
       rejected: [
         {
-          option: "Scan and reject non-relative or outside-nuhokai/ imports",
-          why: "Per-file transpile and path bookkeeping for no safety: an allowed file can still do anything.",
+          option: "Scan and reject non-relative or outside-nuhokai/ imports while loading",
+          why: "Per-file transpile and path bookkeeping for no safety: an allowed file can still do anything; check already reports them.",
         },
       ],
     },

@@ -114,7 +114,7 @@ A compile-time check fails if the two drift apart.
   a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
 - **Dome rules checked by tsc:** `children` is a non-empty record of nodes, none external (nor possibly so); a contract
   may be a child; a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
-  placeholder is not a child port.
+  placeholder is not a child port; a dome has no `externalType`.
 - **World rules checked by tsc:** `defineWorld` needs an `id`, a `name` that is not blank and a `source`; its `children` are not empty and hold nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an

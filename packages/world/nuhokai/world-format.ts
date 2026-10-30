@@ -99,7 +99,7 @@ export const WorldFormat = node({
       demonstrates: ["R8"],
     },
     {
-      text: "An external child, a port of a non-child, and empty children fail typecheck in node(); an abstract child compiles.",
+      text: "An external child, a port of a non-child, empty children and externalType on a dome fail typecheck in node(); an abstract child compiles.",
       demonstrates: ["R3", "R9"],
     },
     {
@@ -114,7 +114,7 @@ export const WorldFormat = node({
   ],
   decisions: [
     {
-      decision: "Node id: an authored uuidv7. Display name: the export name.",
+      decision: "Node id: an authored string (see below). Display name: the export name.",
       why: "Ids must survive renames and moves; the export name is unique per file and is what references use.",
       rejected: [
         { option: "A slug equal to the file name", why: "Renaming or moving a node breaks every stored reference." },
@@ -137,31 +137,48 @@ export const WorldFormat = node({
       rejected: [{ option: "Abstract children forbidden", why: "No reason beyond 'abstract nodes have no children'." }],
     },
     {
-      decision: "The child declares its parent as a lazy node reference; no parent = top level.",
-      why: "Placement stays in the node's file; tsc rejects external or abstract parents via literal-typed flags.",
+      decision:
+        "A node with children is a dome, with no behavior of its own. node() alone holds the hierarchy: children is a record of direct children, and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`), which replaces the node spec's delegate. The world file lists only the top-level nodes; node files never import it.",
+      why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior, keep child names by the port mapping, and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
       rejected: [
         {
-          option: "Parent lists its children",
-          why: "Each new child edits the parent's file; parent/child file cycles become the rule.",
+          option: "The child declares its parent as a lazy node reference",
+          why: "The hierarchy is scattered across node files, visible only to a loader; tsc cannot check delegate targets against children.",
+        },
+        {
+          option: "One world file holding the hierarchy via relation({ parent, children }), delegate in the parent",
+          why: "Splits one boundary across two files; a parent could declare behavior next to its children.",
+        },
+        {
+          option: "A dome declares its own ports and delegates by name",
+          why: "Port definitions can drift from the child port; referencing it copies kind and shapes.",
+        },
+        {
+          option: "Children as an array without names, or as tuples (children: [Postgres, [Shop, [Orders, Stock]]])",
+          why: "`c.cmd.ports.run` needs a local child name; positions make the mapping and the structure unreadable.",
         },
         {
           option: "Folder structure decides the parent",
           why: "Folders are convention; moving files must not change the model.",
         },
+        {
+          option: "Checking uses scope in tsc",
+          why: "Uses in the handle's type bring back TS7022; check checks scope against the world tree.",
+        },
       ],
     },
     {
       decision:
-        "Two steps: defineNode(static fields) is generic, infers the handle's type; .edges(lazy references) is not generic, returns the handle.",
+        "Two steps: node(static fields, incl. implements and children) is generic, infers the handle's type; .edges(lazy uses) is not generic, returns the handle.",
       why: "Lazy edges allow cycles. The handle's type depends on step one only, so TS never infers a node's type through another node: cycles need no annotations, edge errors land on the offending element.",
       rejected: [
         {
-          option: "One generic defineNode call with the edges, a return-type annotation per reference cycle",
-          why: "TS cannot infer through a cycle (TS7022); easy to forget; delegating parents always hit it.",
+          option: "One generic node call with the edges, a return-type annotation per reference cycle",
+          why: "TS cannot infer through a cycle (TS7022); easy to forget; nodes using each other always hit it.",
         },
-        { option: "Loosely typed edges needing no annotation", why: "Strings and external parents would pass tsc." },
+        { option: "Loosely typed edges needing no annotation", why: "Strings and external children would pass tsc." },
         {
-          option: "defineNode's draft usable as a node, .edges() optional",
+          option: "node()'s draft usable as a node, .edges() optional",
           why: "The method would take a port name; draft plus node = two handles for one node.",
         },
       ],
@@ -202,26 +219,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "Overrides 'the child declares its parent': one world file, nuhokai/index.ts, holds the hierarchy; its default export defineWorld({ children }) lists every node; nesting via explicit relation({ parent, children }); node files never import the world file. delegate moves to step one, so relation() checks delegate targets are direct children; .edges() keeps only uses.",
-      why: "The hierarchy was scattered across node files, visible only to a loader; the map of islands and domes must read in one place. Delegation points down only, so its targets in the handle's type form no cycle; uses may point anywhere and stays in step two (TS7022). Example world (tsc 7.0.2, --extendedDiagnostics, median of 8): 3,590 → 7,394 types, 5,077 → 14,404 instantiations, 0.012s → 0.030s check; synthetic 200-node world: 0.15s → 0.5s.",
-      rejected: [
-        {
-          option: "Tuples, children: [Postgres, [Shop, [Orders, Stock]]]",
-          why: "Unreadable: only position tells a parent from its first child; brackets hide the structure the file exists to show.",
-        },
-        {
-          option: "Keeping parent in .edges()",
-          why: "Hierarchy stays scattered; tsc cannot check delegate targets against children.",
-        },
-        {
-          option: "Checking uses scope in tsc",
-          why: "Uses in the handle's type bring back TS7022; check checks scope against the world tree.",
-        },
-      ],
-    },
-    {
-      decision:
-        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, export names unique among siblings) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, names unique among siblings) are check's. check keeps world files declarative (no cast but as const, no any or @ts- directive), so the tsc rules hold, and re-checks only what tsc leaves to it (non-literal ids and flags). The loader only evaluates and reports evaluation failures.",
       why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {
@@ -231,25 +229,6 @@ export const WorldFormat = node({
         {
           option: "Rules as tuples intersected with the authored arrays, also when satisfied",
           why: "TS compares the arrays method by method: 200-node world 2.2s instead of 0.6s (measured with the since-dropped uuidv7 check).",
-        },
-      ],
-    },
-    {
-      decision:
-        "Overrides 'Overrides the child declares its parent': a node with children is a dome, no behavior of its own. node() alone holds the hierarchy: children = record of direct children; a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`). No relation(); the world file lists only top-level nodes; a dome port's child reference replaces delegate.",
-      why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior, keep child names by the port mapping, and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
-      rejected: [
-        {
-          option: "Keep relation() in the world file and delegate in the parent",
-          why: "Splits one boundary across two files; a parent could declare behavior next to its children.",
-        },
-        {
-          option: "A dome declares its own ports and delegates by name",
-          why: "Port definitions can drift from the child port; referencing it copies kind and shapes.",
-        },
-        {
-          option: "Children as an array without names",
-          why: "`c.cmd.ports.run` needs a local child name; positions make the mapping unreadable.",
         },
       ],
     },

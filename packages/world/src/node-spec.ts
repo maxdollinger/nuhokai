@@ -184,15 +184,12 @@ export interface NodeSpec {
 
   /** Requirements and constraints; see Requirement. */
   requirements?: Requirement[];
-  /**
-   * Append-only. A test case's id is its zero-based array index, so entries
-   * are never removed or reordered.
-   */
+  /** How the requirements are shown to hold; kept current with the node, like every other field. */
   testCases?: TestCase[];
   /**
-   * Append-only log; a decision's id is its zero-based array index.
-   * Entries are never removed, edited or reordered. When decisions conflict,
-   * the later one wins.
+   * The design decisions that hold now, each with why and what was rejected.
+   * Kept current: a changed decision is edited or replaced, never left beside
+   * the one that overrides it.
    */
   decisions?: Decision[];
 }
