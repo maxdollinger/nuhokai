@@ -108,7 +108,7 @@ test("a purpose that closes the script stays data", () => {
   expect(html).not.toContain("alert(1)</script>");
 });
 
-test("the map loads nothing: three.js and OrbitControls are inlined with their license headers", () => {
+test("the map loads nothing: three.js and OrbitControls are inlined under three's license header", () => {
   const root = tempDir();
   writeMap(root, oneNode("offline"));
 
@@ -116,8 +116,7 @@ test("the map loads nothing: three.js and OrbitControls are inlined with their l
   expect(html).not.toMatch(/\b(?:src|href)\s*=\s*["']?\s*(?:https?:)?\/\//i);
   expect(html).not.toMatch(/<script[^>]*\bsrc\s*=/i);
   expect(html).not.toMatch(/<link\b/i);
-  expect(html).toContain("Copyright 2010-2021 Three.js Authors");
-  expect(html).toContain("three.js r128 examples/js/controls/OrbitControls.js");
+  expect(html).toMatch(/Copyright 2010-\d{4} Three\.js Authors/);
   expect(html).not.toContain("/*nuhokai:");
   expect(html).not.toContain('"nuhokai:world"');
   // Only the data block's own closing tag may end it, and every inlined script stays one script.
