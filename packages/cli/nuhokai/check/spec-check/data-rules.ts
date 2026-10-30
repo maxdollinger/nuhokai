@@ -13,6 +13,8 @@ export const DataRules = node({
       id: "R2",
       text: "A finding's location is the offending node's entry in LoadWorld's files; one about a listing points at the file of the list it is in.",
     },
+    { id: "R3", text: "A finding about the world itself points at nuhokai/index.ts, without a line." },
+    { id: "R4", text: "A missing or non-string world name is an error, never a crash." },
   ],
   ports: {
     check: {

@@ -12,6 +12,7 @@ export const TypeCheck = node({
       purpose: "Type-check the project directory's world",
       input: "project directory, cwd-relative",
       output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line",
+      errors: ["no nuhokai/tsconfig.json: names init"],
     },
   },
   requirements: [
@@ -20,6 +21,7 @@ export const TypeCheck = node({
       id: "R2",
       text: "World files are declarative: calls only to node, .edges, defineWorld, tbd.call, tbd.event and inherited; imports only @nuhokai/world and files under nuhokai/; no cast, non-null assertion, any or @ts- directive. Anything else is an error at its line.",
     },
+    { id: "R3", text: "Uses nuhokai/tsconfig.json; without it, one failure naming init and no findings." },
   ],
   testCases: [
     {

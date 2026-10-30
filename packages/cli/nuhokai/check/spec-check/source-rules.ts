@@ -16,6 +16,10 @@ export const SourceRules = node({
       id: "R2",
       text: "One matcher for every pattern: Bun's glob syntax on /-separated paths relative to the project directory, never following a symlink out of it.",
     },
+    {
+      id: "R3",
+      text: "A missing source, or an entry that is no string, is an error at its node or the world (nuhokai/index.ts), never a crash.",
+    },
   ],
   ports: {
     check: {

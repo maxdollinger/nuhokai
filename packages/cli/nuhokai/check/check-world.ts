@@ -20,7 +20,7 @@ export const CheckWorld = node({
       input: "project directory, cwd-relative",
       output:
         "exit 0 no errors (warnings allowed), 1 errors or failure; stdout: one line per diagnostic; stderr: one 'nuhokai check: ' line per failure",
-      errors: ["no world at nuhokai/", "world failed to load"],
+      errors: ["no world at nuhokai/", "no nuhokai/tsconfig.json", "world failed to load"],
     },
   },
   requirements: [
