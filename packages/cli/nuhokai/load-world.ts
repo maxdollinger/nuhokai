@@ -14,7 +14,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line }[]",
+        "id, name, source: the world's; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -52,7 +52,7 @@ export const LoadWorld = node({
     },
     {
       id: "R9",
-      text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call; in nodes order.",
+      text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call when known; in nodes order.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
