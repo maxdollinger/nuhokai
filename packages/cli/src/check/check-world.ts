@@ -13,12 +13,12 @@ export interface CheckEnvironment {
   readonly err?: (line: string) => void;
 }
 
-/** A check's outcome: its findings, or the failure that stopped it. */
-type Outcome = { readonly findings: Finding[] } | { readonly failure: unknown };
+/** A check's outcome: what it answered, or the failure that stopped it. */
+type Outcome<T> = { readonly value: T } | { readonly failure: unknown };
 
-async function outcome(check: () => Promise<Finding[]>): Promise<Outcome> {
+async function outcome<T>(check: () => Promise<T>): Promise<Outcome<T>> {
   try {
-    return { findings: await check() };
+    return { value: await check() };
   } catch (failure) {
     return { failure };
   }
@@ -63,16 +63,16 @@ export async function runCheck(root: string, environment: CheckEnvironment = {})
     fail(failure);
     return 1;
   }
-  let world: LoadedWorld | undefined;
   const [typed, specced] = await Promise.all([
     outcome(() => runTypeCheck(root)),
     outcome(async () => {
-      world = await loadWorld(root);
-      return runSpecCheck(root, world);
+      const world = await loadWorld(root);
+      return { world, findings: runSpecCheck(root, world) };
     }),
   ]);
 
-  const typeFindings = "findings" in typed ? nameTypeFindings(typed.findings, world) : [];
+  const world = "value" in specced ? specced.value.world : undefined;
+  const typeFindings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
   for (const finding of typeFindings) out(formatFinding(finding));
   if ("failure" in typed) fail(typed.failure);
   // A load failure ends the run after TypeCheck's findings.
@@ -80,11 +80,12 @@ export async function runCheck(root: string, environment: CheckEnvironment = {})
     fail(specced.failure);
     return 1;
   }
-  for (const finding of specced.findings) out(formatFinding(finding));
-  const errors = [...typeFindings, ...specced.findings].some((finding) => finding.severity === "error");
-  if ("failure" in typed || errors || !world) return 1;
+  const specFindings = specced.value.findings;
+  for (const finding of specFindings) out(formatFinding(finding));
+  const errors = [...typeFindings, ...specFindings].some((finding) => finding.severity === "error");
+  if ("failure" in typed || errors) return 1;
 
-  const codeFindings = runCodeCheck(world);
+  const codeFindings = runCodeCheck(specced.value.world);
   for (const finding of codeFindings) out(formatFinding(finding));
   return codeFindings.some((finding) => finding.severity === "error") ? 1 : 0;
 }

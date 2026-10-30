@@ -1,4 +1,4 @@
-import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, realpathSync, type Stats, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
@@ -124,18 +124,39 @@ function useCliWorldRuntime(): void {
   });
 }
 
-/** Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests. */
+/**
+ * Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests.
+ * Symlinks are followed, but never into a directory already on the way down, so a symlink loop is walked once; a
+ * link that cannot be resolved at all is a load error naming it.
+ */
 function worldFiles(root: string): string[] {
+  const files: string[] = [];
+  const walk = (dir: string, path: string, above: ReadonlySet<string>) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const name = path ? `${path}/${entry.name}` : entry.name;
+      const at = join(dir, entry.name);
+      let kind: Stats | Dirent | undefined = entry;
+      if (entry.isSymbolicLink()) {
+        try {
+          kind = statSync(at, { throwIfNoEntry: false });
+        } catch (error) {
+          const code = (error as { code?: unknown } | null)?.code;
+          throw new CliError(
+            `${inWorld(root, name)}: the symlink cannot be resolved (${String(code ?? oneLine(error))})`,
+          );
+        }
+      }
+      if (kind?.isDirectory()) {
+        const real = realpathSync(at);
+        if (name !== WORLD_GENERATED_DIR && !above.has(real)) walk(at, name, new Set([...above, real]));
+      } else if (kind?.isFile() && name.endsWith(".ts") && !name.endsWith(".d.ts") && !name.endsWith(".test.ts")) {
+        files.push(name);
+      }
+    }
+  };
   const dir = inWorld(root);
-  const isFile = (entry: Dirent) =>
-    entry.isFile() ||
-    (entry.isSymbolicLink() && statSync(join(entry.parentPath, entry.name), { throwIfNoEntry: false })?.isFile());
-  return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => isFile(entry) && entry.name.endsWith(".ts"))
-    .filter((entry) => !entry.name.endsWith(".d.ts") && !entry.name.endsWith(".test.ts"))
-    .map((entry) => relative(dir, join(entry.parentPath, entry.name)).split(sep).join("/"))
-    .filter((path) => !path.startsWith(`${WORLD_GENERATED_DIR}/`))
-    .sort();
+  walk(dir, "", new Set([realpathSync(dir)]));
+  return files.sort();
 }
 
 /** Where the world at `root` and its files are, by every path Bun may report. */
@@ -214,10 +235,6 @@ function madeIn(node: NodeRef, paths: WorldPaths): { file: string; line: number 
   return undefined;
 }
 
-function definerOf(node: NodeRef, paths: WorldPaths): string | undefined {
-  return madeIn(node, paths)?.file;
-}
-
 /**
  * Names from exports: an export of the file that defines the node wins over a
  * re-export, else the first export in sorted file order; `default` names nothing.
@@ -228,7 +245,7 @@ function namesOf(modules: readonly Module[], paths: WorldPaths): Map<NodeRef, Na
     for (const [file, exports] of modules) {
       for (const [exported, value] of Object.entries(exports)) {
         if (exported === "default" || !isNode(value) || names.has(value)) continue;
-        const definer = definerOf(value, paths);
+        const definer = madeIn(value, paths)?.file;
         if (!definersOnly || file === definer) names.set(value, { name: exported, file: definer ?? file });
       }
     }
@@ -267,7 +284,7 @@ function worldOf(
  */
 function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): LoadedWorld {
   const names = namesOf(modules, paths);
-  const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? definerOf(node, paths))) ?? index;
+  const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? madeIn(node, paths)?.file)) ?? index;
   const nameOf = (node: NodeRef) => names.get(node)?.name ?? node.$def.id;
 
   // Depth-first: a parent before its children, record order; the first listing places a node, every listing is kept.

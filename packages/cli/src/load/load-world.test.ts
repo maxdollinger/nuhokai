@@ -430,6 +430,26 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Shared] 
   expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["Shared"]);
 });
 
+test("a symlink loop in nuhokai/ is walked once; a link that cannot resolve is a load error naming it", async () => {
+  const files = {
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+export const A = node(${leaf("a")}).edges({});
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+    "sub/b.ts": "export const b = 1;\n",
+  };
+  const root = world(files);
+  symlinkSync(".", join(root, "nuhokai/loop"));
+  symlinkSync("..", join(root, "nuhokai/sub/up"));
+  expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["A"]);
+
+  const selfLinked = world(files);
+  symlinkSync("self", join(selfLinked, "nuhokai/self"));
+  const error = await loadError(selfLinked);
+  expect(error).toBeInstanceOf(CliError);
+  expect((error as Error).message).toBe(`${selfLinked}/nuhokai/self: the symlink cannot be resolved (ELOOP)`);
+});
+
 test("the CLI under bun --no-install: an uncached package import is one load error, nothing installed", () => {
   // A real package, so a lost --no-install would install it; the project has no node_modules.
   const pkg = "is-positive";
