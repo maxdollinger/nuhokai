@@ -441,8 +441,8 @@ export function search(scene, query) {
 
 /**
  * What stands for each hit in `view`: its own item if drawn there (an island, external or outside proxy), else the
- * island containing it; a port's node stands for the port; a hole only where it is drawn. Item keys, each once, in
- * hit order.
+ * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
+ * it is drawn. Item keys, each once, in hit order.
  */
 export function lightsFor(scene, view, hits) {
   const drawn = new Set(view.items.map((item) => item.key));
@@ -452,6 +452,8 @@ export function lightsFor(scene, view, hits) {
     else if (hit.node !== null) {
       const child = childIn(scene, hit.node, view.scope);
       if (child !== undefined) lit.add(`node:${child}`);
+      // The open dome is not drawn in itself; its ports stand at the edge as the entry.
+      else if (hit.node === view.scope && drawn.has("entry")) lit.add("entry");
     }
   }
   return [...lit];

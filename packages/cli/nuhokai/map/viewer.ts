@@ -41,7 +41,7 @@ export const Viewer = node({
     },
     {
       id: "R12",
-      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node) and dims the rest. Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred; a node or port's node selected; keys typed in the box never go up.",
+      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node; the open dome's entry for it and its ports) and dims the rest. Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred; a node or port's node selected; keys typed in the box never go up.",
     },
   ],
   testCases: [
@@ -86,7 +86,7 @@ export const Viewer = node({
       demonstrates: ["R12"],
     },
     {
-      text: "scene.js under bun, example world: on top, stock and reserve light Shop; inside Shop, audit lights its outside proxy, shop lights nothing.",
+      text: "scene.js under bun, example world: on top, stock and reserve light Shop; inside Shop, audit lights its outside proxy, shop and placeOrder light the entry.",
       demonstrates: ["R12"],
     },
     {

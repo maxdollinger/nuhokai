@@ -405,5 +405,8 @@ test("a query lights what stands for each hit in the open scope", () => {
   expect(lights(shop, "stock")).toEqual([key("Stock")]);
   expect(lights(shop, "audit")).toEqual([key("AuditLog")]); // its outside proxy
   expect(lights(shop, "postgres")).toEqual([key("Postgres")]); // an external
-  expect(lights(shop, "shop")).toEqual([]); // the open dome is not drawn in itself
+  // The open dome is not drawn in itself: it and its ports light the entry.
+  expect(lights(shop, "shop")).toEqual(["entry"]);
+  expect(lights(shop, "placeorder")).toEqual(["entry"]);
+  expect(lights(shop, "or")).toEqual([key("Orders"), "entry", "tbd:0", key("AuditLog")]);
 });
