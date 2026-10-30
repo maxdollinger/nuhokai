@@ -53,6 +53,11 @@ function oneNode(purpose: string): LoadedWorld {
       },
     ],
     placeholders: [],
+    file: "nuhokai/index.ts",
+    parents: [null],
+    listings: [],
+    orphans: [],
+    files: [],
   };
 }
 
@@ -68,7 +73,10 @@ test("the example world's data block parses back unchanged, and a second write g
   expect(writeMap(root, world)).toBe(`${root}/nuhokai/.generated/map.html`);
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
-  expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(world)));
+  // Only what the map draws: never parents, listings, orphans or files, nor a path from the cwd.
+  const { id, name, source, nodes, placeholders } = world;
+  const drawn = { id, name, source, nodes, placeholders };
+  expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(drawn)));
 
   writeMap(root, world);
   expect(readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8")).toBe(html);

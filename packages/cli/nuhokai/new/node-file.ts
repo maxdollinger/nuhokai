@@ -6,7 +6,7 @@ export const NodeFile = node({
   purpose:
     "Own the default node file: one planned leaf's bytes, created exclusively at the given path with missing parent directories; never overwrites or chooses a path.",
   status: "building",
-  source: ["packages/cli/src/new/node-file.ts"],
+  source: ["src/new/node-file.ts"],
   ports: {
     create: {
       kind: "call",

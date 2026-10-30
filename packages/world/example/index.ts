@@ -11,6 +11,8 @@ import { Shop } from "./shop.ts";
  */
 export default defineWorld({
   id: "01a17bb6-ad4d-7298-8492-a53237d45f80",
+  name: "Shop",
+  source: ["src/**"],
   children: [Postgres, AuditLog, Shop],
 });
 

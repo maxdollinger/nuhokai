@@ -7,7 +7,7 @@ export const Failure = node({
     "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, and flattening any " +
     "thrown value to one stderr line. Classifies and formats only.",
   status: "built",
-  source: ["packages/cli/src/shared/failure.ts"],
+  source: ["src/shared/failure.ts"],
   ports: {
     format: {
       kind: "call",

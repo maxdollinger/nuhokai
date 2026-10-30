@@ -54,7 +54,7 @@ export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000003", purpose: "t"
 // @ts-expect-error spread drops the brand
 export const F = node({ id: "01a16dd2-bc70-7000-8000-000000000004", purpose: "f", status: "planned", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
 
-export default defineWorld({ id: "w", children: [A, I] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A, I] });
 `;
 
 function run(project: string) {

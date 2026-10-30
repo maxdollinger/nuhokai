@@ -10,7 +10,7 @@ export const WorldFormat = node({
     "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
     "graph. Format only; loading, rules, checks and writing are the CLI's.",
   status: "building",
-  source: ["packages/world/src/**"],
+  source: ["src/**"],
   ports: {
     node: {
       kind: "call",
@@ -63,6 +63,10 @@ export const WorldFormat = node({
       id: "R10",
       text: "A world has a required authored id in node-id form (any string, not format-checked), carried by the world object.",
     },
+    {
+      id: "R11",
+      text: "A world has a required, non-blank name, an optional description and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
+    },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
   ],
@@ -95,7 +99,7 @@ export const WorldFormat = node({
       demonstrates: ["R8"],
     },
     {
-      text: "An external or abstract child, a port of a non-child, and empty children fail typecheck in node().",
+      text: "An external child, a port of a non-child, and empty children fail typecheck in node(); an abstract child compiles.",
       demonstrates: ["R3", "R9"],
     },
     {
@@ -103,6 +107,10 @@ export const WorldFormat = node({
       demonstrates: ["R9"],
     },
     { text: "defineWorld without an id fails typecheck; a world keeps its id.", demonstrates: ["R10"] },
+    {
+      text: "defineWorld without a name, with a blank name or without source fails typecheck; the world keeps both.",
+      demonstrates: ["R11"],
+    },
   ],
   decisions: [
     {
@@ -113,6 +121,20 @@ export const WorldFormat = node({
         { option: "Ids derived from the file path", why: "Moving a file changes the node's identity." },
         { option: "An authored name field", why: "Duplicates the export name and drifts from it." },
       ],
+    },
+    {
+      decision: "Names are unique among siblings; tools show a node by its path from the world (Check/SpecCheck).",
+      why: "The path says where a node sits, and names stay short: a child competes only with its siblings.",
+      rejected: [{ option: "Unique across the world", why: "Large worlds force long, prefixed names." }],
+    },
+    {
+      decision: "The world is the outermost container: it has a name and a source.",
+      why: "Tools need a title; a world's source bounds its code, so nothing a node claims lies outside it.",
+    },
+    {
+      decision: "A contract may be a dome's child.",
+      why: "Contracts can be as specific as one dome's interior; forcing them to the top level misplaces them.",
+      rejected: [{ option: "Abstract children forbidden", why: "No reason beyond 'abstract nodes have no children'." }],
     },
     {
       decision: "The child declares its parent as a lazy node reference; no parent = top level.",
@@ -199,7 +221,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, unique export names) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, export names unique among siblings) are check's; it re-checks every tsc rule, since a cast bypasses the types. The loader only evaluates and reports evaluation failures.",
       why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {

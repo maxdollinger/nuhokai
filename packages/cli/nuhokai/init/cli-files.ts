@@ -8,7 +8,7 @@ export const CliFiles = node({
     "Own the CLI's files in a world: editor tsconfig and embedded @nuhokai/world declarations, so editors resolve " +
     "the format without node_modules. Never picks the directory.",
   status: "built",
-  source: ["packages/cli/src/init/cli-files.ts"],
+  source: ["src/init/cli-files.ts"],
   ports: {
     write: {
       kind: "call",

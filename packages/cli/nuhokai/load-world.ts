@@ -7,18 +7,20 @@ export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose: "Evaluate nuhokai/ → world id, NodeSpecs, tbd placeholders. Shared; checks no rule, writes nothing.",
   status: "building",
-  source: ["packages/cli/src/load/**"],
+  source: ["src/load/**"],
   ports: {
     load: {
       kind: "call",
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
-      output: "id: world id; nodes: NodeSpec[]; placeholders: { kind, description, users: node ids }[]",
+      output:
+        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
         "default export not a world",
         "uses or implements returns a non-list",
+        "a symlink in nuhokai/ cannot be resolved",
       ],
     },
   },
@@ -37,7 +39,26 @@ export const LoadWorld = node({
       id: "R5",
       text: "Load error: one CliError naming the cwd-relative file and, if known, line: 'nuhokai/orders.ts:3: <message>', under --path app 'app/nuhokai/orders.ts:3: <message>'.",
     },
-    { id: "R6", text: "World id as in defineWorld; a default export without a string id is not a world." },
+    {
+      id: "R6",
+      text: "World id, name and source as in defineWorld, plus the world file's cwd-relative name; a default export without a string id is not a world.",
+    },
+    {
+      id: "R7",
+      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children.",
+    },
+    {
+      id: "R8",
+      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2.",
+    },
+    {
+      id: "R9",
+      text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call when known; in nodes order.",
+    },
+    {
+      id: "R10",
+      text: "parents: each node's parent as its position in nodes, null at the top level; in nodes order; unambiguous under duplicate ids.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -52,10 +73,22 @@ export const LoadWorld = node({
       demonstrates: ["R1", "R2", "R4", "R6"],
     },
     {
-      text: "Child using two ports of one target → one edge, both ports; dome ports keep delegates; node listed twice → once, at first listing.",
-      demonstrates: ["R2", "R3"],
+      text: "Child using two ports of one target → one edge, both ports; dome ports keep delegates; node listed twice → once, at first listing, and two listings.",
+      demonstrates: ["R2", "R3", "R7"],
     },
     { text: "tbd used by two nodes → one placeholder, both ids, no edges.", demonstrates: ["R4"] },
+    {
+      text: "Exported node listed nowhere → one orphan with its name and file, not in nodes; exported twice → one orphan.",
+      demonstrates: ["R8"],
+    },
+    {
+      text: "Barrel index.ts re-exporting Orders from orders.ts, node() on line 3 → files names nuhokai/orders.ts, line 3.",
+      demonstrates: ["R9"],
+    },
+    {
+      text: "Dome P (id x) with children C1 (id x) and C2 → parents [null, 0, 0]: C2's parent is P, not C1.",
+      demonstrates: ["R10"],
+    },
     {
       text: "Syntax error, throwing file, non-world default export, world without id, uses returning a non-list → one CliError each naming the file, with line for the first two. Unexported node → named by id.",
       demonstrates: ["R2", "R5", "R6"],
@@ -73,6 +106,23 @@ export const LoadWorld = node({
     {
       decision: "Top-level shared loader; outputs world id, NodeSpecs, tbd placeholders.",
       why: "check needs the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
+    },
+    {
+      decision: "listings keeps every listing, also the repeats R3 drops from nodes.",
+      why: "A node listed twice is check's violation and must name both places; the walk already sees them.",
+      rejected: [{ option: "check walks the handles itself", why: "A second loader; check shares this load." }],
+    },
+    {
+      decision: "orphans lists exported nodes the walk misses.",
+      why: "Orphans are check's violation; only the loader sees every export.",
+    },
+    {
+      decision: "files gives each node's defining file and node() line.",
+      why: "Every check finding needs a location; the node() call's stack frame already has both.",
+    },
+    {
+      decision: "parents gives each node's parent by position, not by id.",
+      why: "Duplicate ids are check's to report, so a parent id cannot rebuild the tree; the walk knows each parent by reference.",
     },
     {
       decision: "Evaluate every node file, not only index.ts's imports.",

@@ -11,7 +11,7 @@ export const Scaffold = node({
     "The program inside Init: inspect the project directory, hand the outcome to Publish, print the result. " +
     "Owns no data, file or template.",
   status: "built",
-  source: ["packages/cli/src/init/scaffold.ts"],
+  source: ["src/init/scaffold.ts"],
   ports: {
     run: {
       kind: "call",

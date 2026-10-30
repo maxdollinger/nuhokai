@@ -156,7 +156,7 @@ test("two ports of one target are one edge, a node listed twice appears once at 
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Box, Target } from "./box.ts";
-export default defineWorld({ id: "w", children: [Box, Target] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Box, Target] });
 `,
     "box.ts": `import { inherited, node } from "@nuhokai/world";
 export const Contract = node({ ...${leaf("contract", '{ audit: { kind: "call", purpose: "audit" } }')}, abstract: true }).edges({});
@@ -191,7 +191,7 @@ test("a node listed at the top level and then inside a dome stays at its first l
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Box, Shared } from "./box.ts";
-export default defineWorld({ id: "w", children: [Shared, Box] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Shared, Box] });
 `,
     "box.ts": `import { node } from "@nuhokai/world";
 export const Shared = node(${leaf("shared")}).edges({});
@@ -209,11 +209,31 @@ export const Box = node({ id: "box", purpose: "box", status: "planned", source: 
   ]);
 });
 
+test("parents: each node's parent by position, unambiguous when a child shares its dome's id", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { P, T } from "./p.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [P, T] });
+`,
+    "p.ts": `import { node } from "@nuhokai/world";
+export const C1 = node(${leaf("x")}).edges({});
+export const C2 = node(${leaf("c2")}).edges({});
+export const T = node(${leaf("t")}).edges({});
+export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["P", "C1", "C2", "T"]);
+  expect(loaded.parents).toEqual([null, 0, 0, null]);
+});
+
 test("a tbd used by two nodes is one placeholder with both ids and no edges", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A, B } from "./nodes.ts";
-export default defineWorld({ id: "w", children: [B, A] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [B, A] });
 `,
     "nodes.ts": `import { node, tbd } from "@nuhokai/world";
 export const first = tbd.event({ description: "first hole" });
@@ -240,7 +260,7 @@ test("names: the defining file's export, else the first export in sorted file or
 import { First } from "./a.ts";
 import { Late } from "./z.ts";
 const Hidden = node(${leaf("hidden")}).edges({});
-export default defineWorld({ id: "w", children: [Late, First, Hidden] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Late, First, Hidden] });
 `,
     "z.ts": `import { node } from "@nuhokai/world";
 export const Late = node(${leaf("late")}).edges({});
@@ -259,7 +279,7 @@ test("a barrel re-export keeps the node's name and its file's blame", async () =
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Bad } from "./zbad.ts";
 export { Bad };
-export default defineWorld({ id: "w", children: [Bad] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Bad] });
 `,
     "zbad.ts": `import { node } from "@nuhokai/world";
 export const Bad = node(${leaf("bad")}).edges({ uses: () => { throw new Error("boom"); } });
@@ -273,7 +293,7 @@ test("a world that only loads is not judged: an orphan and an out-of-scope edge 
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 import { Inner, Outer } from "./nodes.ts";
-export default defineWorld({ id: "w", children: [Outer, Outer] });
+export default defineWorld({ id: "w", name: "Shop", source: ["src/**"], children: [Outer, Outer] });
 `,
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
@@ -286,12 +306,39 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
 
   expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Outer", "Inner"]);
   expect(loaded.nodes[1]?.edges).toEqual([{ kind: "uses", to: "orphan", port: ["x"] }]);
+  // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
+  expect([loaded.file, loaded.name, loaded.source]).toEqual([`${root}/nuhokai/index.ts`, "Shop", ["src/**"]]);
+  expect(loaded.listings).toEqual([
+    { node: "same-id", parent: null },
+    { node: "same-id", parent: "same-id" },
+    { node: "same-id", parent: null },
+  ]);
+  expect(loaded.orphans).toEqual([{ id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts` }]);
+  expect(loaded.files).toEqual([
+    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
+    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 3 },
+  ]);
+});
+
+test("a world without a name or source still loads; both are absent, for check to judge", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const A = node(${leaf("a")}).edges({});
+export default defineWorld({ id: "w", children: [A] } as never);
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded).not.toHaveProperty("name");
+  expect(loaded).not.toHaveProperty("source");
+  expect(loaded.files).toEqual([{ node: "a", file: `${root}/nuhokai/index.ts`, line: 2 }]);
 });
 
 test("every load failure is one CliError naming the file", async () => {
   const index = `import { defineWorld } from "@nuhokai/world";
 import { A } from "./orders.ts";
-export default defineWorld({ id: "w", children: [A] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
 `;
   const orders = `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges({});\n`;
   const edges = (body: string) =>
@@ -344,7 +391,7 @@ test("a throwing file imported by an earlier one is named, not its importer", as
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { A } from "./z-throws.ts";
-export default defineWorld({ id: "w", children: [A] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
 `,
     "z-throws.ts": 'throw new Error("from z");\nexport const A = 1;\n',
   });
@@ -356,7 +403,7 @@ test("generated files, declarations and tests are never evaluated", async () => 
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 export const A = node(${leaf("a")}).edges({});
-export default defineWorld({ id: "w", children: [A] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
 `,
     ".generated/world/thrower.ts": 'throw new Error("generated");\n',
     "types.d.ts": "declare const x: number;\n",
@@ -370,7 +417,7 @@ test("a symlinked node file is a node file: its export names the node", async ()
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Shared } from "./linked.ts";
-export default defineWorld({ id: "w", children: [Shared] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Shared] });
 `,
   });
   mkdirSync(join(root, "shared"));
@@ -381,6 +428,26 @@ export default defineWorld({ id: "w", children: [Shared] });
   symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
 
   expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["Shared"]);
+});
+
+test("a symlink loop in nuhokai/ is walked once; a link that cannot resolve is a load error naming it", async () => {
+  const files = {
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+export const A = node(${leaf("a")}).edges({});
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+    "sub/b.ts": "export const b = 1;\n",
+  };
+  const root = world(files);
+  symlinkSync(".", join(root, "nuhokai/loop"));
+  symlinkSync("..", join(root, "nuhokai/sub/up"));
+  expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["A"]);
+
+  const selfLinked = world(files);
+  symlinkSync("self", join(selfLinked, "nuhokai/self"));
+  const error = await loadError(selfLinked);
+  expect(error).toBeInstanceOf(CliError);
+  expect((error as Error).message).toBe(`${selfLinked}/nuhokai/self: the symlink cannot be resolved (ELOOP)`);
 });
 
 test("the CLI under bun --no-install: an uncached package import is one load error, nothing installed", () => {

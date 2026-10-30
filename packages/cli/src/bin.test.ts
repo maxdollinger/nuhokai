@@ -217,3 +217,56 @@ test("an unknown option or an extra argument is named, exit 2, nothing runs", as
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("`nuhokai check --help` shows that check takes no argument", async () => {
+  expect(await logged(["check", "--help"])).toEqual([0, [commandUsage("check")]]);
+  expect(await logged(["check", "--path", "x", "-h"])).toEqual([0, [commandUsage("check")]]);
+  expect(commandUsage("check")).toContain("Usage: nuhokai check\n");
+  expect(usage()).toContain("nuhokai check");
+});
+
+test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` is an argument error and Check never runs", async () => {
+  const parent = mkdtempSync(join(tmpdir(), "nuhokai-bin-check-test-"));
+  const project = join(parent, "app");
+  mkdirSync(project);
+  const cwd = process.cwd();
+  const log = console.log;
+  const error = console.error;
+  const out: string[] = [];
+  const err: string[] = [];
+  try {
+    expect(await runInit(project, { out: () => {} })).toBe(0);
+    console.log = (line: string) => out.push(line);
+    console.error = (line: string) => err.push(line);
+    process.chdir(parent);
+
+    expect(await main(["check", "x", "--path", "app"])).toBe(2);
+    expect(err.at(-1)?.split("\n")[0]).toBe("nuhokai check: unexpected argument 'x'");
+    expect(await main(["check", "--pth", "app"])).toBe(2);
+    expect(err.at(-1)?.split("\n")[0]).toBe("nuhokai check: unknown option '--pth'");
+    // Check itself would name the missing world; an argument error never gets that far.
+    expect(err.some((line) => line.includes("no nuhokai/"))).toBe(false);
+
+    expect(await main(["check"])).toBe(1);
+    expect(err.at(-1)).toBe(
+      "nuhokai check: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>",
+    );
+    expect(await main(["check", "--path=app"])).toBe(0);
+    expect(out).toEqual([]);
+    // Findings name their files from the cwd.
+    writeFileSync(
+      join(project, "nuhokai/orphan.ts"),
+      'import { node } from "@nuhokai/world";\n\nexport const Orphan = node({ id: "o", purpose: "p", status: "planned", source: [] }).edges({});\n',
+    );
+    process.chdir(project);
+    expect(await main(["check"])).toBe(0);
+    expect(out).toEqual([
+      "warning: nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+    ]);
+  } finally {
+    process.chdir(cwd);
+    console.log = log;
+    console.error = error;
+    rmSync(parent, { recursive: true, force: true });
+  }
+});

@@ -84,7 +84,7 @@ export const Orphan = node({ id: "orphan", purpose: "o", status: "planned", sour
 import { Example } from "./example.ts";
 import { Box } from "./orphan.ts";
 
-export default defineWorld({ id: "w", children: [Example, Box] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Example, Box] });
 `,
   );
   const output = capture();

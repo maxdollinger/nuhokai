@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Check } from "./check/check.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
@@ -10,13 +11,20 @@ export const Cli = node({
     "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes and the distribution. " +
     "Implements no command.",
   status: "building",
-  source: ["packages/cli/src/**", "packages/cli/scripts/**"],
+  source: [
+    "src/bin.ts",
+    "src/bin.test.ts",
+    "scripts/embed-world.ts",
+    "scripts/embed-world.test.ts",
+    "scripts/package-release.ts",
+    "scripts/smoke-release.sh",
+  ],
   ports: {
     dispatch: {
       kind: "call",
       purpose: "Parse argv, run the matching command node",
       input: "argv without the executable",
-      output: "exit code: 0 ok, 1 diagnostics or failure, 2 usage error",
+      output: "exit code: 0 ok, 1 errors or failure, 2 usage error",
       errors: ["unknown command"],
     },
   },
@@ -24,7 +32,7 @@ export const Cli = node({
     { id: "R1", text: "A repo needs no TypeScript, Bun or node_modules; the CLI ships its own pinned checker." },
     {
       id: "R2",
-      text: "Command exit codes pass through unchanged: 0 ok, 1 failure or diagnostics, 2 usage or argument error.",
+      text: "Command exit codes pass through unchanged: 0 ok, 1 failure or errors, 2 usage or argument error.",
     },
     {
       id: "R3",
@@ -134,4 +142,4 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, New.run, WorldMap.run] });
+}).edges({ uses: () => [Init.run, New.run, WorldMap.run, Check.run] });

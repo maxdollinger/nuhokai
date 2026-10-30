@@ -16,7 +16,7 @@ export const Init = node({
     "@nuhokai/world types, so loader and editor work at once. Writes only; never checks, repairs or updates. " +
     "Boundary: run → Scaffold.",
   status: "built",
-  source: ["packages/cli/src/init/**"],
+  source: ["src/init/**"],
   requirements: [
     {
       id: "R1",

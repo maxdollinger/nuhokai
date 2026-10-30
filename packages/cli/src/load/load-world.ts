@@ -1,4 +1,4 @@
-import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, realpathSync, type Stats, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
@@ -15,14 +15,50 @@ export interface Placeholder {
   readonly users: string[];
 }
 
-/** The world as plain data: what `map` draws and `check` will judge. */
+/** One place a node is listed: in a dome's children, or in the world's (`parent` null). */
+export interface Listing {
+  readonly node: string;
+  readonly parent: string | null;
+}
+
+/** An exported node the walk from the world never reaches. */
+export interface Orphan {
+  readonly id: string;
+  readonly name: string;
+  /** The defining file, else the first that exports it, named from the cwd. */
+  readonly file: string;
+}
+
+/** Where a reachable node is defined: its file, named from the cwd, and the line of its node() call. */
+export interface NodeFile {
+  readonly node: string;
+  readonly file: string;
+  /** Absent when no frame of the node() call lies in the world. */
+  readonly line?: number;
+}
+
+/** The world as plain data: what `map` draws and `check` judges. */
 export interface LoadedWorld {
   /** The world's own id, as `defineWorld` holds it; per-world state is keyed by it. */
   readonly id: string;
+  /** The world file, nuhokai/index.ts, named from the cwd: where findings about the world point. */
+  readonly file: string;
+  /** The world's name, as given; absent if it is no string. */
+  readonly name?: string;
+  /** The world's source, as given; absent if it is no list. */
+  readonly source?: readonly unknown[];
   /** Depth-first from the world: a parent before its children, children in record order, each node once. */
   readonly nodes: NodeSpec[];
+  /** Each node's parent as its position in `nodes`, null at the top level; aligned with `nodes`, unambiguous under duplicate ids. */
+  readonly parents: (number | null)[];
   /** Ordered by first use. */
   readonly placeholders: Placeholder[];
+  /** Every listing in walk order, a repeat included: what `nodes` drops, check reports. */
+  readonly listings: Listing[];
+  /** In sorted file order, each once. */
+  readonly orphans: Orphan[];
+  /** One per node, in `nodes` order. */
+  readonly files: NodeFile[];
 }
 
 /** A node handle and what the loader learnt about it from the exports. */
@@ -88,18 +124,39 @@ function useCliWorldRuntime(): void {
   });
 }
 
-/** Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests. */
+/**
+ * Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests.
+ * Symlinks are followed, but never into a directory already on the way down, so a symlink loop is walked once; a
+ * link that cannot be resolved at all is a load error naming it.
+ */
 function worldFiles(root: string): string[] {
+  const files: string[] = [];
+  const walk = (dir: string, path: string, above: ReadonlySet<string>) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const name = path ? `${path}/${entry.name}` : entry.name;
+      const at = join(dir, entry.name);
+      let kind: Stats | Dirent | undefined = entry;
+      if (entry.isSymbolicLink()) {
+        try {
+          kind = statSync(at, { throwIfNoEntry: false });
+        } catch (error) {
+          const code = (error as { code?: unknown } | null)?.code;
+          throw new CliError(
+            `${inWorld(root, name)}: the symlink cannot be resolved (${String(code ?? oneLine(error))})`,
+          );
+        }
+      }
+      if (kind?.isDirectory()) {
+        const real = realpathSync(at);
+        if (name !== WORLD_GENERATED_DIR && !above.has(real)) walk(at, name, new Set([...above, real]));
+      } else if (kind?.isFile() && name.endsWith(".ts") && !name.endsWith(".d.ts") && !name.endsWith(".test.ts")) {
+        files.push(name);
+      }
+    }
+  };
   const dir = inWorld(root);
-  const isFile = (entry: Dirent) =>
-    entry.isFile() ||
-    (entry.isSymbolicLink() && statSync(join(entry.parentPath, entry.name), { throwIfNoEntry: false })?.isFile());
-  return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => isFile(entry) && entry.name.endsWith(".ts"))
-    .filter((entry) => !entry.name.endsWith(".d.ts") && !entry.name.endsWith(".test.ts"))
-    .map((entry) => relative(dir, join(entry.parentPath, entry.name)).split(sep).join("/"))
-    .filter((path) => !path.startsWith(`${WORLD_GENERATED_DIR}/`))
-    .sort();
+  walk(dir, "", new Set([realpathSync(dir)]));
+  return files.sort();
 }
 
 /** Where the world at `root` and its files are, by every path Bun may report. */
@@ -169,11 +226,11 @@ function isNode(value: unknown): value is NodeRef {
   return typeof value === "object" && value !== null && (value as { $ref?: unknown }).$ref === "node";
 }
 
-/** The world file whose node() call made the handle, named from the cwd: its first world frame. */
-function definerOf(node: NodeRef, paths: WorldPaths): string | undefined {
-  for (const [path] of framesOf(madeAt.get(node) ?? "")) {
-    const name = nameIn(paths, path);
-    if (name) return name;
+/** The world file whose node() call made the handle, named from the cwd, and the call's line: its first world frame. */
+function madeIn(node: NodeRef, paths: WorldPaths): { file: string; line: number } | undefined {
+  for (const [path, line] of framesOf(madeAt.get(node) ?? "")) {
+    const file = nameIn(paths, path);
+    if (file) return { file, line };
   }
   return undefined;
 }
@@ -188,7 +245,7 @@ function namesOf(modules: readonly Module[], paths: WorldPaths): Map<NodeRef, Na
     for (const [file, exports] of modules) {
       for (const [exported, value] of Object.entries(exports)) {
         if (exported === "default" || !isNode(value) || names.has(value)) continue;
-        const definer = definerOf(value, paths);
+        const definer = madeIn(value, paths)?.file;
         if (!definersOnly || file === definer) names.set(value, { name: exported, file: definer ?? file });
       }
     }
@@ -198,31 +255,41 @@ function namesOf(modules: readonly Module[], paths: WorldPaths): Map<NodeRef, Na
   return names;
 }
 
-/** The world's id and top-level nodes, from the default export of `index`, the entry point's name. */
-function worldOf(modules: readonly Module[], index: string): { id: string; children: readonly unknown[] } {
+/** The world's id, name, source and top-level nodes, from the default export of `index`, the entry point's name. */
+function worldOf(
+  modules: readonly Module[],
+  index: string,
+): { id: string; name?: string; source?: readonly unknown[]; children: readonly unknown[] } {
   const world = modules.find(([file]) => file === index)?.[1].default as
-    | { $ref?: unknown; id?: unknown; children?: unknown }
+    | { $ref?: unknown; id?: unknown; name?: unknown; source?: unknown; children?: unknown }
     | undefined;
   if (world?.$ref !== "world" || typeof world.id !== "string" || !Array.isArray(world.children)) {
     throw new CliError(
-      `${index}: the default export is not a world; export default defineWorld({ id: "...", children: [...] })`,
+      `${index}: the default export is not a world; export default defineWorld({ id: "...", name: "...", source: [...], children: [...] })`,
     );
   }
-  return { id: world.id, children: world.children };
+  // Name and source pass as given: judging them is check's.
+  return {
+    id: world.id,
+    ...(typeof world.name === "string" ? { name: world.name } : {}),
+    ...(Array.isArray(world.source) ? { source: world.source } : {}),
+    children: world.children,
+  };
 }
 
 /**
- * Turn evaluated world files into the world's id, NodeSpecs and placeholders. Resolves every
+ * Turn evaluated world files into the LoadedWorld. Resolves every
  * reference by identity and judges nothing: ids, orphans, scope and names are
  * check's rules.
  */
 function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): LoadedWorld {
   const names = namesOf(modules, paths);
-  const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? definerOf(node, paths))) ?? index;
+  const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? madeIn(node, paths)?.file)) ?? index;
   const nameOf = (node: NodeRef) => names.get(node)?.name ?? node.$def.id;
 
-  // Depth-first: a parent before its children, record order; the first listing places a node.
+  // Depth-first: a parent before its children, record order; the first listing places a node, every listing is kept.
   const placed: { node: NodeRef; parent: NodeRef | null }[] = [];
+  const listings: Listing[] = [];
   const seen = new Set<NodeRef>();
   const place = (children: readonly unknown[], parent: NodeRef | null) => {
     for (const child of children) {
@@ -230,6 +297,7 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
         const owner = parent ? `${nameOf(parent)}'s children` : "the world's children";
         throw new CliError(`${fileOf(parent)}: ${owner} list a value that is not a node`);
       }
+      listings.push({ node: child.$def.id, parent: parent ? parent.$def.id : null });
       if (seen.has(child)) continue;
       seen.add(child);
       placed.push({ node: child, parent });
@@ -316,13 +384,35 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
     return spec;
   });
 
-  return { id: world.id, nodes, placeholders: [...placeholders.values()] };
+  // Exported but never reached, in sorted file order: check's orphans.
+  const orphans: Orphan[] = [];
+  const orphaned = new Set<NodeRef>();
+  for (const [, exports] of modules) {
+    for (const value of Object.values(exports)) {
+      if (!isNode(value) || seen.has(value) || orphaned.has(value)) continue;
+      orphaned.add(value);
+      orphans.push({ id: value.$def.id, name: nameOf(value), file: fileOf(value) });
+    }
+  }
+
+  const files = placed.map(({ node }): NodeFile => {
+    const made = madeIn(node, paths);
+    return made && made.file === fileOf(node)
+      ? { node: node.$def.id, file: made.file, line: made.line }
+      : { node: node.$def.id, file: fileOf(node) };
+  });
+
+  const position = new Map(placed.map(({ node }, at) => [node, at]));
+  const parents = placed.map(({ parent }) => (parent === null ? null : (position.get(parent) ?? null)));
+
+  const { children: _children, ...head } = world;
+  return { ...head, file: index, nodes, parents, placeholders: [...placeholders.values()], listings, orphans, files };
 }
 
 /**
  * Load the world at `root`, the project directory as named from the cwd: evaluate
- * every world file in-process and answer the world as its id, NodeSpecs and tbd
- * placeholders. Writes, spawns and prompts nothing, and checks no rule. Every
+ * every world file in-process and answer the world as its id, name, source,
+ * NodeSpecs, parents, tbd placeholders, listings, orphans and node files. Writes, spawns and prompts nothing, and checks no rule. Every
  * failure is one CliError naming the file from the cwd.
  *
  * Once per root per process: Bun caches every evaluated module by its path, so

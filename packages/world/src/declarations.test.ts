@@ -52,15 +52,15 @@ export const C = node({ id: "01a16dd2-bc70-7000-8000-00000000000b", purpose: "c"
 import { defineWorld, node } from "../dts/index.ts";
 import { A, Parent } from "./a.ts";
 import { B, C, Contract, Ext } from "./b.ts";
-export default defineWorld({ id: "01a16dd2-bc70-7000-8000-00000000000e", children: [A, B, Contract, Ext, Parent] });
+export default defineWorld({ id: "01a16dd2-bc70-7000-8000-00000000000e", name: "w", source: [], children: [A, B, Contract, Ext, Parent] });
 // @ts-expect-error a world needs an id
-export const N = defineWorld({ children: [A] });
+export const N = defineWorld({ name: "n", source: [], children: [A] });
 // @ts-expect-error external child
 export const Q = node({ id: "01a16dd2-bc70-7000-8000-00000000000c", purpose: "q", status: "planned", source: [], children: { c: C, ext: Ext } }).edges({});
 // @ts-expect-error C is not a direct child
 export const R = node({ id: "01a16dd2-bc70-7000-8000-00000000000d", purpose: "r", status: "planned", source: [], children: { b: B }, ports: () => ({ z: C.z }) }).edges({});
 // @ts-expect-error a string is not a node
-export const S = defineWorld({ id: "s", children: ["a"] });
+export const S = defineWorld({ id: "s", name: "s", source: [], children: ["a"] });
 `,
 };
 

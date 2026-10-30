@@ -8,7 +8,7 @@ export const New = node({
   purpose:
     "Add one node file to an existing world: nuhokai/<node-path>.ts with a fresh uuidv7 and TODO: placeholders. Never edits, overwrites, loads or checks. run → AddNode.",
   status: "building",
-  source: ["packages/cli/src/new/**"],
+  source: ["src/new/**"],
   requirements: [
     {
       id: "R1",

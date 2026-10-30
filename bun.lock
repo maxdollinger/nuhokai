@@ -12,11 +12,13 @@
     },
     "packages/cli": {
       "name": "@nuhokai/cli",
+      "version": "0.1.0",
       "bin": {
         "nuhokai": "./src/bin.ts",
       },
       "dependencies": {
         "@nuhokai/world": "workspace:*",
+        "typescript": "7.0.2",
       },
       "devDependencies": {
         "three": "0.128.0",

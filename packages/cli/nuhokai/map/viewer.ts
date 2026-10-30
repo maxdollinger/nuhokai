@@ -6,7 +6,7 @@ export const Viewer = node({
   purpose:
     "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser. Never writes files, inlines assets or picks where the map goes.",
   status: "building",
-  source: ["packages/cli/src/map/viewer.html", "packages/cli/src/map/scene.js", "packages/cli/src/map/scene.d.ts"],
+  source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
     page: {
       kind: "call",

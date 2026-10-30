@@ -101,6 +101,11 @@ test("an edge listing a call and an event port is a lane and an air route; group
       leaf("c", "C", { external: true, externalType: "caller", edges: [{ kind: "uses", to: "b", port: ["x"] }] }),
     ],
     placeholders: [],
+    file: "nuhokai/index.ts",
+    parents: [null, null, null],
+    listings: [],
+    orphans: [],
+    files: [],
   };
 
   const view = scopeView(mapScene(loaded), null);
@@ -128,7 +133,19 @@ test("a call cycle between islands still gets finite levels", () => {
     source: [],
     edges: [{ kind: "uses" as const, to, port: ["p"] }],
   });
-  const view = scopeView(mapScene({ id: "w", nodes: [leaf("a", "b"), leaf("b", "a")], placeholders: [] }), null);
+  const view = scopeView(
+    mapScene({
+      id: "w",
+      nodes: [leaf("a", "b"), leaf("b", "a")],
+      placeholders: [],
+      file: "nuhokai/index.ts",
+      parents: [null, null],
+      listings: [],
+      orphans: [],
+      files: [],
+    }),
+    null,
+  );
 
   expect(view.items.map((item) => (item.kind === "island" ? item.level : null))).toEqual([1, 0]);
 });
@@ -188,6 +205,11 @@ test("two holes sharing a description stay two, each with its sorted users", () 
       { kind: "call", description: "notify", users: ["c", "a"] },
       { kind: "call", description: "notify", users: ["b"] },
     ],
+    file: "nuhokai/index.ts",
+    parents: [null, null, null],
+    listings: [],
+    orphans: [],
+    files: [],
   };
 
   const holes = scopeView(mapScene(loaded), null).items.filter((item) => item.kind === "hole");

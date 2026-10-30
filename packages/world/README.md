@@ -38,6 +38,8 @@ import { defineWorld } from "@nuhokai/world";
 
 export default defineWorld({
   id: "01a17bb6-ad4d-7298-8492-a53237d45f80", // the world's own id, like a node's
+  name: "Shop",
+  source: ["src/**"], // the code the world covers; every node's source lies under it
   children: [Postgres, AuditLog, Shop],
 });
 ```
@@ -56,6 +58,10 @@ export default defineWorld({
   never import the world file.
 - The world's `id` is required and has a node id's form. Tools key per-world state by it (the map's saved layout), so
   every world gets its own; `nuhokai init` generates one.
+- The world is the outermost container. Its `name` is required and not blank; tools show it (the map's title). An
+  optional `description` says what the world is for. Its
+  `source` lists the code the world covers, like a node's, relative to the project directory; every node's `source`
+  lies under it (`check`).
 
 The runtime has no imports and no side effects: `node`, `defineWorld`, `inherited` and `tbd` only build frozen
 objects. `example/` is a complete small world: `example/index.ts` holds its top level and re-exports its nodes, so it
@@ -106,10 +112,10 @@ A compile-time check fails if the two drift apart.
   and two implemented contracts must not share a port name; requirement ids are unique (non-literal ids are left to
   `check`), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
   a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
-- **Dome rules checked by tsc:** `children` is a non-empty record of nodes, each neither external nor abstract (nor
-  possibly so); a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
+- **Dome rules checked by tsc:** `children` is a non-empty record of nodes, none external (nor possibly so); a contract
+  may be a child; a dome's ports reference a port of one of its direct children, under a literal, non-reserved name; a
   placeholder is not a child port.
-- **World rules checked by tsc:** `defineWorld` needs an `id`; its `children` are not empty and holds nodes only (externals and contracts
+- **World rules checked by tsc:** `defineWorld` needs an `id`, a `name` that is not blank and a `source`; its `children` are not empty and holds nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an
   unresolved port reference (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have
@@ -121,8 +127,8 @@ A compile-time check fails if the two drift apart.
 
 ## For the loader and `check`
 
-- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object with the world's `id` and
-  `children`, the top-level nodes, all frozen.
+- The entry point is the default export of `nuhokai/index.ts`, a `$ref: "world"` object with the world's `id`, `name`,
+  `source` and `children`, the top-level nodes, all frozen.
 - Every exported node has `$ref: "node"`; `$def` holds both steps as authored, deep-frozen, with the edges still lazy
   functions (`uses`, `implements`). A dome's `$def.children` is its direct-children record (references kept by
   identity), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries
@@ -130,8 +136,11 @@ A compile-time check fails if the two drift apart.
 - The loader evaluates the world and reports evaluation failures only; it judges nothing. Global rules are `check`'s
   (planned), each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; unique display names. `check` re-checks every tsc rule, because a cast
-  bypasses the types.
+  an ancestor) against the world tree; every node's `source` under the world's; display names unique among siblings, the top level included. A node's name
+  in diagnostics is its path from the world (`Check/SpecCheck`), so a name only has to be unique next to its siblings.
+  `check` type-checks the world and forbids casts, `any` and `@ts-` directives in world files, so the tsc rules
+  hold; it re-checks on the loaded data only what tsc leaves to it (non-literal ids and flags) and the node-spec
+  structure.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so
   never resolve by `$ref` plus id and name. `node()` also checks at runtime that every dome port belongs to one of its
