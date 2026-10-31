@@ -9,6 +9,9 @@
  * outer edge: externals by externalType, nodes outside the dome, tbd holes and
  * the dome's own ports as entries. An edge or hole whose user sits deeper is
  * drawn from the island that contains the user.
+ *
+ * `search` finds nodes, ports and holes across all scopes; `lightsFor` says
+ * what stands for them in one scope.
  */
 
 /** The top-level scope's name when the world has none: the map draws unchecked worlds too. */
@@ -282,4 +285,203 @@ export function detailsOf(node) {
       { label: "Source", rows: (node.source ?? []).map((glob) => ({ name: glob, meta: "" })) },
     ],
   };
+}
+
+/** Subsequence matches need this many query characters: shorter ones match nearly anything. */
+const SUBSEQUENCE_FROM = 3;
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+const UPPER = /\p{Lu}/u;
+const LOWER_OR_DIGIT = /[\p{Ll}\p{N}]/u;
+/** A port named after its node: `stock reserve`, `stock.reserve`, `Stock › reserve`, `stock/reserve`; the node's part and the port's around the last separators. */
+const OWNER_AND_PORT = /^(.+?)[\s.›/]+([^\s.›/]+)$/u;
+
+/** The query as matchText takes it: folded, and its letters and digits alone for word starts and subsequences. */
+const queryOf = (full) => ({ full, compact: full.replace(/[^\p{L}\p{N}]/gu, "") });
+/** `match` with its positions `by` characters further right, as in a label behind a prefix; null stays null. */
+const shifted = (match, by) => match && { ...match, positions: match.positions.map((at) => at + by) };
+
+/** `length` indexes from `from` on. */
+const range = (from, length) => Array.from({ length }, (_, i) => from + i);
+
+/** Lower case, one UTF-16 unit per unit, so an index into it is an index into `text`. */
+function fold(text) {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const lower = text[i].toLowerCase();
+    out += lower.length === 1 ? lower : text[i];
+  }
+  return out;
+}
+
+/** Where words start: the first letter or digit after anything else, and a capital after a small letter or digit (camelCase). */
+function wordStarts(text) {
+  const starts = [];
+  for (let i = 0; i < text.length; i++) {
+    if (!WORD_CHAR.test(text[i])) continue;
+    if (i === 0 || !WORD_CHAR.test(text[i - 1]) || (UPPER.test(text[i]) && LOWER_OR_DIGIT.test(text[i - 1]))) {
+      starts.push(i);
+    }
+  }
+  return starts;
+}
+
+/**
+ * `q` from character `qi` on as prefixes of words in order, from word `from` on (words may be skipped): the matched
+ * indexes, or null. `failed` remembers dead ends, so a long description stays quick.
+ */
+function wordMatch(low, starts, q, qi, from, failed) {
+  if (qi === q.length) return [];
+  const key = qi * (starts.length + 1) + from;
+  if (failed.has(key)) return null;
+  for (let w = from; w < starts.length; w++) {
+    let n = 0;
+    while (qi + n < q.length && low[starts[w] + n] === q[qi + n]) n++;
+    for (; n > 0; n--) {
+      let next = w + 1;
+      while (next < starts.length && starts[next] < starts[w] + n) next++;
+      const rest = wordMatch(low, starts, q, qi + n, next, failed);
+      if (rest) return [...range(starts[w], n), ...rest];
+    }
+  }
+  failed.add(key);
+  return null;
+}
+
+/** The tightest run holding `q`'s characters in order, scored by its span; null if there is none. */
+function subsequence(low, q) {
+  let best = null;
+  for (let start = low.indexOf(q[0]); start !== -1; start = low.indexOf(q[0], start + 1)) {
+    const positions = [start];
+    for (let i = start + 1; i < low.length && positions.length < q.length; i++) {
+      if (low[i] === q[positions.length]) positions.push(i);
+    }
+    if (positions.length < q.length) break; // no later start finishes either
+    const span = positions[positions.length - 1] - start + 1;
+    if (!best || span < best.score) best = { tier: 5, score: span, positions };
+  }
+  return best;
+}
+
+/**
+ * How `text` matches the query at its best tier: { tier, score, positions } or null. A `sentence` (a hole's
+ * description) matches word starts only as one run from a single word start, and never as a subsequence: its words
+ * are many, so skipping some would match almost any query.
+ */
+function matchText(text, query, sentence) {
+  const low = fold(text);
+  const { full, compact } = query;
+  if (low === full) return { tier: 1, score: 0, positions: range(0, full.length) };
+  if (low.startsWith(full)) return { tier: 2, score: 0, positions: range(0, full.length) };
+  if (sentence) {
+    const start = wordStarts(text).find((at) => low.startsWith(full, at));
+    if (start !== undefined) return { tier: 3, score: 0, positions: range(start, full.length) };
+  } else {
+    const words = compact ? wordMatch(low, wordStarts(text), compact, 0, 0, new Set()) : null;
+    if (words) return { tier: 3, score: 0, positions: words };
+  }
+  const at = low.indexOf(full);
+  if (at !== -1) return { tier: 4, score: 0, positions: range(at, full.length) };
+  return !sentence && compact.length >= SUBSEQUENCE_FROM ? subsequence(low, compact) : null;
+}
+
+/** A hole's home: the deepest scope holding every user, so each is drawn there as an island or inside one; undefined if no user resolves. */
+function holeHome(scene, placeholder) {
+  let home;
+  for (const id of placeholder.users) {
+    const user = scene.byId.get(id);
+    if (user === undefined) continue;
+    const chain = pathTo(scene, scene.parents[user]).map((crumb) => crumb.scope);
+    if (!home) home = chain;
+    else {
+      let n = 0;
+      while (n < home.length && n < chain.length && home[n] === chain[n]) n++;
+      home = home.slice(0, n);
+    }
+  }
+  return home?.[home.length - 1];
+}
+
+/**
+ * Every node and port matching `query` by name and every tbd hole by its description, across all scopes, best
+ * first: by tier (exact, prefix, word starts, substring, subsequence), a subsequence by its span, then nodes, holes,
+ * ports, each in world order. Case-insensitive; holes match word starts only as one run and stop at substring;
+ * subsequences need 3 characters. A query with a separator also names a port after its node: the part before the
+ * last separator matches the node's name, the rest the port's, ranked by the worse tier. A blank query matches
+ * nothing. Each hit lands in its home scope as `key`.
+ */
+export function search(scene, query) {
+  const full = fold(query.trim());
+  if (full === "") return [];
+  const q = queryOf(full);
+  const parts = full.match(OWNER_AND_PORT);
+  const ownerQ = parts && queryOf(parts[1]);
+  const portQ = parts && queryOf(parts[2]);
+  const found = [];
+  const add = (kind, label, match, scope, key, node, port) => {
+    if (!match) return;
+    found.push({
+      score: match.score,
+      hit: {
+        kind,
+        label,
+        positions: match.positions,
+        tier: match.tier,
+        scope,
+        path: pathTo(scene, scope),
+        key,
+        node,
+        port,
+      },
+    });
+  };
+  scene.nodes.forEach((node, index) => {
+    add("node", node.name, matchText(node.name, q, false), scene.parents[index], `node:${index}`, index, null);
+  });
+  scene.world.placeholders.forEach((placeholder, index) => {
+    const home = holeHome(scene, placeholder);
+    if (home === undefined) return;
+    const match = shifted(matchText(placeholder.description, q, true), "tbd: ".length);
+    add("hole", `tbd: ${placeholder.description}`, match, home, `tbd:${index}`, null, null);
+  });
+  scene.nodes.forEach((node, index) => {
+    const prefix = `${node.name} › `;
+    // `stock reserve`: the node's name before the last separator, the port's after; as good as the worse of the two.
+    const owner = ownerQ && matchText(node.name, ownerQ, false);
+    for (const port of node.ports ?? []) {
+      const plain = shifted(matchText(port.name, q, false), prefix.length);
+      const named = owner && shifted(matchText(port.name, portQ, false), prefix.length);
+      const both = named && {
+        tier: Math.max(owner.tier, named.tier),
+        score: owner.score + named.score,
+        positions: [...owner.positions, ...named.positions],
+      };
+      const match = both && (!plain || both.tier <= plain.tier) ? both : plain;
+      add("port", prefix + port.name, match, scene.parents[index], `node:${index}`, index, port.name);
+    }
+  });
+  // Stable: equal tier and score keep nodes, holes, ports, each in world order.
+  return found.sort((a, b) => a.hit.tier - b.hit.tier || a.score - b.score).map((entry) => entry.hit);
+}
+
+/**
+ * What stands for each hit in `view`: its own item if drawn there (an island, external or outside proxy), else the
+ * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
+ * it is drawn. Item keys, each once, in hit order. Subsequence hits light nothing while any hit matches better: next to
+ * real hits, loose ones would light half the map.
+ */
+export function lightsFor(scene, view, hits) {
+  const drawn = new Set(view.items.map((item) => item.key));
+  const lit = new Set();
+  const better = hits.some((hit) => hit.tier < 5);
+  for (const hit of hits) {
+    if (better && hit.tier === 5) continue;
+    if (drawn.has(hit.key)) lit.add(hit.key);
+    else if (hit.node !== null) {
+      const child = childIn(scene, hit.node, view.scope);
+      if (child !== undefined) lit.add(`node:${child}`);
+      // The open dome is not drawn in itself; its ports stand at the edge as the entry.
+      else if (hit.node === view.scope && drawn.has("entry")) lit.add("entry");
+    }
+  }
+  return [...lit];
 }
