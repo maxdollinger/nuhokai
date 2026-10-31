@@ -4272,7 +4272,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #hits{margin-top:4px;padding-top:4px;border-top:0.5px solid var(--panel-border);max-height:min(360px,calc(100vh - 160px));overflow:auto}
 #hits[hidden]{display:none}
 #hits .hit{padding:5px 8px;border-radius:7px;cursor:pointer}
-#hits .hit[aria-selected="true"]{background:rgba(127,127,127,0.22);box-shadow:inset 2px 0 0 var(--accent)}
+#hits .hit[aria-selected="true"]{background:rgba(127,127,127,0.22)}
 #hits .h-name,#hits .h-path{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hits .h-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:baseline}
 #hits .hole .h-dot{border:1.5px dashed var(--text-2)}
