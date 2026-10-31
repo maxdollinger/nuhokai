@@ -81,8 +81,9 @@ exits 1 on any error and 0 otherwise; orphans are warnings. A missing world or a
 
 `map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
-coloured by its status. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name and `tbd` placeholders by
-description in every scope, lights them in the open scope and jumps to one with Enter. It never opens a browser. The map remembers moved islands per browser, under the world's id
+coloured by its status. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
+with its node) and `tbd` placeholders by description in every scope, lights them in the open scope and jumps to one
+with Enter or a click. It never opens a browser. The map remembers moved islands per browser, under the world's id
 and by node id, so a regenerated map keeps them and two projects' maps never share them. `@nuhokai/world` in a world file is
 the CLI's own runtime; any other import resolves as Bun resolves it. The CLI runs with `bun --no-install`, so nothing
 is installed: an unresolvable import is an ordinary load error. The loader is no sandbox; world files are the

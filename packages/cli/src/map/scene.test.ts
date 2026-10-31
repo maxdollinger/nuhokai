@@ -323,6 +323,7 @@ test("a hit lands in its home scope: a node's parent, a port's node, a hole once
       ],
       key: key("Stock"),
       node: indexOf("Stock"),
+      port: null,
     },
   ]);
   // A dome lands where it is drawn, not inside itself.
@@ -330,7 +331,7 @@ test("a hit lands in its home scope: a node's parent, a port's node, a hole once
     { kind: "node", scope: null, key: key("Shop"), path: [{ scope: null, name: "Shop" }] },
   ]);
   expect(search(scene, "reserve")).toMatchObject([
-    { kind: "port", label: "Stock › reserve", scope: shop, key: key("Stock"), node: indexOf("Stock") },
+    { kind: "port", label: "Stock › reserve", scope: shop, key: key("Stock"), node: indexOf("Stock"), port: "reserve" },
   ]);
   // Drawn on top and inside Shop, found once: in Shop, where Orders and Stock are islands.
   expect(search(scene, "customer")).toEqual([
@@ -346,8 +347,39 @@ test("a hit lands in its home scope: a node's parent, a port's node, a hole once
       ],
       key: "tbd:0",
       node: null,
+      port: null,
     },
   ]);
+});
+
+test("search: a separator names a port after its node; both match, at the worse tier", () => {
+  for (const query of ["stock.reserve", "Stock reserve", "Stock › reserve", "stock/reserve", "stock . reserve"]) {
+    expect(search(scene, query)).toMatchObject([
+      { kind: "port", label: "Stock › reserve", tier: 1, positions: [0, 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14] },
+    ]);
+  }
+  // `place` alone finds Orders › place and Shop › placeOrder; the node narrows it.
+  expect(labels("shop place")).toEqual(["Shop › placeOrder"]);
+  expect(labels("orders place")).toEqual(["Orders › place"]);
+  // The worse tier ranks: Orders (prefix) › place (exact) before Shop (substring) › placeOrder (prefix).
+  const oPlace = search(scene, "o place");
+  expect(oPlace.map((hit) => [hit.label, hit.tier])).toEqual([
+    ["Orders › place", 2],
+    ["Shop › placeOrder", 4],
+  ]);
+  expect(oPlace.map((hit) => hit.positions)).toEqual([
+    [0, 9, 10, 11, 12, 13],
+    [2, 7, 8, 9, 10, 11],
+  ]);
+  // AuditLog › history drops out: its node is not Shop.
+  expect(search(scene, "shop history")).toMatchObject([
+    { label: "Shop › orderHistory", tier: 3, positions: [0, 1, 2, 3, 12, 13, 14, 15, 16, 17, 18] },
+  ]);
+  // Names typed with spaces still match as a whole; a blank side names no port.
+  expect(search(scene, "audit log")).toMatchObject([
+    { label: "AuditLog", tier: 3, positions: [0, 1, 2, 3, 4, 5, 6, 7] },
+  ]);
+  expect(search(scene, "stock.")).toMatchObject([{ kind: "node", label: "Stock", tier: 3 }]);
 });
 
 test("a hole's home is the deepest scope holding all its users", () => {
@@ -409,4 +441,20 @@ test("a query lights what stands for each hit in the open scope", () => {
   expect(lights(shop, "shop")).toEqual(["entry"]);
   expect(lights(shop, "placeorder")).toEqual(["entry"]);
   expect(lights(shop, "or")).toEqual([key("Orders"), "entry", "tbd:0", key("AuditLog")]);
+});
+
+test("subsequence hits light nothing while a hit matches better", () => {
+  const top = scopeView(scene, null);
+  const shop = scopeView(scene, indexOf("Shop"));
+  // `dit`: AuditLog (substring), Shop › orderHistory (a subsequence, d·i·t).
+  const dit = search(scene, "dit");
+  expect(dit.map((hit) => [hit.label, hit.tier])).toEqual([
+    ["AuditLog", 4],
+    ["Shop › orderHistory", 5],
+  ]);
+  expect(lightsFor(scene, top, dit)).toEqual([key("AuditLog")]); // not Shop
+  expect(lightsFor(scene, shop, dit)).toEqual([key("AuditLog")]); // not the entry
+  // Only subsequences: they light.
+  expect(lightsFor(scene, top, search(scene, "ore"))).toEqual([key("Shop"), key("Postgres")]);
+  expect(lightsFor(scene, shop, search(scene, "stock.reserve"))).toEqual([key("Stock")]);
 });

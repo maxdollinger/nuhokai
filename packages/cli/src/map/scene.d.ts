@@ -121,7 +121,7 @@ export interface Hit {
   readonly label: string;
   /** The matched characters, as ascending indexes into label. */
   readonly positions: readonly number[];
-  /** 1 exact, 2 prefix, 3 word starts, 4 substring, 5 subsequence. */
+  /** 1 exact, 2 prefix, 3 word starts, 4 substring, 5 subsequence; a port named after its node (`stock reserve`): the worse of the two. */
   readonly tier: 1 | 2 | 3 | 4 | 5;
   /** Where a jump lands: the node's parent (a port's: its node's), a hole's deepest scope holding all its users. */
   readonly scope: Scope;
@@ -131,6 +131,8 @@ export interface Hit {
   readonly key: string;
   /** The node, a port's node; null for a hole. */
   readonly node: number | null;
+  /** A port's name, which its node's details mark; null for a node or hole. */
+  readonly port: string | null;
 }
 
 export function mapScene(world: LoadedWorld): Scene;

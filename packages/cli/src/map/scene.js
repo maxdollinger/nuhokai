@@ -292,6 +292,13 @@ const SUBSEQUENCE_FROM = 3;
 const WORD_CHAR = /[\p{L}\p{N}]/u;
 const UPPER = /\p{Lu}/u;
 const LOWER_OR_DIGIT = /[\p{Ll}\p{N}]/u;
+/** A port named after its node: `stock reserve`, `stock.reserve`, `Stock › reserve`, `stock/reserve`; the node's part and the port's around the last separators. */
+const OWNER_AND_PORT = /^(.+?)[\s.›/]+([^\s.›/]+)$/u;
+
+/** The query as matchText takes it: folded, and its letters and digits alone for word starts and subsequences. */
+const queryOf = (full) => ({ full, compact: full.replace(/[^\p{L}\p{N}]/gu, "") });
+/** `match` with its positions `by` characters further right, as in a label behind a prefix; null stays null. */
+const shifted = (match, by) => match && { ...match, positions: match.positions.map((at) => at + by) };
 
 /** `length` indexes from `from` on. */
 const range = (from, length) => Array.from({ length }, (_, i) => from + i);
@@ -398,41 +405,58 @@ function holeHome(scene, placeholder) {
  * Every node and port matching `query` by name and every tbd hole by its description, across all scopes, best
  * first: by tier (exact, prefix, word starts, substring, subsequence), a subsequence by its span, then nodes, holes,
  * ports, each in world order. Case-insensitive; holes match word starts only as one run and stop at substring;
- * subsequences need 3 characters. A blank
- * query matches nothing. Each hit lands in its home scope as `key`.
+ * subsequences need 3 characters. A query with a separator also names a port after its node: the part before the
+ * last separator matches the node's name, the rest the port's, ranked by the worse tier. A blank query matches
+ * nothing. Each hit lands in its home scope as `key`.
  */
 export function search(scene, query) {
   const full = fold(query.trim());
   if (full === "") return [];
-  const q = { full, compact: full.replace(/[^\p{L}\p{N}]/gu, "") };
+  const q = queryOf(full);
+  const parts = full.match(OWNER_AND_PORT);
+  const ownerQ = parts && queryOf(parts[1]);
+  const portQ = parts && queryOf(parts[2]);
   const found = [];
-  const add = (kind, name, prefix, sentence, scope, key, node) => {
-    const match = matchText(name, q, sentence);
+  const add = (kind, label, match, scope, key, node, port) => {
     if (!match) return;
     found.push({
       score: match.score,
       hit: {
         kind,
-        label: prefix + name,
-        positions: match.positions.map((at) => at + prefix.length),
+        label,
+        positions: match.positions,
         tier: match.tier,
         scope,
         path: pathTo(scene, scope),
         key,
         node,
+        port,
       },
     });
   };
   scene.nodes.forEach((node, index) => {
-    add("node", node.name, "", false, scene.parents[index], `node:${index}`, index);
+    add("node", node.name, matchText(node.name, q, false), scene.parents[index], `node:${index}`, index, null);
   });
   scene.world.placeholders.forEach((placeholder, index) => {
     const home = holeHome(scene, placeholder);
-    if (home !== undefined) add("hole", placeholder.description, "tbd: ", true, home, `tbd:${index}`, null);
+    if (home === undefined) return;
+    const match = shifted(matchText(placeholder.description, q, true), "tbd: ".length);
+    add("hole", `tbd: ${placeholder.description}`, match, home, `tbd:${index}`, null, null);
   });
   scene.nodes.forEach((node, index) => {
+    const prefix = `${node.name} › `;
+    // `stock reserve`: the node's name before the last separator, the port's after; as good as the worse of the two.
+    const owner = ownerQ && matchText(node.name, ownerQ, false);
     for (const port of node.ports ?? []) {
-      add("port", port.name, `${node.name} › `, false, scene.parents[index], `node:${index}`, index);
+      const plain = shifted(matchText(port.name, q, false), prefix.length);
+      const named = owner && shifted(matchText(port.name, portQ, false), prefix.length);
+      const both = named && {
+        tier: Math.max(owner.tier, named.tier),
+        score: owner.score + named.score,
+        positions: [...owner.positions, ...named.positions],
+      };
+      const match = both && (!plain || both.tier <= plain.tier) ? both : plain;
+      add("port", prefix + port.name, match, scene.parents[index], `node:${index}`, index, port.name);
     }
   });
   // Stable: equal tier and score keep nodes, holes, ports, each in world order.
@@ -442,12 +466,15 @@ export function search(scene, query) {
 /**
  * What stands for each hit in `view`: its own item if drawn there (an island, external or outside proxy), else the
  * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
- * it is drawn. Item keys, each once, in hit order.
+ * it is drawn. Item keys, each once, in hit order. Subsequence hits light nothing while any hit matches better: next to
+ * real hits, loose ones would light half the map.
  */
 export function lightsFor(scene, view, hits) {
   const drawn = new Set(view.items.map((item) => item.key));
   const lit = new Set();
+  const better = hits.some((hit) => hit.tier < 5);
   for (const hit of hits) {
+    if (better && hit.tier === 5) continue;
     if (drawn.has(hit.key)) lit.add(hit.key);
     else if (hit.node !== null) {
       const child = childIn(scene, hit.node, view.scope);
