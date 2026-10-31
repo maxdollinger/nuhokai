@@ -23,7 +23,7 @@ export const Viewer = node({
     },
     {
       id: "R3",
-      text: "uses: lanes labelled with their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome.",
+      text: "uses: lanes carrying their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
     },
     { id: "R4", text: "implements: dashed lane to the contract; abstract: contract island." },
     { id: "R5", text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType." },
@@ -110,6 +110,10 @@ export const Viewer = node({
       demonstrates: ["R12", "R13"],
     },
     {
+      text: "By hand, headless Chromium, example world: no lane or event tag at first; hovering Shop shows its lanes' tags, leaving hides them; clicking Shop keeps them; typing `stock` hides them; inside Shop, hovering Orders tags reserve and cancelled, not Stock's Postgres lane.",
+      demonstrates: ["R3"],
+    },
+    {
       text: "By hand, headless Chromium, 132-node world: `run` → 50 rows and `50 of N — keep typing`; `retention` → its hole on two lines with the match shown; 390px with touch: list within 35% of the height, placeholder Search, no `/ to search`.",
       demonstrates: ["R11"],
     },
@@ -121,6 +125,10 @@ export const Viewer = node({
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
     { decision: "Island colour = status.", why: "The one lifecycle field every node has." },
+    {
+      decision: "Edge tags hidden until an end is hovered or selected.",
+      why: "Every lane tagged at once buries the islands; the tags you want are the ones of the item you look at.",
+    },
     {
       decision: "Islands are discs, their children on concentric rings.",
       why: "The board, the ring the outer items sit on and the spacing between items are all round.",
