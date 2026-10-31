@@ -4580,9 +4580,9 @@ it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{
 // ---------- state ----------
 let sel=null,selPort=null,HITS=[],cur=0,lastQ=null;const SHOWN=50;
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
-t('Height = call depth. Lanes are calls labelled with their ports (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
+t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
 ['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background='#'+new THREE.Color(BAND[s]).getHexString();info.appendChild(sw);t(s);});
-t('. Click for details, drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
+t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
@@ -4595,13 +4595,14 @@ mk('p','d-purpose',info.purpose);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&r.name===selPort?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
-function setLaneLook(l,col,a){if(l.tag)l.tag.material.opacity=a<0.5?0.15:1;l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
+function setLaneLook(l,col,a){l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
 function applyState(){const lit=searching()?new Set(lightsFor(MAP,S.view,HITS)):null;const fid=lit?null:S.hover||sel||S.mark;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
 // a query lights its hits' items, tinted, and dims the rest harder than hover does, over hover and selection
 Object.values(S.items).forEach(it=>{const on=!!lit&&lit.has(it.id),o=lit?(on?1:0.12):fid&&!near.has(it.id)?0.22:1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));it.label.material.opacity=o<1?(lit?0.25:0.35):1;it.label.material.color.setHex(on?LITLAB:0xffffff);it.label.renderOrder=on?11:10;
 if(it.edge){const f=lit?on:fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}});
-S.lanes.forEach(l=>{if(lit)setLaneLook(l,laneColor(l),0.08);else if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
-S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.material.opacity=a.vis?1:0.15;});
+// edge tags only for the focused item's edges: all at once they bury the islands
+S.lanes.forEach(l=>{if(l.tag)l.tag.visible=!!fid&&(l.from===fid||l.to===fid);if(lit)setLaneLook(l,laneColor(l),0.08);else if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
+S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.visible=a.vis&&!!fid;});
 S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
 legend();}
 function select(id,port){sel=selectable(id)?id:null;selPort=(sel&&port)||null;S.mark=null;applyState();renderDetails();}
