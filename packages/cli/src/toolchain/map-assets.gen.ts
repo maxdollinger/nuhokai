@@ -4261,6 +4261,10 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #crumbs .link:hover{color:var(--text);text-decoration:underline}
 #crumbs .cur{font-weight:600}
 #crumbs .sep{opacity:0.45;margin:0 6px}
+#crumbs.flash{animation:flash 1.2s ease-out}
+@keyframes flash{from{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}to{box-shadow:var(--shadow)}}
+@media (prefers-reduced-motion:reduce){#crumbs.flash{animation:none}}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 #find{position:absolute;left:16px;top:58px;z-index:4;width:min(320px,calc(100% - 32px));padding:4px;cursor:default}
 #find:focus-within{border-color:var(--accent)}
 #q{display:block;width:100%;padding:6px 8px;border:0;border-radius:7px;background:transparent;color:var(--text);font:inherit;font-size:13px;outline:none;cursor:text}
@@ -4268,11 +4272,15 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #hits{margin-top:4px;padding-top:4px;border-top:0.5px solid var(--panel-border);max-height:min(360px,calc(100vh - 160px));overflow:auto}
 #hits[hidden]{display:none}
 #hits .hit{padding:5px 8px;border-radius:7px;cursor:pointer}
-#hits .hit:hover,#hits .hit[aria-selected="true"]{background:rgba(127,127,127,0.14)}
+#hits .hit[aria-selected="true"]{background:rgba(127,127,127,0.22)}
 #hits .h-name,#hits .h-path{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hits .h-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:baseline}
+#hits .hole .h-dot{border:1.5px dashed var(--text-2)}
 #hits .h-name b{font-weight:600;color:var(--accent)}
 #hits .h-path{font-size:11px;color:var(--text-2)}
-#hits .h-none,#hits .h-more{padding:5px 8px;color:var(--text-2)}
+#hits .h-none,#hits .h-more,#here{padding:5px 8px;color:var(--text-2)}
+#here{font-size:12px}
+#here[hidden]{display:none}
 #hits .hole .h-name{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 #controls{position:absolute;left:16px;top:50%;transform:translateY(-50%);z-index:3;
   display:flex;flex-direction:column;gap:4px;padding:6px}
@@ -4286,7 +4294,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #info .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 4px 0 8px;vertical-align:baseline}
 #tip{position:fixed;pointer-events:none;display:none;z-index:4;background:rgba(30,30,28,0.92);color:#fff;
   font-size:12px;padding:6px 10px;border-radius:6px;white-space:pre;line-height:1.5}
-@media (max-width:520px){#controls{top:auto;bottom:110px;transform:none}}
+@media (max-width:520px){#controls{top:104px;transform:none;flex-direction:row}#controls button{width:auto;padding:8px}#controls button span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}}
 #details{position:absolute;right:16px;top:16px;z-index:3;width:300px;max-height:calc(100% - 32px);overflow:auto;padding:14px 16px;font-size:13px}
 #details[hidden]{display:none}
 .d-head{display:flex;gap:8px;align-items:flex-start}
@@ -4315,17 +4323,19 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 <section id="wrap" aria-label="3D map of the world">
   <div id="crumbs" class="panel"></div>
   <div id="find" class="panel">
-    <input id="q" type="text" placeholder="Search  /" aria-label="Search nodes, ports and holes" role="combobox" aria-controls="hits" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+    <input id="q" type="text" placeholder="Search" aria-label="Search nodes, ports and holes" role="combobox" aria-controls="hits" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+    <div id="here" hidden>None in this view — pick one to go there</div>
     <div id="hits" role="listbox" aria-label="Search results" hidden></div>
   </div>
   <div id="controls" class="panel">
-    <button id="resetBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>Reset view</button>
-    <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h3a3 3 0 0 1 3 3"/><path d="M10 17H7a3 3 0 0 1-3-3"/></svg>Reset layout</button>
+    <button id="resetBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg><span>Reset view</span></button>
+    <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h3a3 3 0 0 1 3 3"/><path d="M10 17H7a3 3 0 0 1-3-3"/></svg><span>Reset layout</span></button>
     <button id="raiseBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6 6 6-6"/></svg><span>Land nodes</span></button>
   </div>
   <p id="info" class="panel"></p>
   <aside id="details" class="panel" hidden aria-live="polite"></aside>
   <div id="tip"></div>
+  <div id="say" class="sr" aria-live="polite"></div>
 </section>
 <script type="application/json" id="nuhokai-world">"nuhokai:world"</script>
 <script>/*nuhokai:three*/</script>
@@ -4333,10 +4343,11 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 /*nuhokai:scene*/
 
 // ---------- viewer ----------
-const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs'),q=document.getElementById('q'),hitList=document.getElementById('hits');
+const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs'),q=document.getElementById('q'),hitList=document.getElementById('hits'),here=document.getElementById('here'),sayBox=document.getElementById('say');
 const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
 const TOUCH=window.matchMedia&&window.matchMedia('(hover: none)').matches;
+const APPLE=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 // colours and light as three.js r128 drew them: hex values used as given, no sRGB conversion, legacy light units (×π)
 THREE.ColorManagement.enabled=false;
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
@@ -4508,7 +4519,7 @@ else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.04,40),M(PIT,{transparent:true,opacity:0.6})),0,0.02,0));
 const em=new THREE.LineDashedMaterial({color:GHOST,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.05)),em);ol.computeLineDistances();ol.position.y=0.06;add(ol);
 footShape=discShape(0.95);lab=labelSprite(short(sp.item.name,42),'tbd '+sp.item.portKind+' · not designed yet',GHOST);labY=0.3;
-S.labels[sp.id]=sp.item.name+'\\ntbd '+sp.item.portKind+' · not designed yet';}
+S.labels[sp.id]=sp.item.name+'\\ntbd '+sp.item.portKind+(sp.item.codeName?' '+sp.item.codeName:'')+' · not designed yet';}
 else{it.rr=2.2;const em=new THREE.LineDashedMaterial({color:LANEC,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(2)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
 lab=labelSprite('No islands here yet',null);labY=0.3;S.labels[sp.id]='No islands here yet';}
 lab.position.y=labY;g.add(lab);it.label=lab;
@@ -4578,10 +4589,11 @@ function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r
 it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{if(l.from===id||l.to===id)routeLane(l);});S.air.forEach(a=>{if(a.from===id||a.to===id)routeAir(a);});S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
 
 // ---------- state ----------
-let sel=null,selPort=null,HITS=[],cur=0,lastQ=null;const SHOWN=50;
+let sel=null,selPort=null,HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
+const swatch=status=>'#'+new THREE.Color(BAND[status]||BAND.planned).getHexString();
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
 t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
-['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background='#'+new THREE.Color(BAND[s]).getHexString();info.appendChild(sw);t(s);});
+['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
 t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
@@ -4590,24 +4602,30 @@ const mk=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.cla
 const info=detailsOf(it.node);
 const head=mk('div','d-head');const t=mk('div','d-title',null,head);const close=mk('button','d-close','×',head);close.setAttribute('aria-label','Close details');close.onclick=()=>select(null);
 mk('div','d-name',info.name,t);if(info.kind)mk('div','d-sub',info.kind,t);
-const chip=mk('span','d-chip');const sw=mk('i',null,null,chip);sw.style.background='#'+new THREE.Color(BAND[info.status]||BAND.planned).getHexString();mk('span',null,info.status,chip);
+const chip=mk('span','d-chip');const sw=mk('i',null,null,chip);sw.style.background=swatch(info.status);mk('span',null,info.status,chip);
 mk('p','d-purpose',info.purpose);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&r.name===selPort?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
 function setLaneLook(l,col,a){l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
-function applyState(){const lit=searching()?new Set(lightsFor(MAP,S.view,HITS)):null;const fid=lit?null:S.hover||sel||S.mark;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
+function applyState(){const lights=searching()?lightsFor(MAP,S.view,HITS):null,lit=lights&&new Set(lights.map(l=>l.key)),inside=new Map(lights?lights.map(l=>[l.key,l.inside]):[]);
+here.hidden=!(lights&&HITS.length&&!lights.length);const fid=lit?null:S.hover||sel||S.mark;const near=new Set();if(fid){near.add(fid);(S.F[fid]||[]).forEach(x=>near.add(x));(S.R[fid]||[]).forEach(x=>near.add(x));}
 // a query lights its hits' items, tinted, and dims the rest harder than hover does, over hover and selection
 Object.values(S.items).forEach(it=>{const on=!!lit&&lit.has(it.id),o=lit?(on?1:0.12):fid&&!near.has(it.id)?0.22:1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));it.label.material.opacity=o<1?(lit?0.25:0.35):1;it.label.material.color.setHex(on?LITLAB:0xffffff);it.label.renderOrder=on?11:10;
-if(it.edge){const f=lit?on:fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}});
+if(it.edge){const f=lit?on:fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.edge,f?1:it.edgeOp*o);}badge(it,inside.get(it.id)||0);});
 // edge tags only for the focused item's edges: all at once they bury the islands
 S.lanes.forEach(l=>{if(l.tag)l.tag.visible=!!fid&&(l.from===fid||l.to===fid);if(lit)setLaneLook(l,laneColor(l),0.08);else if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
 S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.visible=a.vis&&!!fid;});
 S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
 legend();}
+// a lit dome's count of the hits inside it, above its label
+function badge(it,n){if((it.badgeN||0)===n)return;if(it.badge){it.g.remove(it.badge);it.badge.material.map.dispose();it.badge.material.dispose();it.badge=null;}it.badgeN=n;if(!n)return;
+const b=labelSprite(n+' inside',null);b.material.color.setHex(LITLAB);b.scale.multiplyScalar(0.9);b.position.y=it.label.position.y+it.label.scale.y+0.12;b.renderOrder=11;it.g.add(b);it.badge=b;}
 function select(id,port){sel=selectable(id)?id:null;selPort=(sel&&port)||null;S.mark=null;applyState();renderDetails();}
 // a hit lands selected (the camera moved, so a hover from before is stale); a hole has no details, so it is marked as hover marks it until the next click, Escape or scope
-function land(id,port){S.hover=null;select(id,port);if(!sel&&S.items[id]){S.mark=id;applyState();}}
+function land(id,port){S.hover=null;select(id,port);const it=S.items[id];if(!it)return;if(!sel){S.mark=id;applyState();}say((port?port+', port of ':'')+(it.kind==='hole'?'tbd '+(it.sp.item.codeName||it.name):it.name)+', in '+S.view.name);}
+// one polite region for screen readers: result counts (after typing settles) and landings
+let sayT=0;function say(text,later){clearTimeout(sayT);if(later)sayT=setTimeout(()=>{sayBox.textContent=text;},400);else sayBox.textContent=text;}
 function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementById('raiseBtn');b.querySelector('span').textContent=raiseTarget?'Land nodes':'Lift nodes';b.querySelector('svg').innerHTML=raiseTarget?'<path d="M12 19V5"/><path d="M6 11l6 6 6-6"/>':'<path d="M12 5v14"/><path d="M6 13l6-6 6 6"/>';}
 
 // ---------- navigation ----------
@@ -4617,9 +4635,15 @@ function computeHome(){const r=layoutOf(S.scope).ring;const h=(S.maxL+1)*S.lv;HO
 function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaledVector(CAMDIR,110);if(zoom!==undefined)camera.zoom=zoom;camera.updateProjectionMatrix();camera.lookAt(t);}
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
-function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans={kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,scope:it.sp.item.node};controls.enabled=false;tip.style.display='none';}
+// zoom into a dome's island, then open \`to\`, the path to it or to a scope inside it; a search hit lands there centred
+function dive(it,to,h){return{kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,path:to,sel:h&&h.key,port:h&&h.port};}
+function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans=dive(it,[...path,it.sp.item.node]);controls.enabled=false;tip.style.display='none';}
 function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:path.slice(0,d+1),from:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
+// a move ended: run the hit chosen during it
+function moved(){if(queued){const h=queued;queued=null;jump(h);}}
+// after landing in another scope, the breadcrumbs say where
+function flashCrumbs(){crumbs.classList.remove('flash');void crumbs.offsetWidth;crumbs.classList.add('flash');}
 function resetView(){if(trans)return;computeHome();trans={kind:'home',t:0,fromT:controls.target.clone(),toT:HOME.t.clone(),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone()};controls.enabled=false;}
 // forget what the user moved in this scope, in memory and in storage, and seed it again
 function resetLayout(){if(trans)return;const all=stored();delete all[scopeKey(S.scope)];store(all);delete LAYOUTS[S.scope===null?'world':S.scope];load(S.scope);resetView();}
@@ -4630,31 +4654,43 @@ document.getElementById('raiseBtn').addEventListener('click',toggleRaise);
 // ---------- search ----------
 // every node, port and tbd hole in the world, whatever scope is open; a hit lands in its home scope, centred and selected
 function searching(){return q.value.trim()!=='';}
-// a jump or a map click clears the query but keeps it and its row: / or Ctrl/⌘K on an empty box brings them back; Escape forgets it
-function clearQuery(keep){if(!q.value)return;lastQ=keep?{v:q.value,cur:cur}:null;q.value='';onQuery();}
-function restoreQuery(){if(!q.value&&lastQ){q.value=lastQ.v;onQuery();cur=lastQ.cur;renderHits();q.select();}}
+// a jump or a map click clears the query but keeps it and its row: / or Ctrl/⌘K on an empty box brings them back; Escape
+// forgets it; a blank one never replaces the one kept
+function clearQuery(keep){if(!q.value)return;if(!keep)lastQ=null;else if(searching())lastQ={v:q.value,cur:cur};q.value='';onQuery();}
+function restoreQuery(){if(!q.value&&lastQ){q.value=lastQ.v;onQuery();setCur(lastQ.cur,true);q.select();}}
 function openSearch(){restoreQuery();q.focus();q.select();}
-function onQuery(){HITS=search(MAP,q.value);cur=0;renderHits();applyState();}
+function onQuery(){HITS=search(MAP,q.value);cur=0;renderHits();applyState();
+const n=HITS.length;if(searching())say(n?(n>SHOWN?SHOWN+' of '+n:n)+(n===1?' result':' results')+(here.hidden?'':', none in this view'):'No matches',true);else say('');}
+// a hit's home scope below the world, as its row shows it and a screen reader names it
+function where(h){const p=h.path.slice(1).map(c=>c.name);return p.length?p.join(' › '):'top';}
+function rowName(h){const w=h.path.length>1?'in '+where(h):'at the top';return h.kind==='port'?h.port+', port of '+MAP.nodes[h.node].name+', '+w:h.kind==='node'?h.label+', node, '+w:h.label+', '+w;}
+// the one active row: arrows and the mouse move it, Enter takes it
+function setCur(i,scroll){const old=document.getElementById('hit'+cur);if(old)old.setAttribute('aria-selected','false');cur=i;const row=document.getElementById('hit'+i);if(!row)return;row.setAttribute('aria-selected','true');q.setAttribute('aria-activedescendant',row.id);if(scroll)row.scrollIntoView({block:'nearest'});}
 function renderHits(){hitList.innerHTML='';const on=searching();hitList.hidden=!on;q.setAttribute('aria-expanded',String(on));q.removeAttribute('aria-activedescendant');if(!on)return;
 const mk=(tag,cls,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;parent.appendChild(e);return e;};
 if(!HITS.length){mk('div','h-none',hitList).textContent='No matches';return;}
-HITS.slice(0,SHOWN).forEach((h,i)=>{const row=mk('div',h.kind==='hole'?'hit hole':'hit',hitList);row.id='hit'+i;row.setAttribute('role','option');row.setAttribute('aria-selected',String(i===cur));
-// the label in runs, the matched characters bold
-const name=mk('div','h-name',row),bold=new Set(h.positions);let from=0;for(let j=1;j<=h.label.length;j++)if(j===h.label.length||bold.has(j)!==bold.has(from)){const s=h.label.slice(from,j);if(bold.has(from))mk('b',null,name).textContent=s;else name.appendChild(document.createTextNode(s));from=j;}
-mk('div','h-path',row).textContent=h.path.map(c=>c.name).join(' › ');
-row.addEventListener('mousedown',e=>e.preventDefault());row.addEventListener('click',()=>jump(h));
-if(i===cur){q.setAttribute('aria-activedescendant',row.id);row.scrollIntoView({block:'nearest'});}});
+HITS.slice(0,SHOWN).forEach((h,i)=>{const row=mk('div',h.kind==='hole'?'hit hole':'hit',hitList);row.id='hit'+i;row.setAttribute('role','option');row.setAttribute('aria-selected','false');row.setAttribute('aria-label',rowName(h));
+// a status dot (a hole's dashed), then the label in runs, the matched characters bold
+const name=mk('div','h-name',row),dot=mk('i','h-dot',name),bold=new Set(h.positions);if(h.node!==null)dot.style.background=swatch(MAP.nodes[h.node].status);let from=0;for(let j=1;j<=h.label.length;j++)if(j===h.label.length||bold.has(j)!==bold.has(from)){const s=h.label.slice(from,j);if(bold.has(from))mk('b',null,name).textContent=s;else name.appendChild(document.createTextNode(s));from=j;}
+mk('div','h-path',row).textContent=where(h);
+row.addEventListener('mousedown',e=>e.preventDefault());// a moving mouse only: a list scrolled under a still one keeps the arrows' row
+row.addEventListener('mousemove',e=>{if((e.movementX||e.movementY)&&cur!==i)setCur(i,false);});row.addEventListener('click',()=>jump(h));});
+setCur(cur,true);
 if(HITS.length>SHOWN){const more=mk('div','h-more',hitList);more.textContent=SHOWN+' of '+HITS.length+' — keep typing';more.addEventListener('mousedown',e=>e.preventDefault());}}
-// same scope: glide there; another scope: fade out as going up does, load it, fade in centred on the hit
-function jump(h){if(trans)return;cur=HITS.indexOf(h);clearQuery(true);q.blur();
-if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:Math.max(camera.zoom,HOME.zoom*1.5),fromP:camera.position.clone(),sel:h.key,port:h.port};}
-else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:h.path.map(c=>c.scope),sel:h.key,port:h.port};
+// same scope: glide there; inside an island here: dive into it; elsewhere: fade out as going up does, load it, fade in;
+// each lands centred on the hit at the scope's home zoom. A hit chosen during a move waits for it, the latest one wins
+function jump(h){if(q.value){cur=HITS.indexOf(h);clearQuery(true);}q.blur();if(trans){queued=h;return;}
+const to=h.path.map(c=>c.scope),depth=path.length,into=to.length>depth&&to[depth-1]===S.scope&&S.items['node:'+to[depth]];
+if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone(),sel:h.key,port:h.port};}
+else if(into)trans=dive(into,to,h);
+else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:to,sel:h.key,port:h.port};
 controls.enabled=false;tip.style.display='none';}
 q.addEventListener('input',onQuery);
 // touch screens have no / key: a tap into the empty box brings the query back
-if(TOUCH){q.placeholder='Search';q.addEventListener('focus',restoreQuery);}
-q.addEventListener('keydown',e=>{if(e.isComposing)return;const n=Math.min(HITS.length,SHOWN);
-if((e.key==='ArrowDown'||e.key==='ArrowUp')&&n){e.preventDefault();cur=(cur+(e.key==='ArrowDown'?1:n-1))%n;renderHits();}
+if(TOUCH)q.addEventListener('focus',restoreQuery);else q.placeholder='Search  / or '+(APPLE?'⌘K':'Ctrl K');
+// an IME's commit Enter is the IME's: WebKit sends it with isComposing false and keyCode 229
+q.addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;const n=Math.min(HITS.length,SHOWN);
+if((e.key==='ArrowDown'||e.key==='ArrowUp')&&n){e.preventDefault();setCur((cur+(e.key==='ArrowDown'?1:n-1))%n,true);}
 else if(e.key==='Enter'){e.preventDefault();if(HITS[cur])jump(HITS[cur]);}
 else if(e.key==='Escape'){e.preventDefault();if(q.value)clearQuery(false);else q.blur();}});
 
@@ -4693,13 +4729,13 @@ const timer=new THREE.Timer();timer.connect(document);const ease=t=>1-Math.pow(1
 function loop(t){requestAnimationFrame(loop);timer.update(t);const dt=Math.min(timer.getDelta(),0.05);T+=dt;
 if(trans){trans.t+=dt;const k=Math.min(1,trans.t/0.7),e=io2(k);
 if(trans.kind==='in1'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.position.copy(trans.fromP).add(tt.clone().sub(trans.fromT));controls.target.copy(tt);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();camera.lookAt(tt);el.style.opacity=String(1-Math.max(0,(k-0.5)/0.5));
-if(k>=1){path.push(trans.scope);load(trans.scope);camAt(HOME.t,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:HOME.t.clone(),toT:HOME.t.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom};}}
+if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=tr.sel&&S.items[tr.sel];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();camAt(c,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:c,toT:c.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom,sel:tr.sel,port:tr.port};}}
 else if(trans.kind==='out1'){camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();el.style.opacity=String(1-Math.max(0,(k-0.4)/0.6));
 if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=S.items[tr.sel||tr.from];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();
 // going up starts close on the dome just left and widens to the scope; a search hit starts close and stays centred on it
-const z=tr.sel?HOME.zoom*1.5:HOME.zoom,z0=z*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:z,sel:tr.sel,port:tr.port};}}
-else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);}}
-else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);}}}
+const z0=HOME.zoom*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:HOME.zoom,sel:tr.sel,port:tr.port};}}
+else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s){land(s,p);flashCrumbs();}moved();}}
+else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);moved();}}}
 else if(!drag)controls.update();
 const prf=rf;rf+=(raiseTarget-rf)*Math.min(1,dt*2.5);if(Math.abs(rf-raiseTarget)<1e-3)rf=raiseTarget;const raising=rf!==prf;
 const lt=T-S.T0;
@@ -4911,6 +4947,7 @@ export function scopeView(scene, scope) {
       name: placeholder.description,
       side: 1,
       portKind: placeholder.kind,
+      codeName: placeholder.name ?? null,
       users: [...placeholder.users].sort(),
     });
     for (const from of users) lane(from, key, "hole", []);
@@ -5006,6 +5043,8 @@ export function detailsOf(node) {
   };
 }
 
+/** Ties in search: nodes, then nodes ranked up with their port, holes, ports. */
+const KIND_ORDER = { node: 0, promoted: 1, hole: 2, port: 3 };
 /** Subsequence matches need this many query characters: shorter ones match nearly anything. */
 const SUBSEQUENCE_FROM = 3;
 const WORD_CHAR = /[\\p{L}\\p{N}]/u;
@@ -5126,7 +5165,9 @@ function holeHome(scene, placeholder) {
  * ports, each in world order. Case-insensitive; holes match word starts only as one run and stop at substring;
  * subsequences need 3 characters. A query with a separator also names a port after its node: the part before the
  * last separator matches the node's name, the rest the port's, ranked by the worse tier. A blank query matches
- * nothing. Each hit lands in its home scope as \`key\`.
+ * nothing. A hole also matches by its export name, as a node does. A node found by its name's start (prefix, word
+ * starts) ranks with its own port that matches better, after the nodes matching that well themselves. Each hit lands in
+ * its home scope as \`key\`.
  */
 export function search(scene, query) {
   const full = fold(query.trim());
@@ -5139,7 +5180,9 @@ export function search(scene, query) {
   const add = (kind, label, match, scope, key, node, port) => {
     if (!match) return;
     found.push({
+      rank: match.tier,
       score: match.score,
+      order: KIND_ORDER[kind],
       hit: {
         kind,
         label,
@@ -5159,8 +5202,12 @@ export function search(scene, query) {
   scene.world.placeholders.forEach((placeholder, index) => {
     const home = holeHome(scene, placeholder);
     if (home === undefined) return;
-    const match = shifted(matchText(placeholder.description, q, true), "tbd: ".length);
-    add("hole", \`tbd: \${placeholder.description}\`, match, home, \`tbd:\${index}\`, null, null);
+    // \`tbd notifyCustomer: Tell a customer…\`: its export name as a node's, its description as a sentence; the better one.
+    const prefix = placeholder.name ? \`tbd \${placeholder.name}: \` : "tbd: ";
+    const byName = placeholder.name ? shifted(matchText(placeholder.name, q, false), "tbd ".length) : null;
+    const byText = shifted(matchText(placeholder.description, q, true), prefix.length);
+    const match = !byText || (byName && byName.tier <= byText.tier) ? byName : byText;
+    add("hole", prefix + placeholder.description, match, home, \`tbd:\${index}\`, null, null);
   });
   scene.nodes.forEach((node, index) => {
     const prefix = \`\${node.name} › \`;
@@ -5178,30 +5225,46 @@ export function search(scene, query) {
       add("port", prefix + port.name, match, scene.parents[index], \`node:\${index}\`, index, port.name);
     }
   });
-  // Stable: equal tier and score keep nodes, holes, ports, each in world order.
-  return found.sort((a, b) => a.hit.tier - b.hit.tier || a.score - b.score).map((entry) => entry.hit);
+  // \`load\`: LoadWorld (prefix) before LoadWorld › load (exact). A node found by its name's start ranks with its best
+  // port, after nodes as good themselves: both land on it, and the node is what the name was typed for.
+  const nodes = new Map(found.filter((entry) => entry.hit.kind === "node").map((entry) => [entry.hit.node, entry]));
+  for (const entry of found) {
+    const node = entry.hit.kind === "port" && nodes.get(entry.hit.node);
+    if (node && node.hit.tier <= 3 && entry.rank < node.rank)
+      Object.assign(node, { rank: entry.rank, score: entry.score, order: KIND_ORDER.promoted });
+  }
+  // Stable: equal rank, score and order keep world order.
+  return found.sort((a, b) => a.rank - b.rank || a.score - b.score || a.order - b.order).map((entry) => entry.hit);
 }
 
 /**
  * What stands for each hit in \`view\`: its own item if drawn there (an island, external or outside proxy), else the
  * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
- * it is drawn. Item keys, each once, in hit order. Subsequence hits light nothing while any hit matches better: next to
- * real hits, loose ones would light half the map.
+ * it is drawn. One light per item, in hit order, with how many hits from inside it stands for. Subsequence hits light
+ * nothing while a better hit lights something here: next to real hits, loose ones would light half the map.
  */
 export function lightsFor(scene, view, hits) {
   const drawn = new Set(view.items.map((item) => item.key));
-  const lit = new Set();
-  const better = hits.some((hit) => hit.tier < 5);
-  for (const hit of hits) {
-    if (better && hit.tier === 5) continue;
-    if (drawn.has(hit.key)) lit.add(hit.key);
-    else if (hit.node !== null) {
-      const child = childIn(scene, hit.node, view.scope);
-      if (child !== undefined) lit.add(\`node:\${child}\`);
-      // The open dome is not drawn in itself; its ports stand at the edge as the entry.
-      else if (hit.node === view.scope && drawn.has("entry")) lit.add("entry");
+  const standIn = (hit) => {
+    if (drawn.has(hit.key)) return hit.key;
+    if (hit.node === null) return undefined;
+    const child = childIn(scene, hit.node, view.scope);
+    if (child !== undefined) return \`node:\${child}\`;
+    // The open dome is not drawn in itself; its ports stand at the edge as the entry.
+    return hit.node === view.scope && drawn.has("entry") ? "entry" : undefined;
+  };
+  const light = (some) => {
+    const lights = new Map();
+    for (const hit of some) {
+      const key = standIn(hit);
+      if (key === undefined) continue;
+      const entry = lights.get(key) ?? { key, inside: 0 };
+      if (key !== hit.key && key !== "entry") entry.inside++;
+      lights.set(key, entry);
     }
-  }
-  return [...lit];
+    return [...lights.values()];
+  };
+  const better = light(hits.filter((hit) => hit.tier < 5));
+  return better.length ? better : light(hits);
 }
 `;

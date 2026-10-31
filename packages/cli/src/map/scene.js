@@ -192,6 +192,7 @@ export function scopeView(scene, scope) {
       name: placeholder.description,
       side: 1,
       portKind: placeholder.kind,
+      codeName: placeholder.name ?? null,
       users: [...placeholder.users].sort(),
     });
     for (const from of users) lane(from, key, "hole", []);
@@ -287,6 +288,8 @@ export function detailsOf(node) {
   };
 }
 
+/** Ties in search: nodes, then nodes ranked up with their port, holes, ports. */
+const KIND_ORDER = { node: 0, promoted: 1, hole: 2, port: 3 };
 /** Subsequence matches need this many query characters: shorter ones match nearly anything. */
 const SUBSEQUENCE_FROM = 3;
 const WORD_CHAR = /[\p{L}\p{N}]/u;
@@ -407,7 +410,9 @@ function holeHome(scene, placeholder) {
  * ports, each in world order. Case-insensitive; holes match word starts only as one run and stop at substring;
  * subsequences need 3 characters. A query with a separator also names a port after its node: the part before the
  * last separator matches the node's name, the rest the port's, ranked by the worse tier. A blank query matches
- * nothing. Each hit lands in its home scope as `key`.
+ * nothing. A hole also matches by its export name, as a node does. A node found by its name's start (prefix, word
+ * starts) ranks with its own port that matches better, after the nodes matching that well themselves. Each hit lands in
+ * its home scope as `key`.
  */
 export function search(scene, query) {
   const full = fold(query.trim());
@@ -420,7 +425,9 @@ export function search(scene, query) {
   const add = (kind, label, match, scope, key, node, port) => {
     if (!match) return;
     found.push({
+      rank: match.tier,
       score: match.score,
+      order: KIND_ORDER[kind],
       hit: {
         kind,
         label,
@@ -440,8 +447,12 @@ export function search(scene, query) {
   scene.world.placeholders.forEach((placeholder, index) => {
     const home = holeHome(scene, placeholder);
     if (home === undefined) return;
-    const match = shifted(matchText(placeholder.description, q, true), "tbd: ".length);
-    add("hole", `tbd: ${placeholder.description}`, match, home, `tbd:${index}`, null, null);
+    // `tbd notifyCustomer: Tell a customer…`: its export name as a node's, its description as a sentence; the better one.
+    const prefix = placeholder.name ? `tbd ${placeholder.name}: ` : "tbd: ";
+    const byName = placeholder.name ? shifted(matchText(placeholder.name, q, false), "tbd ".length) : null;
+    const byText = shifted(matchText(placeholder.description, q, true), prefix.length);
+    const match = !byText || (byName && byName.tier <= byText.tier) ? byName : byText;
+    add("hole", prefix + placeholder.description, match, home, `tbd:${index}`, null, null);
   });
   scene.nodes.forEach((node, index) => {
     const prefix = `${node.name} › `;
@@ -459,29 +470,45 @@ export function search(scene, query) {
       add("port", prefix + port.name, match, scene.parents[index], `node:${index}`, index, port.name);
     }
   });
-  // Stable: equal tier and score keep nodes, holes, ports, each in world order.
-  return found.sort((a, b) => a.hit.tier - b.hit.tier || a.score - b.score).map((entry) => entry.hit);
+  // `load`: LoadWorld (prefix) before LoadWorld › load (exact). A node found by its name's start ranks with its best
+  // port, after nodes as good themselves: both land on it, and the node is what the name was typed for.
+  const nodes = new Map(found.filter((entry) => entry.hit.kind === "node").map((entry) => [entry.hit.node, entry]));
+  for (const entry of found) {
+    const node = entry.hit.kind === "port" && nodes.get(entry.hit.node);
+    if (node && node.hit.tier <= 3 && entry.rank < node.rank)
+      Object.assign(node, { rank: entry.rank, score: entry.score, order: KIND_ORDER.promoted });
+  }
+  // Stable: equal rank, score and order keep world order.
+  return found.sort((a, b) => a.rank - b.rank || a.score - b.score || a.order - b.order).map((entry) => entry.hit);
 }
 
 /**
  * What stands for each hit in `view`: its own item if drawn there (an island, external or outside proxy), else the
  * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
- * it is drawn. Item keys, each once, in hit order. Subsequence hits light nothing while any hit matches better: next to
- * real hits, loose ones would light half the map.
+ * it is drawn. One light per item, in hit order, with how many hits from inside it stands for. Subsequence hits light
+ * nothing while a better hit lights something here: next to real hits, loose ones would light half the map.
  */
 export function lightsFor(scene, view, hits) {
   const drawn = new Set(view.items.map((item) => item.key));
-  const lit = new Set();
-  const better = hits.some((hit) => hit.tier < 5);
-  for (const hit of hits) {
-    if (better && hit.tier === 5) continue;
-    if (drawn.has(hit.key)) lit.add(hit.key);
-    else if (hit.node !== null) {
-      const child = childIn(scene, hit.node, view.scope);
-      if (child !== undefined) lit.add(`node:${child}`);
-      // The open dome is not drawn in itself; its ports stand at the edge as the entry.
-      else if (hit.node === view.scope && drawn.has("entry")) lit.add("entry");
+  const standIn = (hit) => {
+    if (drawn.has(hit.key)) return hit.key;
+    if (hit.node === null) return undefined;
+    const child = childIn(scene, hit.node, view.scope);
+    if (child !== undefined) return `node:${child}`;
+    // The open dome is not drawn in itself; its ports stand at the edge as the entry.
+    return hit.node === view.scope && drawn.has("entry") ? "entry" : undefined;
+  };
+  const light = (some) => {
+    const lights = new Map();
+    for (const hit of some) {
+      const key = standIn(hit);
+      if (key === undefined) continue;
+      const entry = lights.get(key) ?? { key, inside: 0 };
+      if (key !== hit.key && key !== "entry") entry.inside++;
+      lights.set(key, entry);
     }
-  }
-  return [...lit];
+    return [...lights.values()];
+  };
+  const better = light(hits.filter((hit) => hit.tier < 5));
+  return better.length ? better : light(hits);
 }

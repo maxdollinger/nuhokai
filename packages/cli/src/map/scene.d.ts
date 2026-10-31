@@ -58,6 +58,8 @@ export type OuterItem =
       readonly name: string;
       readonly side: 1;
       readonly portKind: "call" | "event";
+      /** The tbd's export name; null for an inline one. */
+      readonly codeName: string | null;
       /** Every node using the placeholder, by id, sorted; with the description, the hole's saved-layout key. */
       readonly users: readonly string[];
     }
@@ -117,7 +119,7 @@ export interface Details {
 /** A search result: a node or port by its name, a tbd hole by its description. */
 export interface Hit {
   readonly kind: "node" | "port" | "hole";
-  /** What the results list shows: the node's name, `Owner › port`, or `tbd: description`. */
+  /** What the results list shows: the node's name, `Owner › port`, or `tbd name: description` (`tbd: description` unnamed). */
   readonly label: string;
   /** The matched characters, as ascending indexes into label. */
   readonly positions: readonly number[];
@@ -135,8 +137,15 @@ export interface Hit {
   readonly port: string | null;
 }
 
+/** An item a query lights in one scope. */
+export interface Light {
+  readonly key: string;
+  /** How many hits it stands for from inside it: a dome's nested nodes and their ports. */
+  readonly inside: number;
+}
+
 export function mapScene(world: LoadedWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
 export function detailsOf(node: NodeSpec): Details;
 export function search(scene: Scene, query: string): Hit[];
-export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): string[];
+export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): Light[];

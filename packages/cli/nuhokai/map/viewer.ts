@@ -36,16 +36,20 @@ export const Viewer = node({
     { id: "R9", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
+      id: "R14",
+      text: "Up to 520px wide the view controls are an icon row under the search box, their names kept for screen readers: never under the legend or details.",
+    },
+    {
       id: "R11",
-      text: "Search (/ or Ctrl/⌘K, not hinted on touch screens): every node and port by name, every tbd hole by description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; ties: nodes, holes, ports, then world order. Results: matches bold, holes on up to two lines, the home scope's breadcrumbs, past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; arrows, Enter or click, Escape; keys typed in the box never go up.",
+      text: "Search (/ or Ctrl K, ⌘K on Apple; the placeholder names both, touch screens neither): every node and port by name, every tbd hole by export name and description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole's description: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; a node found by prefix or word starts ranks with its own port that matches better, after nodes as good themselves; ties: nodes, holes, ports, then world order. Results: a status dot (a hole: dashed), matches bold, holes on up to two lines, the home scope's breadcrumbs without the world's (`top` there), past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; one active row, which the mouse moves too; `None in this view` when no hit lights the open scope; arrows, Enter or click, Escape; keys typed in the box, IME commits included, never go up or jump. Each row's accessible name reads `name, kind of owner, in path`; one polite live region announces the count, No matches and each landing.",
     },
     {
       id: "R12",
-      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node; the open dome's entry for it and its ports), subsequence hits only if none matches better, and dims the rest harder than hover or selection, lit labels tinted. A click on the map clears it.",
+      text: "A query lights what stands for each hit in the open scope (the item, its dome or outside proxy; a port's node; the open dome's entry for it and its ports), subsequence hits only if no better hit lights something there, and dims the rest harder than hover or selection, lit labels tinted; a lit dome standing for hits inside shows `N inside`. A click on the map clears it.",
     },
     {
       id: "R13",
-      text: "Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred: a node selected; a port's node selected, the port's row marked and in view; a hole lit as on hover until the next click, Escape or scope change. / or Ctrl/⌘K on an empty box (on touch screens, a tap into it) brings back the query a jump or map click cleared, selected.",
+      text: "Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred at the scope's home zoom: a node selected; a port's node selected, the port's row marked and in view; a hole lit as on hover until the next click, Escape or scope change. A home scope inside an island of the open one dives into that island as double-click does; another fades; landing in another scope flashes the breadcrumbs. A hit chosen during a move waits for it, the latest one wins. / or Ctrl/⌘K on an empty box (on touch screens, a tap into it) brings back the non-blank query a jump or map click cleared, selected.",
     },
   ],
   testCases: [
@@ -82,7 +86,7 @@ export const Viewer = node({
       demonstrates: ["R10"],
     },
     {
-      text: "scene.js under bun, example world: `or` → Orders, Shop › orderHistory, the hole, Shop › placeOrder, AuditLog › history; `ore` → tighter subsequences first; `hist` skips the hole; `pg` and blank → none; holes: `cust`, `a cust` word starts, `ustom` substring, `op` none, `to` substring.",
+      text: "scene.js under bun, example world: `or` → Orders, Shop › orderHistory, the hole, Shop › placeOrder, AuditLog › history; `ore` → tighter subsequences first; `hist` skips the hole; `pg` and blank → none; the hole as `tbd notifyCustomer: …`: `notify`, `cust`, `ncu` by name, `a cust` word starts and `hang` substring in the description, `op` none, `to` substring; an inline hole as `tbd: …`.",
       demonstrates: ["R11"],
     },
     {
@@ -104,6 +108,26 @@ export const Viewer = node({
     {
       text: "scene.js under bun, example world: `dit` lights AuditLog, not Shop on top nor the entry inside Shop for its subsequence hit orderHistory; `ore`, only subsequences, lights Shop and Postgres.",
       demonstrates: ["R12"],
+    },
+    {
+      text: "scene.js under bun: `dec` with a top-level dec and Directive inside dome A → on top dec alone lights; inside A, Directive lights.",
+      demonstrates: ["R12"],
+    },
+    {
+      text: "scene.js under bun, example world: on top `or` lights Shop with 1 inside (Orders; its own ports count none), `reserve` Shop with 1 inside; inside Shop the entry counts none.",
+      demonstrates: ["R12"],
+    },
+    {
+      text: "scene.js under bun: `load` over Loader, LoadWorld and Reload, each with a port load, and a node load → load, Loader, LoadWorld, the three ports, then Reload (a substring stays).",
+      demonstrates: ["R11"],
+    },
+    {
+      text: "By hand, headless Chromium, example world: hovering a row moves the one active row and Enter takes it; on top `/` then `stock` + Enter dives into Shop and flashes the breadcrumbs; Enter again during a move lands the latest; `stock`, a map click, `/`, a space, a map click, `/` → `stock` back; inside Shop `postgres`, then Shop's hit list with nothing drawn here shows None in this view.",
+      demonstrates: ["R11", "R13"],
+    },
+    {
+      text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the legend and the details.",
+      demonstrates: ["R14"],
     },
     {
       text: "By hand, headless Chromium, example world: `customer` + Enter → Shop open, the hole and its lanes lit, plain after a click; `reserve` + Enter → reserve marked in Stock's details, then / brings `reserve` back selected; a click on Shop while `stock` is typed clears the query and selects Shop; `stock` dims the rest harder than hover, Shop's label tinted.",
@@ -161,8 +185,16 @@ export const Viewer = node({
       why: "Port names repeat (run, get); `tax run` narrows to one node with nothing new to learn, and a description's spaces stay words.",
     },
     {
-      decision: "Subsequence hits stay listed but light nothing while a better hit exists.",
-      why: "Next to real hits, loose letter matches lit domes as strongly as them.",
+      decision: "Subsequence hits stay listed but light nothing while a better hit lights something in the open scope.",
+      why: "Next to real hits, loose letter matches lit domes as strongly as them; but a better hit elsewhere must not leave this scope dark.",
+    },
+    {
+      decision: "A jump lands at the scope's home zoom, not closer.",
+      why: "A close landing cropped the scope; the selection or mark already points at the hit, the neighbours give the place.",
+    },
+    {
+      decision: "A tbd hole is searchable by its export name, which the loader carries.",
+      why: "Code refers to a hole by that name (notifyCustomer); the description alone missed it.",
     },
     {
       decision: "A click on the map clears the query; / brings it back.",

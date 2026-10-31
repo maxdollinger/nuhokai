@@ -94,7 +94,7 @@ test("after init, without node_modules, loads Example named by its export plus i
     },
   ]);
   expect(loaded.placeholders).toEqual([
-    { kind: "call", description: "Describe what this node has to do", users: [EXAMPLE_ID] },
+    { kind: "call", description: "Describe what this node has to do", name: "later", users: [EXAMPLE_ID] },
   ]);
   // One runtime per process: the world files get the CLI's own runtime, not the init-written .d.ts.
   const runtime = await import(pathToFileURL(join(repo, "nuhokai/runtime.ts")).href);
@@ -147,6 +147,7 @@ test("the example world: depth-first, edges grouped per target, delegates kept, 
     {
       kind: "call",
       description: "Tell a customer that their order changed; channel (mail, push) not decided yet.",
+      name: "notifyCustomer",
       users: [id("Orders"), id("Stock")],
     },
   ]);
@@ -247,8 +248,27 @@ export const B = node(${leaf("b")}).edges({ uses: () => [first] });
 
   expect(loaded.nodes.map((spec) => spec.edges)).toEqual([undefined, undefined]);
   expect(loaded.placeholders).toEqual([
-    { kind: "event", description: "first hole", users: ["b", "a"] },
-    { kind: "call", description: "second hole", users: ["a"] },
+    { kind: "event", description: "first hole", name: "first", users: ["b", "a"] },
+    { kind: "call", description: "second hole", name: "second", users: ["a"] },
+  ]);
+});
+
+test("a tbd is named by its defining file's export, not an earlier alias; an inline one has no name", async () => {
+  const root = world({
+    "a.ts": `export { hole as alias } from "./holes.ts";\n`,
+    "holes.ts": `import { tbd } from "@nuhokai/world";\nexport const hole = tbd.call({ description: "exported" });\n`,
+    "index.ts": `import { defineWorld, node, tbd } from "@nuhokai/world";
+import { hole } from "./holes.ts";
+const A = node(${leaf("a")}).edges({ uses: () => [hole, tbd.event({ description: "inline" })] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.placeholders).toEqual([
+    { kind: "call", description: "exported", name: "hole", users: ["a"] },
+    { kind: "event", description: "inline", users: ["a"] },
   ]);
 });
 

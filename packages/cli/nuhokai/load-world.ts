@@ -16,7 +16,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
         "no nuhokai/index.ts",
         "world file failed to evaluate",
@@ -36,7 +36,10 @@ export const LoadWorld = node({
       text: "Node = its NodeSpec per packages/world/README.md. Name: export name; exported twice → the defining file's (whose node() made it), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
     { id: "R3", text: "Order: depth-first from the world, parent before children, record order; each node once." },
-    { id: "R4", text: "tbd: no edge; one placeholder per tbd object with all its users; ordered by first use." },
+    {
+      id: "R4",
+      text: "tbd: no edge; one placeholder per tbd object with all its users; ordered by first use. Named by export as R2 names a node; an unexported (inline) tbd has no name.",
+    },
     {
       id: "R5",
       text: "Load error: one CliError naming the cwd-relative file and, if known, line: 'nuhokai/orders.ts:3: <message>', under --path app 'app/nuhokai/orders.ts:3: <message>'.",
@@ -79,6 +82,10 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R3", "R7"],
     },
     { text: "tbd used by two nodes → one placeholder, both ids, no edges.", demonstrates: ["R4"] },
+    {
+      text: "tbd exported from holes.ts and re-exported as alias from a.ts → named hole; an inline tbd → no name.",
+      demonstrates: ["R4"],
+    },
     {
       text: "Exported node listed nowhere → one orphan with its name and file, not in nodes; exported twice → one orphan.",
       demonstrates: ["R8"],
@@ -144,7 +151,7 @@ export const LoadWorld = node({
     },
     {
       decision:
-        "Defining file = the first world file on the stack of the node() call; the CLI's runtime records it per handle.",
+        "Defining file = the first world file on the stack of the node() or tbd call; the CLI's runtime records it per handle and hole.",
       why: "Module exports cannot tell a definer from a re-exporter; the call site can, whatever the declaration's syntax.",
       rejected: [
         {

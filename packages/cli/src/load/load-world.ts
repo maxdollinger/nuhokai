@@ -11,6 +11,8 @@ import { inWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 export interface Placeholder {
   readonly kind: "call" | "event";
   readonly description: string;
+  /** Its export name, picked as a node's is; absent if no world file exports it (an inline tbd). */
+  readonly name?: string;
   /** Node ids, in the order the nodes first use it. */
   readonly users: string[];
 }
@@ -83,7 +85,7 @@ interface WorldPaths {
 
 let runtimeRegistered = false;
 
-/** Each handle a world file made, to the stack of its node() call: the first world frame is the file that defines it. */
+/** Each handle or tbd a world file made, to the stack of its node() or tbd call: the first world frame is the file that defines it. */
 const madeAt = new WeakMap<object, string>();
 
 type Draft = { edges(edges: unknown): object };
@@ -105,6 +107,16 @@ const tracedNode = ((def: unknown) => {
   });
 }) as typeof worldRuntime.node;
 
+/** The runtime's tbd, recording where each hole is made, as tracedNode does for handles: holes are named like nodes. */
+const tracedTbd: typeof worldRuntime.tbd = {
+  call: (spec) => madeHere(worldRuntime.tbd.call(spec), new Error().stack),
+  event: (spec) => madeHere(worldRuntime.tbd.event(spec), new Error().stack),
+};
+function madeHere<T extends object>(made: T, stack = ""): T {
+  madeAt.set(made, stack);
+  return made;
+}
+
 /**
  * Make `@nuhokai/world` in every world file the CLI's own runtime, the one this
  * module imports: one runtime per process, whatever nuhokai/tsconfig.json maps
@@ -119,7 +131,10 @@ function useCliWorldRuntime(): void {
   Bun.plugin({
     name: "nuhokai-world-runtime",
     setup(build) {
-      build.module("@nuhokai/world", () => ({ exports: { ...worldRuntime, node: tracedNode }, loader: "object" }));
+      build.module("@nuhokai/world", () => ({
+        exports: { ...worldRuntime, node: tracedNode, tbd: tracedTbd },
+        loader: "object",
+      }));
     },
   });
 }
@@ -227,24 +242,32 @@ function isNode(value: unknown): value is NodeRef {
 }
 
 /** The world file whose node() call made the handle, named from the cwd, and the call's line: its first world frame. */
-function madeIn(node: NodeRef, paths: WorldPaths): { file: string; line: number } | undefined {
-  for (const [path, line] of framesOf(madeAt.get(node) ?? "")) {
+function madeIn(made: object, paths: WorldPaths): { file: string; line: number } | undefined {
+  for (const [path, line] of framesOf(madeAt.get(made) ?? "")) {
     const file = nameIn(paths, path);
     if (file) return { file, line };
   }
   return undefined;
 }
 
+function isHole(value: unknown): value is UnresolvedPortRef {
+  return typeof value === "object" && value !== null && (value as { $ref?: unknown }).$ref === "unresolved";
+}
+
 /**
- * Names from exports: an export of the file that defines the node wins over a
+ * Names of nodes or tbd holes from exports: an export of the file that defines one wins over a
  * re-export, else the first export in sorted file order; `default` names nothing.
  */
-function namesOf(modules: readonly Module[], paths: WorldPaths): Map<NodeRef, Named> {
-  const names = new Map<NodeRef, Named>();
+function namesOf<T extends object>(
+  modules: readonly Module[],
+  paths: WorldPaths,
+  is: (value: unknown) => value is T,
+): Map<T, Named> {
+  const names = new Map<T, Named>();
   const name = (definersOnly: boolean) => {
     for (const [file, exports] of modules) {
       for (const [exported, value] of Object.entries(exports)) {
-        if (exported === "default" || !isNode(value) || names.has(value)) continue;
+        if (exported === "default" || !is(value) || names.has(value)) continue;
         const definer = madeIn(value, paths)?.file;
         if (!definersOnly || file === definer) names.set(value, { name: exported, file: definer ?? file });
       }
@@ -283,7 +306,7 @@ function worldOf(
  * check's rules.
  */
 function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): LoadedWorld {
-  const names = namesOf(modules, paths);
+  const names = namesOf(modules, paths, isNode);
   const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? madeIn(node, paths)?.file)) ?? index;
   const nameOf = (node: NodeRef) => names.get(node)?.name ?? node.$def.id;
 
@@ -308,6 +331,7 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
   place(world.children, null);
 
   const placeholders = new Map<UnresolvedPortRef, Placeholder>();
+  const holeNames = namesOf(modules, paths, isHole);
 
   /** A lazy edge list, evaluated; a throwing function or a value that is no list is a load error about the node's file. */
   const edgeList = (node: NodeRef, edge: "uses" | "implements"): readonly unknown[] => {
@@ -326,12 +350,12 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
     const ports = new Map<NodeRef, string[]>();
     for (const ref of edgeList(node, "uses")) {
       const port = ref as { $ref?: unknown; node?: unknown; name?: unknown; port?: { name?: unknown } };
-      if (port?.$ref === "unresolved") {
-        const hole = ref as UnresolvedPortRef;
-        let placeholder = placeholders.get(hole);
+      if (isHole(ref)) {
+        let placeholder = placeholders.get(ref);
         if (!placeholder) {
-          placeholder = { kind: hole.kind, description: hole.description, users: [] };
-          placeholders.set(hole, placeholder);
+          const name = holeNames.get(ref)?.name;
+          placeholder = { kind: ref.kind, description: ref.description, ...(name && { name }), users: [] };
+          placeholders.set(ref, placeholder);
         }
         if (!placeholder.users.includes(node.$def.id)) placeholder.users.push(node.$def.id);
         continue;

@@ -36,6 +36,8 @@ function named(view: ScopeView) {
 }
 
 const HOLE = "Tell a customer that their order changed; channel (mail, push) not decided yet.";
+/** The hole's results row: its export name, then its description. */
+const HOLE_LABEL = `tbd notifyCustomer: ${HOLE}`;
 
 test("top level: Stock's Postgres lane and the notifyCustomer hole start at Shop", () => {
   const top = named(scopeView(scene, null));
@@ -247,6 +249,19 @@ test("two holes sharing a description stay two, each with its sorted users", () 
   ]);
 });
 
+/** A planned leaf named by its id. */
+const leaf = (id: string, parent: string | null = null) => ({
+  schema: "nuhokai/node@1" as const,
+  id,
+  name: id,
+  parent,
+  external: false,
+  abstract: false,
+  purpose: id,
+  status: "planned" as const,
+  source: [],
+});
+
 const labels = (query: string) => search(scene, query).map((hit) => hit.label);
 const key = (name: string) => `node:${indexOf(name)}`;
 
@@ -255,7 +270,7 @@ test("search ranks exact, prefix, word starts, substring, subsequence; ties: nod
   expect(or.map((hit) => hit.label)).toEqual([
     "Orders",
     "Shop › orderHistory",
-    `tbd: ${HOLE}`,
+    HOLE_LABEL,
     "Shop › placeOrder",
     "AuditLog › history",
   ]);
@@ -263,7 +278,7 @@ test("search ranks exact, prefix, word starts, substring, subsequence; ties: nod
   expect(or.map((hit) => hit.positions)).toEqual([
     [0, 1],
     [7, 8],
-    [32, 33],
+    [47, 48],
     [12, 13],
     [15, 16],
   ]);
@@ -289,15 +304,18 @@ test("search: case-insensitive, word starts on camelCase, holes stop at substrin
   ]);
 });
 
-test("search: a hole matches word starts only as one run from a single word start", () => {
-  // "a customer" and "customer" start words; "ustom" is inside one.
-  expect(search(scene, "cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [12, 13, 14, 15] }]);
-  expect(search(scene, "a cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [10, 11, 12, 13, 14, 15] }]);
-  expect(search(scene, "ustom")).toMatchObject([{ kind: "hole", tier: 4, positions: [13, 14, 15, 16, 17] }]);
+test("search: a hole matches its export name as a node does, its description word starts only as one run", () => {
+  // The name: notify·Customer's word starts, its prefix, a subsequence.
+  expect(search(scene, "cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [10, 11, 12, 13] }]);
+  expect(search(scene, "notify")).toMatchObject([{ kind: "hole", tier: 2, positions: [4, 5, 6, 7, 8, 9] }]);
+  expect(search(scene, "ncu")).toMatchObject([{ kind: "hole", tier: 3, positions: [4, 10, 11] }]);
+  // The description: "a customer" starts words; "hang" is inside one.
+  expect(search(scene, "a cust")).toMatchObject([{ kind: "hole", tier: 3, positions: [25, 26, 27, 28, 29, 30] }]);
+  expect(search(scene, "hang")).toMatchObject([{ kind: "hole", tier: 4, positions: [54, 55, 56, 57] }]);
   // Word starts across words ("order … push", "Tell … order") are no match for a hole: substring only.
   expect(search(scene, "op").map((hit) => hit.label)).toEqual(["Shop"]);
   const to = search(scene, "to");
-  expect(to.map((hit) => hit.label)).toEqual(["Stock", `tbd: ${HOLE}`, "AuditLog › history", "Shop › orderHistory"]);
+  expect(to.map((hit) => hit.label)).toEqual(["Stock", HOLE_LABEL, "AuditLog › history", "Shop › orderHistory"]);
   expect(to.map((hit) => hit.tier)).toEqual([4, 4, 4, 4]);
 });
 
@@ -337,8 +355,8 @@ test("a hit lands in its home scope: a node's parent, a port's node, a hole once
   expect(search(scene, "customer")).toEqual([
     {
       kind: "hole",
-      label: `tbd: ${HOLE}`,
-      positions: [12, 13, 14, 15, 16, 17, 18, 19],
+      label: HOLE_LABEL,
+      positions: [10, 11, 12, 13, 14, 15, 16, 17],
       tier: 3,
       scope: shop,
       path: [
@@ -383,17 +401,6 @@ test("search: a separator names a port after its node; both match, at the worse 
 });
 
 test("a hole's home is the deepest scope holding all its users", () => {
-  const leaf = (id: string, parent: string | null = null) => ({
-    schema: "nuhokai/node@1" as const,
-    id,
-    name: id,
-    parent,
-    external: false,
-    abstract: false,
-    purpose: id,
-    status: "planned" as const,
-    source: [],
-  });
   const nested = mapScene({
     id: "w",
     nodes: [leaf("a"), leaf("b"), leaf("c", "b")],
@@ -408,7 +415,8 @@ test("a hole's home is the deepest scope holding all its users", () => {
     files: [],
   });
 
-  expect(search(nested, "notify")).toMatchObject([{ kind: "hole", scope: null, key: "tbd:0" }]);
+  // Unnamed (inline) holes: their description alone.
+  expect(search(nested, "notify")).toMatchObject([{ kind: "hole", label: "tbd: notify", scope: null, key: "tbd:0" }]);
   expect(search(nested, "log")).toMatchObject([
     {
       kind: "hole",
@@ -420,13 +428,13 @@ test("a hole's home is the deepest scope holding all its users", () => {
       ],
     },
   ]);
-  expect(lightsFor(nested, scopeView(nested, 1), search(nested, "notify"))).toEqual(["tbd:0"]);
+  expect(lightsFor(nested, scopeView(nested, 1), search(nested, "notify"))).toEqual([{ key: "tbd:0", inside: 0 }]);
 });
 
 test("a query lights what stands for each hit in the open scope", () => {
   const top = scopeView(scene, null);
   const shop = scopeView(scene, indexOf("Shop"));
-  const lights = (view: ScopeView, query: string) => lightsFor(scene, view, search(scene, query));
+  const lights = (view: ScopeView, query: string) => lightsFor(scene, view, search(scene, query)).map((l) => l.key);
 
   // A nested hit lights its dome; a port its node's stand-in; each item once, in hit order.
   expect(lights(top, "stock")).toEqual([key("Shop")]);
@@ -443,6 +451,20 @@ test("a query lights what stands for each hit in the open scope", () => {
   expect(lights(shop, "or")).toEqual([key("Orders"), "entry", "tbd:0", key("AuditLog")]);
 });
 
+test("a lit dome counts the hits inside it; an item lit for itself or its own ports counts none", () => {
+  const top = scopeView(scene, null);
+  const shop = scopeView(scene, indexOf("Shop"));
+  // `or`: Orders inside Shop; Shop › orderHistory and placeOrder are Shop's own.
+  expect(lightsFor(scene, top, search(scene, "or"))).toEqual([
+    { key: key("Shop"), inside: 1 },
+    { key: "tbd:0", inside: 0 },
+    { key: key("AuditLog"), inside: 0 },
+  ]);
+  expect(lightsFor(scene, shop, search(scene, "or"))).toContainEqual({ key: "entry", inside: 0 });
+  // Stock's port reserve, inside Shop.
+  expect(lightsFor(scene, top, search(scene, "reserve"))).toEqual([{ key: key("Shop"), inside: 1 }]);
+});
+
 test("subsequence hits light nothing while a hit matches better", () => {
   const top = scopeView(scene, null);
   const shop = scopeView(scene, indexOf("Shop"));
@@ -452,9 +474,60 @@ test("subsequence hits light nothing while a hit matches better", () => {
     ["AuditLog", 4],
     ["Shop › orderHistory", 5],
   ]);
-  expect(lightsFor(scene, top, dit)).toEqual([key("AuditLog")]); // not Shop
-  expect(lightsFor(scene, shop, dit)).toEqual([key("AuditLog")]); // not the entry
+  const keys = (view: ScopeView, hits: ReturnType<typeof search>) => lightsFor(scene, view, hits).map((l) => l.key);
+  expect(keys(top, dit)).toEqual([key("AuditLog")]); // not Shop
+  expect(keys(shop, dit)).toEqual([key("AuditLog")]); // not the entry
   // Only subsequences: they light.
-  expect(lightsFor(scene, top, search(scene, "ore"))).toEqual([key("Shop"), key("Postgres")]);
-  expect(lightsFor(scene, shop, search(scene, "stock.reserve"))).toEqual([key("Stock")]);
+  expect(keys(top, search(scene, "ore"))).toEqual([key("Shop"), key("Postgres")]);
+  expect(keys(shop, search(scene, "stock.reserve"))).toEqual([key("Stock")]);
+});
+
+test("subsequence hits light when no better hit lights anything in the open scope", () => {
+  const nested = mapScene({
+    id: "w",
+    nodes: [leaf("A"), leaf("Directive", "A"), leaf("dec")],
+    placeholders: [],
+    file: "nuhokai/index.ts",
+    parents: [null, 0, null],
+    listings: [],
+    orphans: [],
+    files: [],
+  });
+  const hits = search(nested, "dec");
+  expect(hits.map((hit) => [hit.label, hit.tier])).toEqual([
+    ["dec", 1],
+    ["Directive", 5],
+  ]);
+  // On top, dec lights and A stays dark; inside A, dec is not drawn, so its subsequence hit lights.
+  expect(lightsFor(nested, scopeView(nested, null), hits)).toEqual([{ key: "node:2", inside: 0 }]);
+  expect(lightsFor(nested, scopeView(nested, 0), hits)).toEqual([{ key: "node:1", inside: 0 }]);
+});
+
+test("a node found by its name's start ranks with its own port that matches better, after exact nodes", () => {
+  const loadPort = { name: "load", kind: "call" as const, purpose: "p", input: "i", output: "o" };
+  const ranked = mapScene({
+    id: "w",
+    nodes: [
+      { ...leaf("Loader"), ports: [loadPort] },
+      { ...leaf("LoadWorld"), ports: [loadPort] },
+      { ...leaf("Reload"), ports: [loadPort] },
+      leaf("load"),
+    ],
+    placeholders: [],
+    file: "nuhokai/index.ts",
+    parents: [null, null, null, null],
+    listings: [],
+    orphans: [],
+    files: [],
+  });
+  const load = search(ranked, "load");
+  expect(load.map((hit) => [hit.label, hit.tier])).toEqual([
+    ["load", 1], // an exact node stays first
+    ["Loader", 2],
+    ["LoadWorld", 2],
+    ["Loader › load", 1],
+    ["LoadWorld › load", 1],
+    ["Reload › load", 1],
+    ["Reload", 4], // a substring: not promoted
+  ]);
 });
