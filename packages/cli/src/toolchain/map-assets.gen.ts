@@ -4605,8 +4605,8 @@ S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA
 S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
 legend();}
 function select(id,port){sel=selectable(id)?id:null;selPort=(sel&&port)||null;S.mark=null;applyState();renderDetails();}
-// a hit lands selected; a hole has no details, so it is marked as hover marks it until the next click, Escape or scope
-function land(id,port){select(id,port);if(!sel&&S.items[id]){S.mark=id;applyState();}}
+// a hit lands selected (the camera moved, so a hover from before is stale); a hole has no details, so it is marked as hover marks it until the next click, Escape or scope
+function land(id,port){S.hover=null;select(id,port);if(!sel&&S.items[id]){S.mark=id;applyState();}}
 function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementById('raiseBtn');b.querySelector('span').textContent=raiseTarget?'Land nodes':'Lift nodes';b.querySelector('svg').innerHTML=raiseTarget?'<path d="M12 19V5"/><path d="M6 11l6 6 6-6"/>':'<path d="M12 5v14"/><path d="M6 13l6-6 6 6"/>';}
 
 // ---------- navigation ----------
@@ -4631,7 +4631,8 @@ document.getElementById('raiseBtn').addEventListener('click',toggleRaise);
 function searching(){return q.value.trim()!=='';}
 // a jump or a map click clears the query but keeps it and its row: / or Ctrl/⌘K on an empty box brings them back; Escape forgets it
 function clearQuery(keep){if(!q.value)return;lastQ=keep?{v:q.value,cur:cur}:null;q.value='';onQuery();}
-function openSearch(){if(!q.value&&lastQ){q.value=lastQ.v;onQuery();cur=lastQ.cur;renderHits();}q.focus();q.select();}
+function restoreQuery(){if(!q.value&&lastQ){q.value=lastQ.v;onQuery();cur=lastQ.cur;renderHits();q.select();}}
+function openSearch(){restoreQuery();q.focus();q.select();}
 function onQuery(){HITS=search(MAP,q.value);cur=0;renderHits();applyState();}
 function renderHits(){hitList.innerHTML='';const on=searching();hitList.hidden=!on;q.setAttribute('aria-expanded',String(on));q.removeAttribute('aria-activedescendant');if(!on)return;
 const mk=(tag,cls,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;parent.appendChild(e);return e;};
@@ -4648,7 +4649,9 @@ function jump(h){if(trans)return;cur=HITS.indexOf(h);clearQuery(true);q.blur();
 if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:Math.max(camera.zoom,HOME.zoom*1.5),fromP:camera.position.clone(),sel:h.key,port:h.port};}
 else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:h.path.map(c=>c.scope),sel:h.key,port:h.port};
 controls.enabled=false;tip.style.display='none';}
-q.addEventListener('input',onQuery);if(TOUCH)q.placeholder='Search';
+q.addEventListener('input',onQuery);
+// touch screens have no / key: a tap into the empty box brings the query back
+if(TOUCH){q.placeholder='Search';q.addEventListener('focus',restoreQuery);}
 q.addEventListener('keydown',e=>{if(e.isComposing)return;const n=Math.min(HITS.length,SHOWN);
 if((e.key==='ArrowDown'||e.key==='ArrowUp')&&n){e.preventDefault();cur=(cur+(e.key==='ArrowDown'?1:n-1))%n;renderHits();}
 else if(e.key==='Enter'){e.preventDefault();if(HITS[cur])jump(HITS[cur]);}

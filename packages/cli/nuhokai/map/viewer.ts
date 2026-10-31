@@ -45,7 +45,7 @@ export const Viewer = node({
     },
     {
       id: "R13",
-      text: "Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred: a node selected; a port's node selected, the port's row marked and in view; a hole lit as on hover until the next click, Escape or scope change. / or Ctrl/⌘K on an empty box brings back the query a jump or map click cleared, selected.",
+      text: "Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred: a node selected; a port's node selected, the port's row marked and in view; a hole lit as on hover until the next click, Escape or scope change. / or Ctrl/⌘K on an empty box (on touch screens, a tap into it) brings back the query a jump or map click cleared, selected.",
     },
   ],
   testCases: [
