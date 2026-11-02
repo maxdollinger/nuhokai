@@ -61,7 +61,8 @@ export const Inspect = node({
       ],
     },
     {
-      decision: "check, new and map share requireWorld; init reads inspect itself, since absent is where it creates.",
+      decision:
+        "LoadWorld, check and new share requireWorld; map and tree get it through LoadWorld; init reads inspect itself, since absent is where it creates.",
       why: "The commands that need a world fail alike, in the same words.",
     },
     {

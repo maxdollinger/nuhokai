@@ -69,6 +69,21 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+test("no nuhokai/, or a file there, is Inspect's one error and nothing is evaluated", async () => {
+  const empty = tempDir();
+  const absent = await loadError(empty);
+  expect(absent).toBeInstanceOf(CliError);
+  expect((absent as Error).message).toBe(
+    `no nuhokai/ in ${empty}; run \`nuhokai init --path ${empty}\` to start a world there`,
+  );
+
+  const occupied = tempDir();
+  writeFileSync(join(occupied, "nuhokai"), "not a world");
+  const blocked = await loadError(occupied);
+  expect(blocked).toBeInstanceOf(CliError);
+  expect((blocked as Error).message).toBe(`${occupied}/nuhokai exists but is not a directory`);
+});
+
 test("after init, without node_modules, loads Example named by its export plus its placeholder", async () => {
   const repo = tempDir();
   expect(await runInit(repo, quiet)).toBe(0);

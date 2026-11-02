@@ -1,11 +1,10 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
-import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
 import { Path } from "../path/path.ts";
 import { TreeLines } from "./tree-lines.ts";
 
-/** The program inside Tree: inspect, load, find, render, print. */
+/** The program inside Tree: load, find, render, print. */
 export const PrintTree = node({
   id: "01a19cc8-5db7-7499-b1d8-5c6f35694e25",
   purpose: "The program inside Tree: order and exit codes only.",
@@ -28,8 +27,11 @@ export const PrintTree = node({
     },
   },
   requirements: [
-    { id: "R1", text: "Order: inspect, load, find the start, render, print; stdout gets every line or none." },
-    { id: "R2", text: "absent → error naming init; occupied → error; world → load." },
+    { id: "R1", text: "Order: load, find the start, render, print; stdout gets every line or none." },
+    {
+      id: "R2",
+      text: "No world or a non-directory at nuhokai/ is LoadWorld's error (it inspects), printed like any load failure.",
+    },
     {
       id: "R3",
       text: "Path.findNode's error → exit 2, an invalid argument value (Cli's decision), its message after 'nuhokai tree: '. No world or a load failure → exit 1.",
@@ -43,12 +45,5 @@ export const PrintTree = node({
     },
   ],
 }).edges({
-  uses: () => [
-    Inspect.requireWorld,
-    LoadWorld.load,
-    Path.findNode,
-    TreeLines.render,
-    Failure.format,
-    Failure.isExpected,
-  ],
+  uses: () => [LoadWorld.load, Path.findNode, TreeLines.render, Failure.format, Failure.isExpected],
 });

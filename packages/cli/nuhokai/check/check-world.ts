@@ -33,6 +33,10 @@ export const CheckWorld = node({
       id: "R3",
       text: "A TypeCheck finding names its node only when the load succeeded and its file defines exactly one node.",
     },
+    {
+      id: "R4",
+      text: "Inspect.requireWorld before TypeCheck and the load start: no world → one failure line, never one from each.",
+    },
   ],
   testCases: [
     {
@@ -42,6 +46,10 @@ export const CheckWorld = node({
     {
       text: "A tsc error, spec clean → CodeCheck never runs; only an orphan warning → CodeCheck runs, exit 0.",
       demonstrates: ["R2"],
+    },
+    {
+      text: "No nuhokai/ → one 'nuhokai check: ' line naming init, exit 1; TypeCheck never runs.",
+      demonstrates: ["R4"],
     },
   ],
 }).edges({

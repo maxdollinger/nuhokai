@@ -5,6 +5,7 @@ import type { NodeRef, UnresolvedPortRef } from "@nuhokai/world";
 import * as worldRuntime from "@nuhokai/world";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import { CliError, oneLine } from "../shared/failure.ts";
+import { requireWorld } from "../shared/inspect.ts";
 import { inWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
@@ -443,6 +444,8 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
  * a second load of the same root answers the files as first evaluated.
  */
 export async function loadWorld(root: string): Promise<LoadedWorld> {
+  // No world, or something else at nuhokai/: the same error every command gives, naming init.
+  requireWorld(root);
   const index = inWorld(root, WORLD_INDEX);
   if (!existsSync(index)) throw new CliError(`${index}: not found; it is the world's entry point`);
   const { modules, paths } = await evaluate(root);
