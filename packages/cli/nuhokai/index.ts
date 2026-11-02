@@ -7,7 +7,8 @@ import { Inspect } from "./inspect.ts";
 import { LoadWorld } from "./load-world.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
-import { WorldPath } from "./world-path.ts";
+import { Path } from "./path/path.ts";
+import { Tree } from "./tree/tree.ts";
 
 /** The package's own world: the loader's only entry point. */
 export default defineWorld({
@@ -15,5 +16,5 @@ export default defineWorld({
   name: "@nuhokai/cli",
   description: "The toolchain around the world format: init, new, map and check.",
   source: ["src/**", "scripts/**"],
-  children: [Cli, Init, New, WorldMap, Check, Inspect, LoadWorld, WorldPath, Failure],
+  children: [Cli, Init, New, WorldMap, Check, Tree, Inspect, LoadWorld, Path, Failure],
 });

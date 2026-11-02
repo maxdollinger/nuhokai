@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 
 /** The authored example a new world starts with. Owns its bytes. */
 export const ExampleWorld = node({
@@ -63,4 +63,4 @@ export const ExampleWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.file] });
+}).edges({ uses: () => [Path.file] });

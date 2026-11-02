@@ -1,12 +1,12 @@
 import { node } from "@nuhokai/world";
 
-/** The world's folder layout, and the one name of a path inside it. Pure. */
+/** The world's folder layout, and the one name of a path inside it or the project. Pure. */
 export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
-    "/-separated name of a path in it, which opens as printed. Pure: no I/O.",
-  status: "built",
+    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O.",
+  status: "building",
   source: ["src/shared/paths.ts"],
   ports: {
     file: {
@@ -14,6 +14,13 @@ export const WorldPath = node({
       purpose: "Name a file in the world, cwd-relative",
       input: "project directory (cwd-relative), segments inside nuhokai/",
       output: "<project directory>/nuhokai/<segments>, / separators; nuhokai/<segments> for the cwd",
+      errors: [],
+    },
+    project: {
+      kind: "call",
+      purpose: "Name a path in the project directory, cwd-relative",
+      input: "project directory (cwd-relative), a /-separated path or glob relative to it, as a source entry is",
+      output: "<project directory>/<path>, / separators; <path> unchanged for the cwd",
       errors: [],
     },
   },
@@ -34,6 +41,10 @@ export const WorldPath = node({
       id: "R4",
       text: "The name is both the path read or written and the one printed on stdout/stderr: packages/cli/nuhokai/... under --path packages/cli, nuhokai/... in the cwd.",
     },
+    {
+      id: "R5",
+      text: "project: project directory + path as R2 joins it, without nuhokai/; a glob's characters (* ? [ ] { }) pass unchanged, so src/** under --path packages/cli is packages/cli/src/**.",
+    },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
   ],
   testCases: [
@@ -48,6 +59,10 @@ export const WorldPath = node({
     {
       text: "Segment with dots, uppercase or a leading dash passes unchanged; no call creates, reads or stats anything.",
       demonstrates: ["R3", "C1"],
+    },
+    {
+      text: "project('packages/cli', 'src/bin.ts') → packages/cli/src/bin.ts; project('.', 'src/**') → src/**, never ./src/**.",
+      demonstrates: ["R5"],
     },
   ],
   decisions: [

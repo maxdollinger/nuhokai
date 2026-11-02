@@ -1,6 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 
 /** The world's type check, beside SpecCheck. */
 export const TypeCheck = node({
@@ -38,4 +38,4 @@ export const TypeCheck = node({
       demonstrates: ["R2"],
     },
   ],
-}).edges({ uses: () => [WorldPath.file, Failure.format] });
+}).edges({ uses: () => [Path.file, Failure.format] });

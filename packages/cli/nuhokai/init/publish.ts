@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 import { CliFiles } from "./cli-files.ts";
 import { ExampleWorld } from "./example-world.ts";
 
@@ -48,4 +48,4 @@ export const Publish = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.file, ExampleWorld.write, CliFiles.write] });
+}).edges({ uses: () => [Path.file, ExampleWorld.write, CliFiles.write] });

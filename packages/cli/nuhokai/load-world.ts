@@ -1,6 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "./failure.ts";
-import { WorldPath } from "./world-path.ts";
+import { Path } from "./path/path.ts";
 
 /** The world as plain NodeSpec data. Evaluates, judges nothing. */
 export const LoadWorld = node({
@@ -161,4 +161,4 @@ export const LoadWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.file, Failure.format] });
+}).edges({ uses: () => [Path.file, Failure.format] });

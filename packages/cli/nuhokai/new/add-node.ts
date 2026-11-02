@@ -1,7 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 import { NodeFile } from "./node-file.ts";
 
 /** The program inside New: parse, inspect, id, create, print. */
@@ -50,5 +50,5 @@ export const AddNode = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.requireWorld, WorldPath.file, NodeFile.create, Failure.format, Failure.isExpected],
+  uses: () => [Inspect.requireWorld, Path.file, NodeFile.create, Failure.format, Failure.isExpected],
 });

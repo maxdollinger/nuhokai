@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { WorldPath } from "./world-path.ts";
+import { Path } from "./path/path.ts";
 
 /** What sits at nuhokai/ in the project directory, as a verdict. Reads only. */
 export const Inspect = node({
@@ -69,4 +69,4 @@ export const Inspect = node({
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [WorldPath.file] });
+}).edges({ uses: () => [Path.file] });

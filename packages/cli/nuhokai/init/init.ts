@@ -7,7 +7,7 @@ import { Scaffold } from "./scaffold.ts";
 /**
  * The init boundary: one public contract, the interior free to be re-cut.
  * Inside: Scaffold (program), Publish, ExampleWorld, CliFiles.
- * Inspect, WorldPath and Failure are shared top-level nodes.
+ * Inspect, Path and Failure are shared top-level nodes.
  */
 export const Init = node({
   id: "01a17233-ebfc-772d-abf4-0bd32b81656d",
@@ -82,7 +82,7 @@ export const Init = node({
     },
     {
       decision:
-        "Init is a boundary dome: run delegates to Scaffold. Inspect, WorldPath and Failure are top-level nodes shared with New, WorldMap and Check; CliFiles is Init's until update needs it.",
+        "Init is a boundary dome: run delegates to Scaffold. Inspect, Path and Failure are top-level nodes shared with New, WorldMap and Check; CliFiles is Init's until update needs it.",
       why: "One public contract, one owner per shared concern, an interior that re-cuts without touching Cli.",
       rejected: [
         { option: "Init's body as loose code", why: "The interior stays unreadable in the map." },

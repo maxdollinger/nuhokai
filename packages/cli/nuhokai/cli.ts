@@ -3,6 +3,7 @@ import { Check } from "./check/check.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { New } from "./new/new.ts";
+import { Tree } from "./tree/tree.ts";
 
 /** The command surface: argv, usage, exit codes and dispatch to the command nodes. */
 export const Cli = node({
@@ -45,11 +46,15 @@ export const Cli = node({
     },
     {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, update, map none; new exactly one. Wrong count → argument error (2), command never runs; too many names the first extra ('unexpected argument 'x''). A dash argument other than --path, --help, -h → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, update, map none; new exactly one; tree at most one. Wrong count → argument error (2), command never runs; too many names the first extra ('unexpected argument 'x''). A dash argument other than --path, --help, -h and tree's R8 options → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
       text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. Missing value, second --path or a path that is no directory → usage error (2), command never runs. The command gets the directory, never the cwd, and prints its paths cwd-relative.",
+    },
+    {
+      id: "R8",
+      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value, a second --level or -L, or no whole number (x, -1, 1.5) → usage error (2), command never runs. Cli hands Tree.run the directory, the node path or none, and the level as a number; `nuhokai tree --help` lists --level.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
@@ -88,6 +93,10 @@ export const Cli = node({
       text: "`map --pth out`, `init --force` → unknown option '--pth' / '--force' with usage, exit 2; `new a b c` → unexpected argument 'b'; nothing runs.",
       demonstrates: ["R6"],
     },
+    {
+      text: "`tree`, `tree Check -L 2`, `tree --level=0 Check` reach Tree with (directory, node or none, 1 | 2 | 0); `tree -L`, `tree -L x`, `tree -L -1`, `tree -L 1 --level 2`, `tree a b`, `map -L 1` → exit 2, nothing runs.",
+      demonstrates: ["R6", "R8"],
+    },
   ],
   decisions: [
     {
@@ -119,6 +128,16 @@ export const Cli = node({
       ],
     },
     {
+      decision: "Cli parses every option, a command's own too (tree's --level), and hands run typed values.",
+      why: "One parser and one help text; commands stay flag-free, as with --path. The value's meaning (which node) stays the command's.",
+      rejected: [
+        {
+          option: "Tree parses its own argv",
+          why: "Two parsers drift on --opt=value, repeats, help and error wording.",
+        },
+      ],
+    },
+    {
       decision: "Imports: relative files and @nuhokai/world only; CLI owns the tsconfig.",
       why: "Embedded .d.ts and paths suffice; independent of the repo's dependency graph.",
       rejected: [
@@ -127,7 +146,7 @@ export const Cli = node({
       ],
     },
     {
-      decision: "One folder nuhokai/ (layout: WorldPath), same for users and this package.",
+      decision: "One folder nuhokai/ (layout: Path/WorldPath), same for users and this package.",
       why: "Users see it after init, so the CLI uses it too; .generated keeps authored and generated files in one folder.",
       rejected: [{ option: "world/ or spec/", why: "Generic or collision-prone names for executed files." }],
     },
@@ -142,4 +161,4 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, New.run, WorldMap.run, Check.run] });
+}).edges({ uses: () => [Init.run, New.run, WorldMap.run, Check.run, Tree.run] });
