@@ -97,11 +97,11 @@ export const Init = node({
       ],
     },
   ],
-  children: {
+  children: () => ({
     scaffold: Scaffold,
     publish: Publish,
     exampleWorld: ExampleWorld,
     cliFiles: CliFiles,
-  },
+  }),
   ports: (c) => ({ run: c.scaffold.ports.run }),
 }).edges({});

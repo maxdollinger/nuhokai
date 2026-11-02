@@ -76,6 +76,6 @@ export const Tree = node({
       why: "Path, source and purpose find a node; add port names if agents pick the wrong nodes while dogfooding (MAX-37).",
     },
   ],
-  children: { printTree: PrintTree, treeLines: TreeLines },
+  children: () => ({ printTree: PrintTree, treeLines: TreeLines }),
   ports: (c) => ({ run: c.printTree.ports.run }),
 }).edges({});

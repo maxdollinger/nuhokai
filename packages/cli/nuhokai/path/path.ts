@@ -38,7 +38,7 @@ export const Path = node({
       ],
     },
   ],
-  children: { worldPath: WorldPath, nodePath: NodePath },
+  children: () => ({ worldPath: WorldPath, nodePath: NodePath }),
   ports: (c) => ({
     inWorld: c.worldPath.ports.inWorld,
     inProject: c.worldPath.ports.inProject,

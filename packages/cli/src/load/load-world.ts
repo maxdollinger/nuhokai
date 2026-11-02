@@ -221,41 +221,20 @@ function failingAt(error: unknown, paths: WorldPaths, imported: string): string 
   return at((error as { referrer?: string } | null)?.referrer, undefined) ?? imported;
 }
 
-/**
- * What to do about a binding read before its module ran: inside an import cycle a dome can still be reached through
- * one of its children (a world file importing the child before the dome), and then reads the child too early.
- */
-function withCycleHint(error: unknown): string {
-  const line = oneLine(error);
-  const name = error instanceof ReferenceError ? /^Cannot access '([^']+)' before initialization/.exec(line) : null;
-  return name
-    ? `${line.replace(/\.$/, "")}; an import cycle ran this file before the one defining ${name[1]}: import a dome before its children, never a child first`
-    : line;
-}
-
-/**
- * Evaluate every world file, index.ts first, then the rest in sorted order; each answers its exports, keyed by its
- * name, in sorted order.
- *
- * index.ts first, because a dome reads its children eagerly: inside an import cycle the module entered first runs
- * last, so entering at a leaf whose `uses` imports lead back to its own dome runs the dome while the leaf's binding is
- * still uninitialized. Entered from the world, the walk reaches each dome before its children, the order the world
- * itself is read in.
- */
+/** Evaluate every world file in sorted order; each answers its exports, keyed by its name. */
 async function evaluate(root: string): Promise<{ modules: Module[]; paths: WorldPaths }> {
   const files = worldFiles(root);
   const paths = worldPaths(root, files);
-  const exports = new Map<string, Record<string, unknown>>();
+  const modules: Module[] = [];
   useCliWorldRuntime();
-  for (const path of [WORLD_INDEX, ...files.filter((path) => path !== WORLD_INDEX)]) {
+  for (const path of files) {
     const file = inWorld(root, path);
     try {
-      exports.set(path, (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>);
+      modules.push([file, (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>]);
     } catch (error) {
-      throw new CliError(`${failingAt(error, paths, file)}: ${withCycleHint(error)}`);
+      throw new CliError(`${failingAt(error, paths, file)}: ${oneLine(error)}`);
     }
   }
-  const modules = files.map((path): Module => [inWorld(root, path), exports.get(path) ?? {}]);
   return { modules, paths };
 }
 
@@ -332,6 +311,18 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
   const fileOf = (node: NodeRef | null) => (node && (names.get(node)?.file ?? madeIn(node, paths)?.file)) ?? index;
   const nameOf = (node: NodeRef) => names.get(node)?.name ?? node.$def.id;
 
+  /**
+   * A dome's children, read for the first time here: the runtime resolves the children function and the dome's ports
+   * then, so a throwing function or a port that is no direct child's is a load error about the dome's file.
+   */
+  const childrenOf = (node: NodeRef): Readonly<Record<string, unknown>> => {
+    try {
+      return node.$def.children ?? {};
+    } catch (error) {
+      throw new CliError(`${fileOf(node)}: ${nameOf(node)}.children: ${oneLine(error)}`);
+    }
+  };
+
   // Depth-first: a parent before its children, record order; the first listing places a node, every listing is kept.
   const placed: { node: NodeRef; parent: NodeRef | null }[] = [];
   const listings: Listing[] = [];
@@ -346,7 +337,7 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
       if (seen.has(child)) continue;
       seen.add(child);
       placed.push({ node: child, parent });
-      place(Object.values(child.$def.children ?? {}), child);
+      place(Object.values(childrenOf(child)), child);
     }
   };
   const world = worldOf(modules, index);

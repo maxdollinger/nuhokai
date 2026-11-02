@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { defineWorld, inherited, node, tbd } from "./index.ts";
+import { defineWorld, inherited, type NodeRef, node, tbd } from "./index.ts";
 
 const Billing = node({
   id: "01a16dd2-bc51-72f0-9842-c9e091eddd30",
@@ -105,7 +105,7 @@ describe("dome", () => {
     purpose: "A dome around Billing.",
     status: "planned",
     source: [],
-    children: { billing: Billing },
+    children: () => ({ billing: Billing }),
     ports: (c) => ({ pay: c.billing.ports.charge }),
   }).edges({});
 
@@ -130,16 +130,75 @@ describe("dome", () => {
       source: [],
       ports: { run: { kind: "call", purpose: "Run" } },
     }).edges({});
+    const Forged: NodeRef = node({
+      id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b23",
+      purpose: "Forged.",
+      status: "planned",
+      source: [],
+      children: () => ({ billing: Billing }),
+      ports: (() => ({ run: Grandchild.run })) as never,
+    }).edges({});
+    // Checked when the dome is first used: node() does not read its children.
+    expect(() => Forged.$def.ports).toThrow("not one of this dome's direct children");
+    expect(() => (Forged as unknown as Record<string, { kind: string }>).run?.kind).toThrow(
+      "not one of this dome's direct children",
+    );
+  });
+
+  test("rejects a port its child does not have, and a child name it does not list, when first used", () => {
+    const missingPort: NodeRef = node({
+      id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b24",
+      purpose: "Typo.",
+      status: "planned",
+      source: [],
+      children: () => ({ billing: Billing }),
+      ports: ((c: { billing: { ports: Record<string, unknown> } }) => ({ pay: c.billing.ports.refund })) as never,
+    }).edges({});
+    expect(() => missingPort.$def.ports).toThrow("`refund` is not a port of its node");
+    const missingChild: NodeRef = node({
+      id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b25",
+      purpose: "Typo.",
+      status: "planned",
+      source: [],
+      children: () => ({ billing: Billing }),
+      ports: ((c: Record<string, { ports: Record<string, unknown> }>) => ({ pay: c.biling?.ports.charge })) as never,
+    }).edges({});
+    expect(() => missingChild.$def.children).toThrow("not one of this dome's direct children");
+  });
+
+  test("reads its children only when first used, so a child may be defined after the dome", () => {
+    let calls = 0;
+    let Late: typeof Billing | undefined;
+    const Early = node({
+      id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b26",
+      purpose: "Defined before its child, as in an import cycle.",
+      status: "planned",
+      source: [],
+      children: () => {
+        calls++;
+        return { late: Late as typeof Billing };
+      },
+      ports: (c) => ({ pay: c.late.ports.charge, paid: c.late.charged }),
+    }).edges({});
+    expect(calls).toBe(0);
+    expect(Object.keys(Early.ports)).toEqual(["pay", "paid"]);
+    Late = Billing;
+    expect(Early.pay.kind).toBe("call");
+    expect(Early.$def.children?.late).toBe(Billing);
+    expect(Early.$def.ports?.paid).toMatchObject({ kind: "event", delegate: { to: Billing.$def.id, port: "charged" } });
+    expect(calls).toBe(1);
+  });
+
+  test("children written as a record, not a function, fail at node()", () => {
     expect(() =>
       node({
-        id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b23",
-        purpose: "Forged.",
+        id: "01a16dd2-bc64-7f5a-8b6c-7d8e9f0a1b27",
+        purpose: "Old syntax.",
         status: "planned",
         source: [],
-        children: { billing: Billing },
-        ports: (() => ({ run: Grandchild.run })) as never,
+        children: { billing: Billing } as never,
       }).edges({}),
-    ).toThrow("not one of this dome's direct children");
+    ).toThrow("`children` is a function returning the children record: `children: () => ({ … })`");
   });
 
   test("a contract may be a dome's child", () => {
@@ -156,7 +215,7 @@ describe("dome", () => {
       purpose: "Dome.",
       status: "planned",
       source: [],
-      children: { rule: Rule, billing: Billing },
+      children: () => ({ rule: Rule, billing: Billing }),
       ports: (c) => ({ charge: c.billing.ports.charge }),
     }).edges({});
     expect(Rules.$def.children?.rule).toBe(Rule);

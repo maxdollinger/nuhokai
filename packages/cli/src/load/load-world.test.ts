@@ -188,7 +188,7 @@ export const User = node(${leaf("user")}).edges({
 });
 export const Box = node({
   id: "box", purpose: "box", status: "building", source: ["src/box/**"],
-  children: { user: User, target: Target },
+  children: () => ({ user: User, target: Target }),
   ports: (c) => ({ run: c.target.ports.one }),
 }).edges({});
 `,
@@ -218,7 +218,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Shared, 
     "box.ts": `import { node } from "@nuhokai/world";
 export const Shared = node(${leaf("shared")}).edges({});
 export const Inner = node(${leaf("inner")}).edges({});
-export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: { shared: Shared, inner: Inner }, ports: () => ({}) }).edges({});
+export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: () => ({ shared: Shared, inner: Inner }), ports: () => ({}) }).edges({});
 `,
   });
 
@@ -241,7 +241,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [P, T] })
 export const C1 = node(${leaf("x")}).edges({});
 export const C2 = node(${leaf("c2")}).edges({});
 export const T = node(${leaf("t")}).edges({});
-export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: () => ({ c1: C1, c2: C2 }), ports: () => ({}) }).edges({});
 `,
   });
 
@@ -339,7 +339,7 @@ export default defineWorld({ id: "w", name: "Shop", source: ["src/**"], children
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
 export const Inner = node(${leaf("same-id")}).edges({ uses: () => [Orphan.x] });
-export const Outer = node({ id: "same-id", purpose: "o", status: "planned", source: [], children: { inner: Inner }, ports: () => ({}) }).edges({});
+export const Outer = node({ id: "same-id", purpose: "o", status: "planned", source: [], children: () => ({ inner: Inner }), ports: () => ({}) }).edges({});
 `,
   });
 
@@ -428,7 +428,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   }
 });
 
-/** A dome Cmd whose child Leaf (sorted first) uses Caller, which uses Cmd: one import cycle through the dome. */
+/** A dome Cmd whose child Leaf (sorted first, so evaluated first) uses Caller, which uses Cmd: an import cycle through the dome. */
 const CYCLE = {
   "cmd/a-leaf.ts": `import { node } from "@nuhokai/world";
 import { Caller } from "../z-caller.ts";
@@ -436,7 +436,7 @@ export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" }
 `,
   "cmd/cmd.ts": `import { node } from "@nuhokai/world";
 import { Leaf } from "./a-leaf.ts";
-export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: [], children: { leaf: Leaf }, ports: (c) => ({ run: c.leaf.ports.run }) }).edges({});
+export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: [], children: () => ({ leaf: Leaf }), ports: (c) => ({ run: c.leaf.ports.run }) }).edges({});
 `,
   "z-caller.ts": `import { node } from "@nuhokai/world";
 import { Cmd } from "./cmd/cmd.ts";
@@ -444,42 +444,55 @@ export const Caller = node(${leaf("caller", '{ print: { kind: "call", purpose: "
 `,
 };
 
-test("an import cycle through a dome loads although a child sorts before it: index.ts is evaluated first", async () => {
-  const root = world({
-    ...CYCLE,
-    "index.ts": `import { defineWorld } from "@nuhokai/world";
-import { Cmd } from "./cmd/cmd.ts";
-import { Caller } from "./z-caller.ts";
+test("an import cycle through a dome loads in any import order, a barrel importing the child first included", async () => {
+  const index = (imports: string) => `import { defineWorld } from "@nuhokai/world";
+${imports}
 export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });
-`,
-  });
+`;
+  const viaDome = index('import { Cmd } from "./cmd/cmd.ts";\nimport { Caller } from "./z-caller.ts";');
+  const viaChild = index(
+    'import { Leaf } from "./cmd/a-leaf.ts";\nimport { Cmd } from "./cmd/cmd.ts";\nimport { Caller } from "./z-caller.ts";\nexport { Leaf };',
+  );
 
-  const loaded = await loadWorld(root);
+  for (const source of [viaDome, viaChild]) {
+    const root = world({ ...CYCLE, "index.ts": source });
 
-  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
-  expect(loaded.files.map(({ file }) => file)).toEqual([
-    `${root}/nuhokai/cmd/cmd.ts`,
-    `${root}/nuhokai/cmd/a-leaf.ts`,
-    `${root}/nuhokai/z-caller.ts`,
-  ]);
+    const loaded = await loadWorld(root);
+
+    expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
+    expect(loaded.nodes[0]?.ports).toEqual([
+      { name: "run", kind: "call", purpose: "run", delegate: { to: "leaf", port: "run" } },
+    ]);
+  }
 });
 
-test("a world file importing a child before its dome in that cycle is one load error saying how to fix it", async () => {
-  const root = world({
-    ...CYCLE,
+test("a dome whose children function throws or whose port is no direct child's is one load error at its file", async () => {
+  const dome = (children: string, ports: string) => `import { node } from "@nuhokai/world";
+import { Leaf } from "./leaf.ts";
+export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: ${children}, ports: ${ports} }).edges({});
+`;
+  const files = (domeSource: string) => ({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
-import { Leaf } from "./cmd/a-leaf.ts";
-import { Cmd } from "./cmd/cmd.ts";
-import { Caller } from "./z-caller.ts";
-export { Leaf };
-export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });
+import { Dome } from "./dome.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Dome] });
+`,
+    "dome.ts": domeSource,
+    "leaf.ts": `import { node } from "@nuhokai/world";
+export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" } }')}).edges({});
 `,
   });
+  const cases: [string, string][] = [
+    [dome('() => { throw new Error("boom"); }', "() => ({})"), "Dome.children: boom"],
+    [
+      dome("() => ({ leaf: Leaf })", "(c) => ({ run: c.lef.ports.run })"),
+      "Dome.children: `run` exposes a port of a node that is not one of this dome's direct children",
+    ],
+  ];
 
-  expect(((await loadError(root)) as Error).message).toBe(
-    `${root}/nuhokai/cmd/cmd.ts:3: Cannot access 'Leaf' before initialization; an import cycle ran this file before ` +
-      "the one defining Leaf: import a dome before its children, never a child first",
-  );
+  for (const [source, message] of cases) {
+    const root = world(files(source));
+    expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/dome.ts: ${message}`);
+  }
 });
 
 test("a throwing file imported by an earlier one is named, not its importer", async () => {

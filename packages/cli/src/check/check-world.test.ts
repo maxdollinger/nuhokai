@@ -228,7 +228,7 @@ export const C2 = node({ id: "c2", purpose: "p", source: [], status: "done" }).e
 import { C2 } from "./c2.ts";
 
 export const C1 = node({ id: "x", purpose: "p", source: [], status: "planned" }).edges({});
-export const P = node({ id: "x", purpose: "p", source: [], status: "planned", children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+export const P = node({ id: "x", purpose: "p", source: [], status: "planned", children: () => ({ c1: C1, c2: C2 }), ports: () => ({}) }).edges({});
 export default defineWorld({ id: "w", name: "W", source: [], children: [P] });
 `,
   );

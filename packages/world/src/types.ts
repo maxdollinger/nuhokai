@@ -267,8 +267,11 @@ export interface NodeDef<
 
 /**
  * The argument shape `node` infers from: a leaf has no children and a ports
- * record; a dome has a children record and a ports function. `C` is `undefined`
- * for a leaf, which keeps an empty `children: {}` recognisable as a dome.
+ * record; a dome has a function returning its children record and a ports
+ * function over that record. `C` is `undefined` for a leaf, which keeps an
+ * empty `children: () => ({})` recognisable as a dome. `children` is lazy so that
+ * a dome may sit in an import cycle with its children: `node` reads it only
+ * when the dome is first used, after every module has run.
  */
 export interface NodeShape<
   C extends Record<string, unknown> | undefined = undefined,
@@ -280,7 +283,7 @@ export interface NodeShape<
   R extends RequirementsDef = RequirementsDef,
   T extends TestCasesDef = TestCasesDef,
 > extends NodeDef<External, Abstract, Id, Contracts, R, T> {
-  readonly children?: C;
+  readonly children?: () => C;
   readonly ports?: IsDome<C> extends true ? (children: NonNullable<C>) => P : P;
 }
 
@@ -602,7 +605,7 @@ export type NodeShapeRules<
   Contracts extends readonly ContractRef[],
 > = (IsDome<C> extends true
   ? {
-      readonly children: NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
+      readonly children: () => NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
       readonly ports?: (children: NonNullable<C>) => P & NoInfer<DomePortsRules<NonNullable<C>, P, Contracts>>;
     } & DomeRules<External, Abstract> &
       DefRules<External, Abstract>

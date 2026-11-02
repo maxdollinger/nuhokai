@@ -24,7 +24,7 @@ export const Shop = node({
   purpose: "The shop backend.",
   status: "planned",
   source: [],
-  children: { orders: Orders, stock: Stock },
+  children: () => ({ orders: Orders, stock: Stock }),
   ports: (c) => ({
     placeOrder: c.orders.ports.place,
     orderHistory: inherited(c.orders, AuditLog.history),
@@ -47,7 +47,8 @@ export default defineWorld({
 ## Leaves and domes
 
 - A **leaf** has no `children`. It declares its own `ports` and may have `uses` edges.
-- A **dome** has a non-empty `children` record. It is a pure container: its behavior is its children, so it has no
+- A **dome** has a non-empty `children` record, written as a function returning it:
+  `children: () => ({ cmd: Cmd })`. It is a pure container: its behavior is its children, so it has no
   `uses` edges of its own. Its `ports` are a function over the direct children:
   `ports: (c) => ({ run: c.cmd.ports.run })`. A child's port reference supplies the port's kind and shapes; the dome's
   own port is a new reference bound to the dome. Direct children only: a grandchild must first be exposed by its own
@@ -92,12 +93,15 @@ A compile-time check fails if the two drift apart.
   `uses` and is not generic. A node's type therefore never depends on a node that could point back, so files may
   reference each other in cycles without any type annotation. `.edges()` is required, also as `.edges({})`: a draft is
   not a node, and using one as a reference fails tsc.
-- **`implements` and `children` are in step one**, because the handle's type records the contracts it implements and
-  the direct children a dome exposes. That is safe: `children` only points down, so it never forms a type cycle.
-  `uses` may point anywhere, also back, so it stays in `.edges()` (TS7022). `implements` is lazy; `children` is not:
-  a dome reads its children when its file runs, so in an import cycle through a dome (a child uses a node that uses
-  the dome) the dome's file must be imported before the child's. The CLI's loader starts at `nuhokai/index.ts`, which
-  does that as long as no world file imports a child ahead of its dome.
+- **`implements` and `children` are in step one** (still lazy), because the handle's type records the contracts it
+  implements and the direct children a dome exposes. That is safe: `children` only points down, so it never forms a
+  type cycle. `uses` may point anywhere, also back, so it stays in `.edges()` (TS7022).
+- **A dome reads its children when first used, not when its file runs.** So a dome may sit in an import cycle with
+  its children (a child uses a node that uses the dome), whatever order the files are imported in. `node()` calls
+  `ports` at once, against stand-ins for the children (`c.cmd.ports.run` only records "child `cmd`, port `run`"), which
+  gives the handle its port names. The children record, each dome port's definition and kind, and the check that it is
+  a port of a direct child wait for the first read of `$def.children`, `$def.ports` or a dome port's `kind`. tsc checks
+  the same at once; since `children` is a function, it reports a bad child on the `children` line.
 - **Domes are containers, not code.** A node with children cannot be external or abstract, cannot have `uses`, and
   cannot author node-spec port definitions: every port must reference a direct child's port.
 - **Handles expose own ports only.** A handle has one property per own port (`Orders.place`) and the same references
@@ -134,7 +138,7 @@ A compile-time check fails if the two drift apart.
   `source` and `children`, the top-level nodes, all frozen.
 - Every exported node has `$ref: "node"`; `$def` holds both steps as authored, deep-frozen, with the edges still lazy
   functions (`uses`, `implements`). A dome's `$def.children` is its direct-children record (references kept by
-  identity), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries
+  identity, resolved on first read), and `$def.ports` holds the resolved node-spec port definitions: each copies the child port and carries
   `delegate: { to: childId, port: childPortName }`. An exported `$ref: "draft"` means `.edges()` was forgotten.
 - The loader evaluates the world and reports evaluation failures only; it judges nothing. Global rules are `check`'s,
   each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
@@ -147,8 +151,8 @@ A compile-time check fails if the two drift apart.
   structure.
 - Resolve references by **object identity**: a port reference is one of the frozen objects on a handle (or one created
   by `inherited` / `tbd`), and `node` is the handle itself. The brands make forgeries fail tsc, but a cast passes, so
-  never resolve by `$ref` plus id and name. `node()` also checks at runtime that every dome port belongs to one of its
-  direct children.
+  never resolve by `$ref` plus id and name. A dome also checks at runtime, when first used, that every dome port is a
+  port of one of its direct children, and throws a `TypeError` otherwise.
 
 ## Compiler options
 

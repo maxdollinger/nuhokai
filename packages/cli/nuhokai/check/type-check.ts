@@ -36,7 +36,7 @@ export const TypeCheck = node({
       demonstrates: ["R1"],
     },
     {
-      text: "children: { a: Contract as any }, a @ts-expect-error line and Reflect.get(...) → three errors; a test file importing bun:test fails too.",
+      text: "children: () => ({ a: Contract as any }), a @ts-expect-error line and Reflect.get(...) → three errors; a test file importing bun:test fails too.",
       demonstrates: ["R2"],
     },
   ],

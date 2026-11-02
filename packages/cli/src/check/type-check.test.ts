@@ -54,7 +54,7 @@ export const Dome = node({
   purpose: "p",
   status: "planned",
   source: [],
-  children: { a: Contract as any, b: Example },
+  children: () => ({ a: Contract as any, b: Example }),
   ports: () => ({}),
 }).edges({});
 // @ts-expect-error

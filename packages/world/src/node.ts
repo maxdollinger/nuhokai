@@ -5,7 +5,6 @@ import type {
   ChildNodes,
   ContractRef,
   DomePortRef,
-  DomePortsDef,
   IsDome,
   NodeDraft,
   NodeEdges,
@@ -15,6 +14,7 @@ import type {
   NodeRef,
   NodeShape,
   NodeShapeRules,
+  PortKind,
   PortKinds,
   PortsDef,
   PortsOfShape,
@@ -56,14 +56,17 @@ type NodeDefinition = NodeShape<
  *   purpose: "The shop backend.",
  *   status: "planned",
  *   source: [],
- *   children: { orders: Orders },
+ *   children: () => ({ orders: Orders }),
  *   ports: (c) => ({ placeOrder: c.orders.ports.place }),
  * }).edges({});
  * ```
  *
  * `node` takes the static fields and infers the handle's type, including
  * `implements` and `children`, which only point at contracts and direct
- * children; `.edges()` takes `uses` and is not generic, so the handle's type
+ * children. Both are functions: `children` is read when the dome is first used
+ * (its `$def.children`, `$def.ports` or a port's `kind`), so a dome may sit in an
+ * import cycle with its children; its `ports` runs at once against stand-ins for
+ * the children, which gives the handle its port names; `.edges()` takes `uses` and is not generic, so the handle's type
  * never depends on a node that could point back, and files may reference each
  * other in cycles without annotations. Edges are functions so that modules may
  * import each other in cycles: only the loader calls them, after every module
@@ -100,29 +103,54 @@ export function node(def: NodeDefinition): NodeDraft<PortKinds, boolean, boolean
 
 function createHandle(def: NodeDefinition, edges: NodeEdges): NodeHandle<PortKinds, boolean, boolean, NodeId, NodeId> {
   const { children, ports, ...rest } = def;
-  const stored: Record<string, unknown> = { ...rest };
-
-  if (children !== undefined) {
-    const childNodes = Object.freeze(
-      Object.fromEntries(Object.entries(children).map(([name, child]) => [name, child])),
-    ) as ChildNodes;
-    stored.children = childNodes;
-    if (typeof ports === "function") {
-      stored.ports = resolveDomePorts(ports(childNodes) as DomePortsDef, childNodes);
-    }
-  } else if (ports !== undefined) {
-    stored.ports = ports as unknown as PortsDef;
+  const fields: Record<string, unknown> = {};
+  // defineProperty, not assignment: keys like `__proto__` stay plain data.
+  for (const [key, value] of Object.entries({ ...rest, ...edges })) {
+    Object.defineProperty(fields, key, { value: frozenCopy(value), enumerable: true });
   }
 
-  const $def = frozenCopy({ ...stored, ...edges }) as StoredNodeDef & NodeEdges;
-  const handle = { $ref: "node", $def } as { $ref: "node"; $def: StoredNodeDef & NodeEdges } & Record<string, unknown>;
+  const handle = { $ref: "node" } as { $ref: "node"; $def: StoredNodeDef & NodeEdges } & Record<string, unknown>;
+  let portNames: string[];
+  let kindOf: (name: string) => PortKind;
+  if (children !== undefined) {
+    if (typeof children !== "function") {
+      throw new TypeError("`children` is a function returning the children record: `children: () => ({ … })`");
+    }
+    const exposed = typeof ports === "function" ? domePortsOf(ports as (c: unknown) => unknown) : undefined;
+    const dome = lazyDome(children as () => unknown, exposed);
+    Object.defineProperty(fields, "children", { get: () => dome().children, enumerable: true });
+    if (exposed) Object.defineProperty(fields, "ports", { get: () => dome().ports, enumerable: true });
+    portNames = Object.keys(exposed ?? {});
+    kindOf = (name) => (dome().ports[name] as StoredWorldPort).kind;
+  } else {
+    if (ports !== undefined) Object.defineProperty(fields, "ports", { value: frozenCopy(ports), enumerable: true });
+    const own = (fields.ports ?? {}) as PortsDef;
+    portNames = Object.keys(own);
+    kindOf = (name) => (own[name] as StoredWorldPort).kind;
+  }
+  handle.$def = Object.freeze(fields) as unknown as StoredNodeDef & NodeEdges;
+
   const portRefs: Record<string, unknown> = {};
   Object.defineProperty(handle, "ports", { value: portRefs, enumerable: true });
-  for (const [name, port] of Object.entries($def.ports ?? {})) {
+  for (const name of portNames) {
     if (name === "ports" || name.startsWith("$")) {
       throw new TypeError(`\`${name}\` is reserved for the handle's own properties`);
     }
-    const ref = Object.freeze({ $ref: "port", kind: port.kind, node: handle, name });
+    // A dome port's kind is its child port's, known once the dome is resolved; a leaf's is known now.
+    const ref = Object.freeze(
+      Object.defineProperties(
+        {},
+        {
+          $ref: { value: "port", enumerable: true },
+          kind:
+            children === undefined
+              ? { value: kindOf(name), enumerable: true }
+              : { get: () => kindOf(name), enumerable: true },
+          node: { value: handle, enumerable: true },
+          name: { value: name, enumerable: true },
+        },
+      ),
+    );
     // defineProperty, not assignment: a port named `__proto__` would otherwise set the prototype.
     Object.defineProperty(portRefs, name, { value: ref, enumerable: true });
     Object.defineProperty(handle, name, { value: ref, enumerable: true });
@@ -131,39 +159,121 @@ function createHandle(def: NodeDefinition, edges: NodeEdges): NodeHandle<PortKin
   return Object.freeze(handle) as unknown as NodeHandle<PortKinds, boolean, boolean, NodeId, NodeId>;
 }
 
+/** Marks a stand-in for a direct child; its value is the child's name in the dome's `children`. */
+const STAND_IN = Symbol("nuhokai.child");
+
+/**
+ * A dome's ports function, called once with stand-ins for its children: `c.orders.ports.place` (or
+ * `c.orders.place`) is a port reference to the stand-in for `orders`. That gives the port names now,
+ * without reading the children, which may not exist yet in an import cycle.
+ */
+function domePortsOf(ports: (c: unknown) => unknown): Readonly<Record<string, DomePortRef>> {
+  const standIns = new Map<string, object>();
+  const c = new Proxy(
+    {},
+    {
+      get(_, key) {
+        if (typeof key !== "string") return undefined;
+        const known = standIns.get(key);
+        if (known) return known;
+        const child = standInChild(key);
+        standIns.set(key, child);
+        return child;
+      },
+    },
+  );
+  const exposed = ports(c);
+  if (typeof exposed !== "object" || exposed === null) {
+    throw new TypeError("a dome's `ports` returns a record of its children's ports");
+  }
+  return exposed as Readonly<Record<string, DomePortRef>>;
+}
+
+function standInChild(childName: string): object {
+  const refs = new Map<string, object>();
+  const portRef = (name: string) => {
+    const known = refs.get(name);
+    if (known) return known;
+    const ref = Object.freeze({ $ref: "port", node: child, name });
+    refs.set(name, ref);
+    return ref;
+  };
+  const ports = new Proxy({}, { get: (_, key) => (typeof key === "string" ? portRef(key) : undefined) });
+  const child: object = new Proxy(
+    {},
+    {
+      get(_, key) {
+        if (key === STAND_IN) return childName;
+        if (key === "$ref") return "node";
+        if (key === "ports") return ports;
+        return typeof key === "string" ? portRef(key) : undefined;
+      },
+    },
+  );
+  return child;
+}
+
+/**
+ * The dome's children and ports, resolved on first use and then kept: the children record is read, and each
+ * port the ports function exposed is checked against it and copied from the child port, with its delegate.
+ */
+function lazyDome(
+  children: () => unknown,
+  exposed: Readonly<Record<string, DomePortRef>> | undefined,
+): () => { children: ChildNodes; ports: StoredPortsDef } {
+  let resolved: { children: ChildNodes; ports: StoredPortsDef } | undefined;
+  let resolving = false;
+  return () => {
+    if (resolved) return resolved;
+    if (resolving) throw new TypeError("a dome exposes a port of itself through its descendants");
+    resolving = true;
+    try {
+      const record = children();
+      if (typeof record !== "object" || record === null || Array.isArray(record)) {
+        throw new TypeError("`children` does not return a record of nodes");
+      }
+      const childNodes = Object.freeze(
+        Object.fromEntries(Object.entries(record).map(([name, child]) => [name, child])),
+      ) as ChildNodes;
+      resolved = { children: childNodes, ports: resolveDomePorts(exposed ?? {}, childNodes) };
+      return resolved;
+    } finally {
+      resolving = false;
+    }
+  };
+}
+
 /**
  * Turns a dome's `ports` mapping into node-spec port definitions. Each own port
  * copies the direct child port's definition and records the child it delegates
- * to, so the loader can follow the reference by identity.
+ * to, so the loader can follow the reference by identity. A port reference names
+ * its child through a stand-in (by name) or the child's handle (by identity).
  */
-function resolveDomePorts(ports: DomePortsDef, children: ChildNodes): StoredPortsDef {
-  const childNodes: readonly NodeRef[] = Object.values(children);
+function resolveDomePorts(ports: Readonly<Record<string, DomePortRef>>, children: ChildNodes): StoredPortsDef {
   const resolved: Record<string, StoredWorldPort> = {};
   for (const [name, ref] of Object.entries(ports)) {
-    if (!childNodes.includes(ref.node)) {
+    const child = childOf(ref, children);
+    if (!child) {
       throw new TypeError(`\`${name}\` exposes a port of a node that is not one of this dome's direct children`);
     }
-    const source = portDefinitionOf(ref);
+    const port = ref.$ref === "inherited" ? ref.port.name : ref.name;
+    const source = ref.$ref === "inherited" ? ref.port.node.$def.ports?.[port] : child.$def.ports?.[port];
+    if (!source) throw new TypeError(`\`${port}\` is not a port of its node`);
     // defineProperty, not assignment: a port named `__proto__` would otherwise set the prototype.
-    Object.defineProperty(resolved, name, { value: { ...source, delegate: portTargetOf(ref) }, enumerable: true });
+    Object.defineProperty(resolved, name, {
+      value: frozenCopy({ ...source, delegate: { to: child.$def.id, port } }),
+      enumerable: true,
+    });
   }
-  return resolved as StoredPortsDef;
+  return Object.freeze(resolved) as StoredPortsDef;
 }
 
-function portDefinitionOf(ref: DomePortRef): StoredWorldPort {
-  const source = ref.$ref === "inherited" ? ref.port.node.$def.ports?.[ref.port.name] : ref.node.$def.ports?.[ref.name];
-  if (!source) throw new TypeError(`\`${portNameOf(ref)}\` is not a port of its node`);
-  return source;
-}
-
-function portNameOf(ref: DomePortRef): string {
-  return ref.$ref === "inherited" ? ref.port.name : ref.name;
-}
-
-function portTargetOf(ref: DomePortRef): { to: NodeId; port: string } {
-  return ref.$ref === "inherited"
-    ? { to: ref.node.$def.id, port: ref.port.name }
-    : { to: ref.node.$def.id, port: ref.name };
+/** The direct child a dome port reference points at, or undefined. */
+function childOf(ref: DomePortRef, children: ChildNodes): NodeRef | undefined {
+  const node = (ref as { readonly node?: unknown } | null)?.node;
+  const name = typeof node === "object" && node !== null ? (node as { [STAND_IN]?: unknown })[STAND_IN] : undefined;
+  const child = typeof name === "string" ? (Object.hasOwn(children, name) ? children[name] : undefined) : node;
+  return isNodeRef(child) && (Object.values(children) as readonly NodeRef[]).includes(child) ? child : undefined;
 }
 
 /** Deep copy with every object and array frozen. Node references and functions (lazy edges) are kept as they are. */

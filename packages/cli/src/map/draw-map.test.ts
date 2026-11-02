@@ -73,7 +73,7 @@ test("an orphan and an out-of-scope uses edge still get a map", async () => {
 import { Example } from "./example.ts";
 
 export const Inner = node({ id: "inner", purpose: "i", status: "planned", source: [], ports: { x: { kind: "call", purpose: "x" } } }).edges({});
-export const Box = node({ id: "box", purpose: "b", status: "planned", source: [], children: { inner: Inner }, ports: () => ({}) }).edges({});
+export const Box = node({ id: "box", purpose: "b", status: "planned", source: [], children: () => ({ inner: Inner }), ports: () => ({}) }).edges({});
 // Out of scope: Inner sits inside Box's dome. Not in the world: an orphan.
 export const Orphan = node({ id: "orphan", purpose: "o", status: "planned", source: [] }).edges({ uses: () => [Inner.x, Example.greet] });
 `,

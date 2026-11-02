@@ -67,6 +67,10 @@ export const WorldFormat = node({
       id: "R11",
       text: "A world has a required, non-blank name, an optional description and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
     },
+    {
+      id: "R12",
+      text: "A dome reads its children only when first used ($def.children, $def.ports or a dome port's kind), so it may sit in an import cycle with them in any import order; the runtime check that each dome port is a direct child's port runs then.",
+    },
     { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
   ],
@@ -101,6 +105,10 @@ export const WorldFormat = node({
     {
       text: "An external child, a port of a non-child, empty children and externalType on a dome fail typecheck in node(); an abstract child compiles.",
       demonstrates: ["R3", "R9"],
+    },
+    {
+      text: "A dome defined before its child exists resolves once the child does; children written as a record fail at node(); a port of a non-child or a missing child port throws on first use.",
+      demonstrates: ["R12"],
     },
     {
       text: "Port clashes with inherited or other contracts' ports, duplicate requirement ids, unknown demonstrates ids and blank tbd descriptions fail typecheck on the offending element.",
@@ -138,7 +146,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A node with children is a dome, with no behavior of its own. node() alone holds the hierarchy: children is a record of direct children, and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`), which replaces the node spec's delegate. The world file lists only the top-level nodes; node files never import it.",
+        "A node with children is a dome, with no behavior of its own. node() alone holds the hierarchy: children is a record of direct children (returned by a function), and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`), which replaces the node spec's delegate. The world file lists only the top-level nodes; node files never import it.",
       why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior, keep child names by the port mapping, and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
       rejected: [
         {
@@ -164,6 +172,21 @@ export const WorldFormat = node({
         {
           option: "Checking uses scope in tsc",
           why: "Uses in the handle's type bring back TS7022; check checks scope against the world tree.",
+        },
+      ],
+    },
+    {
+      decision:
+        "children is a function returning the record; ports runs at node() against stand-ins for the children, the rest resolves on first use.",
+      why: "A record reads every child when the dome's file runs, so an import cycle through a dome (a child uses a node that uses the dome) failed whenever a file imported the child first. tsc infers the children's type from the function's return as it does for implements; stand-ins give the handle its port names without reading a child. Cost: tsc reports a child rule on the children line, not on the child, since it does not point into a function's return through the optional property's union with undefined.",
+      rejected: [
+        {
+          option: "A record, with the CLI's loader importing index.ts first",
+          why: "Fixes only the order the loader picks; a barrel or any file importing a child ahead of its dome still fails.",
+        },
+        {
+          option: "Resolve ports lazily too, port names unknown until then",
+          why: "The handle's port properties (Orders.place) must exist at once, frozen, for find-references and identity.",
         },
       ],
     },

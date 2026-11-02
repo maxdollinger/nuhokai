@@ -38,7 +38,7 @@ export const LoadWorld = node({
     },
     {
       id: "R12",
-      text: "Evaluation order: index.ts first, then every other world file in sorted order, so an import cycle through a dome (a child uses a node that uses the dome) is entered at the world and each dome runs after its children. A world file importing a child before its dome in such a cycle → the load error names the dome's file and says to import the dome first.",
+      text: "Files evaluate in sorted order, whatever their import cycles: a dome reads its children on first use (the world format's lazy children), here in the walk. A children function that throws, or a dome port that is no direct child's, is a load error naming the dome's file: 'nuhokai/dome.ts: Dome.children: <message>'.",
     },
     {
       id: "R2",
@@ -124,7 +124,7 @@ export const LoadWorld = node({
       demonstrates: ["R1", "R2", "R5"],
     },
     {
-      text: "Dome Cmd with child Leaf (cmd/a-leaf.ts sorts first) using Caller, which uses Cmd.run → loads; index.ts importing Leaf before Cmd → one CliError at cmd/cmd.ts saying to import the dome first.",
+      text: "Dome Cmd with child Leaf (cmd/a-leaf.ts sorts first) using Caller, which uses Cmd.run → loads, also with index.ts importing Leaf before Cmd; a throwing children function or a port of a non-child → one CliError naming dome.ts.",
       demonstrates: ["R12"],
     },
     {
@@ -133,16 +133,6 @@ export const LoadWorld = node({
     },
   ],
   decisions: [
-    {
-      decision: "Evaluate index.ts first, not the first file in sorted order.",
-      why: "A dome reads its children when its file runs, and inside an import cycle the file entered first runs last: entered at a child, the dome runs before it. The world is read from index.ts down, so entering there reaches each dome before its children; outputs keep sorted file order.",
-      rejected: [
-        {
-          option: "Lazy children in the world format",
-          why: "Covers every import order, but changes the format for every world and moves the dome-port check out of node().",
-        },
-      ],
-    },
     {
       decision: "LoadWorld runs Inspect.requireWorld itself.",
       why: "Every load needs a world, and every caller guarded it the same way; one guard here cannot be forgotten by the next command.",

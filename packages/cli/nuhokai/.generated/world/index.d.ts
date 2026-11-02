@@ -239,14 +239,17 @@ interface NodeSpec {
  *   purpose: "The shop backend.",
  *   status: "planned",
  *   source: [],
- *   children: { orders: Orders },
+ *   children: () => ({ orders: Orders }),
  *   ports: (c) => ({ placeOrder: c.orders.ports.place }),
  * }).edges({});
  * ```
  *
  * `node` takes the static fields and infers the handle's type, including
  * `implements` and `children`, which only point at contracts and direct
- * children; `.edges()` takes `uses` and is not generic, so the handle's type
+ * children. Both are functions: `children` is read when the dome is first used
+ * (its `$def.children`, `$def.ports` or a port's `kind`), so a dome may sit in an
+ * import cycle with its children; its `ports` runs at once against stand-ins for
+ * the children, which gives the handle its port names; `.edges()` takes `uses` and is not generic, so the handle's type
  * never depends on a node that could point back, and files may reference each
  * other in cycles without annotations. Edges are functions so that modules may
  * import each other in cycles: only the loader calls them, after every module
@@ -473,11 +476,14 @@ export interface NodeDef<External extends boolean = boolean, Abstract extends bo
 }
 /**
  * The argument shape `node` infers from: a leaf has no children and a ports
- * record; a dome has a children record and a ports function. `C` is `undefined`
- * for a leaf, which keeps an empty `children: {}` recognisable as a dome.
+ * record; a dome has a function returning its children record and a ports
+ * function over that record. `C` is `undefined` for a leaf, which keeps an
+ * empty `children: () => ({})` recognisable as a dome. `children` is lazy so that
+ * a dome may sit in an import cycle with its children: `node` reads it only
+ * when the dome is first used, after every module has run.
  */
 export interface NodeShape<C extends Record<string, unknown> | undefined = undefined, P extends Record<string, unknown> = Record<string, unknown>, External extends boolean = boolean, Abstract extends boolean = boolean, Id extends NodeId = NodeId, Contracts extends readonly ContractRef[] = readonly ContractRef[], R extends RequirementsDef = RequirementsDef, T extends TestCasesDef = TestCasesDef> extends NodeDef<External, Abstract, Id, Contracts, R, T> {
-    readonly children?: C;
+    readonly children?: () => C;
     readonly ports?: IsDome<C> extends true ? (children: NonNullable<C>) => P : P;
 }
 /** Step two of a node, the argument of `.edges()`: lazy references to other nodes. */
@@ -671,7 +677,7 @@ type DomePortsRules<C extends Record<string, unknown>, P, Contracts extends read
  * both get the flag rules of the fields they author.
  */
 export type NodeShapeRules<C extends Record<string, unknown> | undefined, P, External extends boolean, Abstract extends boolean, Contracts extends readonly ContractRef[]> = (IsDome<C> extends true ? {
-    readonly children: NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
+    readonly children: () => NonNullable<C> & NoInfer<ChildNodesRules<NonNullable<C>>>;
     readonly ports?: (children: NonNullable<C>) => P & NoInfer<DomePortsRules<NonNullable<C>, P, Contracts>>;
 } & DomeRules<External, Abstract> & DefRules<External, Abstract> : {
     readonly ports?: P & NoInfer<LeafPortsRules<P, Contracts>>;
