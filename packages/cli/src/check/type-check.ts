@@ -55,7 +55,7 @@ const LITERALS = new Set([
  * (`tsgo/tsgo`); from source or the bundle, the platform build of the CLI's pinned `typescript`. Never the repo's own
  * TypeScript.
  */
-function checkerPath(): string {
+export function checkerPath(): string {
   if (import.meta.dir.startsWith("/$bunfs")) {
     const sidecar = join(dirname(process.execPath), "tsgo", "tsgo");
     if (existsSync(sidecar)) return sidecar;

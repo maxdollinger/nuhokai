@@ -145,7 +145,7 @@ function useCliWorldRuntime(): void {
  * Symlinks are followed, but never into a directory already on the way down, so a symlink loop is walked once; a
  * link that cannot be resolved at all is a load error naming it.
  */
-function worldFiles(root: string): string[] {
+export function worldFiles(root: string): string[] {
   const files: string[] = [];
   const walk = (dir: string, path: string, above: ReadonlySet<string>) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -456,6 +456,8 @@ function specsOf(modules: readonly Module[], paths: WorldPaths, index: string): 
  * a second load of the same root answers the files as first evaluated.
  */
 export async function loadWorld(root: string): Promise<LoadedWorld> {
+  // PROTOTYPE: NUHOKAI_READER=1 reads the world with the checker instead of running it (read-world.ts).
+  if (process.env.NUHOKAI_READER === "1") return (await import("./read-world.ts")).readWorld(root);
   // No world, or something else at nuhokai/: the same error every command gives, naming init.
   requireWorld(root);
   const index = inWorld(root, WORLD_INDEX);
