@@ -14,7 +14,7 @@ export const PrintTree = node({
     run: {
       kind: "call",
       purpose: "Print the world's node hierarchy",
-      input: "project directory (cwd-relative), node path or none, level: whole number, 0 = unlimited",
+      input: "project directory (cwd-relative), hierarchy path or none, level: whole number, 0 = unlimited",
       output:
         "exit 0 printed, 1 failure, 2 no such node; stdout: TreeLines' lines; stderr: one 'nuhokai tree: ' line per failure",
       errors: [
@@ -27,10 +27,13 @@ export const PrintTree = node({
     },
   },
   requirements: [
-    { id: "R1", text: "Order: load, find the start, render, print; stdout gets every line or none." },
+    {
+      id: "R1",
+      text: "Order: load, find the start (with the project directory, so a hint runs as printed), render, print; stdout gets every line or none.",
+    },
     {
       id: "R2",
-      text: "No world or a non-directory at nuhokai/ is LoadWorld's error (it inspects), printed like any load failure.",
+      text: "No world is a load failure like any other (LoadWorld R11): one line, exit 1.",
     },
     {
       id: "R3",
@@ -40,7 +43,7 @@ export const PrintTree = node({
   testCases: [
     { text: "No world, or a file at nuhokai → one stderr line, exit 1, no stdout.", demonstrates: ["R2"] },
     {
-      text: "Throwing node file → one line naming the file, exit 1; tree Shop/Stok → 'nuhokai tree: no node Shop/Stok; did you mean Shop/Stock?', exit 2, no stdout.",
+      text: "Throwing node file → one line naming the file, exit 1; tree Shop/Stok → \"nuhokai tree: no node 'Shop/Stok'; did you mean 'Shop/Stock'?\", exit 2, no stdout.",
       demonstrates: ["R1", "R3"],
     },
   ],

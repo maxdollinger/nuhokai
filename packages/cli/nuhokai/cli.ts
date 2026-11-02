@@ -54,7 +54,7 @@ export const Cli = node({
     },
     {
       id: "R8",
-      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value, a second --level or -L, or no whole number (x, -1, 1.5) → usage error (2), command never runs. Cli hands Tree.run the directory, the node path or none, and the level as a number; `nuhokai tree --help` lists --level.",
+      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, -1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
@@ -62,7 +62,7 @@ export const Cli = node({
   ],
   testCases: [
     {
-      text: "Usage lists every command with its argument form (`nuhokai new <node-path>` visible); --help, `nuhokai init --help`, `nuhokai new --help` exit 0.",
+      text: "Usage lists every command with its argument form (`nuhokai new <file-path>` visible); --help, `nuhokai init --help`, `nuhokai new --help` exit 0.",
       demonstrates: ["R3"],
     },
     {

@@ -50,4 +50,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [Path.file, Viewer.page] });
+}).edges({ uses: () => [Path.inWorld, Viewer.page] });

@@ -13,7 +13,8 @@ src/
   load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
-  shared/       the world layout and its one path form, what sits at nuhokai/, and the one error type with its one-line rule
+  tree/         print the node hierarchy, one line per node: the program and the lines
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path), what sits at nuhokai/, and the error types
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format
@@ -33,7 +34,8 @@ stale. A test also type-checks a consumer world against the bundled declarations
 | `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `new`    | add one node file, `nuhokai/<node-path>.ts`, with a fresh id and `TODO:` placeholders  |
+| `new`    | add one node file, `nuhokai/<file-path>.ts`, with a fresh id and `TODO:` placeholders  |
+| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`               |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types (planned)         |
 
 `init` writes one folder, with everything the tool needs inside it:
@@ -54,7 +56,7 @@ directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` pri
 `help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai new help` adds
 `nuhokai/help.ts`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
 exit 2 and run nothing. Without a `nuhokai/`
-there, `check`, `new` and `map` fail with one line. Every printed path, on stdout and in errors, is named from the current
+there, `check`, `new`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
 `packages/cli/nuhokai/<file>:<line>`.
@@ -64,20 +66,21 @@ projects never share per-world state such as the map's saved layout; everything 
 existing `nuhokai/` directory is left untouched: it prints one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
-`new <node-path>` adds one node file, `nuhokai/<node-path>.ts`, merging the node path with the world's folder so a big world can
+`new <file-path>` adds one node file, `nuhokai/<file-path>.ts`, merging the file path with the world's folder so a big world can
 split into folders. Every segment is kebab-case; the file exports the PascalCase of the last segment, carries a fresh
 uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the parent directories it needs, never
 overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
 `index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
 `new` needs an existing world.
 
-`check` type-checks the world with the CLI's pinned checker and `nuhokai/tsconfig.json`, beside one load of the world
-and the spec rules on it (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
+`check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
+the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
 `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world. World files must stay declarative: calls only to the format's functions, imports only
 `@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive. It
-exits 1 on any error and 0 otherwise; orphans are warnings. A missing world or a load failure is one stderr line.
+exits 1 on any error and 0 otherwise; orphans are warnings. A missing world is one stderr line; a world that fails to
+load still gets every tsc finding, then one stderr line for the load failure.
 
 `map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
@@ -88,6 +91,15 @@ and by node id, so a regenerated map keeps them and two projects' maps never sha
 the CLI's own runtime; any other import resolves as Bun resolves it. The CLI runs with `bun --no-install`, so nothing
 is installed: an unresolvable import is an ordinary load error. The loader is no sandbox; world files are the
 project's own code.
+
+`tree` prints the node hierarchy, one line per node: `path | source | purpose`, e.g.
+`Check/ (5) | src/check/** | Ensure the specs follow the rules.` Every line carries the node's full hierarchy path
+(names joined by `/`, as `check` names nodes), so it still makes sense after `grep` and can be passed back as is:
+`nuhokai tree Check -L 2` starts from Check and prints two levels below it. `-L`/`--level` defaults to 1, and `0` prints
+everything; a dome cut off by the level shows `/ (<n>)` and its child count. Sources print from the current directory,
+like every other path, and the whole purpose stays on the line. Like `map`, `tree` does not run `check`. A path that
+names no node exits 2 with the closest match (`did you mean 'Check/SpecCheck'?`) or the `tree` command listing where it
+went wrong.
 
 `init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

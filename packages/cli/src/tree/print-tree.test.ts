@@ -56,7 +56,7 @@ test("Tree R1, R2: the example world's top level, one line per node, Shop collap
   });
 });
 
-test("PrintTree R1: a start node and its children; a collapsed dome's path is accepted as printed", async () => {
+test("Tree R1, NodePath R3: a start node and its children; a collapsed dome's path is accepted as printed", async () => {
   const root = exampleWorld();
   const paths = (await tree(root, "Shop/")).out.map((line) => line.split(" | ")[0]);
   expect(paths).toEqual(["Shop", "Shop/Orders", "Shop/Stock"]);
@@ -86,10 +86,16 @@ test("PrintTree R1, R3: a throwing node file is one line naming it, exit 1; a pa
   expect(failed.err).toHaveLength(1);
   expect(failed.err[0]).toStartWith("nuhokai tree: <root>/nuhokai/boom.ts");
 
-  expect(await tree(exampleWorld(), "Shop/Stok")).toEqual({
+  const example = exampleWorld();
+  expect(await tree(example, "Shop/Basket")).toEqual({
     code: 2,
     out: [],
-    err: ["nuhokai tree: no node Shop/Stok; did you mean Shop/Stock?"],
+    err: ["nuhokai tree: no node 'Shop/Basket'; `nuhokai tree Shop --path <root>` lists its children"],
+  });
+  expect(await tree(example, "Shop/Stok")).toEqual({
+    code: 2,
+    out: [],
+    err: ["nuhokai tree: no node 'Shop/Stok'; did you mean 'Shop/Stock'?"],
   });
 });
 
@@ -114,6 +120,6 @@ test("Tree R3: siblings sharing a name both print; addressing them names nuhokai
   expect(await tree(root, "Twin")).toEqual({
     code: 2,
     out: [],
-    err: ["nuhokai tree: Twin names 2 siblings; nuhokai check reports the clash"],
+    err: ["nuhokai tree: 'Twin' names 2 siblings; `nuhokai check --path <root>` reports the clash"],
   });
 });

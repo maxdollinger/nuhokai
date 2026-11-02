@@ -1,6 +1,6 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
-import { nodePaths } from "../../shared/node-path.ts";
+import { childrenOf, nodePaths } from "../../shared/node-path.ts";
 
 /** One reachable node, by its position in the loaded world's `nodes`. */
 export interface TreeNode {
@@ -30,23 +30,20 @@ export interface WorldTree {
 
 /** The loaded world as a tree: each node under the parent LoadWorld placed it in, by position. */
 export function worldTree(world: LoadedWorld): WorldTree {
-  const nodes: TreeNode[] = [];
   // Diagnostics name a node as every command does: NodePath's hierarchy path.
   const paths = nodePaths(world);
-  world.nodes.forEach((spec, index) => {
-    const at = world.parents[index] ?? null;
-    // A parent comes before its children, so it is already in the tree.
-    const parent = at === null ? undefined : nodes[at];
+  const nodes: TreeNode[] = world.nodes.map((spec, index) => {
     const file = world.files[index];
-    nodes.push({
+    return {
       index,
       spec,
-      parent: parent ? parent.index : null,
-      path: paths[index] ?? spec.name,
+      parent: world.parents[index] ?? null,
+      path: paths[index] ?? "",
       file: file?.file ?? world.file,
       ...(file?.line === undefined ? {} : { line: file.line }),
-    });
+    };
   });
+  const children = childrenOf(world);
   const counts = new Map<string, number>([[world.id, 1]]);
   for (const node of nodes) counts.set(node.spec.id, (counts.get(node.spec.id) ?? 0) + 1);
   const duplicated = new Set([...counts].filter(([, count]) => count > 1).map(([id]) => id));
@@ -59,7 +56,7 @@ export function worldTree(world: LoadedWorld): WorldTree {
       for (let at = node.parent; at !== null; at = nodes[at]?.parent ?? null) if (at === ancestor.index) return true;
       return false;
     },
-    childrenOf: (parent) => nodes.filter((node) => node.parent === parent),
+    childrenOf: (parent) => (children.get(parent) ?? []).flatMap((index) => nodes[index] ?? []),
   };
 }
 

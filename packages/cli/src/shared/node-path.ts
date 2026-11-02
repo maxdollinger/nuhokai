@@ -2,14 +2,14 @@ import type { LoadedWorld } from "../load/load-world.ts";
 import { CliError } from "./failure.ts";
 
 /** The world's shape NodePath reads: names and parents by position, as LoadWorld answers them. */
-type Tree = Pick<LoadedWorld, "nodes" | "parents">;
+export type Hierarchy = Pick<LoadedWorld, "nodes" | "parents">;
 
 /**
  * Each node's hierarchy path, in `nodes` order: the names from the top level down, joined with `/`
  * (`Check/SpecCheck`), a top-level node's path its name alone. Built from parents by position, never by id,
  * so duplicate ids cannot misplace a node.
  */
-export function nodePaths(world: Tree): string[] {
+export function nodePaths(world: Hierarchy): string[] {
   const paths: string[] = [];
   world.nodes.forEach((spec, index) => {
     const parent = world.parents[index] ?? null;
@@ -19,18 +19,33 @@ export function nodePaths(world: Tree): string[] {
   return paths;
 }
 
+/** Each node's direct children by position, the top level under null, in walk order. */
+export function childrenOf(world: Hierarchy): Map<number | null, number[]> {
+  const children = new Map<number | null, number[]>();
+  world.parents.forEach((parent, index) => {
+    const key = parent ?? null;
+    const list = children.get(key);
+    if (list) list.push(index);
+    else children.set(key, [index]);
+  });
+  return children;
+}
+
 /**
  * The position in `nodes` of the node a typed hierarchy path names: exact and case-sensitive, one segment at a
  * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one CliError
- * naming the closest match (the rest of the path corrected as far as it goes), or the deepest node found and how to list its children; two siblings sharing a
- * segment's name are one CliError naming nuhokai check.
+ * naming the closest match (the rest of the path corrected as far as it goes), or the command listing the
+ * deepest node found; two siblings sharing a segment's name are one CliError naming nuhokai check. Commands in
+ * a message carry `--path <root>` unless `root` is the cwd, so they run as printed.
  */
-export function findNode(world: Tree, typed: string): number {
+export function findNode(world: Hierarchy, typed: string, root: string): number {
+  const command = (name: string, ...args: string[]) =>
+    `\`${["nuhokai", name, ...args, ...(root === "." ? [] : ["--path", root])].map(shellWord).join(" ")}\``;
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
   if (path === "" || segments.some((segment) => segment === "")) {
     throw new CliError(
-      `no node ${typed || "''"}; a node path is names joined by single /, as nuhokai tree prints them`,
+      `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
   const paths = nodePaths(world);
@@ -39,48 +54,46 @@ export function findNode(world: Tree, typed: string): number {
   for (const [depth, segment] of segments.entries()) {
     const siblings: number[] = children.get(parent) ?? [];
     const matches: number[] = siblings.filter((index) => world.nodes[index]?.name === segment);
-    const here = segments.slice(0, depth + 1).join("/");
     if (matches.length > 1) {
-      throw new CliError(`${here} names ${matches.length} siblings; nuhokai check reports the clash`);
+      const here = segments.slice(0, depth + 1).join("/");
+      throw new CliError(`'${here}' names ${matches.length} siblings; ${command("check")} reports the clash`);
     }
     const [match] = matches;
-    if (match === undefined) {
-      const above = parent === null ? undefined : paths[parent];
-      const closest = closestName(
-        segment,
-        siblings.map((index) => world.nodes[index]?.name ?? ""),
-      );
-      if (closest !== undefined) {
-        // Correct the rest of the path too, as far as each segment has an equal or close name.
-        let corrected = above === undefined ? closest : `${above}/${closest}`;
-        let at = siblings.find((index) => world.nodes[index]?.name === closest);
-        for (const next of segments.slice(depth + 1)) {
-          const names = (children.get(at ?? null) ?? []).map((index) => world.nodes[index]?.name ?? "");
-          const name = names.includes(next) ? next : closestName(next, names);
-          if (name === undefined || at === undefined) break;
-          corrected = `${corrected}/${name}`;
-          at = children.get(at)?.find((index) => world.nodes[index]?.name === name);
-        }
-        throw new CliError(`no node ${typed}; did you mean ${corrected}?`);
-      }
-      const list =
-        above === undefined ? "nuhokai tree lists the top level" : `nuhokai tree ${above} lists its children`;
-      throw new CliError(`no node ${typed}; ${list}`);
+    if (match !== undefined) {
+      parent = match;
+      continue;
     }
-    parent = match;
+    if (paths.includes(path)) {
+      throw new CliError(`no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`);
+    }
+    const above = parent === null ? undefined : paths[parent];
+    const nameOf = (index: number) => world.nodes[index]?.name ?? "";
+    const closest = closestName(segment, siblings.map(nameOf));
+    if (closest === undefined) {
+      const list =
+        above === undefined ? `${command("tree")} lists the top level` : `${command("tree", above)} lists its children`;
+      throw new CliError(`no node '${typed}'; ${list}`);
+    }
+    // Correct the rest of the path too, as far as each segment has an equal or close name.
+    let corrected = above === undefined ? closest : `${above}/${closest}`;
+    let at = siblings.find((index) => nameOf(index) === closest);
+    for (const next of segments.slice(depth + 1)) {
+      const below = at === undefined ? [] : (children.get(at) ?? []);
+      const names = below.map(nameOf);
+      const name = names.includes(next) ? next : closestName(next, names);
+      if (name === undefined) break;
+      corrected = `${corrected}/${name}`;
+      at = below.find((index) => nameOf(index) === name);
+    }
+    throw new CliError(`no node '${typed}'; did you mean '${corrected}'?`);
   }
   // segments is never empty, so the loop chose a node.
   return parent as number;
 }
 
-/** Each node's direct children by position, the top level under null, in walk order. */
-function childrenOf(world: Tree): Map<number | null, number[]> {
-  const children = new Map<number | null, number[]>();
-  world.parents.forEach((parent, index) => {
-    const key = parent ?? null;
-    children.set(key, [...(children.get(key) ?? []), index]);
-  });
-  return children;
+/** A word as a shell reads it back: unchanged when plain, else single-quoted. */
+function shellWord(word: string): string {
+  return /^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`;
 }
 
 /**

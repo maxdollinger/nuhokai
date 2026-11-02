@@ -51,4 +51,4 @@ export const CliFiles = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.file] });
+}).edges({ uses: () => [Path.inWorld] });

@@ -41,4 +41,5 @@ test("WorldPath R5: a project path, named from the cwd, globs unchanged and no .
   expect(inProject("packages/cli", "src/**")).toBe("packages/cli/src/**");
   expect(inProject(".", "src/**")).toBe("src/**");
   expect(inProject(".", "src/{a,b}/[x]?.ts")).toBe("src/{a,b}/[x]?.ts");
+  expect(inProject("packages/cli", "/etc/x")).toBe("/etc/x");
 });

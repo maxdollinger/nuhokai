@@ -19,12 +19,12 @@ const DESCRIPTIONS: Record<Command, string> = {
   update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of an existing world",
 };
 
-/** The argument form each command takes; usage shows it, Cli enforces the count and nothing else. */
+/** The argument form each command takes, as usage shows it; ARITY holds the count Cli enforces. */
 const SYNOPSIS: Record<Command, string> = {
   check: "nuhokai check",
   init: "nuhokai init",
   map: "nuhokai map",
-  new: "nuhokai new <node-path>",
+  new: "nuhokai new <file-path>",
   tree: "nuhokai tree [node] [-L <n>]",
   update: "nuhokai update",
 };
@@ -43,17 +43,41 @@ const ARITY: Record<Command, readonly [min: number, max: number]> = {
 const HELP_WORDS = ["help", "--help", "-h"] as const;
 const HELP_FLAGS = ["--help", "-h"] as const;
 
-/** The one flag every command takes: the project directory holding nuhokai/, instead of the cwd. */
-const PATH_FLAG = "--path";
+/** An option Cli parses: its spellings (the first is its name), the value it takes, and its help line. */
+interface Option {
+  readonly names: readonly [string, ...string[]];
+  readonly value: string;
+  /** What a missing value needed: "--path needs a directory". */
+  readonly needs: string;
+  readonly text: string;
+}
 
-/** tree's own option: how many levels below the start to print; 0 = all. */
-const LEVEL_FLAG = "--level";
-const LEVEL_SHORT = "-L";
+/** The one option every command takes: the project directory holding nuhokai/, instead of the cwd. */
+const PATH_OPTION: Option = {
+  names: ["--path"],
+  value: "<dir>",
+  needs: "a directory",
+  text: "the project directory holding nuhokai/ (default: the current directory)",
+};
+
 const DEFAULT_LEVEL = 1;
 
-/** Each command's own options, as its help lists them; Cli parses them all. */
-const OPTIONS: Partial<Record<Command, readonly [flags: string, text: string][]>> = {
-  tree: [[`${LEVEL_SHORT}, ${LEVEL_FLAG} <n>`, `levels below the start to print; 0 = all (default: ${DEFAULT_LEVEL})`]],
+/** tree's own option: how many levels below the start to print; 0 = all. */
+const LEVEL_OPTION: Option = {
+  names: ["--level", "-L"],
+  value: "<n>",
+  needs: "a whole number",
+  text: `levels below the start to print; 0 = all (default: ${DEFAULT_LEVEL})`,
+};
+
+/** Each command's own options beside --path: Cli parses them, lists them in its help and hands run their values. */
+const OPTIONS: Record<Command, readonly Option[]> = {
+  check: [],
+  init: [],
+  map: [],
+  new: [],
+  tree: [LEVEL_OPTION],
+  update: [],
 };
 
 /** The synopsis column's width, so every description starts in one column. */
@@ -75,8 +99,10 @@ export function usage(): string {
 /** One help text per command, answered by Cli before dispatch; commands stay flag-free, Cli owns every option. */
 export function commandUsage(command: Command): string {
   const options: (readonly [string, string])[] = [
-    ...(OPTIONS[command] ?? []),
-    ["--path <dir>", "the project directory holding nuhokai/ (default: the current directory)"],
+    ...[...OPTIONS[command], PATH_OPTION].map((option): [string, string] => [
+      `${[...option.names].sort((a, b) => a.length - b.length).join(", ")} ${option.value}`,
+      option.text,
+    ]),
     ["--help", "show this help"],
   ];
   const width = Math.max(...options.map(([flags]) => flags.length)) + 2;
@@ -103,47 +129,30 @@ function isCommand(value: string): value is Command {
 }
 
 /**
- * Split --path off the arguments, touching nothing: a missing value (a help flag
- * included) or a second --path is the invocation's fault, so it is a message and
- * never a command run.
+ * Split one option off the arguments, touching nothing else: `--name <value>`, `--name=<value>` for a long name,
+ * or a short name and its value. A missing value (a help flag included) or a second occurrence is the
+ * invocation's fault, so it is a message naming the spelling typed, never a command run. The value itself is the
+ * caller's to judge, after help.
  */
-function splitPath(args: readonly string[]): { path: string | undefined; rest: string[] } | { error: string } {
-  let path: string | undefined;
+function splitOption(
+  args: readonly string[],
+  option: Option,
+): { value?: { spelling: string; raw: string }; rest: string[] } | { error: string } {
+  let value: { spelling: string; raw: string } | undefined;
   const rest: string[] = [];
   for (let index = 0; index < args.length; index++) {
     const arg = args[index] ?? "";
-    if (arg !== PATH_FLAG && !arg.startsWith(`${PATH_FLAG}=`)) {
+    const spelling = option.names.find((name) => arg === name || (name.startsWith("--") && arg.startsWith(`${name}=`)));
+    if (spelling === undefined) {
       rest.push(arg);
       continue;
     }
-    if (path !== undefined) return { error: `${PATH_FLAG} given twice` };
-    path = arg === PATH_FLAG ? args[++index] : arg.slice(PATH_FLAG.length + 1);
-    if (!path || isHelpFlag(path)) return { error: `${PATH_FLAG} needs a directory` };
+    if (value !== undefined) return { error: `${spelling} given twice` };
+    const raw = arg === spelling ? args[++index] : arg.slice(spelling.length + 1);
+    if (!raw || isHelpFlag(raw)) return { error: `${spelling} needs ${option.needs}` };
+    value = { spelling, raw };
   }
-  return { path, rest };
-}
-
-/**
- * Split tree's --level <n>, --level=<n> or -L <n> off the arguments: a whole number, 0 = all, default 1. A missing
- * value, a second one or anything but a whole number is the invocation's fault, so it is a message and never a
- * command run.
- */
-function splitLevel(args: readonly string[]): { level: number; rest: string[] } | { error: string } {
-  let value: string | undefined;
-  const rest: string[] = [];
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index] ?? "";
-    const inline = arg.startsWith(`${LEVEL_FLAG}=`);
-    if (arg !== LEVEL_FLAG && arg !== LEVEL_SHORT && !inline) {
-      rest.push(arg);
-      continue;
-    }
-    if (value !== undefined) return { error: `${LEVEL_FLAG} given twice` };
-    value = inline ? arg.slice(LEVEL_FLAG.length + 1) : (args[++index] ?? "");
-    if (value === "") return { error: `${LEVEL_FLAG} needs a whole number` };
-    if (!/^\d+$/.test(value)) return { error: `${LEVEL_FLAG} needs a whole number, got '${value}'` };
-  }
-  return { level: value === undefined ? DEFAULT_LEVEL : Number(value), rest };
+  return value === undefined ? { rest } : { value, rest };
 }
 
 /** Whether `dir` is a directory; a path through a file or an unreadable one is not, whatever stat throws. */
@@ -166,22 +175,19 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai: unknown command '${first}'\n\n${usage()}`);
     return 2;
   }
-  const split = splitPath(args);
-  if ("error" in split) {
-    console.error(`nuhokai ${first}: ${split.error}\n\n${commandUsage(first)}`);
-    return 2;
-  }
-  const { path } = split;
-  let { rest } = split;
-  let level = DEFAULT_LEVEL;
-  if (first === "tree") {
-    const levelSplit = splitLevel(rest);
-    if ("error" in levelSplit) {
-      console.error(`nuhokai ${first}: ${levelSplit.error}\n\n${commandUsage(first)}`);
+  // Cli parses every option, --path and the command's own, and hands run their values.
+  let rest = args;
+  const values = new Map<Option, { spelling: string; raw: string }>();
+  for (const option of [PATH_OPTION, ...OPTIONS[first]]) {
+    const split = splitOption(rest, option);
+    if ("error" in split) {
+      console.error(`nuhokai ${first}: ${split.error}\n\n${commandUsage(first)}`);
       return 2;
     }
-    ({ level, rest } = levelSplit);
+    rest = split.rest;
+    if (split.value) values.set(option, split.value);
   }
+  const path = values.get(PATH_OPTION)?.raw;
   if (rest.length === 1 && isHelpFlag(rest[0] ?? "")) {
     console.log(commandUsage(first));
     return 0;
@@ -197,6 +203,13 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: unknown option '${option}'\n\n${commandUsage(first)}`);
     return 2;
   }
+  const levelValue = values.get(LEVEL_OPTION);
+  if (levelValue !== undefined && !/^\d+$/.test(levelValue.raw)) {
+    const error = `${levelValue.spelling} needs ${LEVEL_OPTION.needs}, got '${levelValue.raw}'`;
+    console.error(`nuhokai ${first}: ${error}\n\n${commandUsage(first)}`);
+    return 2;
+  }
+  const level = levelValue === undefined ? DEFAULT_LEVEL : Number(levelValue.raw);
   // The project directory is --path against the cwd, else the cwd itself.
   const cwd = process.cwd();
   const dir = resolve(cwd, path ?? ".");

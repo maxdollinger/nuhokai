@@ -55,7 +55,7 @@ export const CheckWorld = node({
   decisions: [
     {
       decision: "Load first; TypeCheck and SpecCheck run on its outcome, TypeCheck even when the load fails.",
-      why: "The program reads in its natural order and needs no guard of its own: LoadWorld's NoWorldError says when nothing is there to check. A world that fails to load still gets all of tsc's findings, which the load, stopping at its first throwing file, cannot give.",
+      why: "The program reads in its natural order and needs no guard of its own: LoadWorld's NoWorldError says when nothing is there to check. A world that fails to load still gets all of tsc's findings, which the load, stopping at its first throwing file, cannot give. TypeCheck starts after the load, about 20 ms later than beside it.",
       rejected: [
         {
           option: "Inspect.requireWorld, then TypeCheck beside load and SpecCheck",

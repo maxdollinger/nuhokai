@@ -15,11 +15,11 @@ export const AddNode = node({
     run: {
       kind: "call",
       purpose: "Add the node file to the world",
-      input: "project directory, node path",
+      input: "project directory, file path",
       output:
         "exit 0 written, 1 operational failure, 2 argument error; stdout: written path (cwd-relative), then a line naming nuhokai/index.ts; stderr: one 'nuhokai new: ' line per failure",
       errors: [
-        "invalid node path",
+        "invalid file path",
         "no world at nuhokai/",
         "file already exists",
         "parent directory cannot be created",
@@ -50,5 +50,5 @@ export const AddNode = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.requireWorld, Path.file, NodeFile.create, Failure.format, Failure.isExpected],
+  uses: () => [Inspect.requireWorld, Path.inWorld, NodeFile.create, Failure.format, Failure.isExpected],
 });

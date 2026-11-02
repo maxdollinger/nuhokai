@@ -24,6 +24,10 @@ export const Path = node({
   ],
   decisions: [
     {
+      decision: "Port names are the functions' names: inWorld, inProject, nodePaths, findNode.",
+      why: "One name per operation, in specs, code and tests alike; a reader of either finds the other.",
+    },
+    {
       decision: "One Path dome holds WorldPath and NodePath.",
       why: "Both own 'the one name that is printed and read back', shared by every command; one shared island instead of two on the map.",
       rejected: [
@@ -36,9 +40,9 @@ export const Path = node({
   ],
   children: { worldPath: WorldPath, nodePath: NodePath },
   ports: (c) => ({
-    file: c.worldPath.ports.file,
-    project: c.worldPath.ports.project,
-    nodePaths: c.nodePath.ports.paths,
-    findNode: c.nodePath.ports.find,
+    inWorld: c.worldPath.ports.inWorld,
+    inProject: c.worldPath.ports.inProject,
+    nodePaths: c.nodePath.ports.nodePaths,
+    findNode: c.nodePath.ports.findNode,
   }),
 }).edges({});

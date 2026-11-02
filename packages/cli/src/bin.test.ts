@@ -52,9 +52,9 @@ test("`nuhokai init --help` prints init's help and exits 0", async () => {
   expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
-test("`nuhokai new --help` shows that new takes a path", async () => {
+test("`nuhokai new --help` shows that new takes a file path", async () => {
   expect(await logged(["new", "--help"])).toEqual([0, [commandUsage("new")]]);
-  expect(commandUsage("new")).toContain("Usage: nuhokai new <node-path>");
+  expect(commandUsage("new")).toContain("Usage: nuhokai new <file-path>");
 });
 
 test("Cli enforces the argument count without validating the argument", async () => {
@@ -275,6 +275,9 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
 test("`nuhokai tree --help` lists --level; usage shows tree's argument form", async () => {
   expect(await logged(["tree", "--help"])).toEqual([0, [commandUsage("tree")]]);
   expect(await logged(["tree", "-L", "2", "-h"])).toEqual([0, [commandUsage("tree")]]);
+  // A bad value is judged after help, as a bad --path is.
+  expect(await logged(["tree", "-L", "x", "--help"])).toEqual([0, [commandUsage("tree")]]);
+  expect(await logged(["tree", "--path", "nope", "--help"])).toEqual([0, [commandUsage("tree")]]);
   expect(commandUsage("tree")).toContain("Usage: nuhokai tree [node] [-L <n>]");
   expect(commandUsage("tree")).toContain("-L, --level <n>");
   expect(commandUsage("map")).not.toContain("--level");
@@ -302,12 +305,17 @@ test("Cli R6, R8: tree gets the directory, the node or none, and the level as a 
 test("Cli R6, R8: a bad --level, a second one, two nodes or -L on another command → exit 2, nothing runs", async () => {
   const run = spyOn(printTree, "runTree").mockResolvedValue(0);
   try {
-    expect(await failed(["tree", "-L"])).toEqual([2, ["nuhokai tree: --level needs a whole number"]]);
+    expect(await failed(["tree", "-L"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
     expect(await failed(["tree", "--level="])).toEqual([2, ["nuhokai tree: --level needs a whole number"]]);
-    expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: --level needs a whole number, got 'x'"]]);
-    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: --level needs a whole number, got '-1'"]]);
-    expect(await failed(["tree", "-L", "1.5"])).toEqual([2, ["nuhokai tree: --level needs a whole number, got '1.5'"]]);
+    expect(await failed(["tree", "-L", "--help"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
+    expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
+    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got '-1'"]]);
+    expect(await failed(["tree", "--level=1.5"])).toEqual([
+      2,
+      ["nuhokai tree: --level needs a whole number, got '1.5'"],
+    ]);
     expect(await failed(["tree", "-L", "1", "--level", "2"])).toEqual([2, ["nuhokai tree: --level given twice"]]);
+    expect(await failed(["tree", "-L", "1", "-L", "2"])).toEqual([2, ["nuhokai tree: -L given twice"]]);
     expect(await failed(["tree", "a", "b"])).toEqual([2, ["nuhokai tree: unexpected argument 'b'"]]);
     expect(await failed(["tree", "--depth", "2"])).toEqual([2, ["nuhokai tree: unknown option '--depth'"]]);
     expect(await failed(["map", "-L", "1"])).toEqual([2, ["nuhokai map: unknown option '-L'"]]);

@@ -63,4 +63,4 @@ export const ExampleWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.file] });
+}).edges({ uses: () => [Path.inWorld] });

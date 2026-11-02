@@ -1,5 +1,5 @@
 import type { LoadedWorld } from "../load/load-world.ts";
-import { nodePaths } from "../shared/node-path.ts";
+import { childrenOf, nodePaths } from "../shared/node-path.ts";
 import { inProject } from "../shared/paths.ts";
 
 /** What a node without source prints in the source field. */
@@ -13,11 +13,7 @@ const NO_SOURCE = "(none)";
  */
 export function renderTree(world: LoadedWorld, root: string, start: number | null, level: number): string[] {
   const paths = nodePaths(world);
-  const children = new Map<number | null, number[]>();
-  world.parents.forEach((parent, index) => {
-    const key = parent ?? null;
-    children.set(key, [...(children.get(key) ?? []), index]);
-  });
+  const children = childrenOf(world);
 
   const lines: string[] = [];
   const visit = (index: number, depth: number) => {
@@ -37,7 +33,14 @@ function line(world: LoadedWorld, root: string, index: number, path: string): st
   const spec = world.nodes[index];
   const entries = Array.isArray(spec?.source) ? spec.source.filter((entry) => typeof entry === "string") : [];
   const source = entries.length > 0 ? entries.map((entry) => inProject(root, entry)).join(", ") : NO_SOURCE;
-  // Every whitespace run, newlines included, is one space: one node is always one line.
-  const purpose = typeof spec?.purpose === "string" ? spec.purpose.replace(/\s+/g, " ").trim() : "";
-  return `${path} | ${source} | ${purpose}`;
+  const purpose = typeof spec?.purpose === "string" ? spec.purpose : "";
+  return [path, source, purpose].map(oneLine).join(" | ");
+}
+
+/**
+ * A field on one line: every run of whitespace or control characters (newlines, escape sequences) is one space,
+ * trimmed, so one node is always one line and nothing in a world file can reach the terminal as a control code.
+ */
+function oneLine(field: string): string {
+  return field.replace(/[\s\p{Cc}]+/gu, " ").trim();
 }

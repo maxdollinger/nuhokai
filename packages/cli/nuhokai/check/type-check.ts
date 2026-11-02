@@ -38,4 +38,4 @@ export const TypeCheck = node({
       demonstrates: ["R2"],
     },
   ],
-}).edges({ uses: () => [Path.file, Failure.format] });
+}).edges({ uses: () => [Path.inWorld, Failure.format] });

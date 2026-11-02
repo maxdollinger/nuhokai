@@ -132,7 +132,7 @@ export const LoadWorld = node({
     },
     {
       decision:
-        "Top-level shared loader for map and check; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
+        "Top-level shared loader for map, check and tree; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
       why: "map and check need the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
     },
     {
@@ -179,4 +179,4 @@ export const LoadWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [Inspect.requireWorld, Path.file, Failure.format] });
+}).edges({ uses: () => [Inspect.requireWorld, Path.inWorld, Failure.format] });

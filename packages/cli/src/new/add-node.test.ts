@@ -53,7 +53,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test("an invalid node path exits 2 with one line and writes nothing", async () => {
+test("an invalid file path exits 2 with one line and writes nothing", async () => {
   const dir = tempDir();
 
   for (const argument of [
@@ -71,7 +71,7 @@ test("an invalid node path exits 2 with one line and writes nothing", async () =
     expect(code).toBe(2);
     expect(output.out).toEqual([]);
     expect(output.err).toHaveLength(1);
-    expect(output.err[0]?.startsWith("nuhokai new: invalid node path")).toBe(true);
+    expect(output.err[0]?.startsWith("nuhokai new: invalid file path")).toBe(true);
   }
   expect(readdirSync(dir)).toEqual([]);
 });

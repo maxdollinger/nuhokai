@@ -9,19 +9,24 @@ export const NodePath = node({
   status: "built",
   source: ["src/shared/node-path.ts", "src/shared/node-path.test.ts"],
   ports: {
-    paths: {
+    nodePaths: {
       kind: "call",
       purpose: "Name every node of a loaded world",
       input: "the loaded world, as LoadWorld.load answers it",
       output: "each node's hierarchy path, in nodes order",
       errors: [],
     },
-    find: {
+    findNode: {
       kind: "call",
       purpose: "Find the node a hierarchy path names",
-      input: "the loaded world, a hierarchy path as typed",
+      input:
+        "the loaded world, a hierarchy path as typed, the project directory (cwd-relative) for the commands it names",
       output: "the node's position in nodes",
-      errors: ["no node at that path: names the closest match", "two siblings share a name on the path"],
+      errors: [
+        "no node at that path: names the closest match or the command listing where it went wrong",
+        "two siblings share a name on the path",
+        "a name on the path holds /",
+      ],
     },
   },
   requirements: [
@@ -35,15 +40,15 @@ export const NodePath = node({
     },
     {
       id: "R3",
-      text: "find: exact, case-sensitive, one segment at a time from the top level. One trailing / is accepted (a collapsed dome as Tree prints it); an empty path or an empty segment (//, a leading /) names no node.",
+      text: "findNode: exact, case-sensitive, one segment at a time from the top level. One trailing / is accepted (a collapsed dome as Tree prints it); an empty path or an empty segment (//, a leading /) names no node; a node whose name holds / cannot be addressed, and saying so is the error.",
     },
     {
       id: "R4",
-      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; the rest of the path corrected the same way as far as it goes: 'no node check/specchek; did you mean Check/SpecCheck?'. No close name → it names the deepest node found and how to list its children: 'no node Check/Rules; nuhokai tree Check lists its children'.",
+      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; the rest of the path corrected the same way as far as it goes: \"no node 'check/specchek'; did you mean 'Check/SpecCheck'?\". No close name → the command listing the deepest node found: \"no node 'Check/Rules'; `nuhokai tree Check` lists its children\". Paths are quoted; a command is in backticks, carries --path <dir> unless the project directory is the cwd, and quotes a word as a shell needs it, so it runs as printed.",
     },
     {
       id: "R5",
-      text: "Two siblings with the segment's name → one CliError naming the path and that nuhokai check reports the clash. Paths of such siblings are equal; paths still names both.",
+      text: "Two siblings with the segment's name → one CliError naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nodePaths still names both.",
     },
     {
       id: "C1",
@@ -53,15 +58,15 @@ export const NodePath = node({
   ],
   testCases: [
     {
-      text: "Example world: paths → Postgres, AuditLog, Shop, Shop/Orders, Shop/Stock in nodes order; dome P (id x) with children C1 (id x) and C2 → C2 is P/C2.",
+      text: "Example world: nodePaths → Postgres, AuditLog, Shop, Shop/Orders, Shop/Stock in nodes order; dome P (id x) with children C1 (id x) and C2 → C2 is P/C2.",
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "Example world: find Shop/Stock and Shop/Stock/ → Stock's position; shop/stock → 'did you mean Shop/Stock?'; Shop/Stok → 'did you mean Shop/Stock?'; Shop/Basket → names nuhokai tree Shop; '', /Shop, Shop//Stock → no node.",
+      text: "Example world: findNode Shop/Stock and Shop/Stock/ → Stock's position; shop/stock and Shop/Stok → did you mean 'Shop/Stock'; Shop/Basket → `nuhokai tree Shop` lists its children, under --path packages/cli `nuhokai tree Shop --path packages/cli`; '', /Shop, Shop//Stock → no node; a top-level node named Ex/ample → its name holds /.",
       demonstrates: ["R3", "R4"],
     },
     {
-      text: "Two top-level nodes both named Orders (exported from two files) → find Orders fails naming nuhokai check; paths lists Orders twice.",
+      text: "Two top-level nodes both named Orders (exported from two files) → findNode Orders fails naming `nuhokai check`; nodePaths lists Orders twice.",
       demonstrates: ["R5"],
     },
   ],

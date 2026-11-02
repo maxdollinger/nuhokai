@@ -63,12 +63,18 @@ test("TreeLines R2: sources in authored order, comma-separated, named from the c
     "App | packages/app/src/a.ts, packages/app/src/b/** | app",
   ]);
   expect(renderTree(sourced, ".", null, 1)).toEqual(["App | src/a.ts, src/b/** | app"]);
+  expect(renderTree(world([["Abs", null, ["/etc/x"], "abs"]]), "app", null, 1)).toEqual(["Abs | /etc/x | abs"]);
 });
 
 test("TreeLines R3, R6: a purpose is one line with single spaces; the same input gives the same lines", () => {
   const spaced = world([["A", null, [], "  First line,\n  second   line. "]]);
   expect(renderTree(spaced, ".", null, 1)).toEqual(["A | (none) | First line, second line."]);
   expect(renderTree(spaced, ".", null, 1)).toEqual(renderTree(spaced, ".", null, 1));
+});
+
+test("TreeLines R3: no field breaks the line or passes a control code, whatever an unchecked world holds", () => {
+  const hostile = world([["a\nINJECTED | fake", null, ["src/\u001b[31mred.ts"], "\u001b[2Jclear\r\nnext"]]);
+  expect(renderTree(hostile, ".", null, 1)).toEqual(["a INJECTED | fake | src/ [31mred.ts | [2Jclear next"]);
 });
 
 test("TreeLines: an unchecked world's odd source or purpose prints, never crashes", () => {

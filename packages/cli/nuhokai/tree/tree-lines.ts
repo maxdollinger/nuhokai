@@ -26,11 +26,11 @@ export const TreeLines = node({
     },
     {
       id: "R2",
-      text: "source: the node's entries in authored order, joined by ', ', each named cwd-relative by Path.project (packages/cli/src/bin.ts under --path packages/cli); a node without source prints (none).",
+      text: "source: the node's entries in authored order, joined by ', ', each named cwd-relative by Path.inProject (packages/cli/src/bin.ts under --path packages/cli, an absolute entry as it is); a node without source prints (none).",
     },
     {
       id: "R3",
-      text: "purpose: the whole purpose, each whitespace run (newlines included) collapsed to one space, trimmed; one node is always one line.",
+      text: "purpose: the whole purpose. In every field each run of whitespace or control characters (newlines, escape sequences) is one space, trimmed: one node is always one line, and nothing in a world file reaches the terminal as a control code.",
     },
     {
       id: "R4",
@@ -64,11 +64,11 @@ export const TreeLines = node({
   decisions: [
     {
       decision:
-        "No escaping: the path never holds ' | ', and the purpose comes last, so a bar inside it stays the purpose's.",
-      why: "Lines stay readable as written; splitting on the first two ' | ' recovers the fields. A glob with a comma ({a,b}) reads ambiguous in the source field; rare, and the line is still right.",
+        "No escaping beyond R3: names are export identifiers and sources are paths, and the purpose comes last, so a bar inside it stays the purpose's.",
+      why: "Lines stay readable as written; splitting on the first two ' | ' recovers the fields. An unexported node named by an id holding ' | ', or a glob with a comma ({a,b}), reads ambiguous; rare, and the line is still one line.",
       rejected: [
         { option: "JSON or TSV output", why: "Harder to read and grep for people; agents read the plain line fine." },
       ],
     },
   ],
-}).edges({ uses: () => [Path.nodePaths, Path.project] });
+}).edges({ uses: () => [Path.nodePaths, Path.inProject] });

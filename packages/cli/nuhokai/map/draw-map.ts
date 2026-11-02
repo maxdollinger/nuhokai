@@ -22,7 +22,7 @@ export const DrawMap = node({
     { id: "R1", text: "Order: load, write, print; a load failure writes nothing." },
     {
       id: "R2",
-      text: "No world or a non-directory at nuhokai/ is LoadWorld's error (it inspects), printed like any load failure.",
+      text: "No world is a load failure like any other (LoadWorld R11): one line, exit 1.",
     },
   ],
   testCases: [

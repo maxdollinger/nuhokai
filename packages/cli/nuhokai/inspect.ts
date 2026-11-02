@@ -71,18 +71,12 @@ export const Inspect = node({
     },
     {
       decision: "requireWorld throws its own NoWorldError type.",
-      why: "check loads first and must stop on a missing world but still type-check a broken one; the load's errors are otherwise all CliError.",
-      rejected: [
-        {
-          option: "check calls requireWorld itself before loading",
-          why: "A second guard beside LoadWorld's, kept only to tell the two cases apart.",
-        },
-        { option: "Match the message", why: "Wording is the command's to change; a type is the contract." },
-      ],
+      why: "A caller that loads can tell 'nothing to work on' from 'broken world' (CheckWorld's order); the load's errors are otherwise all CliError.",
+      rejected: [{ option: "Match the message", why: "Wording is the command's to change; a type is the contract." }],
     },
     {
       decision: "requireWorld follows symlinks; inspect does not.",
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [Path.file] });
+}).edges({ uses: () => [Path.inWorld] });
