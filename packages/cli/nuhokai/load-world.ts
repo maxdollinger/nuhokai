@@ -1,4 +1,6 @@
 import { node } from "@nuhokai/world";
+import { BunRuntime } from "./externals/bun-runtime.ts";
+import { FileSystem } from "./externals/file-system.ts";
 import { Failure } from "./failure.ts";
 import { Inspect } from "./inspect.ts";
 import { Path } from "./path/path.ts";
@@ -179,4 +181,4 @@ export const LoadWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [Inspect.requireWorld, Path.inWorld, Failure.format] });
+}).edges({ uses: () => [Inspect.requireWorld, Path.inWorld, Failure.format, FileSystem.read, BunRuntime.evaluate] });

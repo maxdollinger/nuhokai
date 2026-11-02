@@ -1,4 +1,6 @@
 import { node } from "@nuhokai/world";
+import { FileSystem } from "../externals/file-system.ts";
+import { Tsgo } from "../externals/tsgo.ts";
 import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
 
@@ -38,4 +40,4 @@ export const TypeCheck = node({
       demonstrates: ["R2"],
     },
   ],
-}).edges({ uses: () => [Path.inWorld, Failure.format] });
+}).edges({ uses: () => [Path.inWorld, Failure.format, Tsgo.check, FileSystem.read] });

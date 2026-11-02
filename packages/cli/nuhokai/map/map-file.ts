@@ -1,4 +1,6 @@
 import { node } from "@nuhokai/world";
+import { BunRuntime } from "../externals/bun-runtime.ts";
+import { FileSystem } from "../externals/file-system.ts";
 import { Path } from "../path/path.ts";
 import { Viewer } from "./viewer.ts";
 
@@ -50,4 +52,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [Path.inWorld, Viewer.page] });
+}).edges({ uses: () => [Path.inWorld, Viewer.page, FileSystem.write, BunRuntime.build] });

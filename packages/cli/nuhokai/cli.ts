@@ -1,5 +1,9 @@
 import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
+import { BunRuntime } from "./externals/bun-runtime.ts";
+import { FileSystem } from "./externals/file-system.ts";
+import { Terminal } from "./externals/terminal.ts";
+import { Tsgo } from "./externals/tsgo.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { Tree } from "./tree/tree.ts";
@@ -156,4 +160,17 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, WorldMap.run, Check.run, Tree.run] });
+}).edges({
+  uses: () => [
+    Init.run,
+    WorldMap.run,
+    Check.run,
+    Tree.run,
+    Terminal.stdout,
+    Terminal.stderr,
+    FileSystem.read,
+    FileSystem.write,
+    Tsgo.emit,
+    BunRuntime.build,
+  ],
+});

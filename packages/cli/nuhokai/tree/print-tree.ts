@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Terminal } from "../externals/terminal.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { Path } from "../path/path.ts";
@@ -48,5 +49,13 @@ export const PrintTree = node({
     },
   ],
 }).edges({
-  uses: () => [LoadWorld.load, Path.findNode, TreeLines.render, Failure.format, Failure.isExpected],
+  uses: () => [
+    LoadWorld.load,
+    Path.findNode,
+    TreeLines.render,
+    Failure.format,
+    Failure.isExpected,
+    Terminal.stdout,
+    Terminal.stderr,
+  ],
 });

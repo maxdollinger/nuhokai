@@ -1,4 +1,6 @@
 import { node } from "@nuhokai/world";
+import { Browser } from "../externals/browser.ts";
+import { ThreeJs } from "../externals/three-js.ts";
 
 /** The map's page: what the browser draws from the loaded world. */
 export const Viewer = node({
@@ -201,4 +203,4 @@ export const Viewer = node({
       why: "The query's dimming overrides selection: a click under it would select out of sight.",
     },
   ],
-}).edges({});
+}).edges({ uses: () => [Browser.page, Browser.storage, ThreeJs.render] });

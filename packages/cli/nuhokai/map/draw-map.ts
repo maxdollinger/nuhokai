@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Terminal } from "../externals/terminal.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { MapFile } from "./map-file.ts";
@@ -33,5 +34,5 @@ export const DrawMap = node({
     },
   ],
 }).edges({
-  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
+  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected, Terminal.stdout, Terminal.stderr],
 });
