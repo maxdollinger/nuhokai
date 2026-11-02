@@ -44,7 +44,7 @@ export const PrintTree = node({
   testCases: [
     { text: "No world, or a file at nuhokai → one stderr line, exit 1, no stdout.", demonstrates: ["R2"] },
     {
-      text: "Throwing node file → one line naming the file, exit 1; tree Shop/Stok → \"nuhokai tree: no node 'Shop/Stok'; did you mean 'Shop/Stock'?\", exit 2, no stdout.",
+      text: "A node file that does not parse → one line naming the file, exit 1; tree Shop/Stok → \"nuhokai tree: no node 'Shop/Stok'; did you mean 'Shop/Stock'?\", exit 2, no stdout.",
       demonstrates: ["R1", "R3"],
     },
   ],

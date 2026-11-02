@@ -9,9 +9,7 @@ import type { InheritedPortRef, NodeId, NodeRef, PortKind, ResolvedPortRef } fro
  *
  * Fails to compile unless `node` lists the port's contract in `implements`.
  */
-export function inherited<K extends PortKind, Contract extends NodeId, Id extends NodeId>(
+export declare function inherited<K extends PortKind, Contract extends NodeId, Id extends NodeId>(
   node: NodeRef<boolean, boolean, Id, NoInfer<Contract>>,
   port: ResolvedPortRef<K, Contract>,
-): InheritedPortRef<K, Id> {
-  return Object.freeze({ $ref: "inherited", kind: port.kind, node, port }) as unknown as InheritedPortRef<K, Id>;
-}
+): InheritedPortRef<K, Id>;

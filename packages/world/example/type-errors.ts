@@ -47,11 +47,11 @@ export const usesDeletedPort = node(base).edges({
 
 export const domeExposesDeletedPort = node({
   ...base,
-  children: () => ({ after: After }),
-  ports: () => ({
+  children: [After],
+  ports: {
     // @ts-expect-error `remove` was deleted from After
     remove: After.remove,
-  }),
+  },
 }).edges({});
 
 // ─── Criterion 3: plain strings and forged references in edge positions ──
@@ -99,52 +99,64 @@ export const delegateInEdges = node({ ...base, ports: { place: { kind: "call", p
 });
 
 // ─── Domes: children ────────────────────────────────────────────────────
-// `children` is a function, so tsc reports a child rule on the `children` line, not on the child.
 
 const Draft = node(base);
 
 export const emptyChildren = node({
   ...base,
   // @ts-expect-error children must not be empty
-  children: () => ({}),
+  children: [],
 }).edges({});
 
 export const stringChild = node({
   ...base,
-  // @ts-expect-error a child is a node reference, not a string
-  children: () => ({ cmd: "cmd" }),
+  children: [
+    // @ts-expect-error a child is a node reference, not a string
+    "cmd",
+  ],
 }).edges({});
 
 export const draftChild = node({
   ...base,
-  // @ts-expect-error a draft is not a node until .edges() is called
-  children: () => ({ cmd: Draft }),
+  children: [
+    // @ts-expect-error a draft is not a node until .edges() is called
+    Draft,
+  ],
 }).edges({});
 
 export const portChild = node({
   ...base,
-  // @ts-expect-error a child is a node, not a port
-  children: () => ({ cmd: Cmd.run }),
+  children: [
+    // @ts-expect-error a child is a node, not a port
+    Cmd.run,
+  ],
 }).edges({});
 
 export const forgedChild = node({
   ...base,
-  // @ts-expect-error a spread drops the brand, so Shop's flags cannot be put on Cmd
-  children: () => ({ cmd: { ...Cmd, $def: Other.$def } }),
+  children: [
+    // @ts-expect-error a spread drops the brand, so a look-alike is no node
+    { ...Cmd },
+  ],
 }).edges({});
 
 export const externalChild = node({
   ...base,
-  // @ts-expect-error external nodes are top level only
-  children: () => ({ postgres: Postgres }),
+  children: [
+    Cmd,
+    // @ts-expect-error external nodes are top level only
+    Postgres,
+  ],
 }).edges({});
 
 declare const unknownFlag: boolean;
 const MaybeExternal = node({ ...base, external: unknownFlag }).edges({});
 export const maybeExternalChild = node({
   ...base,
-  // @ts-expect-error MaybeExternal may be external
-  children: () => ({ maybe: MaybeExternal }),
+  children: [
+    // @ts-expect-error MaybeExternal may be external
+    MaybeExternal,
+  ],
 }).edges({});
 
 // ─── Domes: flag rules ───────────────────────────────────────────────────
@@ -153,47 +165,47 @@ export const externalDome = node({
   ...base,
   external: true,
   // @ts-expect-error external nodes cannot have children: they are top level only
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
 }).edges({});
 
 export const abstractDome = node({
   ...base,
   abstract: true,
   // @ts-expect-error abstract nodes cannot have children
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
 }).edges({});
 
 export const maybeExternalDome = node({
   ...base,
   external: unknownFlag,
   // @ts-expect-error MaybeExternal may be external, so it cannot have children
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
 }).edges({});
 
 export const maybeAbstractDome = node({
   ...base,
   abstract: unknownFlag,
   // @ts-expect-error MaybeAbstract may be abstract, so it cannot have children
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
 }).edges({});
 
 export const domeWithExternalType = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
   // @ts-expect-error a dome is never external, so externalType is for external nodes only
   externalType: "db",
 }).edges({});
 
-export const domeUses = node({ ...base, children: () => ({ cmd: Cmd }) }).edges({
+export const domeUses = node({ ...base, children: [Cmd] }).edges({
   // @ts-expect-error a dome has no behavior of its own: put uses in one of its children
   uses: () => [Stock.reserve],
 });
 
-export const domeWithPortsRecord = node({
+export const domeWithPortsFunction = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
-  // @ts-expect-error a dome's ports are a function that references child ports
-  ports: { run: Cmd.run },
+  children: [Cmd],
+  // @ts-expect-error a dome's ports are a record of its children's ports, not a function
+  ports: () => ({ run: Cmd.run }),
 }).edges({});
 
 export const leafWithPortsFunction = node({
@@ -206,76 +218,76 @@ export const leafWithPortsFunction = node({
 
 export const portOfNonChild = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
-  // @ts-expect-error Other is not one of this dome's direct children
-  ports: () => ({
+  children: [Cmd],
+  ports: {
+    // @ts-expect-error Other is not one of this dome's direct children
     run: Other.run,
-  }),
+  },
 }).edges({});
 
 const Inner = node({
   ...base,
   id: "01a16dd2-bc47-74bf-84dd-c156e496d92de",
-  children: () => ({ cmd: Cmd }),
-  ports: (c) => ({ run: c.cmd.ports.run }),
+  children: [Cmd],
+  ports: { run: Cmd.run },
 }).edges({});
 export const grandchildPort = node({
   ...base,
-  children: () => ({ inner: Inner }),
-  // @ts-expect-error Cmd is a grandchild, not a direct child
-  ports: () => ({
+  children: [Inner],
+  ports: {
+    // @ts-expect-error Cmd is a grandchild, not a direct child
     run: Cmd.run,
-  }),
+  },
 }).edges({});
 
 export const placeholderAsDomePort = node({
   ...base,
-  children: () => ({ stock: Stock }),
-  // @ts-expect-error a placeholder is not a child's port
-  ports: () => ({
+  children: [Stock],
+  ports: {
+    // @ts-expect-error a placeholder is not a child's port
     notify: notifyCustomer,
-  }),
+  },
 }).edges({});
 
 export const emptyDomePortName = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
-  // @ts-expect-error port names must not be empty
-  ports: () => ({
+  children: [Cmd],
+  ports: {
+    // @ts-expect-error port names must not be empty
     "": Cmd.run,
-  }),
+  },
 }).edges({});
 
 export const reservedDomePortName = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
-  // @ts-expect-error `ports` is reserved for the handle's port namespace
-  ports: () => ({
+  children: [Cmd],
+  ports: {
+    // @ts-expect-error `ports` is reserved for the handle's port namespace
     ports: Cmd.run,
-  }),
+  },
 }).edges({});
 
 const wideDomePorts: Record<string, typeof Cmd.run> = { run: Cmd.run };
 export const wideDomePortRecord = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
+  children: [Cmd],
   // @ts-expect-error port names must be known statically
-  ports: () => wideDomePorts,
+  ports: wideDomePorts,
 }).edges({});
 
 // Valid: a dome without public ports is still a container.
-export const silentDome = node({ ...base, children: () => ({ cmd: Cmd }) }).edges({});
+export const silentDome = node({ ...base, children: [Cmd] }).edges({});
 
 // Valid: child ports under their own or a new name; nested domes compose.
 const App = node({
   ...base,
-  children: () => ({ cmd: Cmd }),
-  ports: (c) => ({ run: c.cmd.ports.run, stopped: c.cmd.ports.stopped }),
+  children: [Cmd],
+  ports: { run: Cmd.run, stopped: Cmd.stopped },
 }).edges({});
 export const composedDome = node({
   ...base,
-  children: () => ({ app: App }),
-  ports: (c) => ({ run: c.app.ports.run }),
+  children: [App],
+  ports: { run: App.run },
 }).edges({});
 
 // ─── Inherited ports ─────────────────────────────────────────────────────
@@ -284,8 +296,8 @@ export const usesInheritedPort = node(base).edges({ uses: () => [inherited(Order
 
 export const domeExposesInheritedPort = node({
   ...base,
-  children: () => ({ orders: Orders }),
-  ports: (c) => ({ history: inherited(c.orders, AuditLog.history) }),
+  children: [Orders],
+  ports: { history: inherited(Orders, AuditLog.history) },
 }).edges({});
 
 export const inheritedFromUnimplemented = node(base).edges({

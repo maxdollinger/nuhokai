@@ -38,11 +38,11 @@ export const Path = node({
       ],
     },
   ],
-  children: () => ({ worldPath: WorldPath, nodePath: NodePath }),
-  ports: (c) => ({
-    inWorld: c.worldPath.ports.inWorld,
-    inProject: c.worldPath.ports.inProject,
-    nodePaths: c.nodePath.ports.nodePaths,
-    findNode: c.nodePath.ports.findNode,
-  }),
+  children: [WorldPath, NodePath],
+  ports: {
+    inWorld: WorldPath.inWorld,
+    inProject: WorldPath.inProject,
+    nodePaths: NodePath.nodePaths,
+    findNode: NodePath.findNode,
+  },
 }).edges({});

@@ -73,7 +73,7 @@ test("an orphan and an out-of-scope uses edge still get a map", async () => {
 import { Example } from "./example.ts";
 
 export const Inner = node({ id: "inner", purpose: "i", status: "planned", source: [], ports: { x: { kind: "call", purpose: "x" } } }).edges({});
-export const Box = node({ id: "box", purpose: "b", status: "planned", source: [], children: () => ({ inner: Inner }), ports: () => ({}) }).edges({});
+export const Box = node({ id: "box", purpose: "b", status: "planned", source: [], children: [Inner], ports: {} }).edges({});
 // Out of scope: Inner sits inside Box's dome. Not in the world: an orphan.
 export const Orphan = node({ id: "orphan", purpose: "o", status: "planned", source: [] }).edges({ uses: () => [Inner.x, Example.greet] });
 `,
@@ -131,17 +131,17 @@ test("a symlinked nuhokai/ is the world: map draws it into the linked folder", a
   expect(existsSync(join(shared, MAP))).toBe(true);
 });
 
-test("a throwing node file: one line naming the file, exit 1, the previous map kept", async () => {
+test("a node file that does not parse: one line naming the file, exit 1, the previous map kept", async () => {
   const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
   expect(await runMap(repo, capture().environment)).toBe(0);
   const map = readFileSync(join(repo, MAP), "utf8");
-  writeFileSync(join(repo, "nuhokai/orders.ts"), 'throw new Error("orders\\nbroke");\n');
+  writeFileSync(join(repo, "nuhokai/orders.ts"), "export const orders = ;\n");
   const output = capture();
 
   expect(await runMap(repo, output.environment)).toBe(1);
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([`nuhokai map: ${repo}/nuhokai/orders.ts:1: orders broke`]);
+  expect(output.err).toEqual([`nuhokai map: ${repo}/nuhokai/orders.ts:1: Expression expected.`]);
   expect(readFileSync(join(repo, MAP), "utf8")).toBe(map);
 });
 

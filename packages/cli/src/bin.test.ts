@@ -116,9 +116,9 @@ test("--path names the project directory, against the cwd; without it the cwd is
     expect(out).toContain("packages/app/nuhokai/index.ts");
     expect(out.at(-1)).toBe("packages/app/nuhokai/.generated/map.html");
     // So are the paths in failures, the loader's included.
-    writeFileSync(join(project, "nuhokai/orders.ts"), 'throw new Error("boom");\n');
+    writeFileSync(join(project, "nuhokai/orders.ts"), "export const boom = ;\n");
     expect(await main(["map", "--path", "packages/app"])).toBe(1);
-    expect(err.at(-1)).toBe("nuhokai map: packages/app/nuhokai/orders.ts:1: boom");
+    expect(err.at(-1)).toBe("nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected.");
     expect(await main(["map", "--path", "packages"])).toBe(1);
     expect(err.at(-1)).toBe(
       "nuhokai map: no nuhokai/ in packages; run `nuhokai init --path packages` to start a world there",

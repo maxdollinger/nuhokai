@@ -46,12 +46,6 @@ export const Check = node({
       rejected: [{ option: "A tbd port", why: "tbd stands for an unknown target; this one is known." }],
     },
   ],
-  children: () => ({
-    checkWorld: CheckWorld,
-    typeCheck: TypeCheck,
-    specCheck: SpecCheck,
-    codeCheck: CodeCheck,
-    diagnostics: Diagnostics,
-  }),
-  ports: (c) => ({ run: c.checkWorld.ports.run }),
+  children: [CheckWorld, TypeCheck, SpecCheck, CodeCheck, Diagnostics],
+  ports: { run: CheckWorld.run },
 }).edges({});

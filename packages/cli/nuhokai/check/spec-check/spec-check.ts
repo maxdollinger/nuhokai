@@ -122,6 +122,6 @@ export const SpecCheck = node({
       rejected: [{ option: "FormatRules re-checks every tsc rule", why: "A second copy of the rules." }],
     },
   ],
-  children: () => ({ applyRules: ApplyRules, dataRules: DataRules, sourceRules: SourceRules }),
-  ports: (c) => ({ run: c.applyRules.ports.run }),
+  children: [ApplyRules, DataRules, SourceRules],
+  ports: { run: ApplyRules.run },
 }).edges({});
