@@ -221,20 +221,41 @@ function failingAt(error: unknown, paths: WorldPaths, imported: string): string 
   return at((error as { referrer?: string } | null)?.referrer, undefined) ?? imported;
 }
 
-/** Evaluate every world file in sorted order; each answers its exports, keyed by its name. */
+/**
+ * What to do about a binding read before its module ran: inside an import cycle a dome can still be reached through
+ * one of its children (a world file importing the child before the dome), and then reads the child too early.
+ */
+function withCycleHint(error: unknown): string {
+  const line = oneLine(error);
+  const name = error instanceof ReferenceError ? /^Cannot access '([^']+)' before initialization/.exec(line) : null;
+  return name
+    ? `${line.replace(/\.$/, "")}; an import cycle ran this file before the one defining ${name[1]}: import a dome before its children, never a child first`
+    : line;
+}
+
+/**
+ * Evaluate every world file, index.ts first, then the rest in sorted order; each answers its exports, keyed by its
+ * name, in sorted order.
+ *
+ * index.ts first, because a dome reads its children eagerly: inside an import cycle the module entered first runs
+ * last, so entering at a leaf whose `uses` imports lead back to its own dome runs the dome while the leaf's binding is
+ * still uninitialized. Entered from the world, the walk reaches each dome before its children, the order the world
+ * itself is read in.
+ */
 async function evaluate(root: string): Promise<{ modules: Module[]; paths: WorldPaths }> {
   const files = worldFiles(root);
   const paths = worldPaths(root, files);
-  const modules: Module[] = [];
+  const exports = new Map<string, Record<string, unknown>>();
   useCliWorldRuntime();
-  for (const path of files) {
+  for (const path of [WORLD_INDEX, ...files.filter((path) => path !== WORLD_INDEX)]) {
     const file = inWorld(root, path);
     try {
-      modules.push([file, (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>]);
+      exports.set(path, (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>);
     } catch (error) {
-      throw new CliError(`${failingAt(error, paths, file)}: ${oneLine(error)}`);
+      throw new CliError(`${failingAt(error, paths, file)}: ${withCycleHint(error)}`);
     }
   }
+  const modules = files.map((path): Module => [inWorld(root, path), exports.get(path) ?? {}]);
   return { modules, paths };
 }
 

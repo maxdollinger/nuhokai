@@ -37,6 +37,10 @@ export const LoadWorld = node({
       text: "Evaluates all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts. @nuhokai/world = the CLI's runtime, via a virtual module; no node_modules. Any other import resolves as Bun resolves it, never installed (bun --no-install); unresolvable → ordinary load error naming the importing file.",
     },
     {
+      id: "R12",
+      text: "Evaluation order: index.ts first, then every other world file in sorted order, so an import cycle through a dome (a child uses a node that uses the dome) is entered at the world and each dome runs after its children. A world file importing a child before its dome in such a cycle → the load error names the dome's file and says to import the dome first.",
+    },
+    {
       id: "R2",
       text: "Node = its NodeSpec per packages/world/README.md. Name: export name; exported twice → the defining file's (whose node() made it), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
@@ -120,11 +124,25 @@ export const LoadWorld = node({
       demonstrates: ["R1", "R2", "R5"],
     },
     {
+      text: "Dome Cmd with child Leaf (cmd/a-leaf.ts sorts first) using Caller, which uses Cmd.run → loads; index.ts importing Leaf before Cmd → one CliError at cmd/cmd.ts saying to import the dome first.",
+      demonstrates: ["R12"],
+    },
+    {
       text: "Barrel index.ts re-exporting Bad from zbad.ts → named Bad, a throwing Bad.uses blames nuhokai/zbad.ts; `export { Late as Early }` keeps Late.",
       demonstrates: ["R2", "R5"],
     },
   ],
   decisions: [
+    {
+      decision: "Evaluate index.ts first, not the first file in sorted order.",
+      why: "A dome reads its children when its file runs, and inside an import cycle the file entered first runs last: entered at a child, the dome runs before it. The world is read from index.ts down, so entering there reaches each dome before its children; outputs keep sorted file order.",
+      rejected: [
+        {
+          option: "Lazy children in the world format",
+          why: "Covers every import order, but changes the format for every world and moves the dome-port check out of node().",
+        },
+      ],
+    },
     {
       decision: "LoadWorld runs Inspect.requireWorld itself.",
       why: "Every load needs a world, and every caller guarded it the same way; one guard here cannot be forgotten by the next command.",

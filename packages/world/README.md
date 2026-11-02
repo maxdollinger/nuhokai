@@ -92,9 +92,12 @@ A compile-time check fails if the two drift apart.
   `uses` and is not generic. A node's type therefore never depends on a node that could point back, so files may
   reference each other in cycles without any type annotation. `.edges()` is required, also as `.edges({})`: a draft is
   not a node, and using one as a reference fails tsc.
-- **`implements` and `children` are in step one** (still lazy), because the handle's type records the contracts it
-  implements and the direct children a dome exposes. That is safe: `children` only points down, so it never forms a
-  type cycle. `uses` may point anywhere, also back, so it stays in `.edges()` (TS7022).
+- **`implements` and `children` are in step one**, because the handle's type records the contracts it implements and
+  the direct children a dome exposes. That is safe: `children` only points down, so it never forms a type cycle.
+  `uses` may point anywhere, also back, so it stays in `.edges()` (TS7022). `implements` is lazy; `children` is not:
+  a dome reads its children when its file runs, so in an import cycle through a dome (a child uses a node that uses
+  the dome) the dome's file must be imported before the child's. The CLI's loader starts at `nuhokai/index.ts`, which
+  does that as long as no world file imports a child ahead of its dome.
 - **Domes are containers, not code.** A node with children cannot be external or abstract, cannot have `uses`, and
   cannot author node-spec port definitions: every port must reference a direct child's port.
 - **Handles expose own ports only.** A handle has one property per own port (`Orders.place`) and the same references

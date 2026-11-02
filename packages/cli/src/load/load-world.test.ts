@@ -428,6 +428,60 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   }
 });
 
+/** A dome Cmd whose child Leaf (sorted first) uses Caller, which uses Cmd: one import cycle through the dome. */
+const CYCLE = {
+  "cmd/a-leaf.ts": `import { node } from "@nuhokai/world";
+import { Caller } from "../z-caller.ts";
+export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" } }')}).edges({ uses: () => [Caller.print] });
+`,
+  "cmd/cmd.ts": `import { node } from "@nuhokai/world";
+import { Leaf } from "./a-leaf.ts";
+export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: [], children: { leaf: Leaf }, ports: (c) => ({ run: c.leaf.ports.run }) }).edges({});
+`,
+  "z-caller.ts": `import { node } from "@nuhokai/world";
+import { Cmd } from "./cmd/cmd.ts";
+export const Caller = node(${leaf("caller", '{ print: { kind: "call", purpose: "print" } }')}).edges({ uses: () => [Cmd.run] });
+`,
+};
+
+test("an import cycle through a dome loads although a child sorts before it: index.ts is evaluated first", async () => {
+  const root = world({
+    ...CYCLE,
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Cmd } from "./cmd/cmd.ts";
+import { Caller } from "./z-caller.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
+  expect(loaded.files.map(({ file }) => file)).toEqual([
+    `${root}/nuhokai/cmd/cmd.ts`,
+    `${root}/nuhokai/cmd/a-leaf.ts`,
+    `${root}/nuhokai/z-caller.ts`,
+  ]);
+});
+
+test("a world file importing a child before its dome in that cycle is one load error saying how to fix it", async () => {
+  const root = world({
+    ...CYCLE,
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Leaf } from "./cmd/a-leaf.ts";
+import { Cmd } from "./cmd/cmd.ts";
+import { Caller } from "./z-caller.ts";
+export { Leaf };
+export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });
+`,
+  });
+
+  expect(((await loadError(root)) as Error).message).toBe(
+    `${root}/nuhokai/cmd/cmd.ts:3: Cannot access 'Leaf' before initialization; an import cycle ran this file before ` +
+      "the one defining Leaf: import a dome before its children, never a child first",
+  );
+});
+
 test("a throwing file imported by an earlier one is named, not its importer", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
