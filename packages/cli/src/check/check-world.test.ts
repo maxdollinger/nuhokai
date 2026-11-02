@@ -6,6 +6,7 @@ import { runInit } from "../init/scaffold.ts";
 import { runCheck } from "./check-world.ts";
 import * as codeCheck from "./code-check.ts";
 import * as specCheck from "./spec-check/apply-rules.ts";
+import * as typeCheck from "./type-check.ts";
 
 const roots: string[] = [];
 
@@ -82,6 +83,29 @@ test("Check R1: no world is one 'nuhokai check: ' stderr line, exit 1", async ()
     out: [],
     err: ["nuhokai check: no nuhokai/ in <root>; run `nuhokai init --path <root>` to start a world there"],
   });
+});
+
+test("CheckWorld R4: no world, or a file at nuhokai, is LoadWorld's one line and TypeCheck never runs", async () => {
+  const empty = mkdtempSync(join(tmpdir(), "nuhokai-check-test-"));
+  const occupied = mkdtempSync(join(tmpdir(), "nuhokai-check-test-"));
+  roots.push(empty, occupied);
+  writeFileSync(join(occupied, "nuhokai"), "not a world");
+  const types = spyOn(typeCheck, "runTypeCheck");
+  try {
+    expect(await check(empty)).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai check: no nuhokai/ in <root>; run `nuhokai init --path <root>` to start a world there"],
+    });
+    expect(await check(occupied)).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai check: <root>/nuhokai exists but is not a directory"],
+    });
+    expect(types).not.toHaveBeenCalled();
+  } finally {
+    types.mockRestore();
+  }
 });
 
 test("CheckWorld R1: a syntax error in a node file is its tsc error line, then one stderr line, exit 1; SpecCheck never runs", async () => {

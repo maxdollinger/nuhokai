@@ -19,8 +19,8 @@ export const LoadWorld = node({
       output:
         "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
-        "no world at nuhokai/: names init",
-        "non-directory at nuhokai/",
+        "NoWorldError: no world at nuhokai/, naming init",
+        "NoWorldError: non-directory at nuhokai/",
         "no nuhokai/index.ts",
         "world file failed to evaluate",
         "default export not a world",
@@ -69,7 +69,7 @@ export const LoadWorld = node({
     },
     {
       id: "R11",
-      text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its error, nothing evaluated. Callers never inspect for the load's sake.",
+      text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its NoWorldError, nothing evaluated; every other load error is a plain CliError. Callers never inspect for the load's sake.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
@@ -81,7 +81,7 @@ export const LoadWorld = node({
   ],
   testCases: [
     {
-      text: "No nuhokai/, or a file there → Inspect's one error (naming init when absent), nothing evaluated.",
+      text: "No nuhokai/, or a file there → one NoWorldError (naming init when absent), nothing evaluated; a missing index.ts → a CliError that is no NoWorldError.",
       demonstrates: ["R11"],
     },
     {

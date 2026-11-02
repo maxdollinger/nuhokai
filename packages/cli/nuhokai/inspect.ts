@@ -22,7 +22,7 @@ export const Inspect = node({
       purpose: "Continue only if a world is there",
       input: "project directory, cwd-relative",
       output: "nothing; a world is there",
-      errors: ["no nuhokai/ there: names init", "nuhokai exists but is not a directory"],
+      errors: ["NoWorldError: no nuhokai/ there, naming init", "NoWorldError: nuhokai exists but is not a directory"],
     },
   },
   requirements: [
@@ -32,6 +32,10 @@ export const Inspect = node({
     {
       id: "R4",
       text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path, except a symlink to a directory; world passes.",
+    },
+    {
+      id: "R5",
+      text: "requireWorld's errors are NoWorldError, a CliError of its own type: expected like any CliError (Failure R1), and told apart from every other failure by type, never by message.",
     },
     { id: "C1", kind: "constraint", text: "Reads only; no writes, repair or content checks." },
   ],
@@ -62,8 +66,19 @@ export const Inspect = node({
     },
     {
       decision:
-        "LoadWorld, check and new share requireWorld; map and tree get it through LoadWorld; init reads inspect itself, since absent is where it creates.",
+        "LoadWorld and new call requireWorld; map, tree and check get it through LoadWorld; init reads inspect itself, since absent is where it creates.",
       why: "The commands that need a world fail alike, in the same words.",
+    },
+    {
+      decision: "requireWorld throws its own NoWorldError type.",
+      why: "check loads first and must stop on a missing world but still type-check a broken one; the load's errors are otherwise all CliError.",
+      rejected: [
+        {
+          option: "check calls requireWorld itself before loading",
+          why: "A second guard beside LoadWorld's, kept only to tell the two cases apart.",
+        },
+        { option: "Match the message", why: "Wording is the command's to change; a type is the contract." },
+      ],
     },
     {
       decision: "requireWorld follows symlinks; inspect does not.",
