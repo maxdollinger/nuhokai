@@ -1,6 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "./failure.ts";
-import { WorldPath } from "./world-path.ts";
+import { Inspect } from "./inspect.ts";
+import { Path } from "./path/path.ts";
 
 /** The world as plain NodeSpec data. Evaluates, judges nothing. */
 export const LoadWorld = node({
@@ -18,6 +19,8 @@ export const LoadWorld = node({
       output:
         "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
       errors: [
+        "NoWorldError: no world at nuhokai/, naming init",
+        "NoWorldError: non-directory at nuhokai/",
         "no nuhokai/index.ts",
         "world file failed to evaluate",
         "default export not a world",
@@ -64,6 +67,10 @@ export const LoadWorld = node({
       id: "R10",
       text: "parents: each node's parent as its position in nodes, null at the top level; in nodes order; unambiguous under duplicate ids.",
     },
+    {
+      id: "R11",
+      text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its NoWorldError, nothing evaluated; every other load error is a plain CliError. Callers never inspect for the load's sake.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     { id: "C2", kind: "constraint", text: "Writes, spawns, prompts nothing." },
     {
@@ -73,6 +80,10 @@ export const LoadWorld = node({
     },
   ],
   testCases: [
+    {
+      text: "No nuhokai/, or a file there → one NoWorldError (naming init when absent), nothing evaluated; a missing index.ts → a CliError that is no NoWorldError.",
+      demonstrates: ["R11"],
+    },
     {
       text: "After init, no node_modules: loads init's world id, Example (named by export) and its tbd placeholder.",
       demonstrates: ["R1", "R2", "R4", "R6"],
@@ -113,8 +124,15 @@ export const LoadWorld = node({
   ],
   decisions: [
     {
+      decision: "LoadWorld runs Inspect.requireWorld itself.",
+      why: "Every load needs a world, and every caller guarded it the same way; one guard here cannot be forgotten by the next command.",
+      rejected: [
+        { option: "Each caller inspects before loading", why: "A copy per command (map, check, tree) for one rule." },
+      ],
+    },
+    {
       decision:
-        "Top-level shared loader for map and check; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
+        "Top-level shared loader for map, check and tree; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
       why: "map and check need the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
     },
     {
@@ -161,4 +179,4 @@ export const LoadWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.file, Failure.format] });
+}).edges({ uses: () => [Inspect.requireWorld, Path.inWorld, Failure.format] });

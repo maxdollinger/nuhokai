@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 import { Viewer } from "./viewer.ts";
 
 /** The map file: its bytes and where they go; the drawing is Viewer's. */
@@ -50,4 +50,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [WorldPath.file, Viewer.page] });
+}).edges({ uses: () => [Path.inWorld, Viewer.page] });

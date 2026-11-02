@@ -38,7 +38,7 @@ function parsePath(argument: string): NodePath {
   const bad = segments.some((segment) => !SEGMENT.test(segment));
   if (bad || last === RESERVED) {
     throw new CliError(
-      `invalid node path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
+      `invalid file path '${argument}': segments are kebab-case, have no extension, and the last one is not ${RESERVED}`,
     );
   }
   return { segments, name: pascalCase(last) };

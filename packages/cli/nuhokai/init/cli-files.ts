@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 
 /** The files the CLI itself owns inside a world. */
 export const CliFiles = node({
@@ -51,4 +51,4 @@ export const CliFiles = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.file] });
+}).edges({ uses: () => [Path.inWorld] });

@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 import { defineWorld } from "@nuhokai/world";
 import { runInit } from "../init/scaffold.ts";
 import { CliError } from "../shared/failure.ts";
+import { NoWorldError } from "../shared/inspect.ts";
 import { loadWorld } from "./load-world.ts";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -67,6 +68,26 @@ async function loadError(root: string): Promise<unknown> {
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+test("no nuhokai/, or a file there, is one NoWorldError and nothing is evaluated; a missing index.ts is no NoWorldError", async () => {
+  const empty = tempDir();
+  const absent = await loadError(empty);
+  expect(absent).toBeInstanceOf(NoWorldError);
+  expect((absent as Error).message).toBe(
+    `no nuhokai/ in ${empty}; run \`nuhokai init --path ${empty}\` to start a world there`,
+  );
+
+  const occupied = tempDir();
+  writeFileSync(join(occupied, "nuhokai"), "not a world");
+  const blocked = await loadError(occupied);
+  expect(blocked).toBeInstanceOf(NoWorldError);
+  expect((blocked as Error).message).toBe(`${occupied}/nuhokai exists but is not a directory`);
+
+  const indexless = world({ "a.ts": "export const a = 1;\n" });
+  const missing = await loadError(indexless);
+  expect(missing).toBeInstanceOf(CliError);
+  expect(missing).not.toBeInstanceOf(NoWorldError);
 });
 
 test("after init, without node_modules, loads Example named by its export plus its placeholder", async () => {

@@ -1,7 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
-import { WorldPath } from "../world-path.ts";
+import { Path } from "../path/path.ts";
 import { Publish } from "./publish.ts";
 
 /** The program inside Init's boundary. */
@@ -47,5 +47,5 @@ export const Scaffold = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.inspect, WorldPath.file, Failure.format, Failure.isExpected, Publish.run],
+  uses: () => [Inspect.inspect, Path.inWorld, Failure.format, Failure.isExpected, Publish.run],
 });

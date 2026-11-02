@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Path } from "../../path/path.ts";
 
 /** The rules that read the filesystem: R6, R7, R10. */
 export const SourceRules = node({
@@ -29,4 +30,4 @@ export const SourceRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({});
+}).edges({ uses: () => [Path.nodePaths] });

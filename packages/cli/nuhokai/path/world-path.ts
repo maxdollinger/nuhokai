@@ -1,19 +1,26 @@
 import { node } from "@nuhokai/world";
 
-/** The world's folder layout, and the one name of a path inside it. Pure. */
+/** The world's folder layout, and the one name of a path inside it or the project. Pure. */
 export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
-    "/-separated name of a path in it, which opens as printed. Pure: no I/O.",
+    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O.",
   status: "built",
   source: ["src/shared/paths.ts"],
   ports: {
-    file: {
+    inWorld: {
       kind: "call",
       purpose: "Name a file in the world, cwd-relative",
       input: "project directory (cwd-relative), segments inside nuhokai/",
       output: "<project directory>/nuhokai/<segments>, / separators; nuhokai/<segments> for the cwd",
+      errors: [],
+    },
+    inProject: {
+      kind: "call",
+      purpose: "Name a path in the project directory, cwd-relative",
+      input: "project directory (cwd-relative), a /-separated path or glob relative to it, as a source entry is",
+      output: "<project directory>/<path>, / separators; <path> unchanged for the cwd or an absolute path",
       errors: [],
     },
   },
@@ -28,26 +35,34 @@ export const WorldPath = node({
     },
     {
       id: "R3",
-      text: "Segments appended as given: no validation, normalization, extension or renaming. Which paths a command may create is that command's rule.",
+      text: "Segments joined as given, . and .. resolved as a path join does: no validation, extension or renaming. Which paths a command may create is that command's rule.",
     },
     {
       id: "R4",
       text: "The name is both the path read or written and the one printed on stdout/stderr: packages/cli/nuhokai/... under --path packages/cli, nuhokai/... in the cwd.",
     },
+    {
+      id: "R5",
+      text: "inProject: project directory + path as R2 joins it, without nuhokai/; a glob's characters (* ? [ ] { }) pass unchanged, so src/** under --path packages/cli is packages/cli/src/**; an absolute path stays as it is.",
+    },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
   ],
   testCases: [
     {
-      text: "file('packages/cli', 'new', 'stock-order.ts') → packages/cli/nuhokai/new/stock-order.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
+      text: "inWorld('packages/cli', 'new', 'stock-order.ts') → packages/cli/nuhokai/new/stock-order.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "file('.', '.generated/map.html') → nuhokai/.generated/map.html; file('.') → nuhokai, never ./nuhokai; absolute directory → absolute name.",
+      text: "inWorld('.', '.generated/map.html') → nuhokai/.generated/map.html; inWorld('.') → nuhokai, never ./nuhokai; absolute directory → absolute name.",
       demonstrates: ["R2", "R4"],
     },
     {
       text: "Segment with dots, uppercase or a leading dash passes unchanged; no call creates, reads or stats anything.",
       demonstrates: ["R3", "C1"],
+    },
+    {
+      text: "inProject('packages/cli', 'src/bin.ts') → packages/cli/src/bin.ts; inProject('.', 'src/**') → src/**, never ./src/**; inProject('packages/cli', '/etc/x') → /etc/x.",
+      demonstrates: ["R5"],
     },
   ],
   decisions: [

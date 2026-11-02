@@ -1,10 +1,9 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
-import { Inspect } from "../inspect.ts";
 import { LoadWorld } from "../load-world.ts";
 import { MapFile } from "./map-file.ts";
 
-/** The program inside WorldMap: inspect, load, write, print. */
+/** The program inside WorldMap: load, write, print. */
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
   purpose: "The program inside WorldMap: order and exit codes only.",
@@ -20,8 +19,11 @@ export const DrawMap = node({
     },
   },
   requirements: [
-    { id: "R1", text: "Order: inspect, load, write, print; a load failure writes nothing." },
-    { id: "R2", text: "absent → error naming init; occupied → error; world → load and write." },
+    { id: "R1", text: "Order: load, write, print; a load failure writes nothing." },
+    {
+      id: "R2",
+      text: "No world is a load failure like any other (LoadWorld R11): one line, exit 1.",
+    },
   ],
   testCases: [
     { text: "No world, or a file at nuhokai → one stderr line, exit 1, nothing written.", demonstrates: ["R2"] },
@@ -31,5 +33,5 @@ export const DrawMap = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.requireWorld, LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
+  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
 });

@@ -6,13 +6,13 @@ import { NodeFile } from "./node-file.ts";
 export const New = node({
   id: "01a17950-b221-711f-90af-db2521515c8d",
   purpose:
-    "Add one node file to an existing world: nuhokai/<node-path>.ts with a fresh uuidv7 and TODO: placeholders. Never edits, overwrites, loads or checks. run → AddNode.",
+    "Add one node file to an existing world: nuhokai/<file-path>.ts with a fresh uuidv7 and TODO: placeholders. Never edits, overwrites, loads or checks. run → AddNode.",
   status: "building",
   source: ["src/new/**"],
   requirements: [
     {
       id: "R1",
-      text: "Exactly one new file, nuhokai/<node-path>.ts, plus missing parent directories; no other file changes; it loads as one planned leaf.",
+      text: "Exactly one new file, nuhokai/<file-path>.ts, plus missing parent directories; no other file changes; it loads as one planned leaf.",
     },
     {
       id: "R2",
@@ -21,7 +21,7 @@ export const New = node({
     {
       id: "C1",
       kind: "constraint",
-      text: "One argument, the node path. Cli owns count, --help and --path; New owns the path rule.",
+      text: "One argument, the file path. Cli owns count, --help and --path; New owns the path rule.",
     },
   ],
   testCases: [

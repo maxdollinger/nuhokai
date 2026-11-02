@@ -1,6 +1,6 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { isExpected, oneLine } from "../shared/failure.ts";
-import { requireWorld } from "../shared/inspect.ts";
+import { NoWorldError } from "../shared/inspect.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
 import { runSpecCheck } from "./spec-check/index.ts";
@@ -43,10 +43,11 @@ function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | und
 }
 
 /**
- * The check command for the project directory `root`, named from the cwd: TypeCheck beside one load and SpecCheck,
- * then CodeCheck when neither found an error. Prints TypeCheck's findings, then SpecCheck's, then CodeCheck's, one
- * line each on stdout, and one 'nuhokai check: ' stderr line per failure; resolves to 0 without errors (warnings
- * allowed), else 1. Programming errors propagate and crash with their stack.
+ * The check command for the project directory `root`, named from the cwd: load once; without a world, stop there.
+ * Then TypeCheck beside SpecCheck, or TypeCheck alone when the load failed, then CodeCheck when neither found an
+ * error. Prints TypeCheck's findings, then SpecCheck's, then CodeCheck's, one line each on stdout, and one
+ * 'nuhokai check: ' stderr line per failure; resolves to 0 without errors (warnings allowed), else 1. Programming
+ * errors propagate and crash with their stack.
  */
 export async function runCheck(root: string, environment: CheckEnvironment = {}): Promise<number> {
   const out = environment.out ?? ((line: string) => console.log(line));
@@ -57,35 +58,41 @@ export async function runCheck(root: string, environment: CheckEnvironment = {})
     err(`nuhokai check: ${oneLine(failure)}`);
   };
 
-  try {
-    requireWorld(root);
-  } catch (failure) {
-    fail(failure);
+  const loaded = await outcome(() => loadWorld(root));
+  // No world: TypeCheck would only fail again for the same reason, so the one line is LoadWorld's.
+  if ("failure" in loaded && loaded.failure instanceof NoWorldError) {
+    fail(loaded.failure);
     return 1;
   }
-  const [typed, specced] = await Promise.all([
-    outcome(() => runTypeCheck(root)),
-    outcome(async () => {
-      const world = await loadWorld(root);
-      return { world, findings: runSpecCheck(root, world) };
-    }),
-  ]);
+  const typing = outcome(() => runTypeCheck(root));
+  /** TypeCheck's findings, named by the loaded world when there is one; its failure after them. */
+  const reportTypes = (typed: Outcome<Finding[]>, world: LoadedWorld | undefined): Finding[] => {
+    const findings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
+    for (const finding of findings) out(formatFinding(finding));
+    if ("failure" in typed) fail(typed.failure);
+    return findings;
+  };
 
-  const world = "value" in specced ? specced.value.world : undefined;
-  const typeFindings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
-  for (const finding of typeFindings) out(formatFinding(finding));
-  if ("failure" in typed) fail(typed.failure);
-  // A load failure ends the run after TypeCheck's findings.
+  // A broken world still gets every tsc finding, which say most about why it does not load; then the load failure.
+  if ("failure" in loaded) {
+    reportTypes(await typing, undefined);
+    fail(loaded.failure);
+    return 1;
+  }
+  const world = loaded.value;
+  const specced = await outcome(async () => runSpecCheck(root, world));
+  const typed = await typing;
+  const typeFindings = reportTypes(typed, world);
   if ("failure" in specced) {
     fail(specced.failure);
     return 1;
   }
-  const specFindings = specced.value.findings;
+  const specFindings = specced.value;
   for (const finding of specFindings) out(formatFinding(finding));
   const errors = [...typeFindings, ...specFindings].some((finding) => finding.severity === "error");
   if ("failure" in typed || errors) return 1;
 
-  const codeFindings = runCodeCheck(specced.value.world);
+  const codeFindings = runCodeCheck(world);
   for (const finding of codeFindings) out(formatFinding(finding));
   return codeFindings.some((finding) => finding.severity === "error") ? 1 : 0;
 }
