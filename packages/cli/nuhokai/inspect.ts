@@ -45,11 +45,11 @@ export const Inspect = node({
       demonstrates: ["R1", "R2", "R3"],
     },
     {
-      text: "new and map without a world print 'no nuhokai/ here; …' in the cwd, 'no nuhokai/ in app; …' under --path app, and name app/nuhokai for a file there.",
+      text: "check and map without a world print 'no nuhokai/ here; …' in the cwd, 'no nuhokai/ in app; …' under --path app, and name app/nuhokai for a file there.",
       demonstrates: ["R4"],
     },
     {
-      text: "nuhokai -> ../shared/nuhokai: inspect → occupied, so init refuses it; map and new work in the linked folder.",
+      text: "nuhokai -> ../shared/nuhokai: inspect → occupied, so init refuses it; map and check work in the linked folder.",
       demonstrates: ["R2", "R4"],
     },
   ],
@@ -66,7 +66,7 @@ export const Inspect = node({
     },
     {
       decision:
-        "LoadWorld and new call requireWorld; map, tree and check get it through LoadWorld; init reads inspect itself, since absent is where it creates.",
+        "LoadWorld calls requireWorld; map, tree and check get it through LoadWorld; init reads inspect itself, since absent is where it creates.",
       why: "The commands that need a world fail alike, in the same words.",
     },
     {

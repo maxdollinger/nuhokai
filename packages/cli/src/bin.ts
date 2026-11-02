@@ -3,10 +3,9 @@
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
-import { runNew } from "./new/index.ts";
 
-/** The commands the CLI exposes; `update` is planned, `check`, `init`, `map`, `new` and `tree` run today. */
-export const COMMANDS = ["check", "init", "map", "new", "tree", "update"] as const;
+/** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `tree` run today. */
+export const COMMANDS = ["check", "init", "map", "tree", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -14,7 +13,6 @@ const DESCRIPTIONS: Record<Command, string> = {
   check: "Load the world, run tsc and the global rules, print one diagnostics list",
   init: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
   map: "Draw the world into nuhokai/.generated/map.html, a self-contained 3D map",
-  new: "Add one node file with a fresh id and TODO placeholders to an existing world",
   tree: "Print the node hierarchy, one line per node: path | source | purpose",
   update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of an existing world",
 };
@@ -24,22 +22,20 @@ const SYNOPSIS: Record<Command, string> = {
   check: "nuhokai check",
   init: "nuhokai init",
   map: "nuhokai map",
-  new: "nuhokai new <file-path>",
   tree: "nuhokai tree [node] [-L <n>]",
   update: "nuhokai update",
 };
 
-/** How many positional arguments each command takes, at least and at most; the value is the command's to validate. */
-const ARITY: Record<Command, readonly [min: number, max: number]> = {
-  check: [0, 0],
-  init: [0, 0],
-  map: [0, 0],
-  new: [1, 1],
-  tree: [0, 1],
-  update: [0, 0],
+/** How many positional arguments each command takes at most, all optional; the value is the command's to validate. */
+const ARITY: Record<Command, number> = {
+  check: 0,
+  init: 0,
+  map: 0,
+  tree: 1,
+  update: 0,
 };
 
-/** Help before a command; after one only the flags are help, so `nuhokai new help` adds nuhokai/help.ts. */
+/** Help before a command; after one only the flags are help, so `nuhokai tree help` starts from a node named help. */
 const HELP_WORDS = ["help", "--help", "-h"] as const;
 const HELP_FLAGS = ["--help", "-h"] as const;
 
@@ -75,7 +71,6 @@ const OPTIONS: Record<Command, readonly Option[]> = {
   check: [],
   init: [],
   map: [],
-  new: [],
   tree: [LEVEL_OPTION],
   update: [],
 };
@@ -217,14 +212,9 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: not a directory: ${path ?? "."}\n\n${commandUsage(first)}`);
     return 2;
   }
-  const [min, max] = ARITY[first];
+  const max = ARITY[first];
   if (rest.length > max) {
     console.error(`nuhokai ${first}: unexpected argument '${rest[max]}'\n\n${commandUsage(first)}`);
-    return 2;
-  }
-  if (rest.length < min) {
-    const expected = min === 1 ? "1 argument" : `${min} arguments`;
-    console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
     return 2;
   }
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
@@ -240,7 +230,6 @@ export async function main(argv: readonly string[]): Promise<number> {
     const { runMap } = await import("./map/index.ts");
     return runMap(root);
   }
-  if (first === "new") return runNew(root, rest[0] ?? "");
   if (first === "tree") {
     const { runTree } = await import("./tree/index.ts");
     return runTree(root, rest[0], level);

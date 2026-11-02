@@ -29,12 +29,17 @@ bare "$dist/nuhokai" map
 test -s nuhokai/.generated/map.html
 bare "$dist/tsgo/tsgo" -p nuhokai
 
-bare "$dist/nuhokai" new broken
-{
-  echo 'import { Example } from "./example.ts";'
-  sed 's/}).edges({});/}).edges({ uses: () => [Example.gret] });/' nuhokai/broken.ts
-} >"$work/broken.ts"
-mv "$work/broken.ts" nuhokai/broken.ts
+cat >nuhokai/broken.ts <<'TS'
+import { node } from "@nuhokai/world";
+import { Example } from "./example.ts";
+
+export const Broken = node({
+  id: "01a17950-b221-7124-8356-08fd2fee0888",
+  purpose: "Uses a port Example does not have",
+  status: "planned",
+  source: [],
+}).edges({ uses: () => [Example.gret] });
+TS
 
 if output="$(bare "$dist/tsgo/tsgo" -p nuhokai)"; then
   echo "smoke: tsgo accepted a dangling ref" >&2

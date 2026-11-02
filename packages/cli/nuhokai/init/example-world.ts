@@ -58,7 +58,7 @@ export const ExampleWorld = node({
         },
         {
           option: "A fresh Example id per run",
-          why: "Node ids are unique per world only and per-world state is keyed by world id; `new` generates an id per authored node.",
+          why: "Node ids are unique per world only and per-world state is keyed by world id; each authored node gets its own id.",
         },
       ],
     },

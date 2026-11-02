@@ -2,7 +2,6 @@ import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
-import { New } from "./new/new.ts";
 import { Tree } from "./tree/tree.ts";
 
 /** The command surface: argv, usage, exit codes and dispatch to the command nodes. */
@@ -46,7 +45,7 @@ export const Cli = node({
     },
     {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, update, map none; new exactly one; tree at most one. Wrong count → argument error (2), command never runs; too many names the first extra ('unexpected argument 'x''). A dash argument other than --path, --help, -h and tree's R8 options → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, update, map none; tree at most one. Too many → argument error (2) naming the first extra ('unexpected argument 'x''), command never runs. A dash argument other than --path, --help, -h and tree's R8 options → 'unknown option', exit 2, command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
@@ -62,16 +61,12 @@ export const Cli = node({
   ],
   testCases: [
     {
-      text: "Usage lists every command with its argument form (`nuhokai new <file-path>` visible); --help, `nuhokai init --help`, `nuhokai new --help` exit 0.",
+      text: "Usage lists every command with its argument form (`nuhokai tree [node] [-L <n>]` visible); --help, `nuhokai init --help`, `nuhokai tree --help` exit 0.",
       demonstrates: ["R3"],
     },
     {
       text: "Unknown command → usage on stderr, exit 2; a command's non-zero exit reaches the process unchanged.",
       demonstrates: ["R2", "R3"],
-    },
-    {
-      text: "`nuhokai new new/stock-order` passes new/stock-order to New unchanged; `nuhokai new`, `nuhokai new a b` → argument error, New never runs.",
-      demonstrates: ["R6"],
     },
     {
       text: "Empty node_modules: the checker reports only authored violations and rejects a non-relative import.",
@@ -86,11 +81,11 @@ export const Cli = node({
       demonstrates: ["R7"],
     },
     {
-      text: "`nuhokai help` prints usage; `nuhokai new help` writes nuhokai/help.ts; `nuhokai map help` → unexpected argument 'help', exit 2.",
+      text: "`nuhokai help` prints usage; `nuhokai tree help` reaches Tree with the node help; `nuhokai map help` → unexpected argument 'help', exit 2.",
       demonstrates: ["R3", "R6"],
     },
     {
-      text: "`map --pth out`, `init --force` → unknown option '--pth' / '--force' with usage, exit 2; `new a b c` → unexpected argument 'b'; nothing runs.",
+      text: "`map --pth out`, `init --force` → unknown option '--pth' / '--force' with usage, exit 2; `tree a b c` → unexpected argument 'b'; nothing runs.",
       demonstrates: ["R6"],
     },
     {
@@ -161,4 +156,4 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, New.run, WorldMap.run, Check.run, Tree.run] });
+}).edges({ uses: () => [Init.run, WorldMap.run, Check.run, Tree.run] });

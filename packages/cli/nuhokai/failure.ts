@@ -58,7 +58,7 @@ export const Failure = node({
     {
       decision:
         "One shared error type, classifier and formatter; each command keeps its own prefix, wording and exit code.",
-      why: "LoadWorld throws while Init, New, WorldMap, Check and Tree print, so the type must be shared for the expected-failure test to work across nodes; wording stays with the command that knows the context.",
+      why: "LoadWorld throws while Init, WorldMap, Check and Tree print, so the type must be shared for the expected-failure test to work across nodes; wording stays with the command that knows the context.",
       rejected: [
         {
           option: "Private error class and formatter per command",

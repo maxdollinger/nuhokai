@@ -10,8 +10,8 @@ import {
 } from "./paths.ts";
 
 test("a file in the world, named from the cwd: under the project directory, with / separators", () => {
-  expect(inWorld("packages/cli", "new", "stock-order.ts")).toBe("packages/cli/nuhokai/new/stock-order.ts");
-  expect(inWorld("/repo", "new", "stock-order.ts")).toBe("/repo/nuhokai/new/stock-order.ts");
+  expect(inWorld("packages/cli", "stock", "reserve.ts")).toBe("packages/cli/nuhokai/stock/reserve.ts");
+  expect(inWorld("/repo", "stock", "reserve.ts")).toBe("/repo/nuhokai/stock/reserve.ts");
 });
 
 test("the cwd as project directory adds no ./ prefix", () => {

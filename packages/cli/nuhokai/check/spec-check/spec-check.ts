@@ -75,7 +75,7 @@ export const SpecCheck = node({
       demonstrates: ["R6"],
     },
     {
-      text: "Two siblings claiming src/shared.ts → error naming both and the file; a dome's src/new/** over its child's src/new/add-node.ts passes.",
+      text: "Two siblings claiming src/shared.ts → error naming both and the file; a dome's src/map/** over its child's src/map/draw-map.ts passes.",
       demonstrates: ["R7"],
     },
     {

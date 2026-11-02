@@ -49,7 +49,7 @@ export const WorldPath = node({
   ],
   testCases: [
     {
-      text: "inWorld('packages/cli', 'new', 'stock-order.ts') → packages/cli/nuhokai/new/stock-order.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
+      text: "inWorld('packages/cli', 'stock', 'reserve.ts') → packages/cli/nuhokai/stock/reserve.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
       demonstrates: ["R1", "R2"],
     },
     {
