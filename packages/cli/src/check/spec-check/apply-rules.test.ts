@@ -240,8 +240,8 @@ export const C = node({ id: "c", purpose: "p", status: "planned", source: ${clai
 export const Dome = node({ id: "dome", purpose: "p", status: "planned", source: ${claims.Dome ?? "[]"}, children: { c: C }, ports: () => ({}) }).edges({});
 `,
   "src/shared.ts": "",
-  "src/new/add-node.ts": "",
-  "src/new/node-file.ts": "",
+  "src/map/draw-map.ts": "",
+  "src/map/map-file.ts": "",
   "scripts/x.ts": "",
   ...extra,
 });
@@ -277,8 +277,8 @@ test("R7: two siblings claiming src/shared.ts is an error naming both and the fi
   ]);
 });
 
-test("R7: a dome's src/new/** over its child's src/new/add-node.ts passes", async () => {
-  expect(await check(project(SOURCES({ Dome: `["src/new/**"]`, C: `["src/new/add-node.ts"]` })))).toEqual([]);
+test("R7: a dome's src/map/** over its child's src/map/draw-map.ts passes", async () => {
+  expect(await check(project(SOURCES({ Dome: `["src/map/**"]`, C: `["src/map/draw-map.ts"]` })))).toEqual([]);
 });
 
 test("R10: world source ['src/**'] and a node claiming scripts/x.ts is an error naming the node and the entry", async () => {

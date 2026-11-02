@@ -6,7 +6,6 @@ import { Init } from "./init/init.ts";
 import { Inspect } from "./inspect.ts";
 import { LoadWorld } from "./load-world.ts";
 import { WorldMap } from "./map/world-map.ts";
-import { New } from "./new/new.ts";
 import { Path } from "./path/path.ts";
 import { Tree } from "./tree/tree.ts";
 
@@ -14,7 +13,7 @@ import { Tree } from "./tree/tree.ts";
 export default defineWorld({
   id: "01a17bb5-b066-71d1-9cc3-aa3378eae8e1",
   name: "@nuhokai/cli",
-  description: "The toolchain around the world format: init, new, map, check and tree.",
+  description: "The toolchain around the world format: init, map, check and tree.",
   source: ["src/**", "scripts/**"],
-  children: [Cli, Init, New, WorldMap, Check, Tree, Inspect, LoadWorld, Path, Failure],
+  children: [Cli, Init, WorldMap, Check, Tree, Inspect, LoadWorld, Path, Failure],
 });

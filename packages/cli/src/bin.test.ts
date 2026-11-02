@@ -52,16 +52,7 @@ test("`nuhokai init --help` prints init's help and exits 0", async () => {
   expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
-test("`nuhokai new --help` shows that new takes a file path", async () => {
-  expect(await logged(["new", "--help"])).toEqual([0, [commandUsage("new")]]);
-  expect(commandUsage("new")).toContain("Usage: nuhokai new <file-path>");
-});
-
 test("Cli enforces the argument count without validating the argument", async () => {
-  expect(await main(["new"])).toBe(2);
-  expect(await main(["new", "a", "b"])).toBe(2);
-  // The count is the dispatcher's; the value is New's, which rejects this one with its own 2.
-  expect(await main(["new", "new/StockOrder"])).toBe(2);
   expect(await main(["init", "extra"])).toBe(2);
 });
 
@@ -153,7 +144,7 @@ test("a --path without a value, given twice or not a directory is a usage error 
     expect(await main(["init", "--path", join(dir, "missing")])).toBe(2);
     expect(await main(["init", "--path", file])).toBe(2);
     expect(await main(["map", `--path=${file}/x`])).toBe(2);
-    expect(await main(["new", "a", "--path"])).toBe(2);
+    expect(await main(["tree", "a", "--path"])).toBe(2);
     expect(await main(["map", "--path", "--help"])).toBe(2);
   } finally {
     console.error = error;
@@ -164,7 +155,7 @@ test("a --path without a value, given twice or not a directory is a usage error 
     `nuhokai init: not a directory: ${join(dir, "missing")}`,
     `nuhokai init: not a directory: ${file}`,
     `nuhokai map: not a directory: ${file}/x`,
-    "nuhokai new: --path needs a directory",
+    "nuhokai tree: --path needs a directory",
     "nuhokai map: --path needs a directory",
   ]);
   expect(readdirSync(dir)).toEqual(["file"]);
@@ -190,18 +181,15 @@ async function failed(argv: string[]): Promise<[number, string[]]> {
 
 test("before a command `help` is help; after one only -h and --help are", async () => {
   expect(await logged(["help"])).toEqual([0, [usage()]]);
-  expect(await logged(["new", "-h"])).toEqual([0, [commandUsage("new")]]);
+  expect(await logged(["tree", "-h"])).toEqual([0, [commandUsage("tree")]]);
   expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: unexpected argument 'help'"]]);
 
-  const repo = mkdtempSync(join(tmpdir(), "nuhokai-bin-help-test-"));
+  const run = spyOn(printTree, "runTree").mockResolvedValue(0);
   try {
-    expect(await runInit(repo, { out: () => {} })).toBe(0);
-    const [code, out] = await logged(["new", "help", "--path", repo]);
-    expect(code).toBe(0);
-    expect(out[0]).toEndWith("nuhokai/help.ts");
-    expect(existsSync(join(repo, "nuhokai/help.ts"))).toBe(true);
+    expect(await main(["tree", "help"])).toBe(0);
+    expect(run.mock.calls).toEqual([[".", "help", 1]]);
   } finally {
-    rmSync(repo, { recursive: true, force: true });
+    run.mockRestore();
   }
 });
 
@@ -210,9 +198,11 @@ test("an unknown option or an extra argument is named, exit 2, nothing runs", as
   try {
     expect(await failed(["map", "--pth", dir])).toEqual([2, ["nuhokai map: unknown option '--pth'"]]);
     expect(await failed(["init", "--force", "--path", dir])).toEqual([2, ["nuhokai init: unknown option '--force'"]]);
-    expect(await failed(["new", "a", "b", "c", "--path", dir])).toEqual([2, ["nuhokai new: unexpected argument 'b'"]]);
+    expect(await failed(["tree", "a", "b", "c", "--path", dir])).toEqual([
+      2,
+      ["nuhokai tree: unexpected argument 'b'"],
+    ]);
     expect(await failed(["init", "x", "--path", dir])).toEqual([2, ["nuhokai init: unexpected argument 'x'"]]);
-    expect(await failed(["new", "--path", dir])).toEqual([2, ["nuhokai new: expected 1 argument, got 0"]]);
     expect(readdirSync(dir)).toEqual([]);
   } finally {
     rmSync(dir, { recursive: true, force: true });

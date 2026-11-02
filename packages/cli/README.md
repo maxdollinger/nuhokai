@@ -9,7 +9,6 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 src/
   bin.ts        argv, exit codes, command dispatch
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
-  new/          add one node file to an existing world: the program and the file's bytes
   load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
@@ -34,7 +33,6 @@ stale. A test also type-checks a consumer world against the bundled declarations
 | `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `new`    | add one node file, `nuhokai/<file-path>.ts`, with a fresh id and `TODO:` placeholders  |
 | `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`               |
 | `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types (planned)         |
 
@@ -53,10 +51,10 @@ nuhokai/
 Every command works in one project directory: the current directory, or the one given with `--path <dir>` (or
 `--path=<dir>`, as in `nuhokai map --path packages/cli`). A `--path` without a value, given twice or naming no
 directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` prints map's help. Before a command,
-`help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai new help` adds
-`nuhokai/help.ts`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
+`help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai tree help`
+starts from a node named `help`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
 exit 2 and run nothing. Without a `nuhokai/`
-there, `check`, `new`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
+there, `check`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
 `packages/cli/nuhokai/<file>:<line>`.
@@ -65,13 +63,6 @@ directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path
 projects never share per-world state such as the map's saved layout; everything else is the same per CLI version. An
 existing `nuhokai/` directory is left untouched: it prints one line and exits 0, so re-running is always safe. A file at that path is an error. The example node exists because
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
-
-`new <file-path>` adds one node file, `nuhokai/<file-path>.ts`, merging the file path with the world's folder so a big world can
-split into folders. Every segment is kebab-case; the file exports the PascalCase of the last segment, carries a fresh
-uuidv7 and `TODO:` placeholders for its purpose and port shapes. It creates the parent directories it needs, never
-overwrites an existing file and never edits `index.ts` or a parent: the run prints the written path and names
-`index.ts` as the next step, because the author wires the node in and `check` reports it as an orphan until then.
-`new` needs an existing world.
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
