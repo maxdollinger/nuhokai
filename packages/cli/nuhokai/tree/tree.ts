@@ -8,8 +8,8 @@ export const Tree = node({
   purpose:
     "Print the world's node hierarchy, one line per node with its path, source and purpose, so agents and people " +
     "find a node step by step without reading the world, and copy its path into other commands. Never checks or writes.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/tree/**"],
   requirements: [
     {
       id: "R1",

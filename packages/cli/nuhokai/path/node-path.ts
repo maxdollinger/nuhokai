@@ -6,8 +6,8 @@ export const NodePath = node({
   purpose:
     "Own the one name of a node, its hierarchy path (Check/SpecCheck), which commands print and take: name every " +
     "node of a loaded world, and find the node a typed path names. Pure: no I/O, never loads.",
-  status: "planned",
-  source: [],
+  status: "built",
+  source: ["src/shared/node-path.ts", "src/shared/node-path.test.ts"],
   ports: {
     paths: {
       kind: "call",
@@ -39,7 +39,7 @@ export const NodePath = node({
     },
     {
       id: "R4",
-      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; 'no node Check/SpecChek; did you mean Check/SpecCheck?'. No close name → it names the deepest node found and how to list its children: 'no node Check/Rules; nuhokai tree Check lists its children'.",
+      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; the rest of the path corrected the same way as far as it goes: 'no node check/specchek; did you mean Check/SpecCheck?'. No close name → it names the deepest node found and how to list its children: 'no node Check/Rules; nuhokai tree Check lists its children'.",
     },
     {
       id: "R5",
@@ -84,7 +84,7 @@ export const NodePath = node({
     },
     {
       decision:
-        "NodePath is shared, under Path, and replaces the paths check builds privately (src/check/spec-check/world-tree.ts) when it is built.",
+        "NodePath is shared, under Path; check's world tree (src/check/spec-check/world-tree.ts) takes its paths from here.",
       why: "tree prints paths, review (MAX-33) and future commands take them, check's diagnostics print them: one rule, or the spellings drift.",
       rejected: [
         {

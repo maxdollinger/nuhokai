@@ -5,8 +5,8 @@ import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
 import { runNew } from "./new/index.ts";
 
-/** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `new` run today. */
-export const COMMANDS = ["check", "init", "map", "new", "update"] as const;
+/** The commands the CLI exposes; `update` is planned, `check`, `init`, `map`, `new` and `tree` run today. */
+export const COMMANDS = ["check", "init", "map", "new", "tree", "update"] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -15,6 +15,7 @@ const DESCRIPTIONS: Record<Command, string> = {
   init: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
   map: "Draw the world into nuhokai/.generated/map.html, a self-contained 3D map",
   new: "Add one node file with a fresh id and TODO placeholders to an existing world",
+  tree: "Print the node hierarchy, one line per node: path | source | purpose",
   update: "Refresh the CLI-owned tsconfig and the @nuhokai/world types of an existing world",
 };
 
@@ -24,11 +25,19 @@ const SYNOPSIS: Record<Command, string> = {
   init: "nuhokai init",
   map: "nuhokai map",
   new: "nuhokai new <node-path>",
+  tree: "nuhokai tree [node] [-L <n>]",
   update: "nuhokai update",
 };
 
-/** How many positional arguments each command takes; the value is the command's to validate. */
-const ARITY: Record<Command, number> = { check: 0, init: 0, map: 0, new: 1, update: 0 };
+/** How many positional arguments each command takes, at least and at most; the value is the command's to validate. */
+const ARITY: Record<Command, readonly [min: number, max: number]> = {
+  check: [0, 0],
+  init: [0, 0],
+  map: [0, 0],
+  new: [1, 1],
+  tree: [0, 1],
+  update: [0, 0],
+};
 
 /** Help before a command; after one only the flags are help, so `nuhokai new help` adds nuhokai/help.ts. */
 const HELP_WORDS = ["help", "--help", "-h"] as const;
@@ -37,6 +46,19 @@ const HELP_FLAGS = ["--help", "-h"] as const;
 /** The one flag every command takes: the project directory holding nuhokai/, instead of the cwd. */
 const PATH_FLAG = "--path";
 
+/** tree's own option: how many levels below the start to print; 0 = all. */
+const LEVEL_FLAG = "--level";
+const LEVEL_SHORT = "-L";
+const DEFAULT_LEVEL = 1;
+
+/** Each command's own options, as its help lists them; Cli parses them all. */
+const OPTIONS: Partial<Record<Command, readonly [flags: string, text: string][]>> = {
+  tree: [[`${LEVEL_SHORT}, ${LEVEL_FLAG} <n>`, `levels below the start to print; 0 = all (default: ${DEFAULT_LEVEL})`]],
+};
+
+/** The synopsis column's width, so every description starts in one column. */
+const SYNOPSIS_WIDTH = Math.max(...COMMANDS.map((command) => SYNOPSIS[command].length)) + 2;
+
 export function usage(): string {
   return [
     "nuhokai — the world format toolchain",
@@ -44,22 +66,27 @@ export function usage(): string {
     "Usage: nuhokai <command> [--path <dir>] [arguments]",
     "",
     "Commands:",
-    ...COMMANDS.map((command) => `  ${SYNOPSIS[command].padEnd(25)}${DESCRIPTIONS[command]}`),
+    ...COMMANDS.map((command) => `  ${SYNOPSIS[command].padEnd(SYNOPSIS_WIDTH)}${DESCRIPTIONS[command]}`),
     "",
     "Run `nuhokai <command> --help` for command options.",
   ].join("\n");
 }
 
-/** One help text per command, answered by Cli before dispatch; commands stay flag-free, Cli owns --path. */
+/** One help text per command, answered by Cli before dispatch; commands stay flag-free, Cli owns every option. */
 export function commandUsage(command: Command): string {
+  const options: (readonly [string, string])[] = [
+    ...(OPTIONS[command] ?? []),
+    ["--path <dir>", "the project directory holding nuhokai/ (default: the current directory)"],
+    ["--help", "show this help"],
+  ];
+  const width = Math.max(...options.map(([flags]) => flags.length)) + 2;
   return [
     `nuhokai ${command} — ${DESCRIPTIONS[command]}`,
     "",
     `Usage: ${SYNOPSIS[command]}`,
     "",
     "Options:",
-    "  --path <dir>  the project directory holding nuhokai/ (default: the current directory)",
-    "  --help        show this help",
+    ...options.map(([flags, text]) => `  ${flags.padEnd(width)}${text}`),
   ].join("\n");
 }
 
@@ -96,6 +123,29 @@ function splitPath(args: readonly string[]): { path: string | undefined; rest: s
   return { path, rest };
 }
 
+/**
+ * Split tree's --level <n>, --level=<n> or -L <n> off the arguments: a whole number, 0 = all, default 1. A missing
+ * value, a second one or anything but a whole number is the invocation's fault, so it is a message and never a
+ * command run.
+ */
+function splitLevel(args: readonly string[]): { level: number; rest: string[] } | { error: string } {
+  let value: string | undefined;
+  const rest: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index] ?? "";
+    const inline = arg.startsWith(`${LEVEL_FLAG}=`);
+    if (arg !== LEVEL_FLAG && arg !== LEVEL_SHORT && !inline) {
+      rest.push(arg);
+      continue;
+    }
+    if (value !== undefined) return { error: `${LEVEL_FLAG} given twice` };
+    value = inline ? arg.slice(LEVEL_FLAG.length + 1) : (args[++index] ?? "");
+    if (value === "") return { error: `${LEVEL_FLAG} needs a whole number` };
+    if (!/^\d+$/.test(value)) return { error: `${LEVEL_FLAG} needs a whole number, got '${value}'` };
+  }
+  return { level: value === undefined ? DEFAULT_LEVEL : Number(value), rest };
+}
+
 /** Whether `dir` is a directory; a path through a file or an unreadable one is not, whatever stat throws. */
 function isDirectory(dir: string): boolean {
   try {
@@ -121,7 +171,17 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: ${split.error}\n\n${commandUsage(first)}`);
     return 2;
   }
-  const { path, rest } = split;
+  const { path } = split;
+  let { rest } = split;
+  let level = DEFAULT_LEVEL;
+  if (first === "tree") {
+    const levelSplit = splitLevel(rest);
+    if ("error" in levelSplit) {
+      console.error(`nuhokai ${first}: ${levelSplit.error}\n\n${commandUsage(first)}`);
+      return 2;
+    }
+    ({ level, rest } = levelSplit);
+  }
   if (rest.length === 1 && isHelpFlag(rest[0] ?? "")) {
     console.log(commandUsage(first));
     return 0;
@@ -131,7 +191,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: unexpected argument '${helpFlag}'\n\n${commandUsage(first)}`);
     return 2;
   }
-  // --path is the only option; any other dash argument is a mistyped or unknown flag, never an argument.
+  // --path and the command's own options are split off; any other dash argument is a mistyped or unknown flag.
   const option = rest.find((value) => value.startsWith("-"));
   if (option !== undefined) {
     console.error(`nuhokai ${first}: unknown option '${option}'\n\n${commandUsage(first)}`);
@@ -144,12 +204,13 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai ${first}: not a directory: ${path ?? "."}\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (rest.length > ARITY[first]) {
-    console.error(`nuhokai ${first}: unexpected argument '${rest[ARITY[first]]}'\n\n${commandUsage(first)}`);
+  const [min, max] = ARITY[first];
+  if (rest.length > max) {
+    console.error(`nuhokai ${first}: unexpected argument '${rest[max]}'\n\n${commandUsage(first)}`);
     return 2;
   }
-  if (rest.length < ARITY[first]) {
-    const expected = ARITY[first] === 1 ? "1 argument" : `${ARITY[first]} arguments`;
+  if (rest.length < min) {
+    const expected = min === 1 ? "1 argument" : `${min} arguments`;
     console.error(`nuhokai ${first}: expected ${expected}, got ${rest.length}\n\n${commandUsage(first)}`);
     return 2;
   }
@@ -167,6 +228,10 @@ export async function main(argv: readonly string[]): Promise<number> {
     return runMap(root);
   }
   if (first === "new") return runNew(root, rest[0] ?? "");
+  if (first === "tree") {
+    const { runTree } = await import("./tree/index.ts");
+    return runTree(root, rest[0], level);
+  }
   console.error(`nuhokai ${first}: not implemented yet`);
   return 1;
 }

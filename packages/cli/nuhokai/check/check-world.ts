@@ -1,6 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
+import { Path } from "../path/path.ts";
 import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check/spec-check.ts";
@@ -73,5 +74,6 @@ export const CheckWorld = node({
     Diagnostics.format,
     Failure.format,
     Failure.isExpected,
+    Path.nodePaths,
   ],
 });

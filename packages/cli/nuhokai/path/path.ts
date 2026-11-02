@@ -8,8 +8,13 @@ export const Path = node({
   purpose:
     "Own the names the CLI prints and takes back: a file's, cwd-relative (WorldPath), and a node's, its hierarchy " +
     "path (NodePath). Shared by every command; pure, no I/O.",
-  status: "building",
-  source: ["src/shared/paths.ts"],
+  status: "built",
+  source: [
+    "src/shared/paths.ts",
+    "src/shared/paths.test.ts",
+    "src/shared/node-path.ts",
+    "src/shared/node-path.test.ts",
+  ],
   requirements: [
     {
       id: "R1",

@@ -1,5 +1,6 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
+import { nodePaths } from "../../shared/node-path.ts";
 
 /** One reachable node, by its position in the loaded world's `nodes`. */
 export interface TreeNode {
@@ -30,6 +31,8 @@ export interface WorldTree {
 /** The loaded world as a tree: each node under the parent LoadWorld placed it in, by position. */
 export function worldTree(world: LoadedWorld): WorldTree {
   const nodes: TreeNode[] = [];
+  // Diagnostics name a node as every command does: NodePath's hierarchy path.
+  const paths = nodePaths(world);
   world.nodes.forEach((spec, index) => {
     const at = world.parents[index] ?? null;
     // A parent comes before its children, so it is already in the tree.
@@ -39,7 +42,7 @@ export function worldTree(world: LoadedWorld): WorldTree {
       index,
       spec,
       parent: parent ? parent.index : null,
-      path: parent ? `${parent.path}/${spec.name}` : spec.name,
+      path: paths[index] ?? spec.name,
       file: file?.file ?? world.file,
       ...(file?.line === undefined ? {} : { line: file.line }),
     });
