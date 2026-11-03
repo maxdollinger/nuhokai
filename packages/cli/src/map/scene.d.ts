@@ -1,12 +1,21 @@
 /** Types of scene.js, the map's scene logic; the page inlines the JS, so it stays plain JS. */
 import type { NodeSpec, NodeStatus } from "@nuhokai/world/node-spec";
-import type { LoadedWorld } from "../load/load-world.ts";
+import type { Placeholder } from "../load/load-world.ts";
+
+/** The world as the map's data block holds it: only what the map draws, each node as its NodeSpec. */
+export interface MapWorld {
+  readonly id: string;
+  readonly name?: string;
+  readonly source?: readonly unknown[];
+  readonly nodes: readonly NodeSpec[];
+  readonly placeholders: readonly Placeholder[];
+}
 
 /** A scope: null for the top level, else the dome's position in `nodes`. */
 export type Scope = number | null;
 
 export interface Scene {
-  readonly world: LoadedWorld;
+  readonly world: MapWorld;
   readonly nodes: readonly NodeSpec[];
   /** Each node's parent, by position; null at the top level. */
   readonly parents: readonly (number | null)[];
@@ -144,7 +153,7 @@ export interface Light {
   readonly inside: number;
 }
 
-export function mapScene(world: LoadedWorld): Scene;
+export function mapScene(world: MapWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
 export function detailsOf(node: NodeSpec): Details;
 export function search(scene: Scene, query: string): Hit[];

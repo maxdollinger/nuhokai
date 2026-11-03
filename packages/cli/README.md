@@ -7,14 +7,15 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 
 ```
 src/
-  bin.ts        argv, exit codes, command dispatch through the registry of cli/commands
+  bin.ts        argv, exit codes, command dispatch to cli/commands, listed at the top of main
   cli/          Cmd: each command's help text, argument parser and deferred call into its node, one file per command
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
-  load/         read nuhokai/ without running it and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
+  load/         read nuhokai/ without running it (the reader) and answer the world: each node with its NodeSpec, place, path and file, plus tbd placeholders, listings and orphans
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
-  shared/       the names the CLI prints (a file's path, a node's hierarchy path), what sits at nuhokai/, and the error types
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), what sits at nuhokai/,
+                the error types and plain text, and the one client of the pinned type checker
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format
@@ -29,13 +30,12 @@ stale. A test also type-checks a consumer world against the bundled declarations
 
 ## Commands
 
-| Command  | Purpose                                                                                |
-| -------- | -------------------------------------------------------------------------------------- |
-| `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
-| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`               |
-| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types (planned)         |
+| Command | Purpose                                                                                |
+| ------- | -------------------------------------------------------------------------------------- |
+| `check` | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
+| `init`  | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `map`   | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
+| `tree`  | print the node hierarchy, one line per node: `path \| source \| purpose`               |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -97,7 +97,7 @@ like every other path, and the whole purpose stays on the line. Like `map`, `tre
 names no node exits 2 with the closest match (`did you mean 'Check/SpecCheck'?`) or the `tree` command listing where it
 went wrong.
 
-`init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
+`init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
 
 ## Distribution

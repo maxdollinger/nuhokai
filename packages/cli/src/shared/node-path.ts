@@ -1,34 +1,42 @@
-import type { LoadedWorld } from "../load/load-world.ts";
 import { CliError } from "./failure.ts";
+import { suggestedCommand } from "./world-path.ts";
 
-/** The world's shape NodePath reads: names and parents by position, as LoadWorld answers them. */
-export type Hierarchy = Pick<LoadedWorld, "nodes" | "parents">;
-
-/**
- * Each node's hierarchy path, in `nodes` order: the names from the top level down, joined with `/`
- * (`Check/SpecCheck`), a top-level node's path its name alone. Built from parents by position, never by id,
- * so duplicate ids cannot misplace a node.
- */
-export function nameNodes(world: Hierarchy): string[] {
-  const paths: string[] = [];
-  world.nodes.forEach((spec, index) => {
-    const parent = world.parents[index] ?? null;
-    // A parent comes before its children, so its path is already there.
-    paths.push(parent === null ? spec.name : `${paths[parent]}/${spec.name}`);
-  });
-  return paths;
+/** A node as the hierarchy knows it, by position: its name, parent, children and path. LoadWorld's nodes are these. */
+export interface HierarchyNode {
+  readonly index: number;
+  readonly spec: { readonly name: string };
+  readonly parent: number | null;
+  readonly children: readonly number[];
+  readonly path: string;
 }
 
-/** Each node's direct children by position, the top level under null, in walk order. */
-export function childrenOf(world: Hierarchy): Map<number | null, number[]> {
-  const children = new Map<number | null, number[]>();
-  world.parents.forEach((parent, index) => {
-    const key = parent ?? null;
-    const list = children.get(key);
-    if (list) list.push(index);
-    else children.set(key, [index]);
-  });
-  return children;
+/** A world's hierarchy: its nodes by position, and the top level's positions. */
+export interface Hierarchy<N extends HierarchyNode = HierarchyNode> {
+  readonly nodes: readonly N[];
+  readonly top: readonly number[];
+}
+
+/** The direct children of a node, or the top level for null, in list order. */
+export function childrenOf<N extends HierarchyNode>(world: Hierarchy<N>, parent: number | null): N[] {
+  const positions = parent === null ? world.top : (world.nodes[parent]?.children ?? []);
+  return positions.flatMap((index) => world.nodes[index] ?? []);
+}
+
+/** Whether `ancestor` contains `node`, at any depth. */
+export function isAncestor(world: Hierarchy, ancestor: HierarchyNode, node: HierarchyNode): boolean {
+  for (let at = node.parent; at !== null; at = world.nodes[at]?.parent ?? null) if (at === ancestor.index) return true;
+  return false;
+}
+
+/**
+ * Each node's hierarchy path, in the order given: the names from the top level down, joined with `/`
+ * (`Check/SpecCheck`), a top-level node's path its name alone. Built from parents by position, never by id,
+ * so duplicate ids cannot misplace a node; a parent comes before its children.
+ */
+export function nameNodes(nodes: readonly { readonly name: string; readonly parent: number | null }[]): string[] {
+  const paths: string[] = [];
+  for (const { name, parent } of nodes) paths.push(parent === null ? name : `${paths[parent]}/${name}`);
+  return paths;
 }
 
 /**
@@ -39,8 +47,7 @@ export function childrenOf(world: Hierarchy): Map<number | null, number[]> {
  * a message carry `--path <root>` unless `root` is the cwd, so they run as printed.
  */
 export function findNode(world: Hierarchy, typed: string, root: string): number {
-  const command = (name: string, ...args: string[]) =>
-    `\`${["nuhokai", name, ...args, ...(root === "." ? [] : ["--path", root])].map(shellWord).join(" ")}\``;
+  const command = (name: string, ...args: string[]) => suggestedCommand(name, args, root);
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
   if (path === "" || segments.some((segment) => segment === "")) {
@@ -48,12 +55,10 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
-  const paths = nameNodes(world);
-  const children = childrenOf(world);
-  let parent: number | null = null;
+  let parent: HierarchyNode | undefined;
   for (const [depth, segment] of segments.entries()) {
-    const siblings: number[] = children.get(parent) ?? [];
-    const matches: number[] = siblings.filter((index) => world.nodes[index]?.name === segment);
+    const siblings = childrenOf(world, parent?.index ?? null);
+    const matches = siblings.filter((node) => node.spec.name === segment);
     if (matches.length > 1) {
       const here = segments.slice(0, depth + 1).join("/");
       throw new CliError(`'${here}' names ${matches.length} siblings; ${command("check")} reports the clash`);
@@ -63,37 +68,32 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       parent = match;
       continue;
     }
-    if (paths.includes(path)) {
+    if (world.nodes.some((node) => node.path === path)) {
       throw new CliError(`no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`);
     }
-    const above = parent === null ? undefined : paths[parent];
-    const nameOf = (index: number) => world.nodes[index]?.name ?? "";
-    const closest = closestName(segment, siblings.map(nameOf));
+    const names = (nodes: readonly HierarchyNode[]) => nodes.map((node) => node.spec.name);
+    const closest = closestName(segment, names(siblings));
     if (closest === undefined) {
       const list =
-        above === undefined ? `${command("tree")} lists the top level` : `${command("tree", above)} lists its children`;
+        parent === undefined
+          ? `${command("tree")} lists the top level`
+          : `${command("tree", parent.path)} lists its children`;
       throw new CliError(`no node '${typed}'; ${list}`);
     }
     // Correct the rest of the path too, as far as each segment has an equal or close name.
-    let corrected = above === undefined ? closest : `${above}/${closest}`;
-    let at = siblings.find((index) => nameOf(index) === closest);
+    let corrected = parent === undefined ? closest : `${parent.path}/${closest}`;
+    let at = siblings.find((node) => node.spec.name === closest);
     for (const next of segments.slice(depth + 1)) {
-      const below = at === undefined ? [] : (children.get(at) ?? []);
-      const names = below.map(nameOf);
-      const name = names.includes(next) ? next : closestName(next, names);
+      const below = at === undefined ? [] : childrenOf(world, at.index);
+      const name = names(below).includes(next) ? next : closestName(next, names(below));
       if (name === undefined) break;
       corrected = `${corrected}/${name}`;
-      at = below.find((index) => nameOf(index) === name);
+      at = below.find((node) => node.spec.name === name);
     }
     throw new CliError(`no node '${typed}'; did you mean '${corrected}'?`);
   }
   // segments is never empty, so the loop chose a node.
-  return parent as number;
-}
-
-/** A word as a shell reads it back: unchanged when plain, else single-quoted. */
-function shellWord(word: string): string {
-  return /^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`;
+  return (parent as HierarchyNode).index;
 }
 
 /**

@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
+import { checkerPath, withChecker } from "../shared/checker-client.ts";
 import { CliError } from "../shared/failure.ts";
 import { formatFinding } from "./diagnostics.ts";
 import { runTypeCheck } from "./type-check.ts";
@@ -148,4 +149,15 @@ test("a checker that fails to start is one CliError", async () => {
   const notExecutable = runTypeCheck(root, () => join(root, "nuhokai/index.ts"));
   await expect(notExecutable).rejects.toBeInstanceOf(CliError);
   await expect(notExecutable).rejects.toThrow("the type checker failed: ");
+});
+
+test("a programming error inside a checker session is no checker failure: it propagates as it is", async () => {
+  const root = await world();
+  const bug = new TypeError("boom");
+  const session = { root, config: join(root, "nuhokai/tsconfig.json"), name: "tsconfig", checker: checkerPath() };
+  await expect(
+    withChecker(session, async () => {
+      throw bug;
+    }),
+  ).rejects.toBe(bug);
 });

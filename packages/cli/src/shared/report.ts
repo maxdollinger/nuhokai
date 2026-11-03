@@ -1,5 +1,5 @@
 /** What a command answers instead of printing: Cli alone writes the lines and turns the outcome into an exit code. */
-import { isExpected, oneLine } from "./failure.ts";
+import { errorLine, isExpected } from "./failure.ts";
 
 /** How the command ended; Cli alone maps it to an exit code: ok 0, failed 1, invalid 2. */
 export type Outcome = "ok" | "failed" | "invalid";
@@ -34,12 +34,29 @@ export function ok(texts: readonly string[]): Report {
 /** The failure line for a thrown value a command expects (Failure R1); a bug is rethrown, to crash with its stack. */
 export function failureLineFrom(thrown: unknown): ReportLine {
   if (!isExpected(thrown)) throw thrown;
-  return failureLine(oneLine(thrown));
+  return failureLine(errorLine(thrown));
 }
 
 /** A failed Report of one failure line for an expected thrown value; a bug is rethrown. */
-export function failedFrom(thrown: unknown): Report {
+function failedFrom(thrown: unknown): Report {
   return { outcome: "failed", lines: [failureLineFrom(thrown)] };
+}
+
+/** An invalid Report of one failure line for an expected thrown value, such as an argument naming nothing; a bug is rethrown. */
+export function invalidFrom(thrown: unknown): Report {
+  return { outcome: "invalid", lines: [failureLineFrom(thrown)] };
+}
+
+/**
+ * Run a command that answers its Report or throws: an expected failure becomes a failed Report of its one line
+ * (Failure R1); a bug is rethrown, to crash with its stack.
+ */
+export async function orFailed(command: () => Promise<Report>): Promise<Report> {
+  try {
+    return await command();
+  } catch (thrown) {
+    return failedFrom(thrown);
+  }
 }
 
 /** A bug that cut a command short, carrying the lines it had answered so far: Cli prints them, then rethrows the bug. */

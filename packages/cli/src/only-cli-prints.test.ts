@@ -16,8 +16,8 @@ import {
   SyntaxKind,
 } from "typescript/unstable/ast";
 import { API } from "typescript/unstable/async";
-import { checkerPath } from "./check/type-check.ts";
 import { loadWorld } from "./load/load-world.ts";
+import { checkerPath } from "./shared/checker-client.ts";
 
 const SRC = import.meta.dir;
 const PACKAGE = join(SRC, "..");
@@ -216,10 +216,10 @@ test("the guard finds every way past it, in any script kind, and nothing in comm
 });
 
 test("Cli R9: in the CLI's own world only Cli uses Terminal", async () => {
-  const world = await loadWorld(PACKAGE);
-  const terminal = world.nodes.find((spec) => spec.name === "Terminal" && spec.external);
+  const specs = (await loadWorld(PACKAGE)).nodes.map((node) => node.spec);
+  const terminal = specs.find((spec) => spec.name === "Terminal" && spec.external);
   expect(terminal).toBeDefined();
-  const users = world.nodes
+  const users = specs
     .filter((spec) => spec.edges?.some((edge) => edge.kind === "uses" && edge.to === terminal?.id))
     .map((spec) => spec.name);
   expect(users).toEqual(["Cli"]);

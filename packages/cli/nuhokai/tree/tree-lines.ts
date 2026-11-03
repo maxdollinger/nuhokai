@@ -22,7 +22,7 @@ export const TreeLines = node({
   requirements: [
     {
       id: "R1",
-      text: "Line = path | source | purpose, joined by ' | '. path is the node's hierarchy path (Path.nameNodes); nothing else on the line: no header, world line, indentation, padding or colour.",
+      text: "Line = path | source | purpose, joined by ' | '. path is the node's hierarchy path, as LoadWorld holds it (Path.nameNodes); nothing else on the line: no header, world line, indentation, padding or colour.",
     },
     {
       id: "R2",
@@ -71,4 +71,4 @@ export const TreeLines = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameNodes, Path.nameInProject] });
+}).edges({ uses: () => [Path.nameInProject, Path.childrenOf] });

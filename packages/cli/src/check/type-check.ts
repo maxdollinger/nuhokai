@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
-import { API, type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
-import { CliError, oneLine } from "../shared/failure.ts";
-import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
+import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
+import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import { CliError } from "../shared/failure.ts";
+import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/world-path.ts";
 import { compareFindings, type Finding } from "./diagnostics.ts";
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
@@ -15,28 +16,6 @@ const LITERALS = new Set([
   SyntaxKind.TemplateTail,
   SyntaxKind.RegularExpressionLiteral,
 ]);
-
-/**
- * The CLI's pinned checker. The compiled CLI uses the tsgo the release ships as a sidecar next to the binary
- * (`tsgo/tsgo`); from source or the bundle, the platform build of the CLI's pinned `typescript`. Never the repo's own
- * TypeScript.
- */
-export function checkerPath(): string {
-  if (import.meta.dir.startsWith("/$bunfs")) {
-    const sidecar = join(dirname(process.execPath), "tsgo", "tsgo");
-    if (existsSync(sidecar)) return sidecar;
-    throw new CliError(`no type checker: expected ${sidecar}, which ships next to the nuhokai binary`);
-  }
-  const platform = `@typescript/typescript-${process.platform}-${process.arch}`;
-  try {
-    const typescript = dirname(Bun.resolveSync("typescript/package.json", import.meta.dir));
-    const binary = join(dirname(Bun.resolveSync(`${platform}/package.json`, typescript)), "lib", "tsc");
-    if (existsSync(binary)) return binary;
-  } catch {
-    // Not installed: the failure below says so.
-  }
-  throw new CliError(`no type checker: ${platform} is not installed; run bun install`);
-}
 
 /** A diagnostic's text with its chain, one message per line; Diagnostics flattens it. */
 function messageOf(diagnostic: Diagnostic): string {
@@ -155,66 +134,6 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
   return findings;
 }
 
-/** What the checker answered: the world files it parsed, by absolute path, and its diagnostics. */
-interface Checked {
-  readonly files: ReadonlyMap<string, SourceFile>;
-  readonly diagnostics: readonly Diagnostic[];
-}
-
-/** A checker or API failure as one CliError; a CliError of ours passes as it is. */
-function checkerFailure(error: unknown): CliError {
-  return error instanceof CliError ? error : new CliError(`the type checker failed: ${oneLine(error)}`);
-}
-
-/**
- * Ask the checker at `checker` for the project of nuhokai/tsconfig.json under `root`: the world files `inWorldFiles`
- * keeps and every diagnostic. Every failure, the checker's closing included, is one CliError; a failure closing it
- * after another never hides that other.
- */
-async function askChecker(
-  root: string,
-  tsconfig: string,
-  checker: string,
-  inWorldFiles: (path: string) => boolean,
-): Promise<Checked> {
-  let api: API;
-  try {
-    api = new API({ cwd: resolve(root), tsserverPath: checker });
-  } catch (error) {
-    throw checkerFailure(error);
-  }
-  let checked: Checked;
-  try {
-    const config = resolve(tsconfig);
-    const snapshot = await api.updateSnapshot({ openProject: config });
-    const project = snapshot.getProject(config);
-    if (!project) throw new CliError(`${tsconfig}: the type checker opened no project for it`);
-    const program = project.program;
-    const files = new Map<string, SourceFile>();
-    for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
-      const file = await program.getSourceFile(path);
-      if (file) files.set(path, file);
-    }
-    const diagnostics = [
-      ...(await program.getConfigFileParsingDiagnostics()),
-      ...(await program.getProgramDiagnostics()),
-      ...(await program.getGlobalDiagnostics()),
-      ...(await program.getSyntacticDiagnostics()),
-      ...(await program.getSemanticDiagnostics()),
-    ];
-    checked = { files, diagnostics };
-  } catch (error) {
-    await api.close().catch(() => {});
-    throw checkerFailure(error);
-  }
-  try {
-    await api.close();
-  } catch (error) {
-    throw checkerFailure(error);
-  }
-  return checked;
-}
-
 /** The 1-based line of a position in a file the checker did not parse, such as the tsconfig. */
 function lineInText(path: string, position: number): number | undefined {
   try {
@@ -234,17 +153,33 @@ function lineInText(path: string, position: number): number | undefined {
 export async function runTypeCheck(root: string, checker: () => string = checkerPath): Promise<Finding[]> {
   const tsconfig = nameInWorld(root, WORLD_TSCONFIG);
   if (!existsSync(tsconfig)) {
-    throw new CliError(
-      `${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\` (\`nuhokai update\` will restore it)`,
-    );
+    throw new CliError(`${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\``);
   }
   const worldDir = resolve(nameInWorld(root));
   const generated = resolve(nameInWorld(root, WORLD_GENERATED_DIR));
   /** A world file named as the loader names it: under the project directory as `root` names it. */
-  const nameOf = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
+  const printedName = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
-  const { files, diagnostics } = await askChecker(root, tsconfig, checker(), inWorldFiles);
+  const { files, diagnostics } = await withChecker(
+    { root, config: resolve(tsconfig), name: tsconfig, checker: checker() },
+    async (project) => {
+      const program = project.program;
+      const files = new Map<string, SourceFile>();
+      for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
+        const file = await program.getSourceFile(path);
+        if (file) files.set(path, file);
+      }
+      const diagnostics = [
+        ...(await program.getConfigFileParsingDiagnostics()),
+        ...(await program.getProgramDiagnostics()),
+        ...(await program.getGlobalDiagnostics()),
+        ...(await program.getSyntacticDiagnostics()),
+        ...(await program.getSemanticDiagnostics()),
+      ];
+      return { files, diagnostics };
+    },
+  );
 
   const findings: Finding[] = [];
   const seen = new Set<string>();
@@ -263,11 +198,11 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     const file = files.get(path);
     findings.push({
       severity: "error",
-      file: nameOf(path),
+      file: printedName(path),
       ...(file ? { line: lineOf(file, diagnostic.pos) } : {}),
       rule: messageOf(diagnostic),
     });
   }
-  for (const [path, file] of files) findings.push(...declarativeFindings(file, worldDir, nameOf(path)));
+  for (const [path, file] of files) findings.push(...declarativeFindings(file, worldDir, printedName(path)));
   return findings.sort(compareFindings);
 }

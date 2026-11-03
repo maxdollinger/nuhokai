@@ -1,6 +1,7 @@
 import { defineWorld } from "@nuhokai/world";
 import { Build } from "./build.ts";
 import { Check } from "./check/check.ts";
+import { CheckerClient } from "./checker-client.ts";
 import { Cli } from "./cli.ts";
 import { Browser, BunRuntime, FileSystem, Terminal, ThreeJs, Tsgo } from "./external.ts";
 import { Failure } from "./failure.ts";
@@ -26,6 +27,7 @@ export default defineWorld({
     Tree,
     Inspect,
     LoadWorld,
+    CheckerClient,
     Path,
     Failure,
     Terminal,

@@ -1,8 +1,18 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
+import { CliError } from "../shared/failure.ts";
 import { writeMap } from "./map-file.ts";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -41,23 +51,29 @@ function oneNode(purpose: string): LoadedWorld {
     id: "w",
     nodes: [
       {
-        schema: "nuhokai/node@1",
-        id: "a",
-        name: "A",
+        index: 0,
+        spec: {
+          schema: "nuhokai/node@1",
+          id: "a",
+          name: "A",
+          parent: null,
+          external: false,
+          abstract: false,
+          purpose,
+          status: "planned",
+          source: [],
+        },
         parent: null,
-        external: false,
-        abstract: false,
-        purpose,
-        status: "planned",
-        source: [],
+        children: [],
+        path: "A",
+        file: "nuhokai/a.ts",
       },
     ],
+    top: [0],
     placeholders: [],
     file: "nuhokai/index.ts",
-    parents: [null],
     listings: [],
     orphans: [],
-    files: [],
   };
 }
 
@@ -73,9 +89,9 @@ test("the example world's data block parses back unchanged, and a second write g
   expect(writeMap(root, world)).toBe(`${root}/nuhokai/.generated/map.html`);
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
-  // Only what the map draws: never parents, listings, orphans or files, nor a path from the cwd.
+  // Only what the map draws: each node's NodeSpec, never its place, file or path, nor listings or orphans.
   const { id, name, source, nodes, placeholders } = world;
-  const drawn = { id, name, source, nodes, placeholders };
+  const drawn = { id, name, source, nodes: nodes.map((node) => node.spec), placeholders };
   expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(drawn)));
 
   writeMap(root, world);
@@ -129,4 +145,29 @@ test("the write failed: a directory in the map's place is a filesystem error, an
 
   expect(() => writeMap(root, oneNode("blocked"))).toThrow(expect.objectContaining({ code: "EISDIR" }));
   expect(files(root)).toEqual([]);
+});
+
+test("a map.html symlinked out of the project is replaced, never written through", () => {
+  const root = tempDir();
+  const victim = join(tempDir(), "target.txt");
+  writeFileSync(victim, "keep me\n");
+  mkdirSync(join(root, "nuhokai/.generated"), { recursive: true });
+  symlinkSync(victim, join(root, "nuhokai/.generated/map.html"));
+
+  writeMap(root, oneNode("safe"));
+
+  expect(readFileSync(victim, "utf8")).toBe("keep me\n");
+  expect(lstatSync(join(root, "nuhokai/.generated/map.html")).isSymbolicLink()).toBe(false);
+  expect(readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8")).toContain('"purpose":"safe"');
+  expect(files(root)).toEqual(["nuhokai/.generated/map.html"]);
+});
+
+test("a .generated/ linked out of the world is refused; nothing is written there", () => {
+  const root = tempDir();
+  const elsewhere = tempDir();
+  mkdirSync(join(root, "nuhokai"));
+  symlinkSync(elsewhere, join(root, "nuhokai/.generated"));
+
+  expect(() => writeMap(root, oneNode("refused"))).toThrow(CliError);
+  expect(readdirSync(elsewhere)).toEqual([]);
 });

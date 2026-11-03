@@ -5,9 +5,9 @@ export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
-    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O.",
+    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O. Also the spelling of a suggested command and the inside-test a symlink is held to.",
   status: "built",
-  source: ["src/shared/paths.ts"],
+  source: ["src/shared/world-path.ts"],
   ports: {
     nameInWorld: {
       kind: "call",
@@ -21,6 +21,20 @@ export const WorldPath = node({
       purpose: "Name a path in the project directory, cwd-relative",
       input: "project directory (cwd-relative), a /-separated path or glob relative to it, as a source entry is",
       output: "<project directory>/<path>, / separators; <path> unchanged for the cwd or an absolute path",
+      errors: [],
+    },
+    suggestedCommand: {
+      kind: "call",
+      purpose: "Spell a command a message suggests, so it runs as printed",
+      input: "command name, its arguments, project directory (cwd-relative)",
+      output: "`nuhokai <name> <args> [--path <dir>]`, each word shell-quoted unless plain",
+      errors: [],
+    },
+    isInside: {
+      kind: "call",
+      purpose: "Hold a real path to a directory boundary",
+      input: "a real path, a real directory",
+      output: "whether the path is the directory or lies below it",
       errors: [],
     },
   },
@@ -46,6 +60,10 @@ export const WorldPath = node({
       text: "nameInProject: project directory + path as R2 joins it, without nuhokai/; a glob's characters (* ? [ ] { }) pass unchanged, so src/** under --path packages/cli is packages/cli/src/**; an absolute path stays as it is.",
     },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
+    {
+      id: "R6",
+      text: "suggestedCommand: --path <dir> only for another directory than the cwd; a word with anything but letters, digits and @%+=:,./- is single-quoted, so `a;touch x` or a space never splits or runs.",
+    },
   ],
   testCases: [
     {

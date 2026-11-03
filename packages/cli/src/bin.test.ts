@@ -2,9 +2,10 @@ import { expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
+import { main } from "./bin.ts";
 import * as specCheck from "./check/spec-check/apply-rules.ts";
-import { runInit } from "./init/index.ts";
+import { treeCmd } from "./cli/commands/tree.ts";
+import { runInit } from "./init/scaffold.ts";
 import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
 import * as printTree from "./tree/print-tree.ts";
 
@@ -32,22 +33,35 @@ async function printed(argv: string[]): Promise<Printed> {
   }
 }
 
+/** A command's help as main prints it for `nuhokai <command> --help`. */
+async function help(command: string): Promise<string> {
+  return (await printed([command, "--help"])).out.join("\n");
+}
+
+/** Usage as main prints it for a bare `nuhokai`. */
+async function usage(): Promise<string> {
+  return (await printed([])).out.join("\n");
+}
+
 /** A usage error as printed: main's exit code and the first line of each stderr message, without the usage after it. */
 async function failed(argv: string[]): Promise<[number | undefined, string[]]> {
   const result = await printed(argv);
   return ["code" in result ? result.code : undefined, result.err.map((line) => line.split("\n")[0] ?? "")];
 }
 
-test("usage lists every command", () => {
-  for (const command of Object.keys(COMMANDS)) expect(usage()).toContain(command);
+test("usage lists every command", async () => {
+  for (const command of ["check", "init", "map", "tree"]) expect(await usage()).toContain(`nuhokai ${command}`);
 });
 
 test("--help exits 0", async () => {
-  expect(await printed(["--help"])).toEqual({ code: 0, out: [usage()], err: [] });
+  expect(await printed(["--help"])).toEqual({ code: 0, out: [await usage()], err: [] });
 });
 
 test("no argument prints usage on stdout and exits 0", async () => {
-  expect(await printed([])).toEqual({ code: 0, out: [usage()], err: [] });
+  const result = await printed([]);
+  expect(result).toMatchObject({ code: 0, err: [] });
+  expect(result.out).toHaveLength(1);
+  expect(result.out[0]).toStartWith("nuhokai — the world format toolchain");
 });
 
 test("an empty-string argument is an unknown command on stderr", async () => {
@@ -59,8 +73,8 @@ test("a help word does not excuse an unexpected argument", async () => {
 });
 
 test("`nuhokai init --help` prints init's help and exits 0", async () => {
-  expect(await printed(["init", "--help"])).toEqual({ code: 0, out: [commandUsage("init")], err: [] });
-  expect(commandUsage("init")).toContain("Usage: nuhokai init");
+  expect(await printed(["init", "--help"])).toEqual({ code: 0, out: [await help("init")], err: [] });
+  expect(await help("init")).toContain("Usage: nuhokai init");
 });
 
 test("Cli enforces the argument count without validating the argument", async () => {
@@ -72,8 +86,8 @@ test("an unknown command is a usage error", async () => {
 });
 
 test("`nuhokai map --help` shows that map takes no argument", async () => {
-  expect(await printed(["map", "--help"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
-  expect(commandUsage("map")).toContain("Usage: nuhokai map\n");
+  expect(await printed(["map", "--help"])).toEqual({ code: 0, out: [await help("map")], err: [] });
+  expect(await help("map")).toContain("Usage: nuhokai map\n");
 });
 
 test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs", async () => {
@@ -154,13 +168,17 @@ test("a --path without a value, given twice or not a directory is a usage error 
 });
 
 test("a help word next to --path prints the command's help, whatever the path", async () => {
-  expect(await printed(["map", "--path", "x", "--help"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
-  expect(await printed(["map", "--path=x", "-h"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
+  expect(await printed(["map", "--path", "x", "--help"])).toEqual({
+    code: 0,
+    out: [await help("map")],
+    err: [],
+  });
+  expect(await printed(["map", "--path=x", "-h"])).toEqual({ code: 0, out: [await help("map")], err: [] });
 });
 
 test("before a command `help` is help; after one only -h and --help are", async () => {
-  expect(await printed(["help"])).toEqual({ code: 0, out: [usage()], err: [] });
-  expect(await printed(["tree", "-h"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
+  expect(await printed(["help"])).toEqual({ code: 0, out: [await usage()], err: [] });
+  expect(await printed(["tree", "-h"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
   expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: unexpected argument 'help'"]]);
 
   const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
@@ -189,10 +207,14 @@ test("an unknown option or an extra argument is named, exit 2, nothing runs", as
 });
 
 test("`nuhokai check --help` shows that check takes no argument", async () => {
-  expect(await printed(["check", "--help"])).toEqual({ code: 0, out: [commandUsage("check")], err: [] });
-  expect(await printed(["check", "--path", "x", "-h"])).toEqual({ code: 0, out: [commandUsage("check")], err: [] });
-  expect(commandUsage("check")).toContain("Usage: nuhokai check\n");
-  expect(usage()).toContain("nuhokai check");
+  expect(await printed(["check", "--help"])).toEqual({ code: 0, out: [await help("check")], err: [] });
+  expect(await printed(["check", "--path", "x", "-h"])).toEqual({
+    code: 0,
+    out: [await help("check")],
+    err: [],
+  });
+  expect(await help("check")).toContain("Usage: nuhokai check\n");
+  expect(await usage()).toContain("nuhokai check");
 });
 
 test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` is an argument error and Check never runs", async () => {
@@ -234,19 +256,23 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
 });
 
 test("`nuhokai tree --help` lists --level; usage shows tree's argument form", async () => {
-  expect(await printed(["tree", "--help"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
-  expect(await printed(["tree", "-L", "2", "-h"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
+  expect(await printed(["tree", "--help"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
+  expect(await printed(["tree", "-L", "2", "-h"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
   // A bad value is judged after help, as a bad --path is.
-  expect(await printed(["tree", "-L", "x", "--help"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
-  expect(await printed(["tree", "--path", "nope", "--help"])).toEqual({
+  expect(await printed(["tree", "-L", "x", "--help"])).toEqual({
     code: 0,
-    out: [commandUsage("tree")],
+    out: [await help("tree")],
     err: [],
   });
-  expect(commandUsage("tree")).toContain("Usage: nuhokai tree [node] [-L <n>]");
-  expect(commandUsage("tree")).toContain("-L, --level <n>");
-  expect(commandUsage("map")).not.toContain("--level");
-  expect(usage()).toContain("nuhokai tree [node] [-L <n>]");
+  expect(await printed(["tree", "--path", "nope", "--help"])).toEqual({
+    code: 0,
+    out: [await help("tree")],
+    err: [],
+  });
+  expect(await help("tree")).toContain("Usage: nuhokai tree [node] [-L <n>]");
+  expect(await help("tree")).toContain("-L, --level <n>");
+  expect(await help("map")).not.toContain("--level");
+  expect(await usage()).toContain("nuhokai tree [node] [-L <n>]");
 });
 
 test("Cli R6, R8: tree gets the directory, the node or none, and the level as a number", async () => {
@@ -275,8 +301,18 @@ test("Cli R6, R8: a missing or second --level, a bad one or -L on another comman
     expect(await failed(["tree", "-L", "--help"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
     expect(await failed(["tree", "-L", "1", "--level", "2"])).toEqual([2, ["nuhokai tree: --level given twice"]]);
     expect(await failed(["tree", "-L", "1", "-L", "2"])).toEqual([2, ["nuhokai tree: -L given twice"]]);
-    // The value itself is tree's parse to judge (tree.test.ts); once end to end:
+    // A value the option's parse rejects (tree.test.ts) is a usage error naming the spelling typed.
     expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
+    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got '-1'"]]);
+    expect(await failed(["tree", "--level", "1.5"])).toEqual([
+      2,
+      ["nuhokai tree: --level needs a whole number, got '1.5'"],
+    ]);
+    expect(await failed(["tree", "--level=1.5"])).toEqual([
+      2,
+      ["nuhokai tree: --level needs a whole number, got '1.5'"],
+    ]);
+    expect(await failed(["tree", "a", "b", "c"])).toEqual([2, ["nuhokai tree: unexpected argument 'b'"]]);
     expect(await failed(["tree", "--depth", "2"])).toEqual([2, ["nuhokai tree: unknown option '--depth'"]]);
     expect(await failed(["map", "-L", "1"])).toEqual([2, ["nuhokai map: unknown option '-L'"]]);
     expect(run).not.toHaveBeenCalled();
@@ -357,21 +393,15 @@ test("Terminal R1: a control character a command's line carries reaches the term
   }
 });
 
-test("Cli R2: `nuhokai update` is not built yet: one failure line, exit 1", async () => {
-  expect(await printed(["update"])).toEqual({ code: 1, out: [], err: ["nuhokai update: not implemented yet"] });
-});
-
-test("Cli R9: a runner that throws at once still has its CutShort's lines printed, then its bug thrown", async () => {
+test("Cli R9: a command whose run throws at once still has its CutShort's lines printed, then its bug thrown", async () => {
   const bug = new TypeError("boom");
-  const parse = spyOn(COMMANDS.tree, "parse").mockReturnValue({
-    run: () => {
-      throw new CutShort([resultLine("a"), failureLine("x")], bug);
-    },
+  const run = spyOn(treeCmd, "run").mockImplementation(() => {
+    throw new CutShort([resultLine("a"), failureLine("x")], bug);
   });
   try {
     expect(await printed(["tree"])).toEqual({ thrown: bug, out: ["a"], err: ["nuhokai tree: x"] });
   } finally {
-    parse.mockRestore();
+    run.mockRestore();
   }
 });
 

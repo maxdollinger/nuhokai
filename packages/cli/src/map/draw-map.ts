@@ -1,5 +1,5 @@
 import { loadWorld } from "../load/load-world.ts";
-import { failedFrom, ok, type Report } from "../shared/report.ts";
+import { ok, orFailed, type Report } from "../shared/report.ts";
 import { writeMap } from "./map-file.ts";
 
 /**
@@ -9,13 +9,7 @@ import { writeMap } from "./map-file.ts";
  * resolves to the Report Cli prints; programming errors propagate and crash
  * with their stack.
  */
-export async function runMap(root: string): Promise<Report> {
-  try {
-    // Unchecked: any world that loads gets a map, because a broken world is when the map helps most.
-    const world = await loadWorld(root);
-    return ok([writeMap(root, world)]);
-  } catch (error) {
-    // Expected failures become one failure line; a bug crashes with its stack.
-    return failedFrom(error);
-  }
+export function runMap(root: string): Promise<Report> {
+  // Unchecked: any world that loads gets a map, because a broken world is when the map helps most.
+  return orFailed(async () => ok([writeMap(root, await loadWorld(root))]));
 }

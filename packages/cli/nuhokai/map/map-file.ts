@@ -20,7 +20,10 @@ export const MapFile = node({
     },
   },
   requirements: [
-    { id: "R1", text: "Writes only nuhokai/.generated/map.html; creates .generated/; replaces any previous map." },
+    {
+      id: "R1",
+      text: "Writes only nuhokai/.generated/map.html; creates .generated/; replaces any previous map, a symlink there included, by renaming a fresh file over it, never writing through it; a .generated/ leading outside the world is refused.",
+    },
     {
       id: "R2",
       text: "The drawn part of the loaded world (id, name, source, nodes, placeholders) embedded unchanged as one JSON block; every < escaped.",
@@ -51,4 +54,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Viewer.draw, FileSystem.write] });
+}).edges({ uses: () => [Path.nameInWorld, Path.isInside, Viewer.draw, FileSystem.write] });

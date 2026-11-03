@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Path } from "../../path/path.ts";
+import { Diagnostics } from "../diagnostics.ts";
 
 /** The rules on the loaded world alone: R1–R5, R9, R11. */
 export const DataRules = node({
@@ -25,4 +26,4 @@ export const DataRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Path.nameNodes] });
+}).edges({ uses: () => [Diagnostics.locate, Path.childrenOf, Path.isAncestor] });

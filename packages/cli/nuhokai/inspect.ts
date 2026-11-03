@@ -18,6 +18,13 @@ export const Inspect = node({
       output: "absent | world | occupied (a non-directory at nuhokai/)",
       errors: [],
     },
+    occupied: {
+      kind: "call",
+      purpose: "The one message for a non-directory at nuhokai/, which init gives too",
+      input: "project directory, cwd-relative",
+      output: "'<project directory>/nuhokai exists but is not a directory'",
+      errors: [],
+    },
     requireWorld: {
       kind: "call",
       purpose: "Continue only if a world is there",
@@ -32,7 +39,7 @@ export const Inspect = node({
     { id: "R3", text: "Nothing there → absent." },
     {
       id: "R4",
-      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path, except a symlink to a directory; world passes.",
+      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd), the init command shell-quoted as Path suggests every command; occupied → one error naming the path, except a symlink to a directory; world passes.",
     },
     {
       id: "R5",
@@ -57,11 +64,11 @@ export const Inspect = node({
   decisions: [
     {
       decision: "Any directory counts as a world.",
-      why: "Commands never repair or update; a broken world is update's and check's business.",
+      why: "Commands never repair; a broken world is check's business.",
       rejected: [
         {
           option: "Require nuhokai/index.ts or load and validate",
-          why: "Commands must work before the loader does; a half-written world is update's and check's too.",
+          why: "Commands must work before the loader does; a half-written world is check's too.",
         },
       ],
     },
@@ -80,4 +87,4 @@ export const Inspect = node({
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, Path.suggestedCommand, FileSystem.read] });

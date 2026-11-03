@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { CliError } from "./failure.ts";
-import { CutShort, collecting, failedFrom, ok, resultLine } from "./report.ts";
+import { CutShort, collecting, ok, orFailed, resultLine } from "./report.ts";
 
 test("Failure R4: ok of texts is their result lines, in order", () => {
   expect(ok(["a", "b"])).toEqual({
@@ -12,13 +12,17 @@ test("Failure R4: ok of texts is their result lines, in order", () => {
   });
 });
 
-test("Failure R5: an expected failure is one failure line, failed; a bug is rethrown", () => {
-  expect(failedFrom(new CliError("no\n  world"))).toEqual({
+test("Failure R5: an expected failure is one failure line, failed; a bug is rethrown", async () => {
+  const failing = (thrown: unknown) =>
+    orFailed(async () => {
+      throw thrown;
+    });
+  expect(await failing(new CliError("no\n  world"))).toEqual({
     outcome: "failed",
     lines: [{ kind: "failure", text: "no world" }],
   });
   const bug = new TypeError("boom");
-  expect(() => failedFrom(bug)).toThrow(bug);
+  await expect(failing(bug)).rejects.toBe(bug);
 });
 
 test("Failure R5: a bug escaping a collecting command is a CutShort carrying the lines added before it", async () => {

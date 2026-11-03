@@ -28,7 +28,7 @@ export const Terminal = node({
   requirements: [
     {
       id: "R1",
-      text: "Plain lines only: no colour, cursor control or progress; output is the same on a tty and through a pipe, so grep and scripts read it as printed.",
+      text: "Plain lines only: no colour, cursor control or progress, no control or bidirectional format character from what is printed; output is the same on a tty and through a pipe, so grep and scripts read it as printed.",
     },
     {
       id: "R2",

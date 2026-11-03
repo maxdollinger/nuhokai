@@ -1,8 +1,10 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve, sep } from "node:path";
-import type { LoadedWorld } from "../../load/load-world.ts";
-import type { Finding } from "../diagnostics.ts";
-import { at, type TreeNode, worldTree } from "./world-tree.ts";
+import { isAbsolute, join, resolve } from "node:path";
+import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import { isAncestor } from "../../shared/node-path.ts";
+import { isInside } from "../../shared/world-path.ts";
+import { at, compareText, type Finding } from "../diagnostics.ts";
+import type { Ids } from "./ids.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
 const GLOB_CHARS = /[*?[\]{}!\\]/;
@@ -24,7 +26,7 @@ class ProjectFiles {
 
   /** Whether a real path lies inside the project directory. */
   #inside(real: string): boolean {
-    return real === this.#realRoot || real.startsWith(`${this.#realRoot}${sep}`);
+    return isInside(real, this.#realRoot);
   }
 
   /** The real path behind a relative path, if it exists and stays inside the project directory. */
@@ -59,7 +61,7 @@ class ProjectFiles {
       entries = [];
     }
     const files: string[] = [];
-    for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    for (const entry of entries.sort((a, b) => compareText(a.name, b.name))) {
       const path = dir ? `${dir}/${entry.name}` : entry.name;
       if (entry.isFile()) files.push(path);
       else if (entry.isDirectory()) files.push(...this.filesBelow(path, inner));
@@ -97,7 +99,7 @@ function expand(project: ProjectFiles, entry: string): Expansion {
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
 interface Owner {
-  readonly node?: TreeNode;
+  readonly node?: LoadedNode;
   readonly file: string;
   readonly line?: number;
   readonly label: string;
@@ -108,15 +110,13 @@ interface Owner {
  * each file has one owner, nesting aside. Reads the project directory `root`, named from the cwd; every glob shares one
  * set of directory reads.
  */
-export function checkSourceRules(root: string, world: LoadedWorld): Finding[] {
-  const tree = worldTree(world);
+export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
   const error = (owner: Owner, rule: string, fix: string) =>
     findings.push({
       severity: "error",
-      file: owner.file,
-      ...(owner.line === undefined ? {} : { line: owner.line }),
+      ...at(owner),
       ...(owner.node ? { node: owner.node.path } : {}),
       rule,
       fix,
@@ -168,9 +168,9 @@ export function checkSourceRules(root: string, world: LoadedWorld): Finding[] {
   }
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
-  const owners = new Map<string, TreeNode[]>();
-  for (const node of tree.nodes) {
-    if (tree.duplicated.has(node.spec.id)) continue;
+  const owners = new Map<string, LoadedNode[]>();
+  for (const node of world.nodes) {
+    if (ids.duplicated.has(node.spec.id)) continue;
     const owner: Owner = { node, ...at(node), label: node.spec.name };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const entry of entries ?? []) {
@@ -209,7 +209,7 @@ export function checkSourceRules(root: string, world: LoadedWorld): Finding[] {
   for (const [file, claimed] of owners) {
     for (const [index, node] of claimed.entries()) {
       for (const other of claimed.slice(0, index)) {
-        if (tree.isAncestor(other, node) || tree.isAncestor(node, other)) continue;
+        if (isAncestor(world, other, node) || isAncestor(world, node, other)) continue;
         const [first, second] = other.index < node.index ? [other, node] : [node, other];
         error(
           { node: second, ...at(second), label: second.spec.name },

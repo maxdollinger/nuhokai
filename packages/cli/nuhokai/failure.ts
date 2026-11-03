@@ -8,7 +8,13 @@ export const Failure = node({
     "thrown value to one line, and the Report every command returns: its outcome and its result and failure " +
     "lines, and the helpers that build it. Classifies, formats and shapes only; never prints.",
   status: "built",
-  source: ["src/shared/failure.ts", "src/shared/report.ts", "src/shared/report.test.ts", "src/shared/split-report.ts"],
+  source: [
+    "src/shared/failure.ts",
+    "src/shared/failure.test.ts",
+    "src/shared/report.ts",
+    "src/shared/report.test.ts",
+    "src/shared/split-report.ts",
+  ],
   ports: {
     format: {
       kind: "call",

@@ -7,7 +7,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -16,8 +15,9 @@ import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
 import { inspectTarget } from "../shared/inspect.ts";
 import { type SplitReport, splitReport } from "../shared/split-report.ts";
+import { WORLD_TSCONFIG, WORLD_TYPES_PATH } from "../shared/world-path.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
-import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
+import { TSCONFIG_TEMPLATE, writeCliFiles } from "./cli-files.ts";
 import { EXAMPLE_TEMPLATE, worldIndexSource } from "./example-world.ts";
 import { runInit } from "./scaffold.ts";
 
@@ -111,9 +111,10 @@ test("the written world loads as exactly one node, Example", async () => {
 
   const world = await loadWorld(repo);
   expect(world.id).toBe(worldIdOf(repo));
-  expect(world.nodes.map((spec) => spec.name)).toEqual(["Example"]);
-  expect(world.nodes[0]?.ports?.map((port) => port.name)).toEqual(["greet"]);
-  expect(world.placeholders.map((hole) => hole.users)).toEqual([[world.nodes[0]?.id ?? ""]]);
+  const [example] = world.nodes.map((node) => node.spec);
+  expect(world.nodes.map((node) => node.path)).toEqual(["Example"]);
+  expect(example?.ports?.map((port) => port.name)).toEqual(["greet"]);
+  expect(world.placeholders.map((hole) => hole.users)).toEqual([[example?.id ?? ""]]);
 });
 
 test("an existing world stays untouched, ok with one result line", async () => {
@@ -165,15 +166,15 @@ test("init writes into the directory it is given", async () => {
   expect(existsSync(join(repo, "nuhokai"))).toBe(false);
 });
 
-test("a second write of identical CLI-owned files rewrites nothing", () => {
+test("CliFiles R4: two writes give the same bytes", () => {
   const repo = tempDir();
-  const modificationTimes = () =>
-    [TSCONFIG_PATH, WORLD_TYPES_PATH].map((path) => statSync(join(repo, "nuhokai", path)).mtimeMs);
+  const bytes = () =>
+    [WORLD_TSCONFIG, WORLD_TYPES_PATH].map((path) => readFileSync(join(repo, "nuhokai", path), "utf8"));
 
-  expect(writeCliFiles(repo)).toEqual({ written: [TSCONFIG_PATH, WORLD_TYPES_PATH], unchanged: [] });
-  const written = modificationTimes();
-  expect(writeCliFiles(repo)).toEqual({ written: [], unchanged: [TSCONFIG_PATH, WORLD_TYPES_PATH] });
-  expect(modificationTimes()).toEqual(written);
+  expect(writeCliFiles(repo)).toEqual([WORLD_TSCONFIG, WORLD_TYPES_PATH]);
+  const first = bytes();
+  writeCliFiles(repo);
+  expect(bytes()).toEqual(first);
 });
 
 test("a programming error crashes instead of becoming one failure line", async () => {

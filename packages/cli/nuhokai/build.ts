@@ -10,7 +10,7 @@ export const Build = node({
     "viewer), compile a per-platform release archive with the tsgo sidecar, and smoke-test it. Build time only: " +
     "nothing here is a dependency of the shipped binary.",
   status: "built",
-  source: ["scripts/**"],
+  source: ["scripts/**", "src/toolchain/**"],
   ports: {
     embed: {
       kind: "call",

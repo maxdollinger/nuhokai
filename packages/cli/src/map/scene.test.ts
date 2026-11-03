@@ -2,8 +2,8 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { detailsOf, lightsFor, mapScene, type ScopeView, scopeView, search } from "./scene.js";
+import { loadWorld } from "../load/load-world.ts";
+import { detailsOf, lightsFor, type MapWorld, mapScene, type ScopeView, scopeView, search } from "./scene.js";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
 const root = mkdtempSync(join(tmpdir(), "nuhokai-scene-test-"));
@@ -19,7 +19,9 @@ function exampleWorld(): string {
   return root;
 }
 
-const world = await loadWorld(exampleWorld());
+const loaded = await loadWorld(exampleWorld());
+/** The example world as the map's data block holds it: each node as its NodeSpec. */
+const world: MapWorld = { ...loaded, nodes: loaded.nodes.map((node) => node.spec) };
 const scene = mapScene(world);
 const indexOf = (name: string) => world.nodes.findIndex((node) => node.name === name);
 
@@ -63,15 +65,10 @@ test("the top level is named after the world, as its view and first breadcrumb",
 });
 
 test("a world without a name, or with a blank one, still calls its top level World", () => {
-  const unnamed: LoadedWorld = {
+  const unnamed: MapWorld = {
     id: "w",
     nodes: [],
     placeholders: [],
-    file: "nuhokai/index.ts",
-    parents: [],
-    listings: [],
-    orphans: [],
-    files: [],
   };
 
   for (const loaded of [unnamed, { ...unnamed, name: "  " }]) {
@@ -116,7 +113,7 @@ test("an edge listing a call and an event port is a lane and an air route; group
     source: [],
     ...extra,
   });
-  const loaded: LoadedWorld = {
+  const loaded: MapWorld = {
     id: "w",
     nodes: [
       leaf("a", "A", {
@@ -130,11 +127,6 @@ test("an edge listing a call and an event port is a lane and an air route; group
       leaf("c", "C", { external: true, externalType: "caller", edges: [{ kind: "uses", to: "b", port: ["x"] }] }),
     ],
     placeholders: [],
-    file: "nuhokai/index.ts",
-    parents: [null, null, null],
-    listings: [],
-    orphans: [],
-    files: [],
   };
 
   const view = scopeView(mapScene(loaded), null);
@@ -167,11 +159,6 @@ test("a call cycle between islands still gets finite levels", () => {
       id: "w",
       nodes: [leaf("a", "b"), leaf("b", "a")],
       placeholders: [],
-      file: "nuhokai/index.ts",
-      parents: [null, null],
-      listings: [],
-      orphans: [],
-      files: [],
     }),
     null,
   );
@@ -227,18 +214,13 @@ test("two holes sharing a description stay two, each with its sorted users", () 
     status: "planned" as const,
     source: [],
   });
-  const loaded: LoadedWorld = {
+  const loaded: MapWorld = {
     id: "w",
     nodes: [leaf("a"), leaf("b"), leaf("c")],
     placeholders: [
       { kind: "call", description: "notify", users: ["c", "a"] },
       { kind: "call", description: "notify", users: ["b"] },
     ],
-    file: "nuhokai/index.ts",
-    parents: [null, null, null],
-    listings: [],
-    orphans: [],
-    files: [],
   };
 
   const holes = scopeView(mapScene(loaded), null).items.filter((item) => item.kind === "hole");
@@ -408,11 +390,6 @@ test("a hole's home is the deepest scope holding all its users", () => {
       { kind: "call", description: "notify", users: ["c", "a"] },
       { kind: "call", description: "log", users: ["c"] },
     ],
-    file: "nuhokai/index.ts",
-    parents: [null, null, 1],
-    listings: [],
-    orphans: [],
-    files: [],
   });
 
   // Unnamed (inline) holes: their description alone.
@@ -487,11 +464,6 @@ test("subsequence hits light when no better hit lights anything in the open scop
     id: "w",
     nodes: [leaf("A"), leaf("Directive", "A"), leaf("dec")],
     placeholders: [],
-    file: "nuhokai/index.ts",
-    parents: [null, 0, null],
-    listings: [],
-    orphans: [],
-    files: [],
   });
   const hits = search(nested, "dec");
   expect(hits.map((hit) => [hit.label, hit.tier])).toEqual([
@@ -514,11 +486,6 @@ test("a node found by its name's start ranks with its own port that matches bett
       leaf("load"),
     ],
     placeholders: [],
-    file: "nuhokai/index.ts",
-    parents: [null, null, null, null],
-    listings: [],
-    orphans: [],
-    files: [],
   });
   const load = search(ranked, "load");
   expect(load.map((hit) => [hit.label, hit.tier])).toEqual([
