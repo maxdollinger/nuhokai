@@ -28,7 +28,7 @@ export const SpecCheck = node({
     },
     {
       id: "R5",
-      text: "Rules tsc leaves to check (non-literal ids and flags, per packages/world/README.md) hold in the loaded world; each break is a violation.",
+      text: "Rules tsc leaves to check (non-literal ids and flags, per packages/world/README.md) hold in the loaded world; each break is a violation. Left out after a TypeCheck error: tsc has then reported what they would, and they would say it twice.",
     },
     {
       id: "R6",
@@ -47,7 +47,10 @@ export const SpecCheck = node({
       id: "R10",
       text: "Every file a node's source matches is matched by the world's source; the world's entries stay inside the project directory and follow R6. Else an error naming the node or the world, and the entry.",
     },
-    { id: "R11", text: "Every implements target is a reachable contract (abstract); else an error naming the edge." },
+    {
+      id: "R11",
+      text: "Every implements target is reachable; else an error naming the edge. That it is abstract is tsc's, re-checked by R5.",
+    },
   ],
   testCases: [
     {

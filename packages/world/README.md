@@ -148,7 +148,7 @@ A compile-time check fails if the two drift apart.
   `check` type-checks the world and keeps world files declarative (calls only to the format's functions, imports only
   `@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive), so
   the tsc rules hold; it re-checks on the loaded data only what tsc leaves to it (non-literal ids and flags) and the node-spec
-  structure.
+  structure, and only when tsc found no error, so a break is never reported twice.
 - Resolve references by **declaration**: a node is the `node(…).edges(…)` call a name leads to, so two names for one
   node are one node. The brands make forgeries fail tsc, but a cast passes, so never resolve by id and name.
 

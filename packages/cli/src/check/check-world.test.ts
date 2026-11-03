@@ -248,3 +248,25 @@ test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the
     "nuhokai check: <root>/nuhokai/tsconfig.json: not found; it is CLI-owned: copy it from a fresh `nuhokai init` (`nuhokai update` will restore it)",
   ]);
 });
+
+test("CheckWorld R5: after a type error SpecCheck leaves out R5, so an external child is reported once, by tsc", async () => {
+  const root = await world({
+    "nuhokai/bad.ts": `import { node } from "@nuhokai/world";
+export const Ext = node({ id: "ext", external: true, purpose: "e", status: "built", source: [] }).edges({});
+export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: [Ext] }).edges({});
+`,
+    "nuhokai/index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Dome } from "./bad.ts";
+export default defineWorld({ id: "w", name: "W", source: [], children: [Dome] });
+`,
+  });
+
+  const result = await check(root);
+
+  // init's Example, no longer listed, is an orphan warning; the one error is tsc's.
+  const errors = result.out.filter((line) => line.startsWith("error:"));
+  expect(result.code).toBe(1);
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toStartWith("error: <root>/nuhokai/bad.ts:3: ");
+  expect(errors[0]).toContain("external nodes are top level only");
+});

@@ -36,11 +36,14 @@ import {
   isCallExpression,
   isComputedPropertyName,
   isElementAccessExpression,
+  isEmptyStatement,
   isExportAssignment,
+  isExportDeclaration,
   isFunctionExpression,
   isIdentifier,
   isImportDeclaration,
   isImportSpecifier,
+  isInterfaceDeclaration,
   isNonNullExpression,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
@@ -56,7 +59,9 @@ import {
   isSpreadElement,
   isStringLiteral,
   isTemplateExpression,
+  isTypeAliasDeclaration,
   isVariableDeclaration,
+  isVariableStatement,
   type Node,
   type SourceFile,
   SyntaxKind,
@@ -169,8 +174,12 @@ const READ_OPTIONS = {
   types: [],
 };
 
-/** The functions a world file may call, imported from @nuhokai/world under their own name (TypeCheck R2). */
+/** A name that resolves to no declaration in the world: as a callee, it is a call the format does not allow. */
+class UnknownName extends CliError {}
+
+/** The functions a world file may call, imported from @nuhokai/world under their own name. */
 const WORLD_FUNCTIONS = new Set(["node", "defineWorld", "inherited", "tbd"]);
+const ALLOWED_CALLS = "node, .edges, defineWorld, tbd.call, tbd.event and inherited";
 
 // ─── Values ──────────────────────────────────────────────────────────────
 
@@ -445,17 +454,25 @@ class Reader {
     if (id.text === "undefined") return undefined;
     const checker = this.project.checker;
     const symbol = known ?? (this.symbols.has(id) ? this.symbols.get(id) : await checker.getSymbolAtLocation(id));
-    if (!symbol) throw this.fail(id, `'${id.text}' refers to nothing the checker knows`);
+    if (!symbol) throw new UnknownName(this.fail(id, `'${id.text}' refers to nothing the checker knows`).message);
     const local = await this.declarationOf(symbol);
     const imported = worldImport(local);
     if (imported) return new WorldFn(imported);
     const from = importedFrom(local);
+    if (from === "@nuhokai/world") {
+      throw this.fail(
+        id,
+        `'${id.text}': import node, defineWorld, inherited and tbd from @nuhokai/world under their own name`,
+      );
+    }
     if (from !== undefined && !from.startsWith(".")) {
       throw this.fail(id, `'${id.text}' comes from '${from}'; a world file reads only world files and @nuhokai/world`);
     }
     const target = await this.target(symbol);
     const declaration = await this.declarationOf(target);
-    if (!declaration) throw this.fail(id, `'${id.text}' refers to nothing: is its import's file there?`);
+    if (!declaration) {
+      throw new UnknownName(this.fail(id, `'${id.text}' refers to nothing: is its import's file there?`).message);
+    }
     const file = declaration.getSourceFile();
     if (this.nameOf(file) === undefined) {
       throw this.fail(
@@ -515,7 +532,23 @@ class Reader {
   }
 
   private async call(expr: CallExpression, env: Env): Promise<Val> {
-    const callee = await this.read(expr.expression, env);
+    const notAllowed = () => {
+      const file = expr.getSourceFile();
+      const text = file.text.slice(expr.expression.getStart(file), expr.expression.end).replace(/\s+/g, " ");
+      const callee = text.length > 40 ? `${text.slice(0, 37)}...` : text;
+      return this.fail(expr, `world files are declarative: they call only ${ALLOWED_CALLS}, not ${callee}(...)`);
+    };
+    // A callee that is a name (or a path on one) the loader cannot read is no function of the format: say so about
+    // the call. A callee made by a call, node(…).edges, fails on its own.
+    let root: Node = expr.expression;
+    while (isPropertyAccessExpression(root)) root = root.expression;
+    let callee: Val;
+    try {
+      callee = await this.read(expr.expression, env);
+    } catch (error) {
+      if (error instanceof UnknownName && isIdentifier(root)) throw notAllowed();
+      throw error;
+    }
     const args: Val[] = [];
     for (const arg of expr.arguments) {
       if (isSpreadElement(arg)) throw this.fail(arg, "a call here takes no spread");
@@ -530,7 +563,7 @@ class Reader {
         return new NodeV(callee.draft.at, callee.draft.def, edges);
       });
     }
-    if (!(callee instanceof WorldFn)) throw this.fail(expr, "the only calls here are the world format's functions");
+    if (!(callee instanceof WorldFn)) throw notAllowed();
     const arg = args[0];
     switch (callee.name) {
       case "node":
@@ -624,6 +657,43 @@ class Reader {
     return node.ports;
   }
 
+  /**
+   * The whole file is data: every top-level statement is an import, an export or a declaration, and every top-level
+   * value is read, used or not, so code anywhere is a load error at its line.
+   */
+  async readStatements(file: SourceFile): Promise<void> {
+    for (const statement of file.statements) {
+      if (
+        isImportDeclaration(statement) ||
+        isExportDeclaration(statement) ||
+        isInterfaceDeclaration(statement) ||
+        isTypeAliasDeclaration(statement) ||
+        isEmptyStatement(statement)
+      ) {
+        continue;
+      }
+      if (isExportAssignment(statement)) {
+        await this.declaration(statement, statement);
+      } else if (isVariableStatement(statement)) {
+        if (isAmbient(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+          if (!isIdentifier(declaration.name)) throw this.fail(declaration, "a declaration here names one value");
+          await this.declaration(declaration, declaration);
+        }
+      } else if (!isAmbient(statement)) {
+        throw this.fail(
+          statement,
+          `world files hold only imports, exports and declarations of data, not a ${SyntaxKind[statement.kind]}`,
+        );
+      }
+    }
+  }
+
+  /** Every node read so far, in the order its .edges() call was first read. */
+  nodes(): NodeV[] {
+    return [...this.made.values()].filter((value): value is NodeV => value instanceof NodeV);
+  }
+
   /** Each export of a world file, by name in code-unit order (as a module namespace lists them), with its value. */
   async exportsOf(file: SourceFile): Promise<[string, Val][]> {
     const checker = this.project.checker;
@@ -655,6 +725,12 @@ function worldImport(declaration: Node | undefined): string | undefined {
   return isIdentifier(name) && WORLD_FUNCTIONS.has(name.text) && name.text === declaration.name.text
     ? name.text
     : undefined;
+}
+
+/** Whether a statement only declares a type or an ambient value: `declare …`. */
+function isAmbient(statement: Node): boolean {
+  const modifiers = (statement as { modifiers?: readonly Node[] }).modifiers ?? [];
+  return modifiers.some((modifier) => modifier.kind === SyntaxKind.DeclareKeyword);
 }
 
 /** The module an import binding comes from, if `declaration` is one. */
@@ -779,6 +855,7 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
     }
     const reader = new Reader(project, names);
     await reader.prepare(files.map(([, file]) => file));
+    for (const [, file] of files) await reader.readStatements(file);
     return await worldOf(reader, files, index);
   } catch (error) {
     if (error instanceof CliError) throw error;
@@ -927,6 +1004,13 @@ async function worldOf(reader: Reader, sources: readonly [string, SourceFile][],
     const edges = [...(await usesOf(node)), ...(await implementsOf(node))];
     if (edges.length) spec.edges = edges;
     nodes.push(spec);
+  }
+
+  // Every node's edges are read, also an orphan's, so code in them is a load error wherever the node is listed.
+  for (const node of reader.nodes()) {
+    if (seen.has(node)) continue;
+    await edgeList(node, "uses");
+    await edgeList(node, "implements");
   }
 
   // R8: exported but never reached, in sorted file order.

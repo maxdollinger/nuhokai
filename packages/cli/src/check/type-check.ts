@@ -1,44 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import {
-  createScanner,
-  isCallExpression,
-  isIdentifier,
-  isImportDeclaration,
-  isNamedImports,
-  isPropertyAccessExpression,
-  isStringLiteral,
-  type Node,
-  type SourceFile,
-  SyntaxKind,
-} from "typescript/unstable/ast";
+import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
 import { API, type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
 import { CliError, oneLine } from "../shared/failure.ts";
 import { inWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
 import { compareFindings, type Finding } from "./diagnostics.ts";
-
-/** The only callees a world file may call (TypeCheck R2). */
-const ALLOWED_CALLS = "node, .edges, defineWorld, tbd.call, tbd.event and inherited";
-
-/** The names TypeCheck R2's calls go through; each counts only as its import from @nuhokai/world. */
-const WORLD_NAMES = ["node", "defineWorld", "inherited", "tbd"];
-
-/** The kinds of node that declare a value name in their `name`. */
-const DECLARATIONS = new Set([
-  SyntaxKind.VariableDeclaration,
-  SyntaxKind.Parameter,
-  SyntaxKind.BindingElement,
-  SyntaxKind.FunctionDeclaration,
-  SyntaxKind.FunctionExpression,
-  SyntaxKind.ClassDeclaration,
-  SyntaxKind.ClassExpression,
-  SyntaxKind.EnumDeclaration,
-  SyntaxKind.ModuleDeclaration,
-  SyntaxKind.ImportEqualsDeclaration,
-  SyntaxKind.ImportClause,
-  SyntaxKind.NamespaceImport,
-  SyntaxKind.ImportSpecifier,
-]);
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
 const LITERALS = new Set([
@@ -82,59 +48,6 @@ function lineOf(file: SourceFile, position: number): number {
   return file.getLineAndCharacterOfPosition(position).line + 1;
 }
 
-/** How a message names a callee: its source text, shortened. */
-function calleeText(file: SourceFile, node: Node): string {
-  const text = file.text.slice(node.getStart(file), node.end).replace(/\s+/g, " ");
-  return text.length > 40 ? `${text.slice(0, 37)}...` : text;
-}
-
-/**
- * The names of WORLD_NAMES the file imports from @nuhokai/world under their own name and declares nowhere else, so
- * a call through them is the world's.
- */
-function worldBindings(file: SourceFile): Set<string> {
-  const declared = new Map<string, number>();
-  const imported: string[] = [];
-  const visit = (node: Node): void => {
-    const name = (node as Node & { name?: Node }).name;
-    if (DECLARATIONS.has(node.kind) && name && isIdentifier(name)) {
-      declared.set(name.text, (declared.get(name.text) ?? 0) + 1);
-    }
-    const clause = isImportDeclaration(node) ? node.importClause : undefined;
-    if (
-      clause?.namedBindings &&
-      clause.phaseModifier === undefined &&
-      isNamedImports(clause.namedBindings) &&
-      isImportDeclaration(node) &&
-      isStringLiteral(node.moduleSpecifier) &&
-      node.moduleSpecifier.text === "@nuhokai/world"
-    ) {
-      for (const specifier of clause.namedBindings.elements) {
-        const exported = specifier.propertyName ?? specifier.name;
-        if (!specifier.isTypeOnly && isIdentifier(exported) && exported.text === specifier.name.text) {
-          imported.push(specifier.name.text);
-        }
-      }
-    }
-    node.forEachChild(visit);
-  };
-  file.forEachChild(visit);
-  return new Set(imported.filter((name) => WORLD_NAMES.includes(name) && declared.get(name) === 1));
-}
-
-/**
- * Whether a call's callee is one of the declarative calls: node, defineWorld or inherited, tbd.call or tbd.event,
- * each through its import from @nuhokai/world, or .edges on such a node(...) call.
- */
-function isAllowedCallee(callee: Node, bound: ReadonlySet<string>): boolean {
-  const isBound = (node: Node, name: string) => isIdentifier(node) && node.text === name && bound.has(name);
-  if (isIdentifier(callee)) return callee.text !== "tbd" && bound.has(callee.text);
-  if (!isPropertyAccessExpression(callee) || !isIdentifier(callee.name)) return false;
-  const receiver = callee.expression;
-  if (callee.name.text === "edges") return isCallExpression(receiver) && isBound(receiver.expression, "node");
-  return (callee.name.text === "call" || callee.name.text === "event") && isBound(receiver, "tbd");
-}
-
 /**
  * Every comment in the file, by its start: a scan of the text that skips each literal the parser found, so text
  * inside a string, template or regular expression is never read as a comment, nor a comment after one missed.
@@ -165,8 +78,9 @@ function isConstAssertion(cast: Node): boolean {
 }
 
 /**
- * TypeCheck R2 on one world file: calls only to the declarative calls, imports only @nuhokai/world and files under
- * the world folder, and no cast, non-null assertion, any or @ts- directive. One finding per offence, at its line.
+ * TypeCheck R2 on one world file: imports only @nuhokai/world and files under the world folder, so the type check
+ * never depends on the repo's packages, and no cast, non-null assertion, any or @ts- directive, so nothing bypasses
+ * the rules tsc checks. One finding per offence, at its line. Whether the file is data is LoadWorld's to judge.
  */
 function declarativeFindings(file: SourceFile, worldDir: string, name: string): Finding[] {
   const findings: Finding[] = [];
@@ -192,24 +106,8 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
       "move what the import provides into the world, or drop the import",
     );
   };
-  const bound = worldBindings(file);
   const visit = (node: Node): void => {
     switch (node.kind) {
-      case SyntaxKind.CallExpression: {
-        const callee = (node as Node & { expression: Node }).expression;
-        if (!isAllowedCallee(callee, bound)) {
-          error(
-            node,
-            `world files are declarative: they call only ${ALLOWED_CALLS}, not ${calleeText(file, callee)}(...)`,
-            "write the value out as data",
-          );
-        }
-        break;
-      }
-      case SyntaxKind.NewExpression:
-      case SyntaxKind.TaggedTemplateExpression:
-        error(node, `world files are declarative: calls only to ${ALLOWED_CALLS}`, "write the value out as data");
-        break;
       case SyntaxKind.ImportDeclaration:
       case SyntaxKind.ExportDeclaration:
         checkSpecifier(node, (node as Node & { moduleSpecifier?: Node }).moduleSpecifier);

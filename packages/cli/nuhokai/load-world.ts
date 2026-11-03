@@ -39,7 +39,7 @@ export const LoadWorld = node({
     },
     {
       id: "R12",
-      text: "Reads what TypeCheck R2 allows: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return. A name resolves to its declaration through imports, re-exports and aliases.",
+      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
     },
     {
       id: "R13",
@@ -120,7 +120,7 @@ export const LoadWorld = node({
       demonstrates: ["R10"],
     },
     {
-      text: "Syntax error, a uses function with a block of statements, a call to String, a name imported from a package or a missing file, non-world default export, uses returning a non-list → one CliError each naming the file, with its line where it points at code. Unexported node → named by id.",
+      text: "Syntax error, a uses function with a block of statements (also an orphan's), a call to String, a top-level throw, an unused const holding Date.now(), node imported as n, a name imported from a package or a missing file, non-world default export, uses returning a non-list → one CliError each naming the file, with its line where it points at code. Unexported node → named by id.",
       demonstrates: ["R2", "R5", "R6", "R12"],
     },
     {

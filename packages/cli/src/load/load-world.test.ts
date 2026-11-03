@@ -423,6 +423,28 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
       },
       "nuhokai/orders.ts:3: 'gone' refers to nothing",
     ],
+    [
+      { "index.ts": index, "orders.ts": `${orders}throw new Error("never runs");\n` },
+      "nuhokai/orders.ts:3: world files hold only imports, exports and declarations of data, not a ThrowStatement",
+    ],
+    [
+      { "index.ts": index, "orders.ts": `${orders}const unused = Date.now();\n` },
+      "nuhokai/orders.ts:3: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not Date.now(...)",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `${orders}export const Lost = node(${leaf("lost")}).edges({ uses: () => { const x = [A.x]; return x; } });\n`,
+      },
+      "nuhokai/orders.ts:3: a function here is an expression or one return",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node as n } from "@nuhokai/world";\nexport const A = n(${leaf("a")}).edges({});\n`,
+      },
+      "nuhokai/orders.ts:2: 'n': import node, defineWorld, inherited and tbd from @nuhokai/world under their own name",
+    ],
   ];
 
   for (const [files, prefix] of cases) {
@@ -447,11 +469,10 @@ export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: 
   "z-caller.ts": `import { node } from "@nuhokai/world";
 import { Cmd } from "./cmd/cmd.ts";
 export const Caller = node(${leaf("caller", '{ print: { kind: "call", purpose: "print" } }')}).edges({ uses: () => [Cmd.run] });
-throw new Error("never runs");
 `,
 };
 
-test("nothing runs: an import cycle through a dome loads in any import order, and a throw never throws", async () => {
+test("nothing runs: an import cycle through a dome loads in any import order", async () => {
   const index = (imports: string) => `import { defineWorld } from "@nuhokai/world";
 ${imports}
 export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });

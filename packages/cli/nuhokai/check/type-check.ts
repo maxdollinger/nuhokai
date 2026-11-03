@@ -23,7 +23,7 @@ export const TypeCheck = node({
     { id: "R1", text: "Every *.ts under nuhokai/, test files included, except .generated/." },
     {
       id: "R2",
-      text: "World files are declarative: calls only to node, .edges, defineWorld, tbd.call, tbd.event and inherited; imports only @nuhokai/world and files under nuhokai/; no cast (as const aside), non-null assertion, any or @ts- directive. Anything else is an error at its line.",
+      text: "Nothing in a world file bypasses or widens the type check: imports only @nuhokai/world and files under nuhokai/, so it never depends on the repo's packages; no cast (as const aside), non-null assertion, any or @ts- directive, so every tsc rule holds. Each breach is an error at its line. Whether a file is data is LoadWorld's to judge, not R2's.",
     },
     {
       id: "R3",
@@ -36,8 +36,21 @@ export const TypeCheck = node({
       demonstrates: ["R1"],
     },
     {
-      text: "children: [Contract as any], a @ts-expect-error line and Reflect.get(...) → three errors; a test file importing bun:test fails too.",
+      text: "children: [Contract as any] and a @ts-expect-error line → two errors, Reflect.get(...) none (LoadWorld's); a test file importing bun:test fails too.",
       demonstrates: ["R2"],
+    },
+  ],
+  decisions: [
+    {
+      decision:
+        "R2 keeps only what the type check needs: imports, casts, !, any and @ts- directives. Calls and other code are LoadWorld's.",
+      why: "LoadWorld reads every world file and fails on what is not data, so it is the one definition of declarative; two definitions disagreed (a ?: passed R2 and failed to load; as any failed R2 and loaded). Type escapes and imports never reach LoadWorld: it reads values, not types.",
+      rejected: [
+        {
+          option: "R2 judges calls too, beside LoadWorld",
+          why: "Two definitions of one rule drift apart.",
+        },
+      ],
     },
   ],
 }).edges({ uses: () => [Path.inWorld, Failure.format, Tsgo.check, FileSystem.read] });

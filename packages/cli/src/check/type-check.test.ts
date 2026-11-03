@@ -43,7 +43,7 @@ test("R1: a type error in nuhokai/index.test.ts is one error; the same in nuhoka
   ]);
 });
 
-test("R2: a cast to any, a @ts-expect-error line and Reflect.get(...) are three errors", async () => {
+test("R2: a cast to any and a @ts-expect-error line are two errors; a call is LoadWorld's to judge, not R2's", async () => {
   const root = await world({
     "nuhokai/dome.ts": `import { node } from "@nuhokai/world";
 import { Example } from "./example.ts";
@@ -65,7 +65,6 @@ export const read = Reflect.get(Dome, "$def");
   expect(await typeCheck(root)).toEqual([
     "error: nuhokai/dome.ts:10: world files use no cast; it bypasses the rules tsc checks; drop the cast and fix the type error",
     "error: nuhokai/dome.ts:13: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
-    "error: nuhokai/dome.ts:15: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not Reflect.get(...); write the value out as data",
   ]);
 });
 
@@ -126,30 +125,6 @@ export const w = /\\/\\/ @ts-ignore/;
     "error: nuhokai/a.ts:2: world files use no @ts-ignore directive; it hides what tsc reports; drop the directive and fix the error",
     "error: nuhokai/a.ts:4: Unused '@ts-expect-error' directive.",
     "error: nuhokai/a.ts:4: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
-  ]);
-});
-
-test("R2: a call counts only through its import from @nuhokai/world, .edges only on such a node(...) call", async () => {
-  const root = await world({
-    "nuhokai/a.ts": `const node = globalThis.eval;
-node("x");
-({ edges: eval }).edges("x");
-`,
-    "nuhokai/b.ts": `import { node, tbd } from "@nuhokai/world";
-export const B = node({ id: "b", purpose: "p", status: "planned", source: [] }).edges({});
-export const hole = tbd.call("later");
-// tbd is shadowed below, so neither tbd.call is the world's.
-export const f = (tbd: { call(text: string): void }) => tbd.call("x");
-`,
-  });
-  const lines = (await typeCheck(root)).filter((line) => line.includes("declarative"));
-  const call = (file: string, line: number, callee: string) =>
-    `error: nuhokai/${file}:${line}: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not ${callee}(...); write the value out as data`;
-  expect(lines).toEqual([
-    call("a.ts", 2, "node"),
-    call("a.ts", 3, "({ edges: eval }).edges"),
-    call("b.ts", 3, "tbd.call"),
-    call("b.ts", 5, "tbd.call"),
   ]);
 });
 

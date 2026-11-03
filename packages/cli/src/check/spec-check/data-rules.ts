@@ -14,7 +14,7 @@ interface Place {
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
  * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
  */
-export function checkDataRules(world: LoadedWorld): Finding[] {
+export function checkDataRules(world: LoadedWorld, typeErrors = false): Finding[] {
   const tree = worldTree(world);
   // SpecCheck R1 first: every other rule skips the nodes whose id is duplicated.
   const judged = tree.nodes.filter((node) => !tree.duplicated.has(node.spec.id));
@@ -25,8 +25,10 @@ export function checkDataRules(world: LoadedWorld): Finding[] {
     ...orphans(world),
     ...judged.flatMap((node) => scope(world, tree, node)),
     ...siblingNames(tree),
-    ...judged.flatMap((node) => [...formatRules(world, tree, node), ...builtWithoutSource(node)]),
-    ...judged.flatMap((node) => contracts(world, tree, node)),
+    // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
+    ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, tree, node))),
+    ...judged.flatMap((node) => builtWithoutSource(node)),
+    ...judged.flatMap((node) => contracts(world, tree, node, typeErrors)),
   ];
 }
 
@@ -250,8 +252,11 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Findi
   return findings;
 }
 
-/** SpecCheck R5: implements lists each contract once; no own port shares an inherited port's name, no two contracts a port name. */
-function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
+/**
+ * SpecCheck R11: every implements target is reachable. SpecCheck R5, unless TypeCheck found an error: implements lists
+ * each contract once, each is abstract; no own port shares an inherited port's name, no two contracts a port name.
+ */
+function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode, typeErrors: boolean): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) =>
     findings.push({ severity: "error", ...at(node), node: node.path, rule, fix });
@@ -262,7 +267,7 @@ function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding
     const contract = tree.byId(to);
     const name = contract?.spec.name ?? orphanName(world, to);
     if (targets.indexOf(to) !== index) {
-      error(`${node.spec.name} implements ${name} twice`, `list ${name} once in implements`);
+      if (!typeErrors) error(`${node.spec.name} implements ${name} twice`, `list ${name} once in implements`);
       continue;
     }
     // SpecCheck R11: the target is a reachable contract.
@@ -273,6 +278,8 @@ function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding
       );
       continue;
     }
+    // From here on SpecCheck R5: tsc's contract rules, held against the loaded values.
+    if (typeErrors) continue;
     if (!contract.spec.abstract) {
       error(
         `${node.spec.name} implements ${contract.path}, which is not abstract`,
@@ -290,7 +297,7 @@ function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding
       } else inherited.set(port, contract.spec.name);
     }
   }
-  for (const port of portNames(node.spec)) {
+  for (const port of typeErrors ? [] : portNames(node.spec)) {
     const contract = inherited.get(port);
     if (contract !== undefined) {
       error(`own port ${port} has the name of a port inherited from ${contract}`, `rename the own port ${port}`);
