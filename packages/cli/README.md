@@ -7,7 +7,8 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 
 ```
 src/
-  bin.ts        argv, exit codes, command dispatch
+  bin.ts        argv, exit codes, command dispatch through the registry of cli/commands
+  cli/          Cmd: each command's help text, argument parser and deferred call into its node, one file per command
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
   load/         read nuhokai/ without running it and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene

@@ -39,7 +39,7 @@ async function failed(argv: string[]): Promise<[number | undefined, string[]]> {
 }
 
 test("usage lists every command", () => {
-  for (const command of COMMANDS) expect(usage()).toContain(command);
+  for (const command of Object.keys(COMMANDS)) expect(usage()).toContain(command);
 });
 
 test("--help exits 0", async () => {
