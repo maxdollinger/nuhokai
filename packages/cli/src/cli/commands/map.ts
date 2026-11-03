@@ -7,7 +7,7 @@ export const mapCmd: Cmd = {
   options: [],
   async run(root) {
     // The map's assets weigh hundreds of KB; only map loads them.
-    const { runMap } = await import("../../map/index.ts");
+    const { runMap } = await import("../../map/draw-map.ts");
     return runMap(root);
   },
 };

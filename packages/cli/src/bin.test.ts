@@ -8,7 +8,7 @@ import { checkCmd } from "./cli/commands/check.ts";
 import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
-import { runInit } from "./init/index.ts";
+import { runInit } from "./init/scaffold.ts";
 import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
 import * as printTree from "./tree/print-tree.ts";
 

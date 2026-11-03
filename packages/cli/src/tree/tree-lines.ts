@@ -1,4 +1,5 @@
 import type { LoadedWorld } from "../load/load-world.ts";
+import { oneLine } from "../shared/failure.ts";
 import { childrenOf, nameNodes } from "../shared/node-path.ts";
 import { nameInProject } from "../shared/paths.ts";
 
@@ -28,19 +29,11 @@ export function renderTree(world: LoadedWorld, root: string, start: number | nul
   return lines;
 }
 
-/** One node's line; an unchecked world's odd fields print as best they can, never crash. */
+/** One node's line, each field on one line; an unchecked world's odd fields print as best they can, never crash. */
 function line(world: LoadedWorld, root: string, index: number, path: string): string {
   const spec = world.nodes[index];
   const entries = Array.isArray(spec?.source) ? spec.source.filter((entry) => typeof entry === "string") : [];
   const source = entries.length > 0 ? entries.map((entry) => nameInProject(root, entry)).join(", ") : NO_SOURCE;
   const purpose = typeof spec?.purpose === "string" ? spec.purpose : "";
   return [path, source, purpose].map(oneLine).join(" | ");
-}
-
-/**
- * A field on one line: every run of whitespace or control characters (newlines, escape sequences) is one space,
- * trimmed, so one node is always one line and nothing in a world file can reach the terminal as a control code.
- */
-function oneLine(field: string): string {
-  return field.replace(/[\s\p{Cc}]+/gu, " ").trim();
 }

@@ -1,8 +1,8 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import type { LoadedWorld } from "../../load/load-world.ts";
-import type { Finding } from "../diagnostics.ts";
-import { at, type TreeNode, worldTree } from "./world-tree.ts";
+import { compareText, type Finding } from "../diagnostics.ts";
+import { at, type TreeNode, type WorldTree } from "./world-tree.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
 const GLOB_CHARS = /[*?[\]{}!\\]/;
@@ -59,7 +59,7 @@ class ProjectFiles {
       entries = [];
     }
     const files: string[] = [];
-    for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    for (const entry of entries.sort((a, b) => compareText(a.name, b.name))) {
       const path = dir ? `${dir}/${entry.name}` : entry.name;
       if (entry.isFile()) files.push(path);
       else if (entry.isDirectory()) files.push(...this.filesBelow(path, inner));
@@ -108,15 +108,13 @@ interface Owner {
  * each file has one owner, nesting aside. Reads the project directory `root`, named from the cwd; every glob shares one
  * set of directory reads.
  */
-export function checkSourceRules(root: string, world: LoadedWorld): Finding[] {
-  const tree = worldTree(world);
+export function checkSourceRules(root: string, world: LoadedWorld, tree: WorldTree): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
   const error = (owner: Owner, rule: string, fix: string) =>
     findings.push({
       severity: "error",
-      file: owner.file,
-      ...(owner.line === undefined ? {} : { line: owner.line }),
+      ...at(owner),
       ...(owner.node ? { node: owner.node.path } : {}),
       rule,
       fix,

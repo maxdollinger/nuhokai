@@ -66,9 +66,10 @@ import {
   type SourceFile,
   SyntaxKind,
 } from "typescript/unstable/ast";
-import { API, type Project, SymbolFlags, type Symbol as TsSymbol } from "typescript/unstable/async";
-import { checkerPath } from "../check/type-check.ts";
-import { CliError, oneLine } from "../shared/failure.ts";
+import { type Project, SymbolFlags, type Symbol as TsSymbol } from "typescript/unstable/async";
+import { compareText } from "../check/diagnostics.ts";
+import { checkerPath, withChecker } from "../check/type-check.ts";
+import { CliError, errorLine, oneLine } from "../shared/failure.ts";
 import { requireWorld } from "../shared/inspect.ts";
 import { nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 
@@ -146,7 +147,7 @@ export function worldFiles(root: string): string[] {
         } catch (error) {
           const code = (error as { code?: unknown } | null)?.code;
           throw new CliError(
-            `${nameInWorld(root, name)}: the symlink cannot be resolved (${String(code ?? oneLine(error))})`,
+            `${nameInWorld(root, name)}: the symlink cannot be resolved (${String(code ?? errorLine(error))})`,
           );
         }
       }
@@ -700,9 +701,7 @@ class Reader {
     const module = this.symbols.has(file) ? this.symbols.get(file) : await checker.getSymbolAtLocation(file);
     if (!module) return [];
     const exports: [string, Val][] = [];
-    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) =>
-      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
-    );
+    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) => compareText(a.name, b.name));
     for (const symbol of symbols) {
       const target = await this.target(symbol);
       const declaration = target.valueDeclaration && (await this.declarationOf(target));
@@ -831,37 +830,32 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
   const projectDir = mkdtempSync(join(tmpdir(), "nuhokai-load-"));
   const config = join(projectDir, "tsconfig.json");
   writeFileSync(config, JSON.stringify({ compilerOptions: READ_OPTIONS, files: paths.map((name) => resolve(name)) }));
-  const api = new API({ cwd: resolve(root), tsserverPath: checker() });
   try {
-    const snapshot = await api.updateSnapshot({ openProject: config });
-    const project = snapshot.getProject(config);
-    if (!project) throw new CliError(`${nameInWorld(root)}: the type checker opened no project for the world files`);
-    const program = project.program;
-    const files = await Promise.all(
-      paths.map(async (name): Promise<[string, SourceFile]> => {
-        const file = (await program.getSourceFile(resolve(name))) ?? (await program.getSourceFile(realpathSync(name)));
-        if (!file) throw new CliError(`${name}: the type checker did not read it`);
-        return [name, file];
-      }),
-    );
-    // A file that does not parse is a load error at its first syntax error.
-    const syntax = await Promise.all(files.map(([, file]) => program.getSyntacticDiagnostics(file.fileName)));
-    for (const [at, [name, file]] of files.entries()) {
-      const first = syntax[at]?.[0];
-      if (first) {
-        const line = file.getLineAndCharacterOfPosition(first.pos).line + 1;
-        throw new CliError(`${name}:${line}: ${oneLine(first.text)}`);
+    return await withChecker(root, config, nameInWorld(root), checker(), async (project) => {
+      const program = project.program;
+      const files = await Promise.all(
+        paths.map(async (name): Promise<[string, SourceFile]> => {
+          const file =
+            (await program.getSourceFile(resolve(name))) ?? (await program.getSourceFile(realpathSync(name)));
+          if (!file) throw new CliError(`${name}: the type checker did not read it`);
+          return [name, file];
+        }),
+      );
+      // A file that does not parse is a load error at its first syntax error.
+      const syntax = await Promise.all(files.map(([, file]) => program.getSyntacticDiagnostics(file.fileName)));
+      for (const [at, [name, file]] of files.entries()) {
+        const first = syntax[at]?.[0];
+        if (first) {
+          const line = file.getLineAndCharacterOfPosition(first.pos).line + 1;
+          throw new CliError(`${name}:${line}: ${oneLine(first.text)}`);
+        }
       }
-    }
-    const reader = new Reader(project, names);
-    await reader.prepare(files.map(([, file]) => file));
-    for (const [, file] of files) await reader.readStatements(file);
-    return await worldOf(reader, files, index);
-  } catch (error) {
-    if (error instanceof CliError) throw error;
-    throw new CliError(`the type checker failed: ${oneLine(error)}`);
+      const reader = new Reader(project, names);
+      await reader.prepare(files.map(([, file]) => file));
+      for (const [, file] of files) await reader.readStatements(file);
+      return worldOf(reader, files, index);
+    });
   } finally {
-    await api.close().catch(() => {});
     rmSync(projectDir, { recursive: true, force: true });
   }
 }
@@ -919,7 +913,7 @@ async function worldOf(reader: Reader, sources: readonly [string, SourceFile][],
       return await read();
     } catch (error) {
       if (error instanceof CliError && /^\S+:\d+: /.test(error.message)) throw error;
-      throw new CliError(`${fileOf(node)}: ${nameOf(node)}.${field}: ${oneLine(error)}`);
+      throw new CliError(`${fileOf(node)}: ${nameOf(node)}.${field}: ${errorLine(error)}`);
     }
   };
   await place(world.def.children, null);

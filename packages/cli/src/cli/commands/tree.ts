@@ -18,7 +18,7 @@ export const treeCmd: Cmd = {
   options: [LEVEL_OPTION],
   // The node passes unchanged: which node it names is Tree's to judge.
   async run(root, { positionals: [node], get }) {
-    const { runTree } = await import("../../tree/index.ts");
+    const { runTree } = await import("../../tree/print-tree.ts");
     return runTree(root, node, get(LEVEL_OPTION) ?? DEFAULT_LEVEL);
   },
 };

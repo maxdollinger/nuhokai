@@ -1,10 +1,10 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { NoWorldError } from "../shared/inspect.ts";
+import { nameNodes } from "../shared/node-path.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
-import { runSpecCheck } from "./spec-check/index.ts";
-import { worldTree } from "./spec-check/world-tree.ts";
+import { applyRules } from "./spec-check/apply-rules.ts";
 import { runTypeCheck } from "./type-check.ts";
 
 /** How a check settled: what it answered, or what it threw. */
@@ -24,10 +24,10 @@ async function settle<T>(check: () => Promise<T>): Promise<Settled<T>> {
  */
 function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | undefined): Finding[] {
   if (!world) return [...findings];
-  const tree = worldTree(world);
+  const paths = nameNodes(world);
   const defined = new Map<string, (string | undefined)[]>();
   const define = (file: string, path: string | undefined) => defined.set(file, [...(defined.get(file) ?? []), path]);
-  for (const [index, entry] of world.files.entries()) define(entry.file, tree.nodes[index]?.path);
+  for (const [index, entry] of world.files.entries()) define(entry.file, paths[index]);
   for (const orphan of world.orphans) define(orphan.file, undefined);
   return findings.map((finding) => {
     const paths = defined.get(finding.file);
@@ -81,7 +81,7 @@ export async function runCheck(root: string): Promise<Report> {
     const typeFindings = addTypeFindings(typed, world);
     // After a type error SpecCheck leaves out R5: it re-checks tsc's rules, so it would report the same break twice.
     const typeErrors = typeFindings.some((finding) => finding.severity === "error");
-    const specced = await settle(async () => runSpecCheck(root, world, typeErrors));
+    const specced = await settle(async () => applyRules(root, world, typeErrors));
     if ("thrown" in specced) {
       addFailure(specced.thrown);
       return failedReport();

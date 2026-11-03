@@ -6,7 +6,7 @@ export const initCmd: Cmd = {
   positionals: [],
   options: [],
   async run(root) {
-    const { runInit } = await import("../../init/index.ts");
+    const { runInit } = await import("../../init/scaffold.ts");
     return runInit(root);
   },
 };

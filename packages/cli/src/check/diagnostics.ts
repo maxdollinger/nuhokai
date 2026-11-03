@@ -27,8 +27,8 @@ export function formatFinding(finding: Finding): string {
   return parts.join(": ");
 }
 
-/** Plain code-unit order, so the same findings sort byte-identically on every machine. */
-function compareText(a: string, b: string): number {
+/** Plain code-unit order, so the same names sort byte-identically on every machine and locale. */
+export function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 

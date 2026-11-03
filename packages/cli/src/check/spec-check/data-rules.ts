@@ -1,7 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
 import type { Finding } from "../diagnostics.ts";
-import { at, type TreeNode, type WorldTree, worldTree } from "./world-tree.ts";
+import { at, nodeError, type TreeNode, type WorldTree } from "./world-tree.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
 interface Place {
@@ -14,8 +14,7 @@ interface Place {
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
  * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
  */
-export function checkDataRules(world: LoadedWorld, typeErrors = false): Finding[] {
-  const tree = worldTree(world);
+export function checkDataRules(world: LoadedWorld, tree: WorldTree, typeErrors = false): Finding[] {
   // SpecCheck R1 first: every other rule skips the nodes whose id is duplicated.
   const judged = tree.nodes.filter((node) => !tree.duplicated.has(node.spec.id));
   return [
@@ -55,13 +54,9 @@ function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
       first.set(node.spec.id, `${node.path} (${node.file})`);
       continue;
     }
-    findings.push({
-      severity: "error",
-      ...at(node),
-      node: node.path,
-      rule: `id "${node.spec.id}" is already the id of ${holder}`,
-      fix: "give one of them a fresh, unique id",
-    });
+    findings.push(
+      nodeError(node, `id "${node.spec.id}" is already the id of ${holder}`, "give one of them a fresh, unique id"),
+    );
   }
   return findings;
 }
@@ -88,8 +83,7 @@ function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
     const node = tree.byId(listing.node);
     findings.push({
       severity: "error",
-      file: here.file,
-      ...(here.line === undefined ? {} : { line: here.line }),
+      ...at(here),
       ...(node ? { node: node.path } : {}),
       rule: `${node?.spec.name ?? listing.node} is listed twice: in ${before.name} and in ${here.name}`,
       fix: "keep one of the two listings",
@@ -122,8 +116,7 @@ function usesEdge(node: TreeNode, target: string, ports: readonly string[]): str
 /** SpecCheck R3: a uses edge targets a sibling or an ancestor's sibling, top level included; never a node inside one. */
 function scope(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
   const findings: Finding[] = [];
-  const error = (rule: string, fix: string) =>
-    findings.push({ severity: "error", ...at(node), node: node.path, rule, fix });
+  const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   for (const edge of node.spec.edges ?? []) {
     if (edge.kind !== "uses" || tree.duplicated.has(edge.to)) continue;
     const target = tree.byId(edge.to);
@@ -175,13 +168,13 @@ function siblingNames(tree: WorldTree): Finding[] {
         named.set(child.spec.name, child);
         continue;
       }
-      findings.push({
-        severity: "error",
-        ...at(child),
-        node: child.path,
-        rule: `${child.path} is the name of two siblings, in ${first.file} and ${child.file}`,
-        fix: "rename one of the two exports, or move one node into another dome",
-      });
+      findings.push(
+        nodeError(
+          child,
+          `${child.path} is the name of two siblings, in ${first.file} and ${child.file}`,
+          "rename one of the two exports, or move one node into another dome",
+        ),
+      );
     }
   }
   return findings;
@@ -191,8 +184,7 @@ function siblingNames(tree: WorldTree): Finding[] {
 function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
   const spec = node.spec;
   const findings: Finding[] = [];
-  const error = (rule: string, fix: string) =>
-    findings.push({ severity: "error", ...at(node), node: node.path, rule, fix });
+  const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   const isDome = tree.childrenOf(node.index).length > 0;
   const usesSomething =
     (spec.edges ?? []).some((edge) => edge.kind === "uses") ||
@@ -258,8 +250,7 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Findi
  */
 function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode, typeErrors: boolean): Finding[] {
   const findings: Finding[] = [];
-  const error = (rule: string, fix: string) =>
-    findings.push({ severity: "error", ...at(node), node: node.path, rule, fix });
+  const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   const targets = (node.spec.edges ?? []).filter((edge) => edge.kind === "implements").map((edge) => edge.to);
   const inherited = new Map<string, string>();
   for (const [index, to] of targets.entries()) {
@@ -316,12 +307,10 @@ function builtWithoutSource(node: TreeNode): Finding[] {
   if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];
   if (!Array.isArray(spec.source) || spec.source.length > 0) return [];
   return [
-    {
-      severity: "error",
-      ...at(node),
-      node: node.path,
-      rule: `a ${spec.status} node lists no source`,
-      fix: 'list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
-    },
+    nodeError(
+      node,
+      `a ${spec.status} node lists no source`,
+      'list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
+    ),
   ];
 }

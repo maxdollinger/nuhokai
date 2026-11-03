@@ -7,7 +7,7 @@ export const checkCmd: Cmd = {
   options: [],
   async run(root) {
     // The checker's client is only check's to load.
-    const { runCheck } = await import("../../check/index.ts");
+    const { runCheck } = await import("../../check/check-world.ts");
     return runCheck(root);
   },
 };

@@ -1,6 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../../load/load-world.ts";
 import { childrenOf, nameNodes } from "../../shared/node-path.ts";
+import type { Finding } from "../diagnostics.ts";
 
 /** One reachable node, by its position in the loaded world's `nodes`. */
 export interface TreeNode {
@@ -60,7 +61,15 @@ export function worldTree(world: LoadedWorld): WorldTree {
   };
 }
 
-/** A finding's location: the node's entry in the loaded world's files. */
-export function at(node: TreeNode): { file: string; line?: number } {
-  return node.line === undefined ? { file: node.file } : { file: node.file, line: node.line };
+/** A finding's location: a file and its line when known, as a node or a listing holds them. */
+export function at(place: { readonly file: string; readonly line?: number | undefined }): {
+  file: string;
+  line?: number;
+} {
+  return place.line === undefined ? { file: place.file } : { file: place.file, line: place.line };
+}
+
+/** An error about a node: at its node() line, named by its path. */
+export function nodeError(node: TreeNode, rule: string, fix: string): Finding {
+  return { severity: "error", ...at(node), node: node.path, rule, fix };
 }

@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
-import { API, type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
-import { CliError, oneLine } from "../shared/failure.ts";
+import { API, type Diagnostic, DiagnosticCategory, type Project } from "typescript/unstable/async";
+import { CliError, errorLine } from "../shared/failure.ts";
 import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
 import { compareFindings, type Finding } from "./diagnostics.ts";
 
@@ -155,54 +155,36 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
   return findings;
 }
 
-/** What the checker answered: the world files it parsed, by absolute path, and its diagnostics. */
-interface Checked {
-  readonly files: ReadonlyMap<string, SourceFile>;
-  readonly diagnostics: readonly Diagnostic[];
-}
-
 /** A checker or API failure as one CliError; a CliError of ours passes as it is. */
 function checkerFailure(error: unknown): CliError {
-  return error instanceof CliError ? error : new CliError(`the type checker failed: ${oneLine(error)}`);
+  return error instanceof CliError ? error : new CliError(`the type checker failed: ${errorLine(error)}`);
 }
 
 /**
- * Ask the checker at `checker` for the project of nuhokai/tsconfig.json under `root`: the world files `inWorldFiles`
- * keeps and every diagnostic. Every failure, the checker's closing included, is one CliError; a failure closing it
- * after another never hides that other.
+ * Open the project of the tsconfig at `config` (absolute) in the checker at `checker`, from `root`, and answer what
+ * `use` makes of it. Every failure, `use`'s and the checker's closing included, is one CliError, a CliError of ours
+ * as it is; a failure closing the checker after another never hides that other. `name` is how a message names the
+ * project. LoadWorld and TypeCheck share it, so both talk to the checker the same way.
  */
-async function askChecker(
+export async function withChecker<T>(
   root: string,
-  tsconfig: string,
+  config: string,
+  name: string,
   checker: string,
-  inWorldFiles: (path: string) => boolean,
-): Promise<Checked> {
+  use: (project: Project) => Promise<T>,
+): Promise<T> {
   let api: API;
   try {
     api = new API({ cwd: resolve(root), tsserverPath: checker });
   } catch (error) {
     throw checkerFailure(error);
   }
-  let checked: Checked;
+  let result: T;
   try {
-    const config = resolve(tsconfig);
     const snapshot = await api.updateSnapshot({ openProject: config });
     const project = snapshot.getProject(config);
-    if (!project) throw new CliError(`${tsconfig}: the type checker opened no project for it`);
-    const program = project.program;
-    const files = new Map<string, SourceFile>();
-    for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
-      const file = await program.getSourceFile(path);
-      if (file) files.set(path, file);
-    }
-    const diagnostics = [
-      ...(await program.getConfigFileParsingDiagnostics()),
-      ...(await program.getProgramDiagnostics()),
-      ...(await program.getGlobalDiagnostics()),
-      ...(await program.getSyntacticDiagnostics()),
-      ...(await program.getSemanticDiagnostics()),
-    ];
-    checked = { files, diagnostics };
+    if (!project) throw new CliError(`${name}: the type checker opened no project for it`);
+    result = await use(project);
   } catch (error) {
     await api.close().catch(() => {});
     throw checkerFailure(error);
@@ -212,7 +194,7 @@ async function askChecker(
   } catch (error) {
     throw checkerFailure(error);
   }
-  return checked;
+  return result;
 }
 
 /** The 1-based line of a position in a file the checker did not parse, such as the tsconfig. */
@@ -244,7 +226,22 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   const nameOf = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
-  const { files, diagnostics } = await askChecker(root, tsconfig, checker(), inWorldFiles);
+  const { files, diagnostics } = await withChecker(root, resolve(tsconfig), tsconfig, checker(), async (project) => {
+    const program = project.program;
+    const files = new Map<string, SourceFile>();
+    for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
+      const file = await program.getSourceFile(path);
+      if (file) files.set(path, file);
+    }
+    const diagnostics = [
+      ...(await program.getConfigFileParsingDiagnostics()),
+      ...(await program.getProgramDiagnostics()),
+      ...(await program.getGlobalDiagnostics()),
+      ...(await program.getSyntacticDiagnostics()),
+      ...(await program.getSemanticDiagnostics()),
+    ];
+    return { files, diagnostics };
+  });
 
   const findings: Finding[] = [];
   const seen = new Set<string>();
