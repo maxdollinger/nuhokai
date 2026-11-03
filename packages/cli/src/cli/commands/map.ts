@@ -1,14 +1,16 @@
 /** `nuhokai map`: no argument; runs WorldMap. */
-import { cmd, noArguments } from "../cmd.ts";
+import { type Cmd, extraArgument } from "../cmd.ts";
 
-export const mapCmd = cmd<undefined>({
+export const mapCmd: Cmd = {
   description: "Draw the world into nuhokai/.generated/map.html, a self-contained 3D map",
-  synopsis: "nuhokai map",
+  args: "",
   options: [],
-  parse: noArguments,
-  async exec(root) {
-    // The map's assets weigh hundreds of KB; only map loads them.
-    const { runMap } = await import("../../map/index.ts");
-    return runMap(root);
-  },
-});
+  parse: (_values, positionals) =>
+    extraArgument(positionals, 0) ?? {
+      async run(root) {
+        // The map's assets weigh hundreds of KB; only map loads them.
+        const { runMap } = await import("../../map/index.ts");
+        return runMap(root);
+      },
+    },
+};

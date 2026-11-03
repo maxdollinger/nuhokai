@@ -1,13 +1,16 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import {
   isCallExpression,
+  isExportDeclaration,
   isIdentifier,
+  isImportDeclaration,
   isNumericLiteral,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isStringLiteral,
   type Node,
   type SourceFile,
   SyntaxKind,
@@ -85,6 +88,36 @@ function offences(file: SourceFile): string[] {
   return found;
 }
 
+/** What bin.ts may load before a command runs (Cli R4): Cli's own files, Report and the Failure helpers it is built on. */
+const USAGE_MODULES = /^(?:bin\.ts|cli\/.+|shared\/report\.ts|shared\/failure\.ts)$/;
+
+/**
+ * Every module `from` loads, itself and transitively: relative imports as paths under src, others as written. An
+ * `import type` or `export type` loads nothing and a dynamic import() waits for its call, so neither is followed.
+ */
+function staticImports(from: string): string[] {
+  const loaded = new Set<string>();
+  const visit = (path: string): void => {
+    if (loaded.has(path)) return;
+    loaded.add(path);
+    if (!SCRIPT.test(path)) return;
+    const file = parsed.get(path);
+    if (!file) throw new Error(`not parsed: ${path}`);
+    for (const statement of file.statements) {
+      const specifier =
+        (isImportDeclaration(statement) && statement.importClause?.phaseModifier !== SyntaxKind.TypeKeyword) ||
+        (isExportDeclaration(statement) && !statement.isTypeOnly)
+          ? statement.moduleSpecifier
+          : undefined;
+      if (!specifier || !isStringLiteral(specifier)) continue;
+      const target = specifier.text;
+      visit(target.startsWith(".") ? posix.join(posix.dirname(path), target) : target);
+    }
+  };
+  visit(from);
+  return [...loaded];
+}
+
 /** Code written past the guard, one way per line: each line must be found. */
 const BYPASSES = `import { stdout } from "node:process";
 import { log } from "node:console";
@@ -131,7 +164,7 @@ beforeAll(async () => {
   writeFileSync(join(fixtures, "mentions.ts"), MENTIONS);
   writeFileSync(join(fixtures, "module.mjs"), 'console.log("x");\n');
   const files = [
-    ...sourceFiles().map((path) => [path, join(SRC, path)] as const),
+    ...[...sourceFiles(), "bin.ts"].map((path) => [path, join(SRC, path)] as const),
     ...["bypasses.ts", "mentions.ts", "module.mjs"].map((name) => [`fixture:${name}`, join(fixtures, name)] as const),
   ];
   const tsconfig = join(fixtures, "tsconfig.json");
@@ -190,4 +223,11 @@ test("Cli R9: in the CLI's own world only Cli uses Terminal", async () => {
     .filter((spec) => spec.edges?.some((edge) => edge.kind === "uses" && edge.to === terminal?.id))
     .map((spec) => spec.name);
   expect(users).toEqual(["Cli"]);
+});
+
+test("Cli R4: usage and help load no command code: bin.ts statically reaches only Cli, Report, Failure and node:", () => {
+  const loaded = staticImports("bin.ts");
+  expect(loaded).toContain("cli/commands/tree.ts");
+  expect(loaded).toContain("shared/report.ts");
+  expect(loaded.filter((path) => !USAGE_MODULES.test(path) && !path.startsWith("node:"))).toEqual([]);
 });

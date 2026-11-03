@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
 import * as specCheck from "./check/spec-check/apply-rules.ts";
 import { runInit } from "./init/index.ts";
-import type { Report } from "./shared/report.ts";
+import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
 import * as printTree from "./tree/print-tree.ts";
 
 /** What a stubbed Tree answers: done, nothing to print. */
@@ -267,27 +267,45 @@ test("Cli R6, R8: tree gets the directory, the node or none, and the level as a 
   }
 });
 
-test("Cli R6, R8: a bad --level, a second one, two nodes or -L on another command → exit 2, nothing runs", async () => {
+test("Cli R6, R8: a missing or second --level, a bad one or -L on another command → exit 2, nothing runs", async () => {
   const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
   try {
     expect(await failed(["tree", "-L"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
     expect(await failed(["tree", "--level="])).toEqual([2, ["nuhokai tree: --level needs a whole number"]]);
     expect(await failed(["tree", "-L", "--help"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
-    expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
-    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got '-1'"]]);
-    expect(await failed(["tree", "--level=1.5"])).toEqual([
-      2,
-      ["nuhokai tree: --level needs a whole number, got '1.5'"],
-    ]);
     expect(await failed(["tree", "-L", "1", "--level", "2"])).toEqual([2, ["nuhokai tree: --level given twice"]]);
     expect(await failed(["tree", "-L", "1", "-L", "2"])).toEqual([2, ["nuhokai tree: -L given twice"]]);
-    expect(await failed(["tree", "a", "b"])).toEqual([2, ["nuhokai tree: unexpected argument 'b'"]]);
+    // The value itself is tree's parse to judge (tree.test.ts); once end to end:
+    expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
     expect(await failed(["tree", "--depth", "2"])).toEqual([2, ["nuhokai tree: unknown option '--depth'"]]);
     expect(await failed(["map", "-L", "1"])).toEqual([2, ["nuhokai map: unknown option '-L'"]]);
     expect(run).not.toHaveBeenCalled();
   } finally {
     run.mockRestore();
   }
+});
+
+test("Cli R6, R7, R8: an option's own error, then a stray dash argument, then the count, then a value, then the directory", async () => {
+  expect(await failed(["tree", "a", "b", "-L"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
+  expect(await failed(["tree", "a", "b", "--bad", "-L", "x"])).toEqual([2, ["nuhokai tree: unknown option '--bad'"]]);
+  expect(await failed(["tree", "x", "--help"])).toEqual([2, ["nuhokai tree: unexpected argument '--help'"]]);
+  expect(await failed(["tree", "a", "b", "-L", "x"])).toEqual([2, ["nuhokai tree: unexpected argument 'b'"]]);
+  expect(await failed(["tree", "--path", "nope", "-L", "x"])).toEqual([
+    2,
+    ["nuhokai tree: -L needs a whole number, got 'x'"],
+  ]);
+  expect(await failed(["map", "--path", "nope", "x"])).toEqual([2, ["nuhokai map: unexpected argument 'x'"]]);
+});
+
+test("Terminal R1: what the user typed reaches a usage error with each control character run as a space", async () => {
+  expect(await failed(["\u001b[31mred"])).toEqual([2, ["nuhokai: unknown command ' [31mred'"]]);
+  expect(await failed(["tree", "-L", "\u001b[31m"])).toEqual([
+    2,
+    ["nuhokai tree: -L needs a whole number, got ' [31m'"],
+  ]);
+  expect(await failed(["tree", "--b\u001bad"])).toEqual([2, ["nuhokai tree: unknown option '--b ad'"]]);
+  expect(await failed(["map", "x\ny"])).toEqual([2, ["nuhokai map: unexpected argument 'x y'"]]);
+  expect(await failed(["map", "--path", "no\r\u0007pe"])).toEqual([2, ["nuhokai map: not a directory: no pe"]]);
 });
 
 test("Cli R9: a command's result lines reach stdout in order, its failure lines stderr after Cli's prefix", async () => {
@@ -341,6 +359,20 @@ test("Terminal R1: a control character a command's line carries reaches the term
 
 test("Cli R2: `nuhokai update` is not built yet: one failure line, exit 1", async () => {
   expect(await printed(["update"])).toEqual({ code: 1, out: [], err: ["nuhokai update: not implemented yet"] });
+});
+
+test("Cli R9: a runner that throws at once still has its CutShort's lines printed, then its bug thrown", async () => {
+  const bug = new TypeError("boom");
+  const parse = spyOn(COMMANDS.tree, "parse").mockReturnValue({
+    run: () => {
+      throw new CutShort([resultLine("a"), failureLine("x")], bug);
+    },
+  });
+  try {
+    expect(await printed(["tree"])).toEqual({ thrown: bug, out: ["a"], err: ["nuhokai tree: x"] });
+  } finally {
+    parse.mockRestore();
+  }
 });
 
 test("Cli R9: a bug in a command still crashes with it, after Cli prints the lines the command answered before it", async () => {
