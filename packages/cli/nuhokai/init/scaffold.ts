@@ -1,5 +1,4 @@
 import { node } from "@nuhokai/world";
-import { Terminal } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { Inspect } from "../inspect.ts";
 import { Path } from "../path/path.ts";
@@ -9,8 +8,8 @@ import { Publish } from "./publish.ts";
 export const Scaffold = node({
   id: "01a17290-3f10-7c48-a1d2-6b8e04c95f27",
   purpose:
-    "The program inside Init: inspect the project directory, hand the outcome to Publish, print the result. " +
-    "Owns no data, file or template.",
+    "The program inside Init: inspect the project directory, hand the outcome to Publish, return a Report. " +
+    "Owns no data, file or template; never prints.",
   status: "built",
   source: ["src/init/scaffold.ts"],
   ports: {
@@ -18,7 +17,8 @@ export const Scaffold = node({
       kind: "call",
       purpose: "Create the world in the project directory",
       input: "project directory",
-      output: "exit 0 or 1; stdout: the four written paths (cwd-relative) or the nothing-to-do line; stderr: errors",
+      output:
+        "Report: ok with the four written paths (cwd-relative) or the nothing-to-do line as result lines; failed with one failure line",
       errors: ["nuhokai exists but is not a directory", "write failed"],
     },
   },
@@ -28,7 +28,7 @@ export const Scaffold = node({
     { id: "R3", text: "No file, template or staging access of its own." },
     {
       id: "R4",
-      text: "A child's error → one stderr line, newlines collapsed, otherwise unchanged; the run port's lines are printed here.",
+      text: "A child's error → one failure line, newlines collapsed, otherwise unchanged; Cli prints the Report.",
     },
   ],
   testCases: [
@@ -48,13 +48,5 @@ export const Scaffold = node({
     },
   ],
 }).edges({
-  uses: () => [
-    Inspect.inspect,
-    Path.nameInWorld,
-    Failure.format,
-    Failure.isExpected,
-    Publish.run,
-    Terminal.print,
-    Terminal.printError,
-  ],
+  uses: () => [Inspect.inspect, Path.nameInWorld, Failure.report, Publish.run],
 });

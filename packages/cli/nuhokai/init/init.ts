@@ -13,8 +13,8 @@ export const Init = node({
   id: "01a17233-ebfc-772d-abf4-0bd32b81656d",
   purpose:
     "Create a repo's world from nothing: nuhokai/ with the example world, CLI-owned tsconfig and embedded " +
-    "@nuhokai/world types, so loader and editor work at once. Writes only; never checks, repairs or updates. " +
-    "Boundary: run → Scaffold.",
+    "@nuhokai/world types, so loader and editor work at once. Writes and reports only; never checks, repairs, " +
+    "updates or prints. Boundary: run → Scaffold.",
   status: "built",
   source: ["src/init/**"],
   requirements: [
@@ -33,7 +33,7 @@ export const Init = node({
     },
     {
       id: "R5",
-      text: "Existing nuhokai/ directory: untouched, exit 0, one line. Anything else at that path: one stderr line, exit 1.",
+      text: "Existing nuhokai/ directory: untouched, ok, one result line. Anything else at that path: one failure line, failed.",
     },
     {
       id: "R6",
@@ -48,7 +48,7 @@ export const Init = node({
   ],
   testCases: [
     {
-      text: "Empty directory, no node_modules or network: writes the four files, exit 0; two repos differ only in the world id; the result type-checks and loads as one node, Example.",
+      text: "Empty directory, no node_modules or network: writes the four files, ok; two repos differ only in the world id; the result type-checks and loads as one node, Example.",
       demonstrates: ["R1", "R4", "R6", "R7"],
     },
     {
@@ -56,7 +56,7 @@ export const Init = node({
       demonstrates: ["R2"],
     },
     {
-      text: "Existing nuhokai/ unchanged, exit 0, one line; a file or symlink named nuhokai → one stderr line, exit 1.",
+      text: "Existing nuhokai/ unchanged, ok, one result line; a file or symlink named nuhokai → one failure line, failed.",
       demonstrates: ["R5"],
     },
     {
@@ -66,7 +66,7 @@ export const Init = node({
   ],
   decisions: [
     {
-      decision: "An existing nuhokai/ is a no-op (exit 0); init only writes, never checks.",
+      decision: "An existing nuhokai/ is a no-op (ok, exit 0); init only writes, never checks.",
       why: "Scripts and agents re-run init; an existing world means 'nothing to do'. Changing files is update's job, diagnostics check's.",
       rejected: [
         { option: "Error when the folder exists", why: "Common re-runs would fail for no reason." },

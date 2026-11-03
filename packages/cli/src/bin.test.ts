@@ -3,19 +3,39 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMMANDS, commandUsage, main, usage } from "./bin.ts";
+import * as specCheck from "./check/spec-check/apply-rules.ts";
 import { runInit } from "./init/index.ts";
+import type { Report } from "./shared/report.ts";
 import * as printTree from "./tree/print-tree.ts";
 
-/** Run main with console.log captured: its exit code and the lines it logged. */
-async function logged(argv: string[]): Promise<[number, string[]]> {
-  const lines: string[] = [];
+/** What a stubbed Tree answers: done, nothing to print. */
+const TREE_OK: Report = { outcome: "ok", lines: [] };
+
+/** What main printed: its exit code, or the error it threw, and each line it wrote to stdout and to stderr. */
+type Printed = { code: number; out: string[]; err: string[] } | { thrown: unknown; out: string[]; err: string[] };
+
+/** Run main with console.log and console.error captured, the one way these tests read what Cli prints. */
+async function printed(argv: string[]): Promise<Printed> {
+  const out: string[] = [];
+  const err: string[] = [];
   const log = console.log;
-  console.log = (line: string) => lines.push(line);
+  const error = console.error;
+  console.log = (line: string) => out.push(line);
+  console.error = (line: string) => err.push(line);
   try {
-    return [await main(argv), lines];
+    return { code: await main(argv), out, err };
+  } catch (thrown) {
+    return { thrown, out, err };
   } finally {
     console.log = log;
+    console.error = error;
   }
+}
+
+/** A usage error as printed: main's exit code and the first line of each stderr message, without the usage after it. */
+async function failed(argv: string[]): Promise<[number | undefined, string[]]> {
+  const result = await printed(argv);
+  return ["code" in result ? result.code : undefined, result.err.map((line) => line.split("\n")[0] ?? "")];
 }
 
 test("usage lists every command", () => {
@@ -23,24 +43,15 @@ test("usage lists every command", () => {
 });
 
 test("--help exits 0", async () => {
-  expect(await logged(["--help"])).toEqual([0, [usage()]]);
+  expect(await printed(["--help"])).toEqual({ code: 0, out: [usage()], err: [] });
 });
 
 test("no argument prints usage on stdout and exits 0", async () => {
-  expect(await logged([])).toEqual([0, [usage()]]);
+  expect(await printed([])).toEqual({ code: 0, out: [usage()], err: [] });
 });
 
 test("an empty-string argument is an unknown command on stderr", async () => {
-  const lines: string[] = [];
-  const error = console.error;
-  console.error = (line: string) => lines.push(line);
-  try {
-    expect(await main([""])).toBe(2);
-  } finally {
-    console.error = error;
-  }
-  expect(lines).toHaveLength(1);
-  expect(lines[0]).toContain("unknown command");
+  expect(await failed([""])).toEqual([2, ["nuhokai: unknown command ''"]]);
 });
 
 test("a help word does not excuse an unexpected argument", async () => {
@@ -48,7 +59,7 @@ test("a help word does not excuse an unexpected argument", async () => {
 });
 
 test("`nuhokai init --help` prints init's help and exits 0", async () => {
-  expect(await logged(["init", "--help"])).toEqual([0, [commandUsage("init")]]);
+  expect(await printed(["init", "--help"])).toEqual({ code: 0, out: [commandUsage("init")], err: [] });
   expect(commandUsage("init")).toContain("Usage: nuhokai init");
 });
 
@@ -61,32 +72,24 @@ test("an unknown command is a usage error", async () => {
 });
 
 test("`nuhokai map --help` shows that map takes no argument", async () => {
-  expect(await logged(["map", "--help"])).toEqual([0, [commandUsage("map")]]);
+  expect(await printed(["map", "--help"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
   expect(commandUsage("map")).toContain("Usage: nuhokai map\n");
 });
 
 test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs", async () => {
   const repo = mkdtempSync(join(tmpdir(), "nuhokai-bin-map-test-"));
   const cwd = process.cwd();
-  const log = console.log;
-  const error = console.error;
-  const out: string[] = [];
   try {
-    expect(await runInit(repo, { out: () => {} })).toBe(0);
-    console.log = (line: string) => out.push(line);
-    console.error = () => {};
+    expect((await runInit(repo)).outcome).toBe("ok");
     process.chdir(repo);
 
-    expect(await main(["map", "x"])).toBe(2);
+    expect(await failed(["map", "x"])).toEqual([2, ["nuhokai map: unexpected argument 'x'"]]);
     expect(existsSync(join(repo, "nuhokai/.generated/map.html"))).toBe(false);
-    expect(await main(["map"])).toBe(0);
+    expect(await printed(["map"])).toEqual({ code: 0, out: ["nuhokai/.generated/map.html"], err: [] });
   } finally {
     process.chdir(cwd);
-    console.log = log;
-    console.error = error;
     rmSync(repo, { recursive: true, force: true });
   }
-  expect(out).toEqual(["nuhokai/.generated/map.html"]);
 });
 
 test("--path names the project directory, against the cwd; without it the cwd is the directory", async () => {
@@ -94,39 +97,40 @@ test("--path names the project directory, against the cwd; without it the cwd is
   const project = join(parent, "packages", "app");
   mkdirSync(project, { recursive: true });
   const cwd = process.cwd();
-  const log = console.log;
-  const error = console.error;
-  const out: string[] = [];
-  const err: string[] = [];
   try {
-    console.log = (line: string) => out.push(line);
-    console.error = (line: string) => err.push(line);
     process.chdir(parent);
 
-    expect(await main(["map"])).toBe(1);
-    expect(err[0]).toBe(
-      "nuhokai map: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>",
-    );
-    expect(await main(["init", "--path", "packages/app"])).toBe(0);
+    expect(await printed(["map"])).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai map: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>"],
+    });
+    const init = await printed(["init", "--path", "packages/app"]);
+    expect(init).toMatchObject({ code: 0, err: [] });
     expect(existsSync(join(project, "nuhokai/index.ts"))).toBe(true);
     expect(existsSync(join(parent, "nuhokai"))).toBe(false);
-    expect(await main(["map", "--path=packages/app"])).toBe(0);
-    expect(existsSync(join(project, "nuhokai/.generated/map.html"))).toBe(true);
     // Printed paths are named from the cwd, so they can be opened as printed.
-    expect(out).toContain("packages/app/nuhokai/index.ts");
-    expect(out.at(-1)).toBe("packages/app/nuhokai/.generated/map.html");
+    expect(init.out).toContain("packages/app/nuhokai/index.ts");
+    expect(await printed(["map", "--path=packages/app"])).toEqual({
+      code: 0,
+      out: ["packages/app/nuhokai/.generated/map.html"],
+      err: [],
+    });
+    expect(existsSync(join(project, "nuhokai/.generated/map.html"))).toBe(true);
     // So are the paths in failures, the loader's included.
     writeFileSync(join(project, "nuhokai/orders.ts"), "export const boom = ;\n");
-    expect(await main(["map", "--path", "packages/app"])).toBe(1);
-    expect(err.at(-1)).toBe("nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected.");
-    expect(await main(["map", "--path", "packages"])).toBe(1);
-    expect(err.at(-1)).toBe(
-      "nuhokai map: no nuhokai/ in packages; run `nuhokai init --path packages` to start a world there",
-    );
+    expect(await printed(["map", "--path", "packages/app"])).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected."],
+    });
+    expect(await printed(["map", "--path", "packages"])).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai map: no nuhokai/ in packages; run `nuhokai init --path packages` to start a world there"],
+    });
   } finally {
     process.chdir(cwd);
-    console.log = log;
-    console.error = error;
     rmSync(parent, { recursive: true, force: true });
   }
 });
@@ -135,56 +139,31 @@ test("a --path without a value, given twice or not a directory is a usage error 
   const dir = mkdtempSync(join(tmpdir(), "nuhokai-bin-path-test-"));
   const file = join(dir, "file");
   writeFileSync(file, "");
-  const error = console.error;
-  const err: string[] = [];
-  try {
-    console.error = (line: string) => err.push(line);
-    expect(await main(["init", "--path"])).toBe(2);
-    expect(await main(["init", "--path", dir, "--path", dir])).toBe(2);
-    expect(await main(["init", "--path", join(dir, "missing")])).toBe(2);
-    expect(await main(["init", "--path", file])).toBe(2);
-    expect(await main(["map", `--path=${file}/x`])).toBe(2);
-    expect(await main(["tree", "a", "--path"])).toBe(2);
-    expect(await main(["map", "--path", "--help"])).toBe(2);
-  } finally {
-    console.error = error;
-  }
-  expect(err.map((line) => line.split("\n")[0])).toEqual([
-    "nuhokai init: --path needs a directory",
-    "nuhokai init: --path given twice",
-    `nuhokai init: not a directory: ${join(dir, "missing")}`,
-    `nuhokai init: not a directory: ${file}`,
-    `nuhokai map: not a directory: ${file}/x`,
-    "nuhokai tree: --path needs a directory",
-    "nuhokai map: --path needs a directory",
+  expect(await failed(["init", "--path"])).toEqual([2, ["nuhokai init: --path needs a directory"]]);
+  expect(await failed(["init", "--path", dir, "--path", dir])).toEqual([2, ["nuhokai init: --path given twice"]]);
+  expect(await failed(["init", "--path", join(dir, "missing")])).toEqual([
+    2,
+    [`nuhokai init: not a directory: ${join(dir, "missing")}`],
   ]);
+  expect(await failed(["init", "--path", file])).toEqual([2, [`nuhokai init: not a directory: ${file}`]]);
+  expect(await failed(["map", `--path=${file}/x`])).toEqual([2, [`nuhokai map: not a directory: ${file}/x`]]);
+  expect(await failed(["tree", "a", "--path"])).toEqual([2, ["nuhokai tree: --path needs a directory"]]);
+  expect(await failed(["map", "--path", "--help"])).toEqual([2, ["nuhokai map: --path needs a directory"]]);
   expect(readdirSync(dir)).toEqual(["file"]);
   rmSync(dir, { recursive: true, force: true });
 });
 
 test("a help word next to --path prints the command's help, whatever the path", async () => {
-  expect(await logged(["map", "--path", "x", "--help"])).toEqual([0, [commandUsage("map")]]);
-  expect(await logged(["map", "--path=x", "-h"])).toEqual([0, [commandUsage("map")]]);
+  expect(await printed(["map", "--path", "x", "--help"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
+  expect(await printed(["map", "--path=x", "-h"])).toEqual({ code: 0, out: [commandUsage("map")], err: [] });
 });
 
-/** Run main with console.error captured: its exit code and the first line of each message. */
-async function failed(argv: string[]): Promise<[number, string[]]> {
-  const lines: string[] = [];
-  const error = console.error;
-  console.error = (line: string) => lines.push(line);
-  try {
-    return [await main(argv), lines.map((line) => line.split("\n")[0] ?? "")];
-  } finally {
-    console.error = error;
-  }
-}
-
 test("before a command `help` is help; after one only -h and --help are", async () => {
-  expect(await logged(["help"])).toEqual([0, [usage()]]);
-  expect(await logged(["tree", "-h"])).toEqual([0, [commandUsage("tree")]]);
+  expect(await printed(["help"])).toEqual({ code: 0, out: [usage()], err: [] });
+  expect(await printed(["tree", "-h"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
   expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: unexpected argument 'help'"]]);
 
-  const run = spyOn(printTree, "runTree").mockResolvedValue(0);
+  const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
   try {
     expect(await main(["tree", "help"])).toBe(0);
     expect(run.mock.calls).toEqual([[".", "help", 1]]);
@@ -210,8 +189,8 @@ test("an unknown option or an extra argument is named, exit 2, nothing runs", as
 });
 
 test("`nuhokai check --help` shows that check takes no argument", async () => {
-  expect(await logged(["check", "--help"])).toEqual([0, [commandUsage("check")]]);
-  expect(await logged(["check", "--path", "x", "-h"])).toEqual([0, [commandUsage("check")]]);
+  expect(await printed(["check", "--help"])).toEqual({ code: 0, out: [commandUsage("check")], err: [] });
+  expect(await printed(["check", "--path", "x", "-h"])).toEqual({ code: 0, out: [commandUsage("check")], err: [] });
   expect(commandUsage("check")).toContain("Usage: nuhokai check\n");
   expect(usage()).toContain("nuhokai check");
 });
@@ -221,53 +200,49 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
   const project = join(parent, "app");
   mkdirSync(project);
   const cwd = process.cwd();
-  const log = console.log;
-  const error = console.error;
-  const out: string[] = [];
-  const err: string[] = [];
   try {
-    expect(await runInit(project, { out: () => {} })).toBe(0);
-    console.log = (line: string) => out.push(line);
-    console.error = (line: string) => err.push(line);
+    expect((await runInit(project)).outcome).toBe("ok");
     process.chdir(parent);
 
-    expect(await main(["check", "x", "--path", "app"])).toBe(2);
-    expect(err.at(-1)?.split("\n")[0]).toBe("nuhokai check: unexpected argument 'x'");
-    expect(await main(["check", "--pth", "app"])).toBe(2);
-    expect(err.at(-1)?.split("\n")[0]).toBe("nuhokai check: unknown option '--pth'");
     // Check itself would name the missing world; an argument error never gets that far.
-    expect(err.some((line) => line.includes("no nuhokai/"))).toBe(false);
+    expect(await failed(["check", "x", "--path", "app"])).toEqual([2, ["nuhokai check: unexpected argument 'x'"]]);
+    expect(await failed(["check", "--pth", "app"])).toEqual([2, ["nuhokai check: unknown option '--pth'"]]);
 
-    expect(await main(["check"])).toBe(1);
-    expect(err.at(-1)).toBe(
-      "nuhokai check: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>",
-    );
-    expect(await main(["check", "--path=app"])).toBe(0);
-    expect(out).toEqual([]);
+    expect(await printed(["check"])).toEqual({
+      code: 1,
+      out: [],
+      err: ["nuhokai check: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>"],
+    });
+    expect(await printed(["check", "--path=app"])).toEqual({ code: 0, out: [], err: [] });
     // Findings name their files from the cwd.
     writeFileSync(
       join(project, "nuhokai/orphan.ts"),
       'import { node } from "@nuhokai/world";\n\nexport const Orphan = node({ id: "o", purpose: "p", status: "planned", source: [] }).edges({});\n',
     );
     process.chdir(project);
-    expect(await main(["check"])).toBe(0);
-    expect(out).toEqual([
-      "warning: nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
-    ]);
+    expect(await printed(["check"])).toEqual({
+      code: 0,
+      out: [
+        "warning: nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+      ],
+      err: [],
+    });
   } finally {
     process.chdir(cwd);
-    console.log = log;
-    console.error = error;
     rmSync(parent, { recursive: true, force: true });
   }
 });
 
 test("`nuhokai tree --help` lists --level; usage shows tree's argument form", async () => {
-  expect(await logged(["tree", "--help"])).toEqual([0, [commandUsage("tree")]]);
-  expect(await logged(["tree", "-L", "2", "-h"])).toEqual([0, [commandUsage("tree")]]);
+  expect(await printed(["tree", "--help"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
+  expect(await printed(["tree", "-L", "2", "-h"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
   // A bad value is judged after help, as a bad --path is.
-  expect(await logged(["tree", "-L", "x", "--help"])).toEqual([0, [commandUsage("tree")]]);
-  expect(await logged(["tree", "--path", "nope", "--help"])).toEqual([0, [commandUsage("tree")]]);
+  expect(await printed(["tree", "-L", "x", "--help"])).toEqual({ code: 0, out: [commandUsage("tree")], err: [] });
+  expect(await printed(["tree", "--path", "nope", "--help"])).toEqual({
+    code: 0,
+    out: [commandUsage("tree")],
+    err: [],
+  });
   expect(commandUsage("tree")).toContain("Usage: nuhokai tree [node] [-L <n>]");
   expect(commandUsage("tree")).toContain("-L, --level <n>");
   expect(commandUsage("map")).not.toContain("--level");
@@ -275,7 +250,7 @@ test("`nuhokai tree --help` lists --level; usage shows tree's argument form", as
 });
 
 test("Cli R6, R8: tree gets the directory, the node or none, and the level as a number", async () => {
-  const run = spyOn(printTree, "runTree").mockResolvedValue(0);
+  const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
   try {
     expect(await main(["tree"])).toBe(0);
     expect(await main(["tree", "Check", "-L", "2"])).toBe(0);
@@ -293,7 +268,7 @@ test("Cli R6, R8: tree gets the directory, the node or none, and the level as a 
 });
 
 test("Cli R6, R8: a bad --level, a second one, two nodes or -L on another command → exit 2, nothing runs", async () => {
-  const run = spyOn(printTree, "runTree").mockResolvedValue(0);
+  const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
   try {
     expect(await failed(["tree", "-L"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
     expect(await failed(["tree", "--level="])).toEqual([2, ["nuhokai tree: --level needs a whole number"]]);
@@ -312,5 +287,81 @@ test("Cli R6, R8: a bad --level, a second one, two nodes or -L on another comman
     expect(run).not.toHaveBeenCalled();
   } finally {
     run.mockRestore();
+  }
+});
+
+test("Cli R9: a command's result lines reach stdout in order, its failure lines stderr after Cli's prefix", async () => {
+  const run = spyOn(printTree, "runTree").mockResolvedValue({
+    outcome: "failed",
+    lines: [
+      { kind: "result", text: "a" },
+      { kind: "failure", text: "x" },
+      { kind: "result", text: "b" },
+    ],
+  });
+  try {
+    expect(await printed(["tree"])).toEqual({ code: 1, out: ["a", "b"], err: ["nuhokai tree: x"] });
+  } finally {
+    run.mockRestore();
+  }
+});
+
+test("Cli R2, R9: Cli maps the outcome to the exit code: ok 0, failed 1, invalid 2", async () => {
+  const run = spyOn(printTree, "runTree");
+  try {
+    run.mockResolvedValue({ outcome: "ok", lines: [{ kind: "result", text: "Shop | (none) | p" }] });
+    expect(await printed(["tree"])).toEqual({ code: 0, out: ["Shop | (none) | p"], err: [] });
+    run.mockResolvedValue({ outcome: "failed", lines: [] });
+    expect(await printed(["tree"])).toEqual({ code: 1, out: [], err: [] });
+    run.mockResolvedValue({ outcome: "invalid", lines: [{ kind: "failure", text: "x" }] });
+    expect(await printed(["tree", "x"])).toEqual({ code: 2, out: [], err: ["nuhokai tree: x"] });
+  } finally {
+    run.mockRestore();
+  }
+});
+
+test("Terminal R1: a control character a command's line carries reaches the terminal as a space", async () => {
+  const run = spyOn(printTree, "runTree").mockResolvedValue({
+    outcome: "failed",
+    lines: [
+      { kind: "result", text: "\u001b[31mRED\u001b[0m" },
+      { kind: "failure", text: "over\rwritten\nline" },
+    ],
+  });
+  try {
+    expect(await printed(["tree"])).toEqual({
+      code: 1,
+      out: [" [31mRED [0m"],
+      err: ["nuhokai tree: over written line"],
+    });
+  } finally {
+    run.mockRestore();
+  }
+});
+
+test("Cli R2: `nuhokai update` is not built yet: one failure line, exit 1", async () => {
+  expect(await printed(["update"])).toEqual({ code: 1, out: [], err: ["nuhokai update: not implemented yet"] });
+});
+
+test("Cli R9: a bug in a command still crashes with it, after Cli prints the lines the command answered before it", async () => {
+  const project = mkdtempSync(join(tmpdir(), "nuhokai-bin-crash-test-"));
+  const cwd = process.cwd();
+  const bug = new TypeError("boom");
+  const spec = spyOn(specCheck, "applyRules").mockImplementation(() => {
+    throw bug;
+  });
+  try {
+    expect((await runInit(project)).outcome).toBe("ok");
+    writeFileSync(join(project, "nuhokai/index.test.ts"), 'export const x: number = "one";\n');
+    process.chdir(project);
+    expect(await printed(["check"])).toEqual({
+      thrown: bug,
+      out: ["error: nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'."],
+      err: [],
+    });
+  } finally {
+    process.chdir(cwd);
+    spec.mockRestore();
+    rmSync(project, { recursive: true, force: true });
   }
 });

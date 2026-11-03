@@ -53,7 +53,7 @@ export const NodePath = node({
     {
       id: "C1",
       kind: "constraint",
-      text: "No filesystem access, no load, no printing: the caller owns its prefix and exit code.",
+      text: "No filesystem access, no load, no printing: the calling command returns the error's line in its Report; Cli owns the prefix and exit code.",
     },
   ],
   testCases: [

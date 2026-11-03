@@ -3,6 +3,7 @@
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
+import { CutShort, failureLine, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
 
 /** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `tree` run today. */
 export const COMMANDS = ["check", "init", "map", "tree", "update"] as const;
@@ -34,6 +35,9 @@ const ARITY: Record<Command, number> = {
   tree: 1,
   update: 0,
 };
+
+/** Cli alone turns a command's outcome into the process exit code; 2 is also every usage error of its own. */
+const EXIT: Record<Outcome, number> = { ok: 0, failed: 1, invalid: 2 };
 
 /** Help before a command; after one only the flags are help, so `nuhokai tree help` starts from a node named help. */
 const HELP_WORDS = ["help", "--help", "-h"] as const;
@@ -219,23 +223,52 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  if (first === "check") {
+  let report: Report;
+  try {
+    report = await run(first, root, rest[0], level);
+  } catch (error) {
+    // A bug crashes with its stack, but only after the lines the command answered before it.
+    if (!(error instanceof CutShort)) throw error;
+    print(first, error.lines);
+    throw error.bug;
+  }
+  print(first, report.lines);
+  return EXIT[report.outcome];
+}
+
+/** A run of control characters (escape sequences, carriage returns, newlines): one space, so none reaches the terminal. */
+const CONTROL = /\p{Cc}+/gu;
+
+/**
+ * Cli is the only node that prints: result lines on stdout, failure lines on stderr after its prefix, in order, each
+ * one plain line whatever the command put in it (Terminal R1).
+ */
+function print(command: Command, lines: readonly ReportLine[]): void {
+  for (const line of lines) {
+    const text = line.text.replace(CONTROL, " ");
+    if (line.kind === "result") console.log(text);
+    else console.error(`nuhokai ${command}: ${text}`);
+  }
+}
+
+/** Run the command's node and await its Report. */
+async function run(command: Command, root: string, node: string | undefined, level: number): Promise<Report> {
+  if (command === "check") {
     // The checker's client is only check's to load.
     const { runCheck } = await import("./check/index.ts");
     return runCheck(root);
   }
-  if (first === "init") return runInit(root);
-  if (first === "map") {
+  if (command === "init") return runInit(root);
+  if (command === "map") {
     // The map's assets weigh hundreds of KB; only map loads them.
     const { runMap } = await import("./map/index.ts");
     return runMap(root);
   }
-  if (first === "tree") {
+  if (command === "tree") {
     const { runTree } = await import("./tree/index.ts");
-    return runTree(root, rest[0], level);
+    return runTree(root, node, level);
   }
-  console.error(`nuhokai ${first}: not implemented yet`);
-  return 1;
+  return { outcome: "failed", lines: [failureLine("not implemented yet")] };
 }
 
 if (import.meta.main) {

@@ -17,7 +17,7 @@ afterEach(() => {
 async function world(files: Record<string, string> = {}): Promise<string> {
   const root = mkdtempSync(join(tmpdir(), "nuhokai-type-check-test-"));
   roots.push(root);
-  expect(await runInit(root, { out: () => {} })).toBe(0);
+  expect((await runInit(root)).outcome).toBe("ok");
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), content);
