@@ -1,7 +1,9 @@
 import { node } from "@nuhokai/world";
-import { FileSystem, Tsgo } from "../external.ts";
+import { CheckerClient } from "../checker-client.ts";
+import { FileSystem } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
+import { Diagnostics } from "./diagnostics.ts";
 
 /** The world's type check, beside SpecCheck. */
 export const TypeCheck = node({
@@ -52,4 +54,4 @@ export const TypeCheck = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Failure.format, Tsgo.check, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, Failure.format, CheckerClient.session, Diagnostics.order, FileSystem.read] });

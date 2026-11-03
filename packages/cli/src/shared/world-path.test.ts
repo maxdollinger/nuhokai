@@ -7,9 +7,8 @@ import {
   WORLD_INDEX,
   WORLD_MAP,
   WORLD_TSCONFIG,
-  WORLD_TYPES_DIR,
-  WORLD_TYPES_FILE,
-} from "./paths.ts";
+  WORLD_TYPES_PATH,
+} from "./world-path.ts";
 
 test("a file in the world, named from the cwd: under the project directory, with / separators", () => {
   expect(nameInWorld("packages/cli", "stock", "reserve.ts")).toBe("packages/cli/nuhokai/stock/reserve.ts");
@@ -22,11 +21,7 @@ test("the cwd as project directory adds no ./ prefix", () => {
 });
 
 test("the world's own files come from these names", () => {
-  expect(
-    [WORLD_INDEX, WORLD_TSCONFIG, `${WORLD_TYPES_DIR}/${WORLD_TYPES_FILE}`, WORLD_MAP].map((name) =>
-      nameInWorld(".", name),
-    ),
-  ).toEqual([
+  expect([WORLD_INDEX, WORLD_TSCONFIG, WORLD_TYPES_PATH, WORLD_MAP].map((name) => nameInWorld(".", name))).toEqual([
     "nuhokai/index.ts",
     "nuhokai/tsconfig.json",
     "nuhokai/.generated/world/index.d.ts",

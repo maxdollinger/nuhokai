@@ -14,11 +14,22 @@ export function isExpected(error: unknown): boolean {
 }
 
 /**
- * Text as one plain line: every run of whitespace or control characters (newlines, escape sequences) is one space,
- * trimmed, so nothing a world file or a thrown message holds can break a line or reach the terminal as a control code.
+ * A run of control characters (escape sequences, carriage returns, newlines) or of the bidirectional format
+ * characters that reorder what a terminal shows (Trojan Source).
  */
+const CONTROLS = /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]+/gu;
+
+/**
+ * Text with each run of controls as one space and nothing else touched (Terminal R1): what Cli does to every line
+ * it prints, so nothing a user typed or a world file holds reaches the terminal as a control code.
+ */
+export function plainText(text: string): string {
+  return text.replace(CONTROLS, " ");
+}
+
+/** Text as one plain line: plainText, then every run of whitespace one space, trimmed. */
 export function oneLine(text: string): string {
-  return text.replace(/[\s\p{Cc}]+/gu, " ").trim();
+  return plainText(text).replace(/\s+/g, " ").trim();
 }
 
 /** One line, whatever the thrown value: stderr gets exactly one line per failure. */

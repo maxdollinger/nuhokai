@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { nameInWorld, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE } from "../shared/paths.ts";
+import { dirname } from "node:path";
+import { nameInWorld, WORLD_TSCONFIG, WORLD_TYPES_PATH } from "../shared/world-path.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 
 /**
@@ -24,16 +25,12 @@ export const TSCONFIG_TEMPLATE = `{
     "resolveJsonModule": true,
     "types": [],
     "paths": {
-      "@nuhokai/world": ["./${WORLD_TYPES_DIR}/${WORLD_TYPES_FILE}"]
+      "@nuhokai/world": ["./${WORLD_TYPES_PATH}"]
     }
   },
   "include": ["./**/*.ts"]
 }
 `;
-
-/** The two files, by their path inside the world folder. */
-export const TSCONFIG_PATH = WORLD_TSCONFIG;
-export const WORLD_TYPES_PATH = `${WORLD_TYPES_DIR}/${WORLD_TYPES_FILE}`;
 
 /** Which CLI-owned files were written, and which were already byte-identical. */
 export interface CliFilesResult {
@@ -43,10 +40,10 @@ export interface CliFilesResult {
 
 /** Lay down the CLI-owned files inside an existing directory, never rewriting identical bytes. */
 export function writeCliFiles(dir: string): CliFilesResult {
-  mkdirSync(nameInWorld(dir, WORLD_TYPES_DIR), { recursive: true });
+  mkdirSync(dirname(nameInWorld(dir, WORLD_TYPES_PATH)), { recursive: true });
 
   const files: [path: string, content: string][] = [
-    [TSCONFIG_PATH, TSCONFIG_TEMPLATE],
+    [WORLD_TSCONFIG, TSCONFIG_TEMPLATE],
     [WORLD_TYPES_PATH, WORLD_TYPES],
   ];
 

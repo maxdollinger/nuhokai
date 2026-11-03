@@ -1,7 +1,7 @@
 import { CliError } from "../shared/failure.ts";
-import { inspectTarget } from "../shared/inspect.ts";
-import { nameInWorld } from "../shared/paths.ts";
+import { inspectTarget, occupiedMessage } from "../shared/inspect.ts";
 import { ok, orFailed, type Report } from "../shared/report.ts";
+import { nameInWorld } from "../shared/world-path.ts";
 import { publishWorld } from "./publish.ts";
 
 /**
@@ -13,7 +13,7 @@ export function runInit(root: string): Promise<Report> {
   return orFailed(async () => {
     const state = inspectTarget(root);
     if (state.kind === "world") return ok([`${nameInWorld(root)}/ already exists; nothing to do`]);
-    if (state.kind === "occupied") throw new CliError(`${nameInWorld(root)} exists but is not a directory`);
+    if (state.kind === "occupied") throw new CliError(occupiedMessage(root));
     return ok(publishWorld(root));
   });
 }

@@ -7,8 +7,7 @@ export const WORLD_EXAMPLE = "example.ts";
 export const WORLD_TSCONFIG = "tsconfig.json";
 /** Everything the CLI regenerates lives under this folder; nothing in it is a world file. */
 export const WORLD_GENERATED_DIR = ".generated";
-export const WORLD_TYPES_DIR = `${WORLD_GENERATED_DIR}/world`;
-export const WORLD_TYPES_FILE = "index.d.ts";
+export const WORLD_TYPES_PATH = `${WORLD_GENERATED_DIR}/world/index.d.ts`;
 export const WORLD_MAP = `${WORLD_GENERATED_DIR}/map.html`;
 
 /**

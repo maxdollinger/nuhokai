@@ -71,4 +71,4 @@ export const TreeLines = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameInProject] });
+}).edges({ uses: () => [Path.nameInProject, Path.childrenOf] });

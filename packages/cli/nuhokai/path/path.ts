@@ -10,8 +10,8 @@ export const Path = node({
     "path (NodePath). Shared by every command; pure, no I/O.",
   status: "built",
   source: [
-    "src/shared/paths.ts",
-    "src/shared/paths.test.ts",
+    "src/shared/world-path.ts",
+    "src/shared/world-path.test.ts",
     "src/shared/node-path.ts",
     "src/shared/node-path.test.ts",
   ],
@@ -46,5 +46,7 @@ export const Path = node({
     isInside: WorldPath.isInside,
     nameNodes: NodePath.nameNodes,
     findNode: NodePath.findNode,
+    childrenOf: NodePath.childrenOf,
+    isAncestor: NodePath.isAncestor,
   },
 }).edges({});

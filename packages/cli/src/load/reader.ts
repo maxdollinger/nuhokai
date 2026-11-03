@@ -1,5 +1,5 @@
 /**
- * Reading world files as values, never running them: the format's objects (node drafts, nodes, ports, tbd holes, the
+ * Reading world files as values, never running them: the format's objects (node drafts, nodes, ports, tbd placeholders, the
  * world), and the Reader, which evaluates the one subset of TypeScript a world file may hold, asking the checker what
  * each name refers to. LoadWorld builds the world from what it reads.
  */
@@ -49,7 +49,6 @@ import {
   SyntaxKind,
 } from "typescript/unstable/ast";
 import { type Project, SymbolFlags, type Symbol as TsSymbol } from "typescript/unstable/async";
-import { compareText } from "../check/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 
 /** A name that resolves to no declaration in the world: as a callee, it is a call the format does not allow. */
@@ -72,7 +71,7 @@ export type Val = undefined | null | boolean | number | string | readonly Val[] 
 export interface Rec {
   readonly [key: string]: Val;
 }
-type Ref = WorldFn | Draft | EdgesFn | Fn | NodeV | PortsNs | PortV | InheritedV | HoleV | WorldV;
+type Ref = WorldFn | Draft | EdgesFn | Fn | NodeV | PortsNs | PortV | InheritedV | PlaceholderV | WorldV;
 
 /** Where a value was made: a file named from the cwd, and a 1-based line. */
 interface At {
@@ -133,7 +132,7 @@ export class InheritedV {
   ) {}
 }
 /** tbd.call or tbd.event: a placeholder, by identity. */
-export class HoleV {
+export class PlaceholderV {
   constructor(
     readonly at: At,
     readonly kind: "call" | "event",
@@ -149,7 +148,7 @@ export class WorldV {
 type Env = ReadonlyMap<Node, Val>;
 const NO_ENV: Env = new Map();
 
-export function isRec(value: Val): value is Rec {
+function isRec(value: Val): value is Rec {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
@@ -224,14 +223,14 @@ export class Reader {
   }
 
   /** A file's name from the cwd, or undefined outside the world. */
-  nameOf(file: SourceFile): string | undefined {
+  printedName(file: SourceFile): string | undefined {
     return this.names.get(file.fileName) ?? this.names.get(resolve(file.fileName));
   }
 
   at(node: Node): At {
     const file = node.getSourceFile();
     return {
-      file: this.nameOf(file) ?? file.fileName,
+      file: this.printedName(file) ?? file.fileName,
       line: file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1,
     };
   }
@@ -358,7 +357,7 @@ export class Reader {
       throw new UnknownName(this.fail(id, `'${id.text}' refers to nothing: is its import's file there?`).message);
     }
     const file = declaration.getSourceFile();
-    if (this.nameOf(file) === undefined) {
+    if (this.printedName(file) === undefined) {
       throw this.fail(
         id,
         `'${id.text}' is declared outside the world (${file.fileName}); a world file reads only world files and @nuhokai/world`,
@@ -465,7 +464,7 @@ export class Reader {
         return this.once(
           expr,
           () =>
-            new HoleV(
+            new PlaceholderV(
               this.at(expr),
               callee.name === "tbd.call" ? "call" : "event",
               isRec(arg) ? arg.description : undefined,
@@ -589,11 +588,14 @@ export class Reader {
     const module = this.symbols.has(file) ? this.symbols.get(file) : await checker.getSymbolAtLocation(file);
     if (!module) return [];
     const exports: [string, Val][] = [];
-    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) => compareText(a.name, b.name));
+    // Code-unit order, as a module namespace lists its exports: the same on every machine and locale.
+    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    );
     for (const symbol of symbols) {
       const target = await this.target(symbol);
       const declaration = target.valueDeclaration && (await this.declarationOf(target));
-      if (!declaration || this.nameOf(declaration.getSourceFile()) === undefined) continue;
+      if (!declaration || this.printedName(declaration.getSourceFile()) === undefined) continue;
       if (!isVariableDeclaration(declaration) && !isExportAssignment(declaration)) continue;
       exports.push([symbol.name, await this.declaration(declaration, declaration)]);
     }

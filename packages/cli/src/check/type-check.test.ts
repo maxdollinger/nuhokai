@@ -3,9 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
+import { checkerPath, withChecker } from "../shared/checker-client.ts";
 import { CliError } from "../shared/failure.ts";
 import { formatFinding } from "./diagnostics.ts";
-import { checkerPath, runTypeCheck, withChecker } from "./type-check.ts";
+import { runTypeCheck } from "./type-check.ts";
 
 const roots: string[] = [];
 

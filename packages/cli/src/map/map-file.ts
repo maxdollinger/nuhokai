@@ -2,7 +2,7 @@ import { mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
 import { CliError } from "../shared/failure.ts";
-import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_MAP } from "../shared/paths.ts";
+import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_MAP } from "../shared/world-path.ts";
 import { SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain/map-assets.gen.ts";
 import type { MapWorld } from "./scene.js";
 
@@ -10,7 +10,7 @@ import type { MapWorld } from "./scene.js";
 const SLOTS = /\/\*nuhokai:(three|scene)\*\/|"nuhokai:(world)"/g;
 
 /** What the map draws of a loaded world: id, name, source, each node's NodeSpec and the placeholders; never paths. */
-export function mapWorld(world: LoadedWorld): MapWorld {
+function mapWorld(world: LoadedWorld): MapWorld {
   const { id, name, source, nodes, placeholders } = world;
   return {
     id,

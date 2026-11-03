@@ -14,7 +14,8 @@ src/
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
-  shared/       the names the CLI prints (a file's path, a node's hierarchy path), what sits at nuhokai/, and the error types
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), what sits at nuhokai/,
+                the error types and plain text, and the one client of the pinned type checker
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format

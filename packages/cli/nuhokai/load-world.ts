@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
-import { FileSystem, Tsgo } from "./external.ts";
+import { CheckerClient } from "./checker-client.ts";
+import { FileSystem } from "./external.ts";
 import { Failure } from "./failure.ts";
 import { Inspect } from "./inspect.ts";
 import { Path } from "./path/path.ts";
@@ -220,6 +221,6 @@ export const LoadWorld = node({
     Failure.format,
     FileSystem.read,
     FileSystem.write,
-    Tsgo.read,
+    CheckerClient.session,
   ],
 });

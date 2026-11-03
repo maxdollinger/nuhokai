@@ -1,7 +1,8 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
-import type { Finding } from "../diagnostics.ts";
-import { at, nodeError, type WorldTree } from "./world-tree.ts";
+import { childrenOf, isAncestor } from "../../shared/node-path.ts";
+import { at, type Finding, nodeError } from "../diagnostics.ts";
+import type { Ids } from "./ids.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
 interface Place {
@@ -14,20 +15,20 @@ interface Place {
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
  * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
  */
-export function checkDataRules(world: LoadedWorld, tree: WorldTree, typeErrors = false): Finding[] {
+export function checkDataRules(world: LoadedWorld, ids: Ids, typeErrors = false): Finding[] {
   // SpecCheck R1 first: every other rule skips the nodes whose id is duplicated.
-  const judged = tree.nodes.filter((node) => !tree.duplicated.has(node.spec.id));
+  const judged = world.nodes.filter((node) => !ids.duplicated.has(node.spec.id));
   return [
     ...worldName(world),
-    ...duplicateIds(world, tree),
-    ...repeatedListings(world, tree),
+    ...duplicateIds(world, ids),
+    ...repeatedListings(world, ids),
     ...orphans(world),
-    ...judged.flatMap((node) => scope(world, tree, node)),
-    ...siblingNames(tree),
+    ...judged.flatMap((node) => scope(world, ids, node)),
+    ...siblingNames(world, ids),
     // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
-    ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, tree, node))),
+    ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, ids, node))),
     ...judged.flatMap((node) => builtWithoutSource(node)),
-    ...judged.flatMap((node) => contracts(world, tree, node, typeErrors)),
+    ...judged.flatMap((node) => contracts(world, ids, node, typeErrors)),
   ];
 }
 
@@ -45,10 +46,10 @@ function worldName(world: LoadedWorld): Finding[] {
 }
 
 /** SpecCheck R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
-function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
+function duplicateIds(world: LoadedWorld, _ids: Ids): Finding[] {
   const first = new Map<string, string>([[world.id, `the world (${world.file})`]]);
   const findings: Finding[] = [];
-  for (const node of tree.nodes) {
+  for (const node of world.nodes) {
     const holder = first.get(node.spec.id);
     if (holder === undefined) {
       first.set(node.spec.id, `${node.path} (${node.file})`);
@@ -62,10 +63,10 @@ function duplicateIds(world: LoadedWorld, tree: WorldTree): Finding[] {
 }
 
 /** SpecCheck R1: a node listed in two places is one error at the repeated listing, naming both places. */
-function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
+function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
   const place = (parent: string | null): Place => {
     if (parent === null) return { file: world.file, name: `the world's children (${world.file})` };
-    const dome = tree.byId(parent) ?? tree.nodes.find((node) => node.spec.id === parent);
+    const dome = ids.byId(parent) ?? world.nodes.find((node) => node.spec.id === parent);
     if (!dome) return { file: world.file, name: `the children of ${parent}` };
     return { ...at(dome), name: `${dome.path}'s children (${dome.file})` };
   };
@@ -73,14 +74,14 @@ function repeatedListings(world: LoadedWorld, tree: WorldTree): Finding[] {
   const findings: Finding[] = [];
   for (const listing of world.listings) {
     // Distinct nodes sharing an id are SpecCheck R1's other half: each node is listed once, only a repeat is the same node.
-    if (tree.duplicated.has(listing.node)) continue;
+    if (ids.duplicated.has(listing.node)) continue;
     const here = place(listing.parent);
     const before = seen.get(listing.node);
     if (!before) {
       seen.set(listing.node, here);
       continue;
     }
-    const node = tree.byId(listing.node);
+    const node = ids.byId(listing.node);
     findings.push({
       severity: "error",
       ...at(here),
@@ -114,12 +115,12 @@ function usesEdge(node: LoadedNode, target: string, ports: readonly string[]): s
 }
 
 /** SpecCheck R3: a uses edge targets a sibling or an ancestor's sibling, top level included; never a node inside one. */
-function scope(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[] {
+function scope(world: LoadedWorld, ids: Ids, node: LoadedNode): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   for (const edge of node.spec.edges ?? []) {
-    if (edge.kind !== "uses" || tree.duplicated.has(edge.to)) continue;
-    const target = tree.byId(edge.to);
+    if (edge.kind !== "uses" || ids.duplicated.has(edge.to)) continue;
+    const target = ids.byId(edge.to);
     if (!target) {
       const name = orphanName(world, edge.to);
       error(
@@ -128,16 +129,16 @@ function scope(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[]
       );
       continue;
     }
-    if (inScope(tree, node, target)) continue;
+    if (inScope(world, node, target)) continue;
     const edgeName = usesEdge(node, target.spec.name, edge.port);
-    if (target === node || tree.isAncestor(target, node)) {
+    if (target === node || isAncestor(world, target, node)) {
       error(
         `${edgeName}, ${target === node ? "its own port" : "a port of its own ancestor"}; a node uses only its siblings and its ancestors' siblings`,
         "use the port of a sibling instead, or drop the edge",
       );
       continue;
     }
-    const parent = target.parent === null ? undefined : tree.nodes[target.parent];
+    const parent = target.parent === null ? undefined : world.nodes[target.parent];
     error(
       `${edgeName}, but ${target.path} is inside ${parent?.path ?? "another node"}; a node uses only its siblings and its ancestors' siblings`,
       `expose the port through ${parent?.spec.name ?? "its parent"}'s ports and use that, or move ${node.spec.name} into ${parent?.spec.name ?? "that dome"}`,
@@ -147,8 +148,8 @@ function scope(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[]
 }
 
 /** Whether `target` is a sibling of `node` or of one of its ancestors, never the node or an ancestor itself. */
-function inScope(tree: WorldTree, node: LoadedNode, target: LoadedNode): boolean {
-  for (let at: LoadedNode | undefined = node; at; at = at.parent === null ? undefined : tree.nodes[at.parent]) {
+function inScope(world: LoadedWorld, node: LoadedNode, target: LoadedNode): boolean {
+  for (let at: LoadedNode | undefined = node; at; at = at.parent === null ? undefined : world.nodes[at.parent]) {
     if (at === target) return false;
     if (target.parent === at.parent) return true;
   }
@@ -156,13 +157,13 @@ function inScope(tree: WorldTree, node: LoadedNode, target: LoadedNode): boolean
 }
 
 /** SpecCheck R4: names are unique among siblings, the top level included; a clash names both files. */
-function siblingNames(tree: WorldTree): Finding[] {
+function siblingNames(world: LoadedWorld, ids: Ids): Finding[] {
   const findings: Finding[] = [];
-  const parents = [null, ...tree.nodes.map((node) => node.index)];
+  const parents = [null, ...world.nodes.map((node) => node.index)];
   for (const parent of parents) {
     const named = new Map<string, LoadedNode>();
-    for (const child of tree.childrenOf(parent)) {
-      if (tree.duplicated.has(child.spec.id)) continue;
+    for (const child of childrenOf(world, parent)) {
+      if (ids.duplicated.has(child.spec.id)) continue;
       const first = named.get(child.spec.name);
       if (!first) {
         named.set(child.spec.name, child);
@@ -181,11 +182,11 @@ function siblingNames(tree: WorldTree): Finding[] {
 }
 
 /** SpecCheck R5: the node-spec rules tsc only checks on literal ids and flags, held against the loaded values. */
-function formatRules(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[] {
+function formatRules(world: LoadedWorld, _ids: Ids, node: LoadedNode): Finding[] {
   const spec = node.spec;
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
-  const isDome = tree.childrenOf(node.index).length > 0;
+  const isDome = childrenOf(world, node.index).length > 0;
   const usesSomething =
     (spec.edges ?? []).some((edge) => edge.kind === "uses") ||
     world.placeholders.some((placeholder) => placeholder.users.includes(spec.id));
@@ -248,14 +249,14 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Fin
  * SpecCheck R11: every implements target is reachable. SpecCheck R5, unless TypeCheck found an error: implements lists
  * each contract once, each is abstract; no own port shares an inherited port's name, no two contracts a port name.
  */
-function contracts(world: LoadedWorld, tree: WorldTree, node: LoadedNode, typeErrors: boolean): Finding[] {
+function contracts(world: LoadedWorld, ids: Ids, node: LoadedNode, typeErrors: boolean): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   const targets = (node.spec.edges ?? []).filter((edge) => edge.kind === "implements").map((edge) => edge.to);
   const inherited = new Map<string, string>();
   for (const [index, to] of targets.entries()) {
-    if (tree.duplicated.has(to)) continue;
-    const contract = tree.byId(to);
+    if (ids.duplicated.has(to)) continue;
+    const contract = ids.byId(to);
     const name = contract?.spec.name ?? orphanName(world, to);
     if (targets.indexOf(to) !== index) {
       if (!typeErrors) error(`${node.spec.name} implements ${name} twice`, `list ${name} once in implements`);

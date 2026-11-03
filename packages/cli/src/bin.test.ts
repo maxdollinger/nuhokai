@@ -2,11 +2,8 @@ import { expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { commandUsage, main } from "./bin.ts";
+import { main } from "./bin.ts";
 import * as specCheck from "./check/spec-check/apply-rules.ts";
-import { checkCmd } from "./cli/commands/check.ts";
-import { initCmd } from "./cli/commands/init.ts";
-import { mapCmd } from "./cli/commands/map.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
 import { runInit } from "./init/scaffold.ts";
 import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
@@ -34,6 +31,11 @@ async function printed(argv: string[]): Promise<Printed> {
     console.log = log;
     console.error = error;
   }
+}
+
+/** A command's help as main prints it for `nuhokai <command> --help`. */
+async function help(command: string): Promise<string> {
+  return (await printed([command, "--help"])).out.join("\n");
 }
 
 /** Usage as main prints it for a bare `nuhokai`. */
@@ -72,8 +74,8 @@ test("a help word does not excuse an unexpected argument", async () => {
 });
 
 test("`nuhokai init --help` prints init's help and exits 0", async () => {
-  expect(await printed(["init", "--help"])).toEqual({ code: 0, out: [commandUsage("init", initCmd)], err: [] });
-  expect(commandUsage("init", initCmd)).toContain("Usage: nuhokai init");
+  expect(await printed(["init", "--help"])).toEqual({ code: 0, out: [await help("init")], err: [] });
+  expect(await help("init")).toContain("Usage: nuhokai init");
 });
 
 test("Cli enforces the argument count without validating the argument", async () => {
@@ -85,8 +87,8 @@ test("an unknown command is a usage error", async () => {
 });
 
 test("`nuhokai map --help` shows that map takes no argument", async () => {
-  expect(await printed(["map", "--help"])).toEqual({ code: 0, out: [commandUsage("map", mapCmd)], err: [] });
-  expect(commandUsage("map", mapCmd)).toContain("Usage: nuhokai map\n");
+  expect(await printed(["map", "--help"])).toEqual({ code: 0, out: [await help("map")], err: [] });
+  expect(await help("map")).toContain("Usage: nuhokai map\n");
 });
 
 test("`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` is an argument error and WorldMap never runs", async () => {
@@ -169,15 +171,15 @@ test("a --path without a value, given twice or not a directory is a usage error 
 test("a help word next to --path prints the command's help, whatever the path", async () => {
   expect(await printed(["map", "--path", "x", "--help"])).toEqual({
     code: 0,
-    out: [commandUsage("map", mapCmd)],
+    out: [await help("map")],
     err: [],
   });
-  expect(await printed(["map", "--path=x", "-h"])).toEqual({ code: 0, out: [commandUsage("map", mapCmd)], err: [] });
+  expect(await printed(["map", "--path=x", "-h"])).toEqual({ code: 0, out: [await help("map")], err: [] });
 });
 
 test("before a command `help` is help; after one only -h and --help are", async () => {
   expect(await printed(["help"])).toEqual({ code: 0, out: [await usage()], err: [] });
-  expect(await printed(["tree", "-h"])).toEqual({ code: 0, out: [commandUsage("tree", treeCmd)], err: [] });
+  expect(await printed(["tree", "-h"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
   expect(await failed(["map", "help"])).toEqual([2, ["nuhokai map: unexpected argument 'help'"]]);
 
   const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
@@ -206,13 +208,13 @@ test("an unknown option or an extra argument is named, exit 2, nothing runs", as
 });
 
 test("`nuhokai check --help` shows that check takes no argument", async () => {
-  expect(await printed(["check", "--help"])).toEqual({ code: 0, out: [commandUsage("check", checkCmd)], err: [] });
+  expect(await printed(["check", "--help"])).toEqual({ code: 0, out: [await help("check")], err: [] });
   expect(await printed(["check", "--path", "x", "-h"])).toEqual({
     code: 0,
-    out: [commandUsage("check", checkCmd)],
+    out: [await help("check")],
     err: [],
   });
-  expect(commandUsage("check", checkCmd)).toContain("Usage: nuhokai check\n");
+  expect(await help("check")).toContain("Usage: nuhokai check\n");
   expect(await usage()).toContain("nuhokai check");
 });
 
@@ -255,22 +257,22 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
 });
 
 test("`nuhokai tree --help` lists --level; usage shows tree's argument form", async () => {
-  expect(await printed(["tree", "--help"])).toEqual({ code: 0, out: [commandUsage("tree", treeCmd)], err: [] });
-  expect(await printed(["tree", "-L", "2", "-h"])).toEqual({ code: 0, out: [commandUsage("tree", treeCmd)], err: [] });
+  expect(await printed(["tree", "--help"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
+  expect(await printed(["tree", "-L", "2", "-h"])).toEqual({ code: 0, out: [await help("tree")], err: [] });
   // A bad value is judged after help, as a bad --path is.
   expect(await printed(["tree", "-L", "x", "--help"])).toEqual({
     code: 0,
-    out: [commandUsage("tree", treeCmd)],
+    out: [await help("tree")],
     err: [],
   });
   expect(await printed(["tree", "--path", "nope", "--help"])).toEqual({
     code: 0,
-    out: [commandUsage("tree", treeCmd)],
+    out: [await help("tree")],
     err: [],
   });
-  expect(commandUsage("tree", treeCmd)).toContain("Usage: nuhokai tree [node] [-L <n>]");
-  expect(commandUsage("tree", treeCmd)).toContain("-L, --level <n>");
-  expect(commandUsage("map", mapCmd)).not.toContain("--level");
+  expect(await help("tree")).toContain("Usage: nuhokai tree [node] [-L <n>]");
+  expect(await help("tree")).toContain("-L, --level <n>");
+  expect(await help("map")).not.toContain("--level");
   expect(await usage()).toContain("nuhokai tree [node] [-L <n>]");
 });
 

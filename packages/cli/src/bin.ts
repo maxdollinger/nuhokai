@@ -8,6 +8,7 @@ import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
 import { updateCmd } from "./cli/commands/update.ts";
+import { plainText } from "./shared/failure.ts";
 import { CutShort, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
 
 /** The commands by name, in usage's order. */
@@ -49,7 +50,7 @@ function synopsis(name: string, { positionals, options }: Cmd): string {
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
-export function usage(commands: Commands): string {
+function usage(commands: Commands): string {
   const synopses = Object.entries(commands).map(([name, cmd]) => [synopsis(name, cmd), cmd.description] as const);
   // The synopsis column's width, so every description starts in one column.
   const width = Math.max(...synopses.map(([form]) => form.length)) + 2;
@@ -66,7 +67,7 @@ export function usage(commands: Commands): string {
 }
 
 /** One help text per command, answered by Cli before any value is judged: its own options, --path and --help. */
-export function commandUsage(name: string, cmd: Cmd): string {
+function commandUsage(name: string, cmd: Cmd): string {
   const { description, options } = cmd;
   const lines: (readonly [string, string])[] = [
     ...[...options, PATH_OPTION].map((option): [string, string] => [
@@ -154,17 +155,9 @@ function isDirectory(dir: string): boolean {
   }
 }
 
-/** A run of control characters (escape sequences, carriage returns, newlines): one space, so none reaches the terminal. */
-const CONTROL = /\p{Cc}+/gu;
-
-/** Text Cli prints that may hold what a user typed or a command put in it, as one plain line (Terminal R1). */
-function sanitise(text: string): string {
-  return text.replace(CONTROL, " ");
-}
-
 /** A usage error of one command: its message, then its help, on stderr; exit 2. */
 function usageError(name: string, cmd: Cmd, error: string): number {
-  console.error(`nuhokai ${name}: ${sanitise(error)}\n\n${commandUsage(name, cmd)}`);
+  console.error(`nuhokai ${name}: ${plainText(error)}\n\n${commandUsage(name, cmd)}`);
   return 2;
 }
 
@@ -185,7 +178,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   const cmd = Object.hasOwn(commands, first) ? commands[first] : undefined;
   if (cmd === undefined) {
-    console.error(`nuhokai: unknown command '${sanitise(first)}'\n\n${usage(commands)}`);
+    console.error(`nuhokai: unknown command '${plainText(first)}'\n\n${usage(commands)}`);
     return 2;
   }
   const split = splitOptions(typed, [PATH_OPTION, ...cmd.options]);
@@ -244,7 +237,7 @@ async function finish(name: string, cmd: Cmd, root: string, args: Args): Promise
  */
 function print(name: string, lines: readonly ReportLine[]): void {
   for (const line of lines) {
-    const text = sanitise(line.text);
+    const text = plainText(line.text);
     if (line.kind === "result") console.log(text);
     else console.error(`nuhokai ${name}: ${text}`);
   }

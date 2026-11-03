@@ -38,7 +38,7 @@ export function failureLineFrom(thrown: unknown): ReportLine {
 }
 
 /** A failed Report of one failure line for an expected thrown value; a bug is rethrown. */
-export function failedFrom(thrown: unknown): Report {
+function failedFrom(thrown: unknown): Report {
   return { outcome: "failed", lines: [failureLineFrom(thrown)] };
 }
 

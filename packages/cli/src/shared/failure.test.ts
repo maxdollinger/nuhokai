@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { CliError, errorLine, isExpected, oneLine } from "./failure.ts";
+import { CliError, errorLine, isExpected, oneLine, plainText } from "./failure.ts";
 
 test("one line, whatever the thrown value", () => {
   expect(errorLine(new Error("first\nsecond"))).toBe("first second");
@@ -42,4 +42,9 @@ test("a command expects its own errors and filesystem failures, nothing else", (
 test("text as one line: each run of whitespace or control characters is one space, trimmed", () => {
   expect(oneLine(" a\n\tb\u001b[31m c\r ")).toBe("a b [31m c");
   expect(oneLine("")).toBe("");
+});
+
+test("plain text: each run of controls or bidi overrides is one space, the rest untouched", () => {
+  expect(plainText("a\u202Eevil\u2066x  y\n")).toBe("a evil x  y ");
+  expect(plainText("emoji \u{1F468}\u200D\u{1F469} stays")).toBe("emoji \u{1F468}\u200D\u{1F469} stays");
 });

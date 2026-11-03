@@ -70,7 +70,7 @@ export const Cli = node({
     },
     {
       id: "R9",
-      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters as one space (Terminal R1), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its run throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
+      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters or bidirectional format characters as one space (Terminal R1, Failure's plainText), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its run throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },

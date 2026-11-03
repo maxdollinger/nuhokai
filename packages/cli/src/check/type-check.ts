@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
-import { API, type Diagnostic, DiagnosticCategory, type Project } from "typescript/unstable/async";
-import { CliError, errorLine } from "../shared/failure.ts";
-import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
+import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
+import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import { CliError } from "../shared/failure.ts";
+import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/world-path.ts";
 import { compareFindings, type Finding } from "./diagnostics.ts";
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
@@ -15,28 +16,6 @@ const LITERALS = new Set([
   SyntaxKind.TemplateTail,
   SyntaxKind.RegularExpressionLiteral,
 ]);
-
-/**
- * The CLI's pinned checker. The compiled CLI uses the tsgo the release ships as a sidecar next to the binary
- * (`tsgo/tsgo`); from source or the bundle, the platform build of the CLI's pinned `typescript`. Never the repo's own
- * TypeScript.
- */
-export function checkerPath(): string {
-  if (import.meta.dir.startsWith("/$bunfs")) {
-    const sidecar = join(dirname(process.execPath), "tsgo", "tsgo");
-    if (existsSync(sidecar)) return sidecar;
-    throw new CliError(`no type checker: expected ${sidecar}, which ships next to the nuhokai binary`);
-  }
-  const platform = `@typescript/typescript-${process.platform}-${process.arch}`;
-  try {
-    const typescript = dirname(Bun.resolveSync("typescript/package.json", import.meta.dir));
-    const binary = join(dirname(Bun.resolveSync(`${platform}/package.json`, typescript)), "lib", "tsc");
-    if (existsSync(binary)) return binary;
-  } catch {
-    // Not installed: the failure below says so.
-  }
-  throw new CliError(`no type checker: ${platform} is not installed; run bun install`);
-}
 
 /** A diagnostic's text with its chain, one message per line; Diagnostics flattens it. */
 function messageOf(diagnostic: Diagnostic): string {
@@ -155,69 +134,6 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
   return findings;
 }
 
-/** A checker or API failure as one CliError; a CliError of ours passes as it is. */
-function checkerFailure(error: unknown): CliError {
-  return error instanceof CliError ? error : new CliError(`the type checker failed: ${errorLine(error)}`);
-}
-
-/** A JavaScript runtime error: a bug in our code or the client's, never a checker failure to explain. */
-function isProgrammingError(error: unknown): boolean {
-  return error instanceof TypeError || error instanceof RangeError || error instanceof ReferenceError;
-}
-
-/** How to reach the checker: from `root`, the tsconfig at `config` (absolute), named `name` in messages. */
-export interface CheckerSession {
-  readonly root: string;
-  readonly config: string;
-  readonly name: string;
-  /** The checker's executable. */
-  readonly checker: string;
-  /** Files the checker reads from memory instead of the disk, by absolute path, such as a tsconfig never written. */
-  readonly virtual?: ReadonlyMap<string, string>;
-}
-
-/**
- * Open the session's project in the checker and answer what `use` makes of it. Every checker failure, its closing
- * included, is one CliError, a CliError of ours as it is; a failure closing the checker after another never hides that
- * other. A programming error is no checker failure: it propagates with its stack. LoadWorld and TypeCheck share it,
- * so both talk to the checker the same way.
- */
-export async function withChecker<T>(session: CheckerSession, use: (project: Project) => Promise<T>): Promise<T> {
-  const { root, config, name, checker, virtual } = session;
-  let api: API;
-  try {
-    api = new API({
-      cwd: resolve(root),
-      tsserverPath: checker,
-      ...(virtual && {
-        fs: {
-          readFile: (path: string) => virtual.get(resolve(path)),
-          fileExists: (path: string) => (virtual.has(resolve(path)) ? true : undefined),
-        },
-      }),
-    });
-  } catch (error) {
-    throw checkerFailure(error);
-  }
-  let result: T;
-  try {
-    const snapshot = await api.updateSnapshot({ openProject: config });
-    const project = snapshot.getProject(config);
-    if (!project) throw new CliError(`${name}: the type checker opened no project for it`);
-    result = await use(project);
-  } catch (error) {
-    await api.close().catch(() => {});
-    if (isProgrammingError(error)) throw error;
-    throw checkerFailure(error);
-  }
-  try {
-    await api.close();
-  } catch (error) {
-    throw checkerFailure(error);
-  }
-  return result;
-}
-
 /** The 1-based line of a position in a file the checker did not parse, such as the tsconfig. */
 function lineInText(path: string, position: number): number | undefined {
   try {
@@ -244,7 +160,7 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   const worldDir = resolve(nameInWorld(root));
   const generated = resolve(nameInWorld(root, WORLD_GENERATED_DIR));
   /** A world file named as the loader names it: under the project directory as `root` names it. */
-  const nameOf = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
+  const printedName = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
   const { files, diagnostics } = await withChecker(
@@ -284,11 +200,11 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     const file = files.get(path);
     findings.push({
       severity: "error",
-      file: nameOf(path),
+      file: printedName(path),
       ...(file ? { line: lineOf(file, diagnostic.pos) } : {}),
       rule: messageOf(diagnostic),
     });
   }
-  for (const [path, file] of files) findings.push(...declarativeFindings(file, worldDir, nameOf(path)));
+  for (const [path, file] of files) findings.push(...declarativeFindings(file, worldDir, printedName(path)));
   return findings.sort(compareFindings);
 }

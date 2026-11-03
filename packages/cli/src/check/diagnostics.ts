@@ -14,6 +14,23 @@ export interface Finding {
   readonly fix?: string;
 }
 
+/** A finding's location: a file and its line when known, as a node or a listing holds them. */
+export function at(place: { readonly file: string; readonly line?: number | undefined }): {
+  file: string;
+  line?: number;
+} {
+  return place.line === undefined ? { file: place.file } : { file: place.file, line: place.line };
+}
+
+/** An error about a node: at its node() line, named by its path. */
+export function nodeError(
+  node: { readonly file: string; readonly line?: number | undefined; readonly path: string },
+  rule: string,
+  fix: string,
+): Finding {
+  return { severity: "error", ...at(node), node: node.path, rule, fix };
+}
+
 /**
  * One finding as one line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`.
  * A missing line, node or fix drops its part; every text field is flattened to one line.

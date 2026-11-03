@@ -1,6 +1,6 @@
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { nameInWorld, WORLD_DIR } from "../shared/paths.ts";
+import { nameInWorld, WORLD_DIR } from "../shared/world-path.ts";
 import { writeCliFiles } from "./cli-files.ts";
 import { writeExampleWorld } from "./example-world.ts";
 

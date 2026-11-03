@@ -4,7 +4,8 @@ import { Failure } from "../failure.ts";
 /** Shared by the checks. */
 export const Diagnostics = node({
   id: "01a18319-8a0c-755d-855a-72794bb4cdf1",
-  purpose: "Turn findings into lines a human or agent can act on without opening the world.",
+  purpose:
+    "Own the finding: build one at its place, order them one way, and turn each into a line a human or agent can act on without opening the world.",
   status: "built",
   source: ["src/check/diagnostics.ts"],
   ports: {
@@ -14,6 +15,20 @@ export const Diagnostics = node({
       input: "finding: { severity: error | warning, file, line?, node?, rule, fix? }",
       output:
         "one line, '<severity>: <file>:<line>: <node>: <rule>; <fix>'; a missing line, node or fix drops its part; text fields flattened by Failure.format",
+      errors: [],
+    },
+    order: {
+      kind: "call",
+      purpose: "The one order of findings, and of the names they sort by",
+      input: "two findings, or two texts",
+      output: "file, then line, rule and node; plain code-unit order, the same on every machine and locale",
+      errors: [],
+    },
+    locate: {
+      kind: "call",
+      purpose: "Build a finding at a place: an error about a node at its node() line, named by its path",
+      input: "a node (file, line?, path), or a file and line; the rule and fix",
+      output: "the finding",
       errors: [],
     },
   },

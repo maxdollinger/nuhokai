@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
-import { mapWorld } from "./map-file.ts";
 import { detailsOf, lightsFor, type MapWorld, mapScene, type ScopeView, scopeView, search } from "./scene.js";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -20,7 +19,9 @@ function exampleWorld(): string {
   return root;
 }
 
-const world = mapWorld(await loadWorld(exampleWorld()));
+const loaded = await loadWorld(exampleWorld());
+/** The example world as the map's data block holds it: each node as its NodeSpec. */
+const world: MapWorld = { ...loaded, nodes: loaded.nodes.map((node) => node.spec) };
 const scene = mapScene(world);
 const indexOf = (name: string) => world.nodes.findIndex((node) => node.name === name);
 

@@ -1,9 +1,10 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
-import { isInside } from "../../shared/paths.ts";
-import { compareText, type Finding } from "../diagnostics.ts";
-import { at, type WorldTree } from "./world-tree.ts";
+import { isAncestor } from "../../shared/node-path.ts";
+import { isInside } from "../../shared/world-path.ts";
+import { at, compareText, type Finding } from "../diagnostics.ts";
+import type { Ids } from "./ids.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
 const GLOB_CHARS = /[*?[\]{}!\\]/;
@@ -109,7 +110,7 @@ interface Owner {
  * each file has one owner, nesting aside. Reads the project directory `root`, named from the cwd; every glob shares one
  * set of directory reads.
  */
-export function checkSourceRules(root: string, world: LoadedWorld, tree: WorldTree): Finding[] {
+export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
   const error = (owner: Owner, rule: string, fix: string) =>
@@ -168,8 +169,8 @@ export function checkSourceRules(root: string, world: LoadedWorld, tree: WorldTr
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
   const owners = new Map<string, LoadedNode[]>();
-  for (const node of tree.nodes) {
-    if (tree.duplicated.has(node.spec.id)) continue;
+  for (const node of world.nodes) {
+    if (ids.duplicated.has(node.spec.id)) continue;
     const owner: Owner = { node, ...at(node), label: node.spec.name };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const entry of entries ?? []) {
@@ -208,7 +209,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, tree: WorldTr
   for (const [file, claimed] of owners) {
     for (const [index, node] of claimed.entries()) {
       for (const other of claimed.slice(0, index)) {
-        if (tree.isAncestor(other, node) || tree.isAncestor(node, other)) continue;
+        if (isAncestor(world, other, node) || isAncestor(world, node, other)) continue;
         const [first, second] = other.index < node.index ? [other, node] : [node, other];
         error(
           { node: second, ...at(second), label: second.spec.name },

@@ -16,8 +16,8 @@ import {
   SyntaxKind,
 } from "typescript/unstable/ast";
 import { API } from "typescript/unstable/async";
-import { checkerPath } from "./check/type-check.ts";
 import { loadWorld } from "./load/load-world.ts";
+import { checkerPath } from "./shared/checker-client.ts";
 
 const SRC = import.meta.dir;
 const PACKAGE = join(SRC, "..");

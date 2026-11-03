@@ -48,5 +48,5 @@ export const Scaffold = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.inspect, Path.nameInWorld, Failure.report, Publish.run],
+  uses: () => [Inspect.inspect, Inspect.occupied, Path.nameInWorld, Failure.report, Publish.run],
 });

@@ -17,6 +17,20 @@ export const NodePath = node({
       output: "each node's hierarchy path, in the order given",
       errors: [],
     },
+    childrenOf: {
+      kind: "call",
+      purpose: "Walk the hierarchy one level down",
+      input: "the loaded world, a node's position or none for the top level",
+      output: "its direct children, in list order",
+      errors: [],
+    },
+    isAncestor: {
+      kind: "call",
+      purpose: "Tell whether one node contains another",
+      input: "the loaded world, two nodes",
+      output: "whether the first contains the second, at any depth",
+      errors: [],
+    },
     findNode: {
       kind: "call",
       purpose: "Find the node a hierarchy path names",

@@ -16,8 +16,9 @@ import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
 import { inspectTarget } from "../shared/inspect.ts";
 import { type SplitReport, splitReport } from "../shared/split-report.ts";
+import { WORLD_TSCONFIG, WORLD_TYPES_PATH } from "../shared/world-path.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
-import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
+import { TSCONFIG_TEMPLATE, writeCliFiles } from "./cli-files.ts";
 import { EXAMPLE_TEMPLATE, worldIndexSource } from "./example-world.ts";
 import { runInit } from "./scaffold.ts";
 
@@ -169,11 +170,11 @@ test("init writes into the directory it is given", async () => {
 test("a second write of identical CLI-owned files rewrites nothing", () => {
   const repo = tempDir();
   const modificationTimes = () =>
-    [TSCONFIG_PATH, WORLD_TYPES_PATH].map((path) => statSync(join(repo, "nuhokai", path)).mtimeMs);
+    [WORLD_TSCONFIG, WORLD_TYPES_PATH].map((path) => statSync(join(repo, "nuhokai", path)).mtimeMs);
 
-  expect(writeCliFiles(repo)).toEqual({ written: [TSCONFIG_PATH, WORLD_TYPES_PATH], unchanged: [] });
+  expect(writeCliFiles(repo)).toEqual({ written: [WORLD_TSCONFIG, WORLD_TYPES_PATH], unchanged: [] });
   const written = modificationTimes();
-  expect(writeCliFiles(repo)).toEqual({ written: [], unchanged: [TSCONFIG_PATH, WORLD_TYPES_PATH] });
+  expect(writeCliFiles(repo)).toEqual({ written: [], unchanged: [WORLD_TSCONFIG, WORLD_TYPES_PATH] });
   expect(modificationTimes()).toEqual(written);
 });
 

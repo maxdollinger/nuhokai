@@ -18,6 +18,13 @@ export const Inspect = node({
       output: "absent | world | occupied (a non-directory at nuhokai/)",
       errors: [],
     },
+    occupied: {
+      kind: "call",
+      purpose: "The one message for a non-directory at nuhokai/, which init gives too",
+      input: "project directory, cwd-relative",
+      output: "'<project directory>/nuhokai exists but is not a directory'",
+      errors: [],
+    },
     requireWorld: {
       kind: "call",
       purpose: "Continue only if a world is there",

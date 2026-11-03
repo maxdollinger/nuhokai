@@ -1,7 +1,8 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
 import { oneLine } from "../shared/failure.ts";
-import { nameInProject } from "../shared/paths.ts";
+import { childrenOf } from "../shared/node-path.ts";
+import { nameInProject } from "../shared/world-path.ts";
 
 /** What a node without source prints in the source field. */
 const NO_SOURCE = "(none)";
@@ -19,9 +20,9 @@ export function renderTree(world: LoadedWorld, root: string, start: number | nul
     const open = level === 0 || depth < level;
     const collapsed = node.children.length > 0 && !open;
     lines.push(line(root, node.spec, `${node.path}${collapsed ? `/ (${node.children.length})` : ""}`));
-    if (open) for (const child of node.children) visit(world.nodes[child], depth + 1);
+    if (open) for (const child of childrenOf(world, node.index)) visit(child, depth + 1);
   };
-  if (start === null) for (const top of world.top) visit(world.nodes[top], 1);
+  if (start === null) for (const top of childrenOf(world, null)) visit(top, 1);
   else visit(world.nodes[start], 0);
   return lines;
 }
