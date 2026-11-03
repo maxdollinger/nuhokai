@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { type SplitReport, splitReport } from "../shared/split-report.ts";
 import { runTree } from "./print-tree.ts";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -29,16 +30,9 @@ function exampleWorld(extra: Record<string, string> = {}): string {
   return root;
 }
 
-/** Run tree: its outcome and its result and failure lines, the project directory in failures written as <root>. */
-async function tree(root: string, node?: string, level = 1) {
-  const report = await runTree(root, node, level);
-  const texts = (kind: "result" | "failure") =>
-    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
-  return {
-    outcome: report.outcome,
-    out: texts("result"),
-    err: texts("failure").map((line) => line.replaceAll(root, "<root>")),
-  };
+/** Run tree: its outcome and its result and failure lines, the project directory written as <root>. */
+async function tree(root: string, node?: string, level = 1): Promise<SplitReport> {
+  return splitReport(await runTree(root, node, level), root);
 }
 
 afterEach(() => {

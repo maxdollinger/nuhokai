@@ -1,6 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
 import { FileSystem, Terminal } from "./external.ts";
+import { Failure } from "./failure.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { Tree } from "./tree/tree.ts";
@@ -52,7 +53,7 @@ export const Cli = node({
     },
     {
       id: "R9",
-      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout as they are and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, then maps the outcome to the exit code (R2).",
+      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters as one space (Terminal R1), then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5) still crashes with its stack, after Cli prints the lines the command answered before it.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
@@ -91,7 +92,11 @@ export const Cli = node({
       demonstrates: ["R6", "R8"],
     },
     {
-      text: "A Report of result a, failure x, result b → stdout a, b; stderr 'nuhokai tree: x'. No source file but src/bin.ts uses console, the std streams or the exit code, and in the CLI's own world only Cli uses Terminal.",
+      text: "A Report of result a, failure x, result b → stdout a, b; stderr 'nuhokai tree: x'. No script under src but bin.ts and tests, read as a syntax tree, names console, process beyond its machine facts, Bun's std streams, a terminal module, descriptor 0–2 or a terminal device; in the CLI's own world only Cli uses Terminal.",
+      demonstrates: ["R2", "R9"],
+    },
+    {
+      text: "A result line holding ESC and a failure line holding a bare carriage return → each printed with a space instead; `nuhokai update` → 'nuhokai update: not implemented yet', exit 1; SpecCheck throwing a TypeError on a world with a tsc error → the tsc line on stdout, then the TypeError thrown.",
       demonstrates: ["R2", "R9"],
     },
   ],
@@ -178,5 +183,14 @@ export const Cli = node({
     },
   ],
 }).edges({
-  uses: () => [Init.run, WorldMap.run, Check.run, Tree.run, Terminal.print, Terminal.printError, FileSystem.read],
+  uses: () => [
+    Init.run,
+    WorldMap.run,
+    Check.run,
+    Tree.run,
+    Failure.report,
+    Terminal.print,
+    Terminal.printError,
+    FileSystem.read,
+  ],
 });

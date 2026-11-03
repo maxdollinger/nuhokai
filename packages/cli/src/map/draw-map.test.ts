@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
+import { type SplitReport, splitReport } from "../shared/split-report.ts";
 import { runMap } from "./draw-map.ts";
 
 const MAP = "nuhokai/.generated/map.html";
@@ -25,11 +26,8 @@ function tempDir(): string {
 }
 
 /** Run map: its outcome and its result and failure lines, as Cli would print them on stdout and stderr. */
-async function map(root: string) {
-  const report = await runMap(root);
-  const texts = (kind: "result" | "failure") =>
-    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
-  return { outcome: report.outcome, out: texts("result"), err: texts("failure") };
+async function map(root: string): Promise<SplitReport> {
+  return splitReport(await runMap(root));
 }
 
 /** Every file in the directory, with its bytes. */

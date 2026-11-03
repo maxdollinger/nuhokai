@@ -13,7 +13,7 @@ export const PrintTree = node({
   ports: {
     run: {
       kind: "call",
-      purpose: "Answer the world's node hierarchy, one line per node",
+      purpose: "Return a Report of the world's node hierarchy, one line per node",
       input: "project directory (cwd-relative), hierarchy path or none, level: whole number, 0 = unlimited",
       output:
         "Report: ok with TreeLines' lines as result lines; failed (no world or a load failure) or invalid (no such node) with one failure line",
@@ -48,5 +48,5 @@ export const PrintTree = node({
     },
   ],
 }).edges({
-  uses: () => [LoadWorld.load, Path.findNode, TreeLines.render, Failure.format, Failure.isExpected],
+  uses: () => [LoadWorld.load, Path.findNode, TreeLines.render, Failure.format, Failure.report],
 });

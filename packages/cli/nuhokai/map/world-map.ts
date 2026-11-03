@@ -7,7 +7,7 @@ import { Viewer } from "./viewer.ts";
 export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
   purpose:
-    "Draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html and answer its path for Cli to print. Never checks, edits, prints or opens a browser.",
+    "Draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html and return a Report of its path. Never checks, edits, prints or opens a browser.",
   status: "building",
   source: ["src/map/**"],
   requirements: [
@@ -21,7 +21,7 @@ export const WorldMap = node({
   ],
   testCases: [
     {
-      text: "After init: writes nuhokai/.generated/map.html and answers its path, ok; second run changes no other file.",
+      text: "After init: writes nuhokai/.generated/map.html and returns a Report of its path, ok; second run changes no other file.",
       demonstrates: ["R1", "R2"],
     },
     { text: "A world with an orphan and an out-of-scope uses edge still gets a map.", demonstrates: ["R3"] },

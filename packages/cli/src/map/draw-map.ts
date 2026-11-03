@@ -1,6 +1,5 @@
 import { loadWorld } from "../load/load-world.ts";
-import { isExpected, oneLine } from "../shared/failure.ts";
-import { failure, type Report, result } from "../shared/report.ts";
+import { failedFrom, ok, type Report } from "../shared/report.ts";
 import { writeMap } from "./map-file.ts";
 
 /**
@@ -14,10 +13,9 @@ export async function runMap(root: string): Promise<Report> {
   try {
     // Unchecked: any world that loads gets a map, because a broken world is when the map helps most.
     const world = await loadWorld(root);
-    return { outcome: "ok", lines: [result(writeMap(root, world))] };
+    return ok([writeMap(root, world)]);
   } catch (error) {
     // Expected failures become one failure line; a bug crashes with its stack.
-    if (!isExpected(error)) throw error;
-    return { outcome: "failed", lines: [failure(oneLine(error))] };
+    return failedFrom(error);
   }
 }

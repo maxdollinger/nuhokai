@@ -5,10 +5,10 @@ export const Failure = node({
   id: "01a17950-b221-7126-bd52-7e93a4c10f38",
   purpose:
     "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, flattening any " +
-    "thrown value to one line, and the Report a command answers Cli with: its outcome and its result and failure " +
-    "lines. Classifies, formats and shapes only; never prints.",
+    "thrown value to one line, and the Report every command returns: its outcome and its result and failure " +
+    "lines, and the helpers that build it. Classifies, formats and shapes only; never prints.",
   status: "built",
-  source: ["src/shared/failure.ts", "src/shared/report.ts"],
+  source: ["src/shared/failure.ts", "src/shared/report.ts", "src/shared/report.test.ts", "src/shared/split-report.ts"],
   ports: {
     format: {
       kind: "call",
@@ -22,6 +22,15 @@ export const Failure = node({
       purpose: "Whether a command expects to explain a thrown value",
       input: "any thrown value",
       output: "true for a CliError or filesystem failure (Error with numeric errno), else false",
+      errors: [],
+    },
+    report: {
+      kind: "call",
+      purpose:
+        "Build a command's Report: a result or failure line, ok from result texts, failed from a thrown value; run a command that adds its lines as it goes",
+      input: "result texts, a failure text or a thrown value; a command adding its lines as it goes",
+      output:
+        "a Report or one of its lines; a bug is rethrown, and one escaping a command adding its lines is a CutShort carrying them",
       errors: [],
     },
   },
@@ -38,6 +47,10 @@ export const Failure = node({
     {
       id: "R4",
       text: "A Report is plain data: an outcome (ok, failed or invalid) and its lines in print order, each a result or a failure line; a failure line carries no 'nuhokai <command>: ' prefix.",
+    },
+    {
+      id: "R5",
+      text: "From a thrown value, report makes one failure line (format) only when it is expected (isExpected); a bug is rethrown. A bug escaping a command that adds its lines as it goes becomes a CutShort carrying those lines and the bug, so Cli prints what the command found before it crashes.",
     },
     {
       id: "C1",
@@ -57,6 +70,10 @@ export const Failure = node({
     {
       text: "CliError, filesystem Error with errno: expected. TypeError, thrown string, plain object with errno, null: bugs.",
       demonstrates: ["R1"],
+    },
+    {
+      text: "ok of two texts → two result lines; failedFrom a CliError → its one failure line, failed; failedFrom a TypeError → the TypeError rethrown; a collecting command that adds a line, then throws → a CutShort with that line and the bug.",
+      demonstrates: ["R4", "R5"],
     },
   ],
   decisions: [
@@ -88,7 +105,7 @@ export const Failure = node({
     {
       decision:
         "The Report type (outcome ok, failed or invalid; result and failure lines in order) lives here, beside the one-line rule.",
-      why: "Every command answers Cli with it and its failure lines are this node's lines; a node of its own would hold one type.",
+      why: "Every command returns it and its failure lines are this node's lines; a node of its own would hold one type.",
       rejected: [
         {
           option: "Report owned by Cli",

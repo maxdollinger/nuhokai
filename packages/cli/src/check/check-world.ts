@@ -1,21 +1,20 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { isExpected, oneLine } from "../shared/failure.ts";
 import { NoWorldError } from "../shared/inspect.ts";
-import { failure, type Report, type ReportLine, result } from "../shared/report.ts";
+import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
 import { runSpecCheck } from "./spec-check/index.ts";
 import { worldTree } from "./spec-check/world-tree.ts";
 import { runTypeCheck } from "./type-check.ts";
 
-/** How a check settled: what it answered, or the failure that stopped it. */
-type Settled<T> = { readonly value: T } | { readonly failure: unknown };
+/** How a check settled: what it answered, or what it threw. */
+type Settled<T> = { readonly value: T } | { readonly thrown: unknown };
 
 async function settle<T>(check: () => Promise<T>): Promise<Settled<T>> {
   try {
     return { value: await check() };
   } catch (thrown) {
-    return { failure: thrown };
+    return { thrown };
   }
 }
 
@@ -42,57 +41,58 @@ function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | und
  * Then TypeCheck beside SpecCheck, or TypeCheck alone when the load failed, then CodeCheck when neither found an
  * error. Answers TypeCheck's findings, then SpecCheck's, then CodeCheck's, one result line each, and one failure
  * line per failure, in the order they happen; the outcome is ok without errors (warnings allowed), else failed.
- * Programming errors propagate and crash with their stack.
+ * Programming errors propagate as a CutShort carrying the lines added before them, and crash with their stack.
  */
 export async function runCheck(root: string): Promise<Report> {
-  const lines: ReportLine[] = [];
-  const report = (findings: readonly Finding[]) => {
-    for (const finding of findings) lines.push(result(formatFinding(finding)));
-  };
-  const fail = (thrown: unknown) => {
-    // Expected failures become one failure line; a bug crashes with its stack.
-    if (!isExpected(thrown)) throw thrown;
-    lines.push(failure(oneLine(thrown)));
-  };
-  const failed = (): Report => ({ outcome: "failed", lines });
+  // A bug crashes with its stack, after Cli prints the lines added before it.
+  return collecting(async (lines) => {
+    const addFindings = (findings: readonly Finding[]) => {
+      for (const finding of findings) lines.push(resultLine(formatFinding(finding)));
+    };
+    // An expected failure becomes one failure line; a bug is rethrown.
+    const addFailure = (thrown: unknown) => {
+      lines.push(failureLineFrom(thrown));
+    };
+    const failedReport = (): Report => ({ outcome: "failed", lines });
 
-  const loaded = await settle(() => loadWorld(root));
-  // No world: TypeCheck would only fail again for the same reason, so the one line is LoadWorld's.
-  if ("failure" in loaded && loaded.failure instanceof NoWorldError) {
-    fail(loaded.failure);
-    return failed();
-  }
-  const typing = settle(() => runTypeCheck(root));
-  /** TypeCheck's findings, named by the loaded world when there is one; its failure after them. */
-  const reportTypes = (typed: Settled<Finding[]>, world: LoadedWorld | undefined): Finding[] => {
-    const findings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
-    report(findings);
-    if ("failure" in typed) fail(typed.failure);
-    return findings;
-  };
+    const loaded = await settle(() => loadWorld(root));
+    // No world: TypeCheck would only fail again for the same reason, so the one line is LoadWorld's.
+    if ("thrown" in loaded && loaded.thrown instanceof NoWorldError) {
+      addFailure(loaded.thrown);
+      return failedReport();
+    }
+    const typing = settle(() => runTypeCheck(root));
+    /** TypeCheck's findings, named by the loaded world when there is one; its failure after them. */
+    const addTypeFindings = (typed: Settled<Finding[]>, world: LoadedWorld | undefined): Finding[] => {
+      const findings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
+      addFindings(findings);
+      if ("thrown" in typed) addFailure(typed.thrown);
+      return findings;
+    };
 
-  // A broken world still gets every tsc finding, which say most about why it does not load; then the load failure.
-  if ("failure" in loaded) {
-    reportTypes(await typing, undefined);
-    fail(loaded.failure);
-    return failed();
-  }
-  const world = loaded.value;
-  const typed = await typing;
-  const typeFindings = reportTypes(typed, world);
-  // After a type error SpecCheck leaves out R5: it re-checks tsc's rules, so it would report the same break twice.
-  const typeErrors = typeFindings.some((finding) => finding.severity === "error");
-  const specced = await settle(async () => runSpecCheck(root, world, typeErrors));
-  if ("failure" in specced) {
-    fail(specced.failure);
-    return failed();
-  }
-  const specFindings = specced.value;
-  report(specFindings);
-  const errors = [...typeFindings, ...specFindings].some((finding) => finding.severity === "error");
-  if ("failure" in typed || errors) return failed();
+    // A broken world still gets every tsc finding, which say most about why it does not load; then the load failure.
+    if ("thrown" in loaded) {
+      addTypeFindings(await typing, undefined);
+      addFailure(loaded.thrown);
+      return failedReport();
+    }
+    const world = loaded.value;
+    const typed = await typing;
+    const typeFindings = addTypeFindings(typed, world);
+    // After a type error SpecCheck leaves out R5: it re-checks tsc's rules, so it would report the same break twice.
+    const typeErrors = typeFindings.some((finding) => finding.severity === "error");
+    const specced = await settle(async () => runSpecCheck(root, world, typeErrors));
+    if ("thrown" in specced) {
+      addFailure(specced.thrown);
+      return failedReport();
+    }
+    const specFindings = specced.value;
+    addFindings(specFindings);
+    const errors = [...typeFindings, ...specFindings].some((finding) => finding.severity === "error");
+    if ("thrown" in typed || errors) return failedReport();
 
-  const codeFindings = runCodeCheck(world);
-  report(codeFindings);
-  return { outcome: codeFindings.some((finding) => finding.severity === "error") ? "failed" : "ok", lines };
+    const codeFindings = runCodeCheck(world);
+    addFindings(codeFindings);
+    return { outcome: codeFindings.some((finding) => finding.severity === "error") ? "failed" : "ok", lines };
+  });
 }

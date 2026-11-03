@@ -3,7 +3,7 @@
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
-import type { Outcome, Report } from "./shared/report.ts";
+import { CutShort, failureLine, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
 
 /** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `tree` run today. */
 export const COMMANDS = ["check", "init", "map", "tree", "update"] as const;
@@ -223,26 +223,36 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  const report = await run(first, root, rest[0], level);
-  if (report === undefined) {
-    console.error(`nuhokai ${first}: not implemented yet`);
-    return 1;
+  let report: Report;
+  try {
+    report = await run(first, root, rest[0], level);
+  } catch (error) {
+    // A bug crashes with its stack, but only after the lines the command answered before it.
+    if (!(error instanceof CutShort)) throw error;
+    print(first, error.lines);
+    throw error.bug;
   }
-  // Cli is the only node that prints: result lines on stdout as they are, failure lines on stderr after its prefix.
-  for (const line of report.lines) {
-    if (line.kind === "result") console.log(line.text);
-    else console.error(`nuhokai ${first}: ${line.text}`);
-  }
+  print(first, report.lines);
   return EXIT[report.outcome];
 }
 
-/** Run the command's node and await its Report; undefined for a command not built yet. */
-async function run(
-  command: Command,
-  root: string,
-  node: string | undefined,
-  level: number,
-): Promise<Report | undefined> {
+/** A run of control characters (escape sequences, carriage returns, newlines): one space, so none reaches the terminal. */
+const CONTROL = /\p{Cc}+/gu;
+
+/**
+ * Cli is the only node that prints: result lines on stdout, failure lines on stderr after its prefix, in order, each
+ * one plain line whatever the command put in it (Terminal R1).
+ */
+function print(command: Command, lines: readonly ReportLine[]): void {
+  for (const line of lines) {
+    const text = line.text.replace(CONTROL, " ");
+    if (line.kind === "result") console.log(text);
+    else console.error(`nuhokai ${command}: ${text}`);
+  }
+}
+
+/** Run the command's node and await its Report. */
+async function run(command: Command, root: string, node: string | undefined, level: number): Promise<Report> {
   if (command === "check") {
     // The checker's client is only check's to load.
     const { runCheck } = await import("./check/index.ts");
@@ -258,7 +268,7 @@ async function run(
     const { runTree } = await import("./tree/index.ts");
     return runTree(root, node, level);
   }
-  return undefined;
+  return { outcome: "failed", lines: [failureLine("not implemented yet")] };
 }
 
 if (import.meta.main) {

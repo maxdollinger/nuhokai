@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
-import type { Outcome, Report } from "../shared/report.ts";
+import { CutShort } from "../shared/report.ts";
+import { type SplitReport, splitReport } from "../shared/split-report.ts";
 import { runCheck } from "./check-world.ts";
 import * as codeCheck from "./code-check.ts";
 import * as specCheck from "./spec-check/apply-rules.ts";
@@ -27,16 +28,9 @@ async function world(files: Record<string, string> = {}): Promise<string> {
   return root;
 }
 
-/** A check's outcome and its result and failure lines, the project directory written as <root>. */
-function split(report: Report, root: string): { outcome: Outcome; out: string[]; err: string[] } {
-  const texts = (kind: "result" | "failure") =>
-    report.lines.filter((line) => line.kind === kind).map((line) => line.text.replaceAll(root, "<root>"));
-  return { outcome: report.outcome, out: texts("result"), err: texts("failure") };
-}
-
-/** Run check on the project directory, split as Cli would print it on stdout and stderr. */
-async function check(root: string): Promise<{ outcome: Outcome; out: string[]; err: string[] }> {
-  return split(await runCheck(root), root);
+/** Run check on the project directory, split as Cli would print it on stdout and stderr, the directory as <root>. */
+async function check(root: string): Promise<SplitReport> {
+  return splitReport(await runCheck(root), root);
 }
 
 const ORPHAN = `import { node } from "@nuhokai/world";
@@ -107,7 +101,7 @@ test("CheckWorld R1: a syntax error in a node file is its tsc error line, then o
   const spec = spyOn(specCheck, "applyRules");
   try {
     const report = await runCheck(root);
-    const result = split(report, root);
+    const result = splitReport(report, root);
     expect(result.outcome).toBe("failed");
     // The tsc finding first, then the load failure: Cli prints the lines in this order.
     expect(report.lines.map((line) => line.kind)).toEqual(["result", "failure"]);
@@ -142,6 +136,28 @@ test("CheckWorld R2: a tsc error with a clean spec never runs CodeCheck; an orph
     expect(code).toHaveBeenCalledTimes(1);
   } finally {
     code.mockRestore();
+  }
+});
+
+test("a bug in SpecCheck crashes check as a CutShort carrying the tsc findings already answered", async () => {
+  const root = await world({ "nuhokai/index.test.ts": 'export const x: number = "one";\n' });
+  const bug = new TypeError("boom");
+  const spec = spyOn(specCheck, "applyRules").mockImplementation(() => {
+    throw bug;
+  });
+  try {
+    const thrown = await runCheck(root).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(CutShort);
+    const cut = thrown as CutShort;
+    expect(cut.bug).toBe(bug);
+    expect(splitReport({ outcome: "failed", lines: cut.lines }, root).out).toEqual([
+      "error: <root>/nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'.",
+    ]);
+  } finally {
+    spec.mockRestore();
   }
 });
 

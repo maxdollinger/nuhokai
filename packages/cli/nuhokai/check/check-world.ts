@@ -81,8 +81,7 @@ export const CheckWorld = node({
     SpecCheck.run,
     CodeCheck.run,
     Diagnostics.format,
-    Failure.format,
-    Failure.isExpected,
+    Failure.report,
     Path.nameNodes,
   ],
 });

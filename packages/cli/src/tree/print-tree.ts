@@ -1,7 +1,7 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { CliError, isExpected, oneLine } from "../shared/failure.ts";
+import { CliError, oneLine } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
-import { failure, type Report, result } from "../shared/report.ts";
+import { failedFrom, failureLine, ok, type Report } from "../shared/report.ts";
 import { renderTree } from "./tree-lines.ts";
 
 /**
@@ -18,8 +18,7 @@ export async function runTree(root: string, node: string | undefined, level: num
     world = await loadWorld(root);
   } catch (error) {
     // Expected failures become one failure line; a bug crashes with its stack.
-    if (!isExpected(error)) throw error;
-    return { outcome: "failed", lines: [failure(oneLine(error))] };
+    return failedFrom(error);
   }
   let start: number | null = null;
   if (node !== undefined) {
@@ -28,8 +27,8 @@ export async function runTree(root: string, node: string | undefined, level: num
     } catch (error) {
       // A path naming no node is an invalid argument value: exit 2, as Cli's usage errors.
       if (!(error instanceof CliError)) throw error;
-      return { outcome: "invalid", lines: [failure(oneLine(error))] };
+      return { outcome: "invalid", lines: [failureLine(oneLine(error))] };
     }
   }
-  return { outcome: "ok", lines: renderTree(world, root, start, level).map((line) => result(line)) };
+  return ok(renderTree(world, root, start, level));
 }

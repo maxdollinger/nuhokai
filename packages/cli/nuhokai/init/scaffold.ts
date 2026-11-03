@@ -8,7 +8,7 @@ import { Publish } from "./publish.ts";
 export const Scaffold = node({
   id: "01a17290-3f10-7c48-a1d2-6b8e04c95f27",
   purpose:
-    "The program inside Init: inspect the project directory, hand the outcome to Publish, report the result to Cli. " +
+    "The program inside Init: inspect the project directory, hand the outcome to Publish, return a Report. " +
     "Owns no data, file or template; never prints.",
   status: "built",
   source: ["src/init/scaffold.ts"],
@@ -48,5 +48,5 @@ export const Scaffold = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.inspect, Path.nameInWorld, Failure.format, Failure.isExpected, Publish.run],
+  uses: () => [Inspect.inspect, Path.nameInWorld, Failure.report, Publish.run],
 });

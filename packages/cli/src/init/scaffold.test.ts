@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
 import { inspectTarget } from "../shared/inspect.ts";
+import { type SplitReport, splitReport } from "../shared/split-report.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
 import { EXAMPLE_TEMPLATE, worldIndexSource } from "./example-world.ts";
@@ -36,11 +37,8 @@ function tempDir(): string {
 }
 
 /** Run init: its outcome and its result and failure lines, as Cli would print them on stdout and stderr. */
-async function init(root: string) {
-  const report = await runInit(root);
-  const texts = (kind: "result" | "failure") =>
-    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
-  return { outcome: report.outcome, out: texts("result"), err: texts("failure") };
+async function init(root: string): Promise<SplitReport> {
+  return splitReport(await runInit(root));
 }
 
 function files(dir: string): string[] {

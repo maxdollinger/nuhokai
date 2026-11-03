@@ -6,7 +6,7 @@ import { TreeLines } from "./tree-lines.ts";
 export const Tree = node({
   id: "01a19cc8-5db0-7318-ade1-ecb15430e2ed",
   purpose:
-    "Answer the world's node hierarchy for Cli to print, one line per node with its path, source and purpose, so " +
+    "Return a Report of the world's node hierarchy, one line per node with its path, source and purpose, so " +
     "agents and people find a node step by step without reading the world, and copy its path into other commands. " +
     "Never checks, writes or prints.",
   status: "building",
