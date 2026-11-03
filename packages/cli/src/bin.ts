@@ -10,16 +10,8 @@ import { treeCmd } from "./cli/commands/tree.ts";
 import { updateCmd } from "./cli/commands/update.ts";
 import { CutShort, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
 
-/** The commands the CLI exposes, in usage's order; `update` is planned, `check`, `init`, `map` and `tree` run today. */
-export const COMMANDS = {
-  check: checkCmd,
-  init: initCmd,
-  map: mapCmd,
-  tree: treeCmd,
-  update: updateCmd,
-} satisfies Record<string, Cmd>;
-
-export type CommandName = keyof typeof COMMANDS;
+/** The commands by name, in usage's order. */
+type Commands = Readonly<Record<string, Cmd>>;
 
 /** Cli alone turns a command's outcome into the process exit code; 2 is also every usage error of its own. */
 const EXIT: Record<Outcome, number> = { ok: 0, failed: 1, invalid: 2 };
@@ -46,39 +38,36 @@ interface OptionValue {
   readonly raw: string;
 }
 
-const NAMES = Object.keys(COMMANDS) as CommandName[];
-
 /** An option's spellings, shortest first: "-L, --level". */
 function spellings(option: Option): string[] {
   return [...option.names].sort((a, b) => a.length - b.length);
 }
 
 /** A command's argument form, from its positionals and its own options: "nuhokai tree [node] [-L <n>]". */
-function synopsis(name: CommandName): string {
-  const { positionals, options } = COMMANDS[name];
+function synopsis(name: string, { positionals, options }: Cmd): string {
   const optional = options.map((option) => `[${spellings(option)[0]} ${option.value}]`);
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
-/** The synopsis column's width, so every description starts in one column. */
-const SYNOPSIS_WIDTH = Math.max(...NAMES.map((name) => synopsis(name).length)) + 2;
-
-export function usage(): string {
+export function usage(commands: Commands): string {
+  const synopses = Object.entries(commands).map(([name, cmd]) => [synopsis(name, cmd), cmd.description] as const);
+  // The synopsis column's width, so every description starts in one column.
+  const width = Math.max(...synopses.map(([form]) => form.length)) + 2;
   return [
     "nuhokai — the world format toolchain",
     "",
     "Usage: nuhokai <command> [--path <dir>] [arguments]",
     "",
     "Commands:",
-    ...NAMES.map((name) => `  ${synopsis(name).padEnd(SYNOPSIS_WIDTH)}${COMMANDS[name].description}`),
+    ...synopses.map(([form, description]) => `  ${form.padEnd(width)}${description}`),
     "",
     "Run `nuhokai <command> --help` for command options.",
   ].join("\n");
 }
 
 /** One help text per command, answered by Cli before any value is judged: its own options, --path and --help. */
-export function commandUsage(name: CommandName): string {
-  const { description, options } = COMMANDS[name];
+export function commandUsage(name: string, cmd: Cmd): string {
+  const { description, options } = cmd;
   const lines: (readonly [string, string])[] = [
     ...[...options, PATH_OPTION].map((option): [string, string] => [
       `${spellings(option).join(", ")} ${option.value}`,
@@ -90,7 +79,7 @@ export function commandUsage(name: CommandName): string {
   return [
     `nuhokai ${name} — ${description}`,
     "",
-    `Usage: ${synopsis(name)}`,
+    `Usage: ${synopsis(name, cmd)}`,
     "",
     "Options:",
     ...lines.map(([flags, text]) => `  ${flags.padEnd(width)}${text}`),
@@ -99,10 +88,6 @@ export function commandUsage(name: CommandName): string {
 
 function isHelpFlag(value: string): boolean {
   return HELP_FLAGS.includes(value);
-}
-
-function isCommandName(value: string): value is CommandName {
-  return Object.hasOwn(COMMANDS, value);
 }
 
 /**
@@ -178,39 +163,47 @@ function sanitise(text: string): string {
 }
 
 /** A usage error of one command: its message, then its help, on stderr; exit 2. */
-function usageError(name: CommandName, error: string): number {
-  console.error(`nuhokai ${name}: ${sanitise(error)}\n\n${commandUsage(name)}`);
+function usageError(name: string, cmd: Cmd, error: string): number {
+  console.error(`nuhokai ${name}: ${sanitise(error)}\n\n${commandUsage(name, cmd)}`);
   return 2;
 }
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
 export async function main(argv: readonly string[]): Promise<number> {
+  // The commands the CLI exposes, in usage's order; `update` is planned, the others run today.
+  const commands: Commands = {
+    check: checkCmd,
+    init: initCmd,
+    map: mapCmd,
+    tree: treeCmd,
+    update: updateCmd,
+  };
   const [first, ...typed] = argv;
   if (first === undefined || HELP_WORDS.includes(first)) {
-    console.log(usage());
+    console.log(usage(commands));
     return 0;
   }
-  if (!isCommandName(first)) {
-    console.error(`nuhokai: unknown command '${sanitise(first)}'\n\n${usage()}`);
+  const cmd = Object.hasOwn(commands, first) ? commands[first] : undefined;
+  if (cmd === undefined) {
+    console.error(`nuhokai: unknown command '${sanitise(first)}'\n\n${usage(commands)}`);
     return 2;
   }
-  const cmd: Cmd = COMMANDS[first];
   const split = splitOptions(typed, [PATH_OPTION, ...cmd.options]);
-  if ("error" in split) return usageError(first, split.error);
+  if ("error" in split) return usageError(first, cmd, split.error);
   // Help wins over any value, a bad --path included: values are judged only after it.
   if (split.rest.length === 1 && isHelpFlag(split.rest[0] ?? "")) {
-    console.log(commandUsage(first));
+    console.log(commandUsage(first, cmd));
     return 0;
   }
   const stray = strayArgument(split.rest);
-  if (stray) return usageError(first, stray.error);
+  if (stray) return usageError(first, cmd, stray.error);
   // The count before any value: the first positional past the command's declared ones is named.
   const extra = split.rest[cmd.positionals.length];
-  if (extra !== undefined) return usageError(first, `unexpected argument '${extra}'`);
+  if (extra !== undefined) return usageError(first, cmd, `unexpected argument '${extra}'`);
   const values = new Map<Option, unknown>();
   for (const [option, { spelling, raw }] of split.values) {
     const value = option.parse(raw);
-    if (value === undefined) return usageError(first, `${spelling} needs ${option.needs}, got '${raw}'`);
+    if (value === undefined) return usageError(first, cmd, `${spelling} needs ${option.needs}, got '${raw}'`);
     values.set(option, value);
   }
   const args: Args = {
@@ -222,7 +215,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   const cwd = process.cwd();
   const named = args.get(PATH_OPTION) ?? ".";
   const dir = resolve(cwd, named);
-  if (!isDirectory(dir)) return usageError(first, `not a directory: ${named}`);
+  if (!isDirectory(dir)) return usageError(first, cmd, `not a directory: ${named}`);
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
   return finish(first, cmd, root, args);
@@ -232,7 +225,7 @@ export async function main(argv: readonly string[]): Promise<number> {
  * Run the command, print its Report and map its outcome to the exit code; a bug crashes, after the lines answered
  * before it, whether run throws or rejects.
  */
-async function finish(name: CommandName, cmd: Cmd, root: string, args: Args): Promise<number> {
+async function finish(name: string, cmd: Cmd, root: string, args: Args): Promise<number> {
   let report: Report;
   try {
     report = await cmd.run(root, args);
@@ -249,7 +242,7 @@ async function finish(name: CommandName, cmd: Cmd, root: string, args: Args): Pr
  * Cli is the only node that prints: result lines on stdout, failure lines on stderr after its prefix, in order, each
  * one plain line whatever the command put in it (Terminal R1).
  */
-function print(name: CommandName, lines: readonly ReportLine[]): void {
+function print(name: string, lines: readonly ReportLine[]): void {
   for (const line of lines) {
     const text = sanitise(line.text);
     if (line.kind === "result") console.log(text);

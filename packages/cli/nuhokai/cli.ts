@@ -10,7 +10,7 @@ import { Tree } from "./tree/tree.ts";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch through a registry of per-command Cmds (help text, declared " +
+    "Command surface: parse argv, print usage, dispatch to per-command Cmds listed in main (help text, declared " +
     "positionals, options each with the parse of its value, and a run holding the deferred call into the command " +
     "node), print their reports; owns exit codes and is the only node that touches the terminal. Implements no " +
     "command; Build makes and ships it.",
@@ -194,7 +194,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, options each with its parse, run), and bin.ts dispatches through a plain const registry of them. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, options each with its parse, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
       why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {
@@ -212,6 +212,10 @@ export const Cli = node({
         {
           option: "parse returning a runner closure",
           why: "Repeats the count and the import wrapper in every command.",
+        },
+        {
+          option: "A module-level COMMANDS const",
+          why: "Reading main means jumping to it and back; inside main the list sits where dispatch starts, and usage and help take it as an argument.",
         },
       ],
     },
