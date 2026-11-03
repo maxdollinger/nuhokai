@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { Terminal } from "../externals/terminal.ts";
+import { Terminal } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { MapFile } from "./map-file.ts";

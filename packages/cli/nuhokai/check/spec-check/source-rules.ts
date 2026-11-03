@@ -1,6 +1,5 @@
 import { node } from "@nuhokai/world";
-import { BunRuntime } from "../../externals/bun-runtime.ts";
-import { FileSystem } from "../../externals/file-system.ts";
+import { BunRuntime, FileSystem } from "../../external.ts";
 import { Path } from "../../path/path.ts";
 
 /** The rules that read the filesystem: R6, R7, R10. */

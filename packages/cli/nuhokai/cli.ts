@@ -1,7 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
-import { FileSystem } from "./externals/file-system.ts";
-import { Terminal } from "./externals/terminal.ts";
+import { FileSystem, Terminal } from "./external.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { Tree } from "./tree/tree.ts";

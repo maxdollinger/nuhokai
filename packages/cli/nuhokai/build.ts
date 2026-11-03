@@ -1,8 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Cli } from "./cli.ts";
-import { BunRuntime } from "./externals/bun-runtime.ts";
-import { FileSystem } from "./externals/file-system.ts";
-import { Tsgo } from "./externals/tsgo.ts";
+import { BunRuntime, FileSystem, Tsgo } from "./external.ts";
 
 /** How the CLI is made and shipped. Runs on a developer's machine and in CI, never inside nuhokai. */
 export const Build = node({

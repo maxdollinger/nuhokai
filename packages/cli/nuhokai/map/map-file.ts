@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { FileSystem } from "../externals/file-system.ts";
+import { FileSystem } from "../external.ts";
 import { Path } from "../path/path.ts";
 import { Viewer } from "./viewer.ts";
 

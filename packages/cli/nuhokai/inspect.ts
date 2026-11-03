@@ -1,5 +1,5 @@
 import { node } from "@nuhokai/world";
-import { FileSystem } from "./externals/file-system.ts";
+import { FileSystem } from "./external.ts";
 import { Path } from "./path/path.ts";
 
 /** What sits at nuhokai/ in the project directory, as a verdict. Reads only. */

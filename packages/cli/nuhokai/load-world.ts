@@ -1,6 +1,5 @@
 import { node } from "@nuhokai/world";
-import { FileSystem } from "./externals/file-system.ts";
-import { Tsgo } from "./externals/tsgo.ts";
+import { FileSystem, Tsgo } from "./external.ts";
 import { Failure } from "./failure.ts";
 import { Inspect } from "./inspect.ts";
 import { Path } from "./path/path.ts";

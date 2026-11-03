@@ -1,6 +1,5 @@
 import { node } from "@nuhokai/world";
-import { Browser } from "../externals/browser.ts";
-import { ThreeJs } from "../externals/three-js.ts";
+import { Browser, ThreeJs } from "../external.ts";
 
 /** The map's page: what the browser draws from the loaded world. */
 export const Viewer = node({
