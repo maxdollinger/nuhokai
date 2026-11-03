@@ -1,5 +1,4 @@
 import { node } from "@nuhokai/world";
-import { Terminal } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { Path } from "../path/path.ts";
@@ -20,7 +19,7 @@ export const CheckWorld = node({
       purpose: "Check the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "exit 0 no errors (warnings allowed), 1 errors or failure; stdout: one line per diagnostic; stderr: one 'nuhokai check: ' line per failure",
+        "Report: ok without errors (warnings allowed), else failed; one result line per diagnostic and one failure line per failure, in the order they happen",
       errors: ["no world at nuhokai/ (LoadWorld's NoWorldError)", "no nuhokai/tsconfig.json", "world failed to load"],
     },
   },
@@ -45,15 +44,15 @@ export const CheckWorld = node({
   ],
   testCases: [
     {
-      text: "A syntax error in a node file → its tsc error line, then one 'nuhokai check: ' stderr line, exit 1; SpecCheck never runs.",
+      text: "A syntax error in a node file → its tsc error line, then one failure line, failed; SpecCheck never runs.",
       demonstrates: ["R1"],
     },
     {
-      text: "A tsc error, spec clean → CodeCheck never runs; only an orphan warning → CodeCheck runs, exit 0.",
+      text: "A tsc error, spec clean → CodeCheck never runs; only an orphan warning → CodeCheck runs, ok.",
       demonstrates: ["R2"],
     },
     {
-      text: "No nuhokai/, or a file there → one 'nuhokai check: ' line, naming init when absent, exit 1; TypeCheck never runs.",
+      text: "No nuhokai/, or a file there → one failure line, naming init when absent, failed; TypeCheck never runs.",
       demonstrates: ["R4"],
     },
     {
@@ -85,7 +84,5 @@ export const CheckWorld = node({
     Failure.format,
     Failure.isExpected,
     Path.nameNodes,
-    Terminal.print,
-    Terminal.printError,
   ],
 });

@@ -1,26 +1,21 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { isExpected, oneLine } from "../shared/failure.ts";
 import { NoWorldError } from "../shared/inspect.ts";
+import { failure, type Report, type ReportLine, result } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
 import { runSpecCheck } from "./spec-check/index.ts";
 import { worldTree } from "./spec-check/world-tree.ts";
 import { runTypeCheck } from "./type-check.ts";
 
-/** What the run port may observe and answer; the defaults are the real process. */
-export interface CheckEnvironment {
-  readonly out?: (line: string) => void;
-  readonly err?: (line: string) => void;
-}
+/** How a check settled: what it answered, or the failure that stopped it. */
+type Settled<T> = { readonly value: T } | { readonly failure: unknown };
 
-/** A check's outcome: what it answered, or the failure that stopped it. */
-type Outcome<T> = { readonly value: T } | { readonly failure: unknown };
-
-async function outcome<T>(check: () => Promise<T>): Promise<Outcome<T>> {
+async function settle<T>(check: () => Promise<T>): Promise<Settled<T>> {
   try {
     return { value: await check() };
-  } catch (failure) {
-    return { failure };
+  } catch (thrown) {
+    return { failure: thrown };
   }
 }
 
@@ -45,30 +40,33 @@ function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | und
 /**
  * The check command for the project directory `root`, named from the cwd: load once; without a world, stop there.
  * Then TypeCheck beside SpecCheck, or TypeCheck alone when the load failed, then CodeCheck when neither found an
- * error. Prints TypeCheck's findings, then SpecCheck's, then CodeCheck's, one line each on stdout, and one
- * 'nuhokai check: ' stderr line per failure; resolves to 0 without errors (warnings allowed), else 1. Programming
- * errors propagate and crash with their stack.
+ * error. Answers TypeCheck's findings, then SpecCheck's, then CodeCheck's, one result line each, and one failure
+ * line per failure, in the order they happen; the outcome is ok without errors (warnings allowed), else failed.
+ * Programming errors propagate and crash with their stack.
  */
-export async function runCheck(root: string, environment: CheckEnvironment = {}): Promise<number> {
-  const out = environment.out ?? ((line: string) => console.log(line));
-  const err = environment.err ?? ((line: string) => console.error(line));
-  const fail = (failure: unknown) => {
-    // Expected failures become one stderr line; a bug crashes with its stack.
-    if (!isExpected(failure)) throw failure;
-    err(`nuhokai check: ${oneLine(failure)}`);
+export async function runCheck(root: string): Promise<Report> {
+  const lines: ReportLine[] = [];
+  const report = (findings: readonly Finding[]) => {
+    for (const finding of findings) lines.push(result(formatFinding(finding)));
   };
+  const fail = (thrown: unknown) => {
+    // Expected failures become one failure line; a bug crashes with its stack.
+    if (!isExpected(thrown)) throw thrown;
+    lines.push(failure(oneLine(thrown)));
+  };
+  const failed = (): Report => ({ outcome: "failed", lines });
 
-  const loaded = await outcome(() => loadWorld(root));
+  const loaded = await settle(() => loadWorld(root));
   // No world: TypeCheck would only fail again for the same reason, so the one line is LoadWorld's.
   if ("failure" in loaded && loaded.failure instanceof NoWorldError) {
     fail(loaded.failure);
-    return 1;
+    return failed();
   }
-  const typing = outcome(() => runTypeCheck(root));
+  const typing = settle(() => runTypeCheck(root));
   /** TypeCheck's findings, named by the loaded world when there is one; its failure after them. */
-  const reportTypes = (typed: Outcome<Finding[]>, world: LoadedWorld | undefined): Finding[] => {
+  const reportTypes = (typed: Settled<Finding[]>, world: LoadedWorld | undefined): Finding[] => {
     const findings = "value" in typed ? nameTypeFindings(typed.value, world) : [];
-    for (const finding of findings) out(formatFinding(finding));
+    report(findings);
     if ("failure" in typed) fail(typed.failure);
     return findings;
   };
@@ -77,24 +75,24 @@ export async function runCheck(root: string, environment: CheckEnvironment = {})
   if ("failure" in loaded) {
     reportTypes(await typing, undefined);
     fail(loaded.failure);
-    return 1;
+    return failed();
   }
   const world = loaded.value;
   const typed = await typing;
   const typeFindings = reportTypes(typed, world);
   // After a type error SpecCheck leaves out R5: it re-checks tsc's rules, so it would report the same break twice.
   const typeErrors = typeFindings.some((finding) => finding.severity === "error");
-  const specced = await outcome(async () => runSpecCheck(root, world, typeErrors));
+  const specced = await settle(async () => runSpecCheck(root, world, typeErrors));
   if ("failure" in specced) {
     fail(specced.failure);
-    return 1;
+    return failed();
   }
   const specFindings = specced.value;
-  for (const finding of specFindings) out(formatFinding(finding));
+  report(specFindings);
   const errors = [...typeFindings, ...specFindings].some((finding) => finding.severity === "error");
-  if ("failure" in typed || errors) return 1;
+  if ("failure" in typed || errors) return failed();
 
   const codeFindings = runCodeCheck(world);
-  for (const finding of codeFindings) out(formatFinding(finding));
-  return codeFindings.some((finding) => finding.severity === "error") ? 1 : 0;
+  report(codeFindings);
+  return { outcome: codeFindings.some((finding) => finding.severity === "error") ? "failed" : "ok", lines };
 }

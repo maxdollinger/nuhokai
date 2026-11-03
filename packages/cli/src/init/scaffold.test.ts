@@ -35,17 +35,12 @@ function tempDir(): string {
   return dir;
 }
 
-function capture() {
-  const out: string[] = [];
-  const err: string[] = [];
-  return {
-    out,
-    err,
-    environment: {
-      out: (line: string) => out.push(line),
-      err: (line: string) => err.push(line),
-    },
-  };
+/** Run init: its outcome and its result and failure lines, as Cli would print them on stdout and stderr. */
+async function init(root: string) {
+  const report = await runInit(root);
+  const texts = (kind: "result" | "failure") =>
+    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
+  return { outcome: report.outcome, out: texts("result"), err: texts("failure") };
 }
 
 function files(dir: string): string[] {
@@ -67,11 +62,11 @@ afterEach(() => {
   }
 });
 
-test("init writes exactly the four world files and prints their paths", async () => {
+test("init writes exactly the four world files and reports their paths", async () => {
   const repo = tempDir();
-  const output = capture();
+  const output = await init(repo);
 
-  expect(await runInit(repo, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.err).toEqual([]);
   expect(output.out).toEqual(WORLD_FILES.map((path) => join(repo, path)));
   expect(files(repo)).toEqual([...WORLD_FILES].sort());
@@ -90,8 +85,8 @@ test("init writes exactly the four world files and prints their paths", async ()
 test("two repos get worlds that differ only in their fresh world ids", async () => {
   const first = tempDir();
   const second = tempDir();
-  expect(await runInit(first, capture().environment)).toBe(0);
-  expect(await runInit(second, capture().environment)).toBe(0);
+  expect((await init(first)).outcome).toBe("ok");
+  expect((await init(second)).outcome).toBe("ok");
 
   expect(worldIdOf(first)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   expect(worldIdOf(second)).not.toBe(worldIdOf(first));
@@ -102,7 +97,7 @@ test("two repos get worlds that differ only in their fresh world ids", async () 
 
 test("the written world type-checks through the CLI-owned tsconfig alone", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await init(repo)).outcome).toBe("ok");
 
   const result = Bun.spawnSync([TSC, "-p", join(repo, "nuhokai/tsconfig.json"), "--pretty", "false"], {
     stdout: "pipe",
@@ -114,7 +109,7 @@ test("the written world type-checks through the CLI-owned tsconfig alone", async
 
 test("the written world loads as exactly one node, Example", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await init(repo)).outcome).toBe("ok");
 
   const world = await loadWorld(repo);
   expect(world.id).toBe(worldIdOf(repo));
@@ -123,29 +118,29 @@ test("the written world loads as exactly one node, Example", async () => {
   expect(world.placeholders.map((hole) => hole.users)).toEqual([[world.nodes[0]?.id ?? ""]]);
 });
 
-test("an existing world stays untouched, exit 0 with one line", async () => {
+test("an existing world stays untouched, ok with one result line", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await init(repo)).outcome).toBe("ok");
 
   writeFileSync(join(repo, "nuhokai/example.ts"), "// edited by hand\n");
   const before = files(repo);
-  const output = capture();
+  const output = await init(repo);
 
-  expect(await runInit(repo, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.err).toEqual([]);
   expect(output.out).toEqual([`${repo}/nuhokai/ already exists; nothing to do`]);
   expect(files(repo)).toEqual(before);
   expect(readFileSync(join(repo, "nuhokai/example.ts"), "utf8")).toBe("// edited by hand\n");
 });
 
-test("a file at nuhokai/ is one error line and leaves it alone", async () => {
+test("a file at nuhokai/ is one failure line and leaves it alone", async () => {
   const repo = tempDir();
   writeFileSync(join(repo, "nuhokai"), "in the way\n");
-  const output = capture();
+  const output = await init(repo);
 
-  expect(await runInit(repo, output.environment)).toBe(1);
+  expect(output.outcome).toBe("failed");
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([`nuhokai init: ${repo}/nuhokai exists but is not a directory`]);
+  expect(output.err).toEqual([`${repo}/nuhokai exists but is not a directory`]);
   expect(readFileSync(join(repo, "nuhokai"), "utf8")).toBe("in the way\n");
 });
 
@@ -153,20 +148,20 @@ test("a symlink at nuhokai/ is occupied, not a world", async () => {
   const repo = tempDir();
   const elsewhere = tempDir();
   symlinkSync(elsewhere, join(repo, "nuhokai"));
-  const output = capture();
-
   expect(inspectTarget(repo)).toEqual({ kind: "occupied" });
-  expect(await runInit(repo, output.environment)).toBe(1);
-  expect(output.err).toEqual([`nuhokai init: ${repo}/nuhokai exists but is not a directory`]);
+  const output = await init(repo);
+
+  expect(output.outcome).toBe("failed");
+  expect(output.err).toEqual([`${repo}/nuhokai exists but is not a directory`]);
 });
 
 test("init writes into the directory it is given", async () => {
   const repo = tempDir();
   const subdirectory = join(repo, "src");
   mkdirSync(subdirectory);
-  const output = capture();
+  const output = await init(subdirectory);
 
-  expect(await runInit(subdirectory, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.out).toEqual(WORLD_FILES.map((path) => join(subdirectory, path)));
   expect(files(subdirectory)).toEqual([...WORLD_FILES].sort());
   expect(existsSync(join(repo, "nuhokai"))).toBe(false);
@@ -183,17 +178,17 @@ test("a second write of identical CLI-owned files rewrites nothing", () => {
   expect(modificationTimes()).toEqual(written);
 });
 
-test("a programming error crashes instead of becoming one line", async () => {
-  // A root that is not a string is a caller bug: a TypeError, not a stderr line.
+test("a programming error crashes instead of becoming one failure line", async () => {
+  // A root that is not a string is a caller bug: a TypeError, not a failure line.
   await expect(runInit(undefined as never)).rejects.toBeInstanceOf(TypeError);
 });
 
 test.skipIf(process.getuid?.() === 0)("a failed write leaves no nuhokai/ and no staging path", async () => {
   const repo = tempDir();
   chmodSync(repo, 0o500);
-  const output = capture();
+  const output = await init(repo);
 
-  expect(await runInit(repo, output.environment)).toBe(1);
+  expect(output.outcome).toBe("failed");
   expect(output.err).toHaveLength(1);
   expect(readdirSync(repo)).toEqual([]);
 });

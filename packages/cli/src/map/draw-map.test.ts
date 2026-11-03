@@ -24,10 +24,12 @@ function tempDir(): string {
   return dir;
 }
 
-function capture() {
-  const out: string[] = [];
-  const err: string[] = [];
-  return { out, err, environment: { out: (line: string) => out.push(line), err: (line: string) => err.push(line) } };
+/** Run map: its outcome and its result and failure lines, as Cli would print them on stdout and stderr. */
+async function map(root: string) {
+  const report = await runMap(root);
+  const texts = (kind: "result" | "failure") =>
+    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
+  return { outcome: report.outcome, out: texts("result"), err: texts("failure") };
 }
 
 /** Every file in the directory, with its bytes. */
@@ -45,28 +47,28 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test("after init, map writes and prints the map; a second run changes no other file", async () => {
+test("after init, map writes the map and reports its path; a second run changes no other file", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await runInit(repo)).outcome).toBe("ok");
   const before = snapshot(repo);
-  const output = capture();
+  const output = await map(repo);
 
-  expect(await runMap(repo, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.out).toEqual([join(repo, MAP)]);
   expect(output.err).toEqual([]);
   const after = snapshot(repo);
   expect(Object.keys(after)).toEqual([...Object.keys(before), MAP].sort());
   expect(after[MAP]).toContain('"name":"Example"');
 
-  const again = capture();
-  expect(await runMap(repo, again.environment)).toBe(0);
+  const again = await map(repo);
+  expect(again.outcome).toBe("ok");
   expect(again.out).toEqual([join(repo, MAP)]);
   expect(snapshot(repo)).toEqual(after);
 });
 
 test("an orphan and an out-of-scope uses edge still get a map", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await runInit(repo)).outcome).toBe("ok");
   writeFileSync(
     join(repo, "nuhokai/orphan.ts"),
     `import { node } from "@nuhokai/world";
@@ -87,31 +89,29 @@ import { Box } from "./orphan.ts";
 export default defineWorld({ id: "w", name: "w", source: [], children: [Example, Box] });
 `,
   );
-  const output = capture();
+  const output = await map(repo);
 
-  expect(await runMap(repo, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.out).toEqual([join(repo, MAP)]);
   expect(readFileSync(join(repo, MAP), "utf8")).toContain('"name":"Box"');
 });
 
-test("no world, or a file at nuhokai: one stderr line, exit 1, nothing written", async () => {
+test("no world, or a file at nuhokai: one failure line, failed, nothing written", async () => {
   const empty = tempDir();
-  const output = capture();
+  const output = await map(empty);
 
-  expect(await runMap(empty, output.environment)).toBe(1);
+  expect(output.outcome).toBe("failed");
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([
-    `nuhokai map: no nuhokai/ in ${empty}; run \`nuhokai init --path ${empty}\` to start a world there`,
-  ]);
+  expect(output.err).toEqual([`no nuhokai/ in ${empty}; run \`nuhokai init --path ${empty}\` to start a world there`]);
   expect(snapshot(empty)).toEqual({});
 
   const occupied = tempDir();
   writeFileSync(join(occupied, "nuhokai"), "in the way\n");
-  const second = capture();
+  const second = await map(occupied);
 
-  expect(await runMap(occupied, second.environment)).toBe(1);
+  expect(second.outcome).toBe("failed");
   expect(second.out).toEqual([]);
-  expect(second.err).toEqual([`nuhokai map: ${occupied}/nuhokai exists but is not a directory`]);
+  expect(second.err).toEqual([`${occupied}/nuhokai exists but is not a directory`]);
   expect(snapshot(occupied)).toEqual({ nuhokai: "in the way\n" });
 });
 
@@ -119,42 +119,42 @@ test("a symlinked nuhokai/ is the world: map draws it into the linked folder", a
   const repo = tempDir();
   const shared = join(repo, "shared");
   mkdirSync(shared);
-  expect(await runInit(shared, capture().environment)).toBe(0);
+  expect((await runInit(shared)).outcome).toBe("ok");
   const project = join(repo, "app");
   mkdirSync(project);
   symlinkSync("../shared/nuhokai", join(project, "nuhokai"));
-  const output = capture();
+  const output = await map(project);
 
-  expect(await runMap(project, output.environment)).toBe(0);
+  expect(output.outcome).toBe("ok");
   expect(output.err).toEqual([]);
   expect(output.out).toEqual([join(project, MAP)]);
   expect(existsSync(join(shared, MAP))).toBe(true);
 });
 
-test("a node file that does not parse: one line naming the file, exit 1, the previous map kept", async () => {
+test("a node file that does not parse: one failure line naming the file, failed, the previous map kept", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
-  expect(await runMap(repo, capture().environment)).toBe(0);
-  const map = readFileSync(join(repo, MAP), "utf8");
+  expect((await runInit(repo)).outcome).toBe("ok");
+  expect((await map(repo)).outcome).toBe("ok");
+  const previous = readFileSync(join(repo, MAP), "utf8");
   writeFileSync(join(repo, "nuhokai/orders.ts"), "export const orders = ;\n");
-  const output = capture();
+  const output = await map(repo);
 
-  expect(await runMap(repo, output.environment)).toBe(1);
+  expect(output.outcome).toBe("failed");
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([`nuhokai map: ${repo}/nuhokai/orders.ts:1: Expression expected.`]);
-  expect(readFileSync(join(repo, MAP), "utf8")).toBe(map);
+  expect(output.err).toEqual([`${repo}/nuhokai/orders.ts:1: Expression expected.`]);
+  expect(readFileSync(join(repo, MAP), "utf8")).toBe(previous);
 });
 
-test("the write failed: one line, exit 1, nothing printed to stdout", async () => {
+test("the write failed: one failure line, outcome failed, no result line", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, capture().environment)).toBe(0);
+  expect((await runInit(repo)).outcome).toBe("ok");
   mkdirSync(join(repo, MAP));
   const before = snapshot(repo);
-  const output = capture();
+  const output = await map(repo);
 
-  expect(await runMap(repo, output.environment)).toBe(1);
+  expect(output.outcome).toBe("failed");
   expect(output.out).toEqual([]);
   expect(output.err).toHaveLength(1);
-  expect(output.err[0]).toStartWith("nuhokai map: EISDIR");
+  expect(output.err[0]).toStartWith("EISDIR");
   expect(snapshot(repo)).toEqual(before);
 });

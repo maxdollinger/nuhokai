@@ -29,14 +29,16 @@ function exampleWorld(extra: Record<string, string> = {}): string {
   return root;
 }
 
+/** Run tree: its outcome and its result and failure lines, the project directory in failures written as <root>. */
 async function tree(root: string, node?: string, level = 1) {
-  const out: string[] = [];
-  const err: string[] = [];
-  const code = await runTree(root, node, level, {
-    out: (line) => out.push(line),
-    err: (line) => err.push(line.replaceAll(root, "<root>")),
-  });
-  return { code, out, err };
+  const report = await runTree(root, node, level);
+  const texts = (kind: "result" | "failure") =>
+    report.lines.filter((line) => line.kind === kind).map((line) => line.text);
+  return {
+    outcome: report.outcome,
+    out: texts("result"),
+    err: texts("failure").map((line) => line.replaceAll(root, "<root>")),
+  };
 }
 
 afterEach(() => {
@@ -46,7 +48,7 @@ afterEach(() => {
 test("Tree R1, R2: the example world's top level, one line per node, Shop collapsed", async () => {
   const result = await tree(exampleWorld());
   expect(result).toEqual({
-    code: 0,
+    outcome: "ok",
     out: [
       "Postgres | (none) | The shared database; run by ops, not built by us.",
       "AuditLog | (none) | Lets compliance read who changed what, independent of the owning node.",
@@ -62,40 +64,40 @@ test("Tree R1, NodePath R3: a start node and its children; a collapsed dome's pa
   expect(paths).toEqual(["Shop", "Shop/Orders", "Shop/Stock"]);
 });
 
-test("PrintTree R2: no world, or a file at nuhokai, is one stderr line, exit 1, no stdout", async () => {
+test("PrintTree R2: no world, or a file at nuhokai, is one failure line, failed, no result line", async () => {
   const empty = tempDir();
   expect(await tree(empty)).toEqual({
-    code: 1,
+    outcome: "failed",
     out: [],
-    err: ["nuhokai tree: no nuhokai/ in <root>; run `nuhokai init --path <root>` to start a world there"],
+    err: ["no nuhokai/ in <root>; run `nuhokai init --path <root>` to start a world there"],
   });
   const occupied = tempDir();
   writeFileSync(join(occupied, "nuhokai"), "not a world");
   expect(await tree(occupied)).toEqual({
-    code: 1,
+    outcome: "failed",
     out: [],
-    err: ["nuhokai tree: <root>/nuhokai exists but is not a directory"],
+    err: ["<root>/nuhokai exists but is not a directory"],
   });
 });
 
-test("PrintTree R1, R3: a node file that does not parse is one line naming it, exit 1; a path naming no node exits 2", async () => {
+test("PrintTree R1, R3: a node file that does not parse is one failure line naming it, failed; a path naming no node is invalid", async () => {
   const broken = exampleWorld({ "boom.ts": "export const boom = ;\n" });
   const failed = await tree(broken);
-  expect(failed.code).toBe(1);
+  expect(failed.outcome).toBe("failed");
   expect(failed.out).toEqual([]);
   expect(failed.err).toHaveLength(1);
-  expect(failed.err[0]).toStartWith("nuhokai tree: <root>/nuhokai/boom.ts");
+  expect(failed.err[0]).toStartWith("<root>/nuhokai/boom.ts");
 
   const example = exampleWorld();
   expect(await tree(example, "Shop/Basket")).toEqual({
-    code: 2,
+    outcome: "invalid",
     out: [],
-    err: ["nuhokai tree: no node 'Shop/Basket'; `nuhokai tree Shop --path <root>` lists its children"],
+    err: ["no node 'Shop/Basket'; `nuhokai tree Shop --path <root>` lists its children"],
   });
   expect(await tree(example, "Shop/Stok")).toEqual({
-    code: 2,
+    outcome: "invalid",
     out: [],
-    err: ["nuhokai tree: no node 'Shop/Stok'; did you mean 'Shop/Stock'?"],
+    err: ["no node 'Shop/Stok'; did you mean 'Shop/Stock'?"],
   });
 });
 
@@ -113,13 +115,13 @@ test("Tree R3: siblings sharing a name both print; addressing them names nuhokai
     writeFileSync(join(root, "nuhokai", path), source);
   }
   expect(await tree(root)).toEqual({
-    code: 0,
+    outcome: "ok",
     out: ["Twin | (none) | twin a", "Twin | (none) | twin b"],
     err: [],
   });
   expect(await tree(root, "Twin")).toEqual({
-    code: 2,
+    outcome: "invalid",
     out: [],
-    err: ["nuhokai tree: 'Twin' names 2 siblings; `nuhokai check --path <root>` reports the clash"],
+    err: ["'Twin' names 2 siblings; `nuhokai check --path <root>` reports the clash"],
   });
 });

@@ -35,6 +35,7 @@ export const Terminal = node({
       text: "Never prompted: nothing reads stdin, so every command runs unattended (Cli: project directory = the cwd or --path).",
     },
     { id: "R3", text: "Paths it reads are named from its working directory, so they open as printed." },
+    { id: "R4", text: "Only Cli uses Terminal: commands return a Report, Cli prints it (Cli R9)." },
   ],
 }).edges({ uses: () => [Cli.dispatch] });
 

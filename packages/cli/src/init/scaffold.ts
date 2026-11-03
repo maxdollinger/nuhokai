@@ -1,40 +1,29 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
 import { inspectTarget } from "../shared/inspect.ts";
 import { nameInWorld } from "../shared/paths.ts";
+import { failure, type Report, result } from "../shared/report.ts";
 import { publishWorld } from "./publish.ts";
 
-/** What the run port may observe and answer; the defaults are the real process. */
-export interface InitEnvironment {
-  readonly out?: (line: string) => void;
-  readonly err?: (line: string) => void;
-}
-
 /**
- * The init command: inspect, publish, print. Creates the world in the project
+ * The init command: inspect, publish, report. Creates the world in the project
  * directory `root`, named from the cwd, or says why not, and resolves to the
- * process exit code; programming errors propagate and crash with their stack.
+ * Report Cli prints; programming errors propagate and crash with their stack.
  */
-export async function runInit(root: string, environment: InitEnvironment = {}): Promise<number> {
-  const out = environment.out ?? ((line: string) => console.log(line));
-  const err = environment.err ?? ((line: string) => console.error(line));
-
+export async function runInit(root: string): Promise<Report> {
   try {
     const state = inspectTarget(root);
 
     if (state.kind === "world") {
-      out(`${nameInWorld(root)}/ already exists; nothing to do`);
-      return 0;
+      return { outcome: "ok", lines: [result(`${nameInWorld(root)}/ already exists; nothing to do`)] };
     }
     if (state.kind === "occupied") {
       throw new CliError(`${nameInWorld(root)} exists but is not a directory`);
     }
 
-    for (const path of publishWorld(root)) out(path);
-    return 0;
+    return { outcome: "ok", lines: publishWorld(root).map((path) => result(path)) };
   } catch (error) {
-    // Expected failures become one stderr line; a bug crashes with its stack.
+    // Expected failures become one failure line; a bug crashes with its stack.
     if (!isExpected(error)) throw error;
-    err(`nuhokai init: ${oneLine(error)}`);
-    return 1;
+    return { outcome: "failed", lines: [failure(oneLine(error))] };
   }
 }

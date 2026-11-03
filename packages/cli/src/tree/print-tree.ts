@@ -1,38 +1,25 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
+import { failure, type Report, result } from "../shared/report.ts";
 import { renderTree } from "./tree-lines.ts";
 
-/** What the run port may observe and answer; the defaults are the real process. */
-export interface TreeEnvironment {
-  readonly out?: (line: string) => void;
-  readonly err?: (line: string) => void;
-}
-
 /**
- * The tree command: load, find the start, render, print. Prints the node hierarchy of the world in the project
+ * The tree command: load, find the start, render, report. Answers the node hierarchy of the world in the project
  * directory `root`, named from the cwd, from the node at hierarchy path `node` (else the top level) down to
- * `level` (0 = unlimited). Resolves to 0 printed, 1 no world or a load failure, 2 no such node; stdout gets every
- * line or none, as rendering is pure and comes last. Programming errors propagate and crash with their stack.
+ * `level` (0 = unlimited). Outcome ok with every rendered line, failed with one line for no world or a load
+ * failure, invalid with one line for no such node; result lines come all or none, as rendering is pure and comes
+ * last. Programming errors propagate and crash with their stack.
  */
-export async function runTree(
-  root: string,
-  node: string | undefined,
-  level: number,
-  environment: TreeEnvironment = {},
-): Promise<number> {
-  const out = environment.out ?? ((line: string) => console.log(line));
-  const err = environment.err ?? ((line: string) => console.error(line));
-
+export async function runTree(root: string, node: string | undefined, level: number): Promise<Report> {
   let world: LoadedWorld;
   try {
     // Unchecked: any world that loads gets a tree.
     world = await loadWorld(root);
   } catch (error) {
-    // Expected failures become one stderr line; a bug crashes with its stack.
+    // Expected failures become one failure line; a bug crashes with its stack.
     if (!isExpected(error)) throw error;
-    err(`nuhokai tree: ${oneLine(error)}`);
-    return 1;
+    return { outcome: "failed", lines: [failure(oneLine(error))] };
   }
   let start: number | null = null;
   if (node !== undefined) {
@@ -41,10 +28,8 @@ export async function runTree(
     } catch (error) {
       // A path naming no node is an invalid argument value: exit 2, as Cli's usage errors.
       if (!(error instanceof CliError)) throw error;
-      err(`nuhokai tree: ${oneLine(error)}`);
-      return 2;
+      return { outcome: "invalid", lines: [failure(oneLine(error))] };
     }
   }
-  for (const line of renderTree(world, root, start, level)) out(line);
-  return 0;
+  return { outcome: "ok", lines: renderTree(world, root, start, level).map((line) => result(line)) };
 }

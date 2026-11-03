@@ -3,6 +3,7 @@
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { runInit } from "./init/index.ts";
+import type { Outcome, Report } from "./shared/report.ts";
 
 /** The commands the CLI exposes; `update` is planned, `check`, `init`, `map` and `tree` run today. */
 export const COMMANDS = ["check", "init", "map", "tree", "update"] as const;
@@ -34,6 +35,9 @@ const ARITY: Record<Command, number> = {
   tree: 1,
   update: 0,
 };
+
+/** Cli alone turns a command's outcome into the process exit code; 2 is also every usage error of its own. */
+const EXIT: Record<Outcome, number> = { ok: 0, failed: 1, invalid: 2 };
 
 /** Help before a command; after one only the flags are help, so `nuhokai tree help` starts from a node named help. */
 const HELP_WORDS = ["help", "--help", "-h"] as const;
@@ -219,23 +223,42 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  if (first === "check") {
+  const report = await run(first, root, rest[0], level);
+  if (report === undefined) {
+    console.error(`nuhokai ${first}: not implemented yet`);
+    return 1;
+  }
+  // Cli is the only node that prints: result lines on stdout as they are, failure lines on stderr after its prefix.
+  for (const line of report.lines) {
+    if (line.kind === "result") console.log(line.text);
+    else console.error(`nuhokai ${first}: ${line.text}`);
+  }
+  return EXIT[report.outcome];
+}
+
+/** Run the command's node and await its Report; undefined for a command not built yet. */
+async function run(
+  command: Command,
+  root: string,
+  node: string | undefined,
+  level: number,
+): Promise<Report | undefined> {
+  if (command === "check") {
     // The checker's client is only check's to load.
     const { runCheck } = await import("./check/index.ts");
     return runCheck(root);
   }
-  if (first === "init") return runInit(root);
-  if (first === "map") {
+  if (command === "init") return runInit(root);
+  if (command === "map") {
     // The map's assets weigh hundreds of KB; only map loads them.
     const { runMap } = await import("./map/index.ts");
     return runMap(root);
   }
-  if (first === "tree") {
+  if (command === "tree") {
     const { runTree } = await import("./tree/index.ts");
-    return runTree(root, rest[0], level);
+    return runTree(root, node, level);
   }
-  console.error(`nuhokai ${first}: not implemented yet`);
-  return 1;
+  return undefined;
 }
 
 if (import.meta.main) {

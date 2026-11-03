@@ -19,7 +19,7 @@ export const Check = node({
   ],
   testCases: [
     {
-      text: "After init: check prints nothing, exit 0. Two violations in different files → two stdout lines, exit 1. No world or a load failure → one 'nuhokai check: ' stderr line, exit 1.",
+      text: "After init: check reports no line, ok. Two violations in different files → two result lines, failed. No world or a load failure → one failure line, failed.",
       demonstrates: ["R1"],
     },
   ],

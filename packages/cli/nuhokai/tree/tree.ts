@@ -6,14 +6,15 @@ import { TreeLines } from "./tree-lines.ts";
 export const Tree = node({
   id: "01a19cc8-5db0-7318-ade1-ecb15430e2ed",
   purpose:
-    "Print the world's node hierarchy, one line per node with its path, source and purpose, so agents and people " +
-    "find a node step by step without reading the world, and copy its path into other commands. Never checks or writes.",
+    "Answer the world's node hierarchy for Cli to print, one line per node with its path, source and purpose, so " +
+    "agents and people find a node step by step without reading the world, and copy its path into other commands. " +
+    "Never checks, writes or prints.",
   status: "building",
   source: ["src/tree/**"],
   requirements: [
     {
       id: "R1",
-      text: "stdout only, one line per node: path | source | purpose (TreeLines). Every line carries the node's full hierarchy path, so it still makes sense after grep and is accepted as printed by every command that takes a node.",
+      text: "Result lines only, which Cli prints on stdout, one line per node: path | source | purpose (TreeLines). Every line carries the node's full hierarchy path, so it still makes sense after grep and is accepted as printed by every command that takes a node.",
     },
     {
       id: "R2",

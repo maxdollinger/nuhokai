@@ -28,8 +28,6 @@ function tempDir(): string {
   return dir;
 }
 
-const quiet = { out: () => {}, err: () => {} };
-
 /** A world folder holding these files, by path inside nuhokai/, plus the CLI-owned tsconfig and declarations. */
 function world(files: Record<string, string>): string {
   const root = tempDir();
@@ -91,7 +89,7 @@ test("no nuhokai/, or a file there, is one NoWorldError and nothing is read; a m
 
 test("after init, without node_modules, loads Example named by its export plus its placeholder", async () => {
   const repo = tempDir();
-  expect(await runInit(repo, quiet)).toBe(0);
+  expect((await runInit(repo)).outcome).toBe("ok");
   expect(existsSync(join(repo, "node_modules"))).toBe(false);
 
   const loaded = await loadWorld(repo);
