@@ -8,35 +8,35 @@ export const WorldFormat = node({
   id: "01a16dd5-888a-77a4-9c88-e7d5bb03a016",
   purpose:
     "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
-    "graph. Format only; loading, rules, checks and writing are the CLI's.",
+    "graph. Types only, never run; reading, rules, checks and writing are the CLI's.",
   status: "building",
   source: ["src/**"],
   ports: {
-    node: {
+    declareNode: {
       kind: "call",
       purpose: "Declare a leaf or dome: children in step one, uses in .edges()",
-      input: "node-spec fields; a leaf's ports by name, or a dome's children and port references",
+      input: "node-spec fields; a leaf's ports by name, or a dome's children list and its record of their ports",
       output: "typed handle exposing own ports",
     },
     defineWorld: {
       kind: "call",
       purpose: "Declare the world, the outermost container; the loader's only entry point",
       input: "world id, name, optional description, source, top-level nodes",
-      output: "frozen world object",
+      output: "the world, typed",
     },
-    inherited: {
+    referenceInherited: {
       kind: "call",
       purpose: "Reference a port inherited from an implemented contract",
       input: "implementor, contract's port",
       output: "inherited port reference",
     },
-    tbdCall: {
+    declareCallHole: {
       kind: "call",
       purpose: "Placeholder for a call port not designed yet",
       input: "description",
       output: "unresolved port reference",
     },
-    tbdEvent: {
+    declareEventHole: {
       kind: "call",
       purpose: "Placeholder for an event port not designed yet",
       input: "description",
@@ -50,7 +50,7 @@ export const WorldFormat = node({
       id: "R3",
       text: "A dome that is external or abstract, or exposes a non-child's port, fails tsc.",
     },
-    { id: "R4", text: "Placeholders fit wherever port references do, and stay distinguishable at runtime." },
+    { id: "R4", text: "Placeholders fit wherever port references do, and stay distinguishable by type." },
     { id: "R5", text: "Files of a world may import each other in cycles." },
     { id: "R6", text: "Reference cycles between nodes need no type annotations." },
     { id: "R7", text: "An implementor's inherited port is referenceable only if it implements the contract (tsc)." },
@@ -67,7 +67,15 @@ export const WorldFormat = node({
       id: "R11",
       text: "A world has a required, non-blank name, an optional description and a source like a node's; it is the outermost container, so every node's source lies under it (check's).",
     },
-    { id: "C1", kind: "constraint", text: "No runtime dependencies, no imports and no side effects at runtime." },
+    {
+      id: "R12",
+      text: "A dome lists its children, children: [A, B], and exposes their ports by reference, ports: { run: A.run }; a wrong child or port fails tsc on that entry.",
+    },
+    {
+      id: "C1",
+      kind: "constraint",
+      text: "Types only: no runtime code and no dependencies; world files are read by tools, never run.",
+    },
     { id: "C2", kind: "constraint", text: "Node fields are derived from the node-spec types, never redeclared." },
   ],
   testCases: [
@@ -84,8 +92,7 @@ export const WorldFormat = node({
       text: "Two nodes share one placeholder; its $ref is 'unresolved', a real port's 'port'.",
       demonstrates: ["R4"],
     },
-    { text: "Every lazy edge of the example world evaluates to no undefined.", demonstrates: ["R5"] },
-    { text: "The package's source files have no runtime imports.", demonstrates: ["C1"] },
+    { text: "Every source file transpiles to nothing but the index's re-exports.", demonstrates: ["C1"] },
     {
       text: "The example's Orders <-> Stock and Shop <-> Orders cycles compile without annotations.",
       demonstrates: ["R5", "R6"],
@@ -95,12 +102,16 @@ export const WorldFormat = node({
       demonstrates: ["R7"],
     },
     {
-      text: "Walking the example world's children finds each exported node once, under its parent.",
+      text: "The CLI reads the example world: each exported node once, under its parent.",
       demonstrates: ["R8"],
     },
     {
       text: "An external child, a port of a non-child, empty children and externalType on a dome fail typecheck in node(); an abstract child compiles.",
       demonstrates: ["R3", "R9"],
+    },
+    {
+      text: "children: [Cmd, Postgres] fails on Postgres; ports: { run: Other.run } fails on run; children: [Orders, Stock] with ports: { placeOrder: Orders.place } compiles.",
+      demonstrates: ["R3", "R12"],
     },
     {
       text: "Port clashes with inherited or other contracts' ports, duplicate requirement ids, unknown demonstrates ids and blank tbd descriptions fail typecheck on the offending element.",
@@ -138,8 +149,8 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A node with children is a dome, with no behavior of its own. node() alone holds the hierarchy: children is a record of direct children, and a dome's ports reference theirs (`ports: (c) => ({ run: c.cmd.ports.run })`), which replaces the node spec's delegate. The world file lists only the top-level nodes; node files never import it.",
-      why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior, keep child names by the port mapping, and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
+        "A node with children is a dome, with no behavior of its own. node() alone holds the hierarchy: children is the list of direct children, and a dome's ports reference theirs (`ports: { run: Cmd.run }`), which replaces the node spec's delegate. The world file lists only the top-level nodes; node files never import it.",
+      why: "A boundary is its children: an Init calling its pieces as siblings is code in a node costume. Children inside the node make the dome's behavior exactly its interior and let tsc check every exposed port belongs to a direct child. Child references point only down: no type cycle.",
       rejected: [
         {
           option: "The child declares its parent as a lazy node reference",
@@ -154,8 +165,13 @@ export const WorldFormat = node({
           why: "Port definitions can drift from the child port; referencing it copies kind and shapes.",
         },
         {
-          option: "Children as an array without names, or as tuples (children: [Postgres, [Shop, [Orders, Stock]]])",
-          why: "`c.cmd.ports.run` needs a local child name; positions make the mapping and the structure unreadable.",
+          option:
+            "Children as a record with local names, ports as a function of them (ports: (c) => ({ run: c.cmd.ports.run }))",
+          why: "Names invented only for the function; with nothing running, ports can reference the children directly.",
+        },
+        {
+          option: "Nested tuples for the whole tree (children: [Postgres, [Shop, [Orders, Stock]]])",
+          why: "Positions make the structure unreadable; each dome lists only its direct children.",
         },
         {
           option: "Folder structure decides the parent",
@@ -169,8 +185,33 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "Two steps: node(static fields, incl. implements and children) is generic, infers the handle's type; .edges(lazy uses) is not generic, returns the handle.",
-      why: "Lazy edges allow cycles. The handle's type depends on step one only, so TS never infers a node's type through another node: cycles need no annotations, edge errors land on the offending element.",
+        "World files are read, never run: the package is types only (node, defineWorld, inherited and tbd are declared), and tools read them with the TypeScript checker.",
+      why: "The format exists for tsc and the editor; running it added import-cycle failures (a dome read its children while a cycle had not defined them yet), lazy functions everywhere, a runtime re-checking what tsc checks, and code running on map or tree.",
+      rejected: [
+        {
+          option: "Run the files and make children lazy, resolved on first use",
+          why: "Stand-ins, getters and a deferred check for every dome; a contract or child read while ports run still broke on a cycle.",
+        },
+        {
+          option: "Run the files, the CLI's loader importing index.ts first",
+          why: "Fixes only the order the loader picks; a barrel or any file importing a child ahead of its dome still fails.",
+        },
+      ],
+    },
+    {
+      decision: "uses and implements stay functions; children and dome ports are plain.",
+      why: "Two nodes in one file may use each other, and a plain list would reference the later one before its declaration (TS2448); a function body is checked later. Children only point down, so a dome can always follow them.",
+      rejected: [
+        {
+          option: "Plain lists for uses too",
+          why: "Mutual uses in one file fail tsc (TS2448).",
+        },
+      ],
+    },
+    {
+      decision:
+        "Two steps: node(static fields, incl. implements and children) is generic, infers the handle's type; .edges(uses) is not generic, returns the handle.",
+      why: "Functions for uses allow cycles in one file. The handle's type depends on step one only, so TS never infers a node's type through another node: cycles need no annotations, edge errors land on the offending element.",
       rejected: [
         {
           option: "One generic node call with the edges, a return-type annotation per reference cycle",
@@ -196,8 +237,7 @@ export const WorldFormat = node({
       ],
     },
     {
-      decision:
-        "References branded by type-only classes with a #private member; the loader resolves by object identity.",
+      decision: "References branded by type-only classes with a #private member; the loader resolves by declaration.",
       why: "No string, look-alike literal or spread of a real reference ({ ...Stock.reserve, name: 'x' }) has the member; nothing exists at runtime.",
       rejected: [
         {
@@ -219,7 +259,7 @@ export const WorldFormat = node({
     },
     {
       decision:
-        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, names unique among siblings) are check's. check keeps world files declarative (no cast but as const, no any or @ts- directive), so the tsc rules hold, and re-checks only what tsc leaves to it (non-literal ids and flags). The loader only evaluates and reports evaluation failures.",
+        "A rule goes into tsc only if its error lands on the offending element with a readable Forbidden message. Global rules (duplicate ids, orphans, uses scope, names unique among siblings) are check's. check keeps world files declarative (no cast but as const, no any or @ts- directive), so the tsc rules hold, and re-checks only what tsc leaves to it (non-literal ids and flags). The loader only reads and reports what it cannot read as data.",
       why: "check prints one list, so each message must point at its culprit; an error placeable only on defineWorld helps no one.",
       rejected: [
         {

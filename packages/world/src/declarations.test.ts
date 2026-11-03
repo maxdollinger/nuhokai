@@ -29,8 +29,8 @@ export const A = node({
 // Children are in step one and import b.ts, which imports this file: no annotation needed.
 export const Parent = node({
   id: "01a16dd2-bc70-7000-8000-00000000000a", purpose: "p", status: "planned", source: [],
-  children: { c: C },
-  ports: (c) => ({ z: c.c.ports.z }),
+  children: [C],
+  ports: { z: C.z },
 }).edges({});
 // @ts-expect-error typo
 export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000002", purpose: "t", status: "planned", source: [] }).edges({ uses: () => [B.yy] });
@@ -56,9 +56,9 @@ export default defineWorld({ id: "01a16dd2-bc70-7000-8000-00000000000e", name: "
 // @ts-expect-error a world needs an id
 export const N = defineWorld({ name: "n", source: [], children: [A] });
 // @ts-expect-error external child
-export const Q = node({ id: "01a16dd2-bc70-7000-8000-00000000000c", purpose: "q", status: "planned", source: [], children: { c: C, ext: Ext } }).edges({});
+export const Q = node({ id: "01a16dd2-bc70-7000-8000-00000000000c", purpose: "q", status: "planned", source: [], children: [C, Ext] }).edges({});
 // @ts-expect-error C is not a direct child
-export const R = node({ id: "01a16dd2-bc70-7000-8000-00000000000d", purpose: "r", status: "planned", source: [], children: { b: B }, ports: () => ({ z: C.z }) }).edges({});
+export const R = node({ id: "01a16dd2-bc70-7000-8000-00000000000d", purpose: "r", status: "planned", source: [], children: [B], ports: { z: C.z } }).edges({});
 // @ts-expect-error a string is not a node
 export const S = defineWorld({ id: "s", name: "s", source: [], children: ["a"] });
 `,

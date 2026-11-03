@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
-import { inWorld, WORLD_MAP } from "../shared/paths.ts";
+import { nameInWorld, WORLD_MAP } from "../shared/paths.ts";
 import { SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain/map-assets.gen.ts";
 
 /** The viewer's slots, each held exactly once: a comment in a script, the data block's placeholder string. */
@@ -36,7 +36,7 @@ function mapHtml(world: LoadedWorld): string {
  * path written, named as `root` names the project directory.
  */
 export function writeMap(root: string, world: LoadedWorld): string {
-  const file = inWorld(root, WORLD_MAP);
+  const file = nameInWorld(root, WORLD_MAP);
   const html = mapHtml(world);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, html);

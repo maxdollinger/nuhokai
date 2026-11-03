@@ -80,9 +80,11 @@ export async function runCheck(root: string, environment: CheckEnvironment = {})
     return 1;
   }
   const world = loaded.value;
-  const specced = await outcome(async () => runSpecCheck(root, world));
   const typed = await typing;
   const typeFindings = reportTypes(typed, world);
+  // After a type error SpecCheck leaves out R5: it re-checks tsc's rules, so it would report the same break twice.
+  const typeErrors = typeFindings.some((finding) => finding.severity === "error");
+  const specced = await outcome(async () => runSpecCheck(root, world, typeErrors));
   if ("failure" in specced) {
     fail(specced.failure);
     return 1;

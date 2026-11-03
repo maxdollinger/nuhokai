@@ -37,6 +37,6 @@ export const WorldMap = node({
       why: "The CLI owns only nuhokai/; .generated/ holds what it regenerates. Committing is the repo's choice.",
     },
   ],
-  children: { drawMap: DrawMap, mapFile: MapFile, viewer: Viewer },
-  ports: (c) => ({ run: c.drawMap.ports.run }),
+  children: [DrawMap, MapFile, Viewer],
+  ports: { run: DrawMap.run },
 }).edges({});

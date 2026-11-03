@@ -22,11 +22,11 @@ export const TreeLines = node({
   requirements: [
     {
       id: "R1",
-      text: "Line = path | source | purpose, joined by ' | '. path is the node's hierarchy path (Path.nodePaths); nothing else on the line: no header, world line, indentation, padding or colour.",
+      text: "Line = path | source | purpose, joined by ' | '. path is the node's hierarchy path (Path.nameNodes); nothing else on the line: no header, world line, indentation, padding or colour.",
     },
     {
       id: "R2",
-      text: "source: the node's entries in authored order, joined by ', ', each named cwd-relative by Path.inProject (packages/cli/src/bin.ts under --path packages/cli, an absolute entry as it is); a node without source prints (none).",
+      text: "source: the node's entries in authored order, joined by ', ', each named cwd-relative by Path.nameInProject (packages/cli/src/bin.ts under --path packages/cli, an absolute entry as it is); a node without source prints (none).",
     },
     {
       id: "R3",
@@ -71,4 +71,4 @@ export const TreeLines = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nodePaths, Path.inProject] });
+}).edges({ uses: () => [Path.nameNodes, Path.nameInProject] });

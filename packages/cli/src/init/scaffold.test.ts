@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { loadWorld } from "../load/load-world.ts";
 import { inspectTarget } from "../shared/inspect.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 import { TSCONFIG_PATH, TSCONFIG_TEMPLATE, WORLD_TYPES_PATH, writeCliFiles } from "./cli-files.ts";
@@ -116,21 +116,11 @@ test("the written world loads as exactly one node, Example", async () => {
   const repo = tempDir();
   expect(await runInit(repo, capture().environment)).toBe(0);
 
-  // Resolve the runtime package for the import only; init never writes node_modules.
-  mkdirSync(join(repo, "node_modules/@nuhokai"), { recursive: true });
-  symlinkSync(join(import.meta.dir, "../../../world"), join(repo, "node_modules/@nuhokai/world"), "dir");
-
-  const world = (await import(pathToFileURL(join(repo, "nuhokai/index.ts")).href)).default;
-  expect(world.$ref).toBe("world");
+  const world = await loadWorld(repo);
   expect(world.id).toBe(worldIdOf(repo));
-  expect(world.children).toHaveLength(1);
-
-  const [example] = world.children;
-  expect(example.$ref).toBe("node");
-  expect(Object.keys(example.$def.ports)).toEqual(["greet"]);
-  expect(typeof example.$def.uses).toBe("function");
-  expect(example.$def.uses()).toHaveLength(1);
-  expect(example.$def.uses()[0].$ref).toBe("unresolved");
+  expect(world.nodes.map((spec) => spec.name)).toEqual(["Example"]);
+  expect(world.nodes[0]?.ports?.map((port) => port.name)).toEqual(["greet"]);
+  expect(world.placeholders.map((hole) => hole.users)).toEqual([[world.nodes[0]?.id ?? ""]]);
 });
 
 test("an existing world stays untouched, exit 0 with one line", async () => {

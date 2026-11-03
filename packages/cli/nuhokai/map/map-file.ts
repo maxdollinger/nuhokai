@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { FileSystem } from "../external.ts";
 import { Path } from "../path/path.ts";
 import { Viewer } from "./viewer.ts";
 
@@ -8,7 +9,7 @@ export const MapFile = node({
   purpose:
     "Own the map file: Viewer's page with the loaded world as its one data block and three.js inlined, written to one path. Never loads, checks, draws or picks the project directory.",
   status: "building",
-  source: ["src/map/map-file.ts", "scripts/embed-map.ts"],
+  source: ["src/map/map-file.ts"],
   ports: {
     write: {
       kind: "call",
@@ -41,7 +42,7 @@ export const MapFile = node({
   ],
   decisions: [
     {
-      decision: "three.js inlined, embedded at build time from the exactly pinned three dev dependency.",
+      decision: "three.js inlined, embedded at build time by Build from the exactly pinned three dev dependency.",
       why: "The map opens offline, as the CLI needs no toolchain; about 600 KB of three.js per map.",
     },
     {
@@ -50,4 +51,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [Path.inWorld, Viewer.page] });
+}).edges({ uses: () => [Path.nameInWorld, Viewer.draw, FileSystem.write] });

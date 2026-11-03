@@ -78,8 +78,8 @@ test("PrintTree R2: no world, or a file at nuhokai, is one stderr line, exit 1, 
   });
 });
 
-test("PrintTree R1, R3: a throwing node file is one line naming it, exit 1; a path naming no node exits 2", async () => {
-  const broken = exampleWorld({ "boom.ts": 'throw new Error("boom");\n' });
+test("PrintTree R1, R3: a node file that does not parse is one line naming it, exit 1; a path naming no node exits 2", async () => {
+  const broken = exampleWorld({ "boom.ts": "export const boom = ;\n" });
   const failed = await tree(broken);
   expect(failed.code).toBe(1);
   expect(failed.out).toEqual([]);

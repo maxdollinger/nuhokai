@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { BunRuntime, FileSystem } from "../external.ts";
 import { Path } from "../path/path.ts";
 
 /** The authored example a new world starts with. Owns its bytes. */
@@ -63,4 +64,4 @@ export const ExampleWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.inWorld] });
+}).edges({ uses: () => [Path.nameInWorld, FileSystem.write, BunRuntime.makeUuid] });

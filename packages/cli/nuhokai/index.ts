@@ -1,6 +1,8 @@
 import { defineWorld } from "@nuhokai/world";
+import { Build } from "./build.ts";
 import { Check } from "./check/check.ts";
 import { Cli } from "./cli.ts";
+import { Browser, BunRuntime, FileSystem, Terminal, ThreeJs, Tsgo } from "./external.ts";
 import { Failure } from "./failure.ts";
 import { Init } from "./init/init.ts";
 import { Inspect } from "./inspect.ts";
@@ -15,5 +17,22 @@ export default defineWorld({
   name: "@nuhokai/cli",
   description: "The toolchain around the world format: init, map, check and tree.",
   source: ["src/**", "scripts/**"],
-  children: [Cli, Init, WorldMap, Check, Tree, Inspect, LoadWorld, Path, Failure],
+  children: [
+    Cli,
+    Build,
+    Init,
+    WorldMap,
+    Check,
+    Tree,
+    Inspect,
+    LoadWorld,
+    Path,
+    Failure,
+    Terminal,
+    FileSystem,
+    BunRuntime,
+    Tsgo,
+    Browser,
+    ThreeJs,
+  ],
 });

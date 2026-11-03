@@ -11,8 +11,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { defineWorld } from "@nuhokai/world";
+import { writeCliFiles } from "../init/cli-files.ts";
 import { runInit } from "../init/scaffold.ts";
 import { CliError } from "../shared/failure.ts";
 import { NoWorldError } from "../shared/inspect.ts";
@@ -23,7 +22,6 @@ const BIN = join(import.meta.dir, "../bin.ts");
 const EXAMPLE_ID = "01a17290-3f10-7c54-8e51-0b63d9f2a7c4";
 const roots: string[] = [];
 
-// Every test gets its own directory: Bun caches a module by path for the whole process.
 function tempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "nuhokai-load-test-"));
   roots.push(dir);
@@ -32,13 +30,14 @@ function tempDir(): string {
 
 const quiet = { out: () => {}, err: () => {} };
 
-/** A world folder holding exactly these files, by path inside nuhokai/. */
+/** A world folder holding these files, by path inside nuhokai/, plus the CLI-owned tsconfig and declarations. */
 function world(files: Record<string, string>): string {
   const root = tempDir();
   for (const [path, source] of Object.entries(files)) {
     mkdirSync(dirname(join(root, "nuhokai", path)), { recursive: true });
     writeFileSync(join(root, "nuhokai", path), source);
   }
+  writeCliFiles(root);
   return root;
 }
 
@@ -70,7 +69,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test("no nuhokai/, or a file there, is one NoWorldError and nothing is evaluated; a missing index.ts is no NoWorldError", async () => {
+test("no nuhokai/, or a file there, is one NoWorldError and nothing is read; a missing index.ts is no NoWorldError", async () => {
   const empty = tempDir();
   const absent = await loadError(empty);
   expect(absent).toBeInstanceOf(NoWorldError);
@@ -93,8 +92,6 @@ test("no nuhokai/, or a file there, is one NoWorldError and nothing is evaluated
 test("after init, without node_modules, loads Example named by its export plus its placeholder", async () => {
   const repo = tempDir();
   expect(await runInit(repo, quiet)).toBe(0);
-  // The init-written tsconfig maps @nuhokai/world to the .d.ts; evaluation must still get the CLI's runtime.
-  writeFileSync(join(repo, "nuhokai/runtime.ts"), 'export { defineWorld } from "@nuhokai/world";\n');
   expect(existsSync(join(repo, "node_modules"))).toBe(false);
 
   const loaded = await loadWorld(repo);
@@ -117,9 +114,6 @@ test("after init, without node_modules, loads Example named by its export plus i
   expect(loaded.placeholders).toEqual([
     { kind: "call", description: "Describe what this node has to do", name: "later", users: [EXAMPLE_ID] },
   ]);
-  // One runtime per process: the world files get the CLI's own runtime, not the init-written .d.ts.
-  const runtime = await import(pathToFileURL(join(repo, "nuhokai/runtime.ts")).href);
-  expect(runtime.defineWorld).toBe(defineWorld);
 });
 
 test("the example world: depth-first, edges grouped per target, delegates kept, inherited ports to the implementor", async () => {
@@ -188,8 +182,8 @@ export const User = node(${leaf("user")}).edges({
 });
 export const Box = node({
   id: "box", purpose: "box", status: "building", source: ["src/box/**"],
-  children: { user: User, target: Target },
-  ports: (c) => ({ run: c.target.ports.one }),
+  children: [User, Target],
+  ports: { run: Target.one },
 }).edges({});
 `,
   });
@@ -218,7 +212,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Shared, 
     "box.ts": `import { node } from "@nuhokai/world";
 export const Shared = node(${leaf("shared")}).edges({});
 export const Inner = node(${leaf("inner")}).edges({});
-export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: { shared: Shared, inner: Inner }, ports: () => ({}) }).edges({});
+export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: [Shared, Inner], ports: {} }).edges({});
 `,
   });
 
@@ -241,7 +235,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [P, T] })
 export const C1 = node(${leaf("x")}).edges({});
 export const C2 = node(${leaf("c2")}).edges({});
 export const T = node(${leaf("t")}).edges({});
-export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: { c1: C1, c2: C2 }, ports: () => ({}) }).edges({});
+export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: [C1, C2], ports: {} }).edges({});
 `,
   });
 
@@ -323,11 +317,11 @@ export { Bad };
 export default defineWorld({ id: "w", name: "w", source: [], children: [Bad] });
 `,
     "zbad.ts": `import { node } from "@nuhokai/world";
-export const Bad = node(${leaf("bad")}).edges({ uses: () => { throw new Error("boom"); } });
+export const Bad = node(${leaf("bad")}).edges({ uses: () => 1 } as never);
 `,
   });
 
-  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/zbad.ts: Bad.uses: boom`);
+  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/zbad.ts: Bad.uses does not return a list`);
 });
 
 test("a world that only loads is not judged: an orphan and an out-of-scope edge load", async () => {
@@ -339,7 +333,7 @@ export default defineWorld({ id: "w", name: "Shop", source: ["src/**"], children
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
 export const Inner = node(${leaf("same-id")}).edges({ uses: () => [Orphan.x] });
-export const Outer = node({ id: "same-id", purpose: "o", status: "planned", source: [], children: { inner: Inner }, ports: () => ({}) }).edges({});
+export const Outer = node({ id: "same-id", purpose: "o", status: "planned", source: [], children: [Inner], ports: {} }).edges({});
 `,
   });
 
@@ -376,7 +370,7 @@ export default defineWorld({ id: "w", children: [A] } as never);
   expect(loaded.files).toEqual([{ node: "a", file: `${root}/nuhokai/index.ts`, line: 2 }]);
 });
 
-test("every load failure is one CliError naming the file", async () => {
+test("every load failure is one CliError naming the file, and its line where it points at code", async () => {
   const index = `import { defineWorld } from "@nuhokai/world";
 import { A } from "./orders.ts";
 export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
@@ -386,12 +380,10 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
     `import { node } from "@nuhokai/world";\nexport const A = node(${leaf("a")}).edges(${body} as never);\n`;
   const cases: [Record<string, string>, string][] = [
     [{ "orders.ts": orders }, "nuhokai/index.ts: not found"],
-    [{ "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` }, "nuhokai/orders.ts:3: Unexpected ;"],
     [
-      { "index.ts": index, "orders.ts": `${orders}throw new Error("boom\\nhere");\n` },
-      "nuhokai/orders.ts:3: boom here",
+      { "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` },
+      "nuhokai/orders.ts:3: Expression expected.",
     ],
-    [{ "index.ts": index, "orders.ts": orders, "sub/deep.ts": 'import "./gone.ts";\n' }, "nuhokai/sub/deep.ts: "],
     [{ "index.ts": "export default { children: [] };\n", "orders.ts": orders }, "nuhokai/index.ts: the default export"],
     [
       { "index.ts": 'export default { $ref: "world", children: [] };\n', "orders.ts": orders },
@@ -399,7 +391,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
     ],
     [
       { "index.ts": index, "orders.ts": edges('{ uses: () => { throw new Error("lazy"); } }') },
-      "nuhokai/orders.ts: A.uses: lazy",
+      "nuhokai/orders.ts:2: a function here is an expression or one return",
     ],
     [
       { "index.ts": index, "orders.ts": edges("{ uses: () => 1 }") },
@@ -413,9 +405,45 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
       {
         "index.ts": index,
         "orders.ts": `export { A } from "./sub/a.ts";\n`,
-        "sub/a.ts": `${orders}export { pad } from "nuhokai-no-such-package";\n`,
+        "sub/a.ts": `import { node } from "@nuhokai/world";\nimport { pad } from "nuhokai-no-such-package";\nexport const A = node({ ...${leaf("a")}, purpose: pad }).edges({});\n`,
       },
-      "nuhokai/sub/a.ts: Cannot find package 'nuhokai-no-such-package'",
+      "nuhokai/sub/a.ts:3: 'pad' comes from 'nuhokai-no-such-package'; a world file reads only world files and @nuhokai/world",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node } from "@nuhokai/world";\nexport const A = node({ ...${leaf("a")}, purpose: String(1) }).edges({});\n`,
+      },
+      "nuhokai/orders.ts:2: ",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node } from "@nuhokai/world";\nimport { gone } from "./gone.ts";\nexport const A = node({ ...${leaf("a")}, purpose: gone }).edges({});\n`,
+      },
+      "nuhokai/orders.ts:3: 'gone' refers to nothing",
+    ],
+    [
+      { "index.ts": index, "orders.ts": `${orders}throw new Error("never runs");\n` },
+      "nuhokai/orders.ts:3: world files hold only imports, exports and declarations of data, not a ThrowStatement",
+    ],
+    [
+      { "index.ts": index, "orders.ts": `${orders}const unused = Date.now();\n` },
+      "nuhokai/orders.ts:3: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not Date.now(...)",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `${orders}export const Lost = node(${leaf("lost")}).edges({ uses: () => { const x = [A.x]; return x; } });\n`,
+      },
+      "nuhokai/orders.ts:3: a function here is an expression or one return",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node as n } from "@nuhokai/world";\nexport const A = n(${leaf("a")}).edges({});\n`,
+      },
+      "nuhokai/orders.ts:2: 'n': import node, defineWorld, inherited and tbd from @nuhokai/world under their own name",
     ],
   ];
 
@@ -428,19 +456,84 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   }
 });
 
-test("a throwing file imported by an earlier one is named, not its importer", async () => {
-  const root = world({
-    "index.ts": `import { defineWorld } from "@nuhokai/world";
-import { A } from "./z-throws.ts";
-export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+/** A dome Cmd whose child Leaf (sorted first, so evaluated first) uses Caller, which uses Cmd: an import cycle through the dome. */
+const CYCLE = {
+  "cmd/a-leaf.ts": `import { node } from "@nuhokai/world";
+import { Caller } from "../z-caller.ts";
+export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" } }')}).edges({ uses: () => [Caller.print] });
 `,
-    "z-throws.ts": 'throw new Error("from z");\nexport const A = 1;\n',
-  });
+  "cmd/cmd.ts": `import { node } from "@nuhokai/world";
+import { Leaf } from "./a-leaf.ts";
+export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: [], children: [Leaf], ports: { run: Leaf.run } }).edges({});
+`,
+  "z-caller.ts": `import { node } from "@nuhokai/world";
+import { Cmd } from "./cmd/cmd.ts";
+export const Caller = node(${leaf("caller", '{ print: { kind: "call", purpose: "print" } }')}).edges({ uses: () => [Cmd.run] });
+`,
+};
 
-  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/z-throws.ts:1: from z`);
+test("nothing runs: an import cycle through a dome loads in any import order", async () => {
+  const index = (imports: string) => `import { defineWorld } from "@nuhokai/world";
+${imports}
+export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Caller] });
+`;
+  const viaDome = index('import { Cmd } from "./cmd/cmd.ts";\nimport { Caller } from "./z-caller.ts";');
+  const viaChild = index(
+    'import { Leaf } from "./cmd/a-leaf.ts";\nimport { Cmd } from "./cmd/cmd.ts";\nimport { Caller } from "./z-caller.ts";\nexport { Leaf };',
+  );
+
+  for (const source of [viaDome, viaChild]) {
+    const root = world({ ...CYCLE, "index.ts": source });
+
+    const loaded = await loadWorld(root);
+
+    expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
+    expect(loaded.nodes[0]?.ports).toEqual([
+      { name: "run", kind: "call", purpose: "run", delegate: { to: "leaf", port: "run" } },
+    ]);
+  }
 });
 
-test("generated files, declarations and tests are never evaluated", async () => {
+test("a dome port of a non-child or a missing port is one load error at the dome's node() line, listed or not", async () => {
+  const dome = (ports: string) => `import { node } from "@nuhokai/world";
+import { Leaf, Other } from "./leaf.ts";
+export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: [Leaf], ports: ${ports} }).edges({});
+`;
+  const files = (domeSource: string) => ({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Dome } from "./dome.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Dome] });
+`,
+    "dome.ts": domeSource,
+    "leaf.ts": `import { node } from "@nuhokai/world";
+export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" } }')}).edges({});
+export const Other = node(${leaf("other", '{ run: { kind: "call", purpose: "run" } }')}).edges({});
+`,
+  });
+  const cases: [string, string][] = [
+    ["{ run: Other.run }", "`run` exposes a port of a node that is not one of this dome's direct children"],
+    ["{ run: Leaf.nope }", "`nope` is not a port of its node"],
+  ];
+
+  for (const [ports, message] of cases) {
+    const root = world(files(dome(ports)));
+    expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/dome.ts:3: ${message}`);
+  }
+
+  // The same dome listed nowhere, an orphan: still read whole, still the same error.
+  const orphaned = world({
+    ...files(dome("{ run: Other.run }")),
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Leaf } from "./leaf.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Leaf] });
+`,
+  });
+  expect(((await loadError(orphaned)) as Error).message).toBe(
+    `${orphaned}/nuhokai/dome.ts:3: \`run\` exposes a port of a node that is not one of this dome's direct children`,
+  );
+});
+
+test("generated files, declarations and tests are never read", async () => {
   const root = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 export const A = node(${leaf("a")}).edges({});
@@ -491,8 +584,8 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   expect((error as Error).message).toBe(`${selfLinked}/nuhokai/self: the symlink cannot be resolved (ELOOP)`);
 });
 
-test("the CLI under bun --no-install: an uncached package import is one load error, nothing installed", () => {
-  // A real package, so a lost --no-install would install it; the project has no node_modules.
+test("the CLI: a world file using a package is one load error naming it; nothing is installed or run", () => {
+  // A real package, so installing or running it would leave a trace; the project has no node_modules.
   const pkg = "is-positive";
   const cache = join(process.env.BUN_INSTALL_CACHE_DIR ?? join(homedir(), ".bun/install/cache"));
   const cached = () => (existsSync(cache) ? readdirSync(cache).filter((entry) => entry.startsWith(pkg)) : []);
@@ -500,15 +593,16 @@ test("the CLI under bun --no-install: an uncached package import is one load err
   const repo = tempDir();
   expect(Bun.spawnSync([process.execPath, "--no-install", BIN, "init"], { cwd: repo }).exitCode).toBe(0);
   const example = join(repo, "nuhokai/example.ts");
-  writeFileSync(example, `import positive from "${pkg}";\npositive;\n${readFileSync(example, "utf8")}`);
+  const source = readFileSync(example, "utf8").replace(/purpose: "[^"]*"/, "purpose: positive");
+  writeFileSync(example, `import positive from "${pkg}";\n${source}`);
 
   const result = Bun.spawnSync([process.execPath, "--no-install", BIN, "map"], { cwd: repo });
 
   expect(result.exitCode).toBe(1);
   const lines = result.stderr.toString().trimEnd().split("\n");
   expect(lines).toHaveLength(1);
-  expect(lines[0]).toStartWith("nuhokai map: nuhokai/example.ts");
-  expect(lines[0]).toContain(pkg);
+  expect(lines[0]).toStartWith("nuhokai map: nuhokai/example.ts:");
+  expect(lines[0]).toContain(`'positive' comes from '${pkg}'`);
   expect(existsSync(join(repo, "node_modules"))).toBe(false);
   expect(cached()).toEqual(before);
 });

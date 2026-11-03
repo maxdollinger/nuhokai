@@ -1,6 +1,6 @@
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { inWorld, WORLD_DIR } from "../shared/paths.ts";
+import { nameInWorld, WORLD_DIR } from "../shared/paths.ts";
 import { writeCliFiles } from "./cli-files.ts";
 import { writeExampleWorld } from "./example-world.ts";
 
@@ -16,7 +16,7 @@ export function publishWorld(root: string): string[] {
     const authored = writeExampleWorld(staging);
     const owned = writeCliFiles(staging);
     renameSync(join(staging, WORLD_DIR), join(root, WORLD_DIR));
-    return [...authored, ...owned.written].map((path) => inWorld(root, path));
+    return [...authored, ...owned.written].map((path) => nameInWorld(root, path));
   } finally {
     try {
       rmSync(staging, { recursive: true, force: true });

@@ -18,25 +18,15 @@ import type { Blank, Forbidden, NodeId, World, WorldChildrenRules } from "./type
  * The id has a node id's form; tools key per-world state by it. The name is
  * not blank. `source` is like a node's, relative to the project directory;
  * every node's `source` lies under it (check's rule). External nodes are only
- * allowed here, at the top level.
+ * allowed here, at the top level. Declared only: tools read the world file.
  */
-export function defineWorld<const Name extends string, const Children extends readonly unknown[]>(world: {
+export declare function defineWorld<const Name extends string, const Children extends readonly unknown[]>(world: {
   readonly id: NodeId;
   readonly name: Name & NoInfer<NameRule<Name>>;
   readonly description?: string;
   readonly source: readonly string[];
   readonly children: Children & NoInfer<WorldChildrenRules<Children>>;
-}): World {
-  return Object.freeze({
-    $ref: "world",
-    id: world.id,
-    name: world.name,
-    ...(world.description === undefined ? {} : { description: world.description }),
-    // A cast can drop source; keep what was given and leave the verdict to check.
-    source: Array.isArray(world.source) ? Object.freeze([...world.source]) : world.source,
-    children: Object.freeze([...world.children]),
-  }) as unknown as World;
-}
+}): World;
 
 /** A literal name must not be blank; a widened `string` is left to check. */
 type NameRule<Name extends string> =

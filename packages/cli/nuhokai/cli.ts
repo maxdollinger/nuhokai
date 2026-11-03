@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
+import { FileSystem, Terminal } from "./external.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { Tree } from "./tree/tree.ts";
@@ -8,17 +9,10 @@ import { Tree } from "./tree/tree.ts";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes and the distribution. " +
-    "Implements no command.",
+    "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes. Implements no command; " +
+    "Build makes and ships it.",
   status: "building",
-  source: [
-    "src/bin.ts",
-    "src/bin.test.ts",
-    "scripts/embed-world.ts",
-    "scripts/embed-world.test.ts",
-    "scripts/package-release.ts",
-    "scripts/smoke-release.sh",
-  ],
+  source: ["src/bin.ts", "src/bin.test.ts"],
   ports: {
     dispatch: {
       kind: "call",
@@ -41,7 +35,7 @@ export const Cli = node({
     { id: "R4", text: "No loading, rule, tsc or writing logic in Cli: each command is its own node." },
     {
       id: "R5",
-      text: "World imports type-check only as relative files and @nuhokai/world; the CLI runs with bun --no-install, so nothing is installed.",
+      text: "World imports type-check only as relative files and @nuhokai/world; the CLI runs no world file and installs nothing.",
     },
     {
       id: "R6",
@@ -56,7 +50,6 @@ export const Cli = node({
       text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, -1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
-    { id: "C2", kind: "constraint", text: "One @nuhokai/world runtime per process." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
   ],
   testCases: [
@@ -95,10 +88,14 @@ export const Cli = node({
   ],
   decisions: [
     {
-      decision: "TypeScript on Bun, shipped as a per-platform binary embedding Bun, @nuhokai/world and the checker.",
-      why: "Loading executes TS (lazy edges, cycles, spreads), so Bun is required; embedding keeps the repo toolchain-free.",
+      decision:
+        "TypeScript on Bun, shipped as a per-platform binary embedding Bun and the @nuhokai/world declarations, with the pinned checker beside it.",
+      why: "The checker reads and type-checks worlds the way the editor does; embedding keeps the repo toolchain-free.",
       rejected: [
-        { option: "Go parser", why: "Cannot evaluate lazy edges, cycles or computed refs; no identity." },
+        {
+          option: "A parser of our own",
+          why: "Would re-implement the checker's import, re-export and alias resolution.",
+        },
         { option: "repo Bun, Node or tsc", why: "Forces a toolchain install; version-dependent results." },
       ],
     },
@@ -156,4 +153,6 @@ export const Cli = node({
       ],
     },
   ],
-}).edges({ uses: () => [Init.run, WorldMap.run, Check.run, Tree.run] });
+}).edges({
+  uses: () => [Init.run, WorldMap.run, Check.run, Tree.run, Terminal.print, Terminal.printError, FileSystem.read],
+});

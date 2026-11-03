@@ -12,9 +12,9 @@ export const Shop = node({
   purpose: "The shop backend; everything a customer interacts with lives inside it.",
   status: "planned",
   source: [],
-  children: { orders: Orders, stock: Stock },
-  ports: (c) => ({
-    placeOrder: c.orders.ports.place,
-    orderHistory: inherited(c.orders, AuditLog.history),
-  }),
+  children: [Orders, Stock],
+  ports: {
+    placeOrder: Orders.place,
+    orderHistory: inherited(Orders, AuditLog.history),
+  },
 }).edges({});

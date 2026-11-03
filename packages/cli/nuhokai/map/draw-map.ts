@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Terminal } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { MapFile } from "./map-file.ts";
@@ -28,10 +29,10 @@ export const DrawMap = node({
   testCases: [
     { text: "No world, or a file at nuhokai → one stderr line, exit 1, nothing written.", demonstrates: ["R2"] },
     {
-      text: "Throwing node file → one line naming the file, exit 1, previous map kept.",
+      text: "A node file that does not parse → one line naming the file and line, exit 1, previous map kept.",
       demonstrates: ["R1"],
     },
   ],
 }).edges({
-  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected],
+  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected, Terminal.print, Terminal.printError],
 });

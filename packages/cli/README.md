@@ -9,7 +9,7 @@ prints one diagnostics list. A repo that uses the CLI needs no TypeScript, Bun o
 src/
   bin.ts        argv, exit codes, command dispatch
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
-  load/         evaluate nuhokai/ and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
+  load/         read nuhokai/ without running it and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
@@ -68,20 +68,24 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
 `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
-from the world. World files must stay declarative: calls only to the format's functions, imports only
-`@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive. It
+from the world. World files must stay declarative: the loader rejects anything that is not data (calls other than the
+format's functions among it), and the type check allows imports only from `@nuhokai/world` and other world files and
+no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
 exits 1 on any error and 0 otherwise; orphans are warnings. A missing world is one stderr line; a world that fails to
 load still gets every tsc finding, then one stderr line for the load failure.
 
-`map` loads the world as it evaluates, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
+`map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
 coloured by its status. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
 with its node) and `tbd` placeholders by export name or description in every scope, lights them in the open scope and jumps to one
 with Enter or a click. It never opens a browser. The map remembers moved islands per browser, under the world's id
-and by node id, so a regenerated map keeps them and two projects' maps never share them. `@nuhokai/world` in a world file is
-the CLI's own runtime; any other import resolves as Bun resolves it. The CLI runs with `bun --no-install`, so nothing
-is installed: an unresolvable import is an ordinary load error. The loader is no sandbox; world files are the
-project's own code.
+and by node id, so a regenerated map keeps them and two projects' maps never share them.
+
+Loading never runs a world file. The CLI's pinned checker parses `nuhokai/` and resolves every name to its
+declaration, through imports, re-exports and aliases, and the format's calls are read as data, so import cycles never
+matter and nothing is installed or executed. The loader is the one judge of whether a world file is data: every
+statement and value in it, used or not, must be readable, and anything else (a call to another function, a value
+imported from a package, a statement block in `uses`, a top-level statement) is one load error at its file and line. It needs no `nuhokai/tsconfig.json`: it opens a project of its own with exactly the world files.
 
 `tree` prints the node hierarchy, one line per node: `path | source | purpose`, e.g.
 `Check/ (5) | src/check/** | Ensure the specs follow the rules.` Every line carries the node's full hierarchy path
@@ -99,8 +103,9 @@ world's strict options without the repo installing TypeScript. The CLI does not 
 
 TypeScript on Bun: `bun build src/bin.ts --target=bun` for a runnable bundle, and `bun build --compile` for the
 release binaries, built natively for three targets: macOS arm64, Linux x86_64 and Linux arm64 (macOS x86_64 can join
-the matrix later). The checker (tsgo) ships as a matching per-platform sidecar from the repo's pinned TypeScript; the
-`@nuhokai/world` runtime and `.d.ts` are embedded. Users need no Node, Bun or TypeScript.
+the matrix later). The checker (tsgo) ships as a matching per-platform sidecar from the repo's pinned TypeScript; it
+reads worlds for every command and type-checks them for `check`. The `@nuhokai/world` `.d.ts` is embedded. Users need
+no Node, Bun or TypeScript.
 
 Each release archive, `nuhokai-v<version>-<target>.tar.gz`, holds:
 

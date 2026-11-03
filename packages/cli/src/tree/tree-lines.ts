@@ -1,6 +1,6 @@
 import type { LoadedWorld } from "../load/load-world.ts";
-import { childrenOf, nodePaths } from "../shared/node-path.ts";
-import { inProject } from "../shared/paths.ts";
+import { childrenOf, nameNodes } from "../shared/node-path.ts";
+import { nameInProject } from "../shared/paths.ts";
 
 /** What a node without source prints in the source field. */
 const NO_SOURCE = "(none)";
@@ -12,7 +12,7 @@ const NO_SOURCE = "(none)";
  * printed shows `/ (<n>)` after its path. Sources are named from the cwd through the project directory `root`.
  */
 export function renderTree(world: LoadedWorld, root: string, start: number | null, level: number): string[] {
-  const paths = nodePaths(world);
+  const paths = nameNodes(world);
   const children = childrenOf(world);
 
   const lines: string[] = [];
@@ -32,7 +32,7 @@ export function renderTree(world: LoadedWorld, root: string, start: number | nul
 function line(world: LoadedWorld, root: string, index: number, path: string): string {
   const spec = world.nodes[index];
   const entries = Array.isArray(spec?.source) ? spec.source.filter((entry) => typeof entry === "string") : [];
-  const source = entries.length > 0 ? entries.map((entry) => inProject(root, entry)).join(", ") : NO_SOURCE;
+  const source = entries.length > 0 ? entries.map((entry) => nameInProject(root, entry)).join(", ") : NO_SOURCE;
   const purpose = typeof spec?.purpose === "string" ? spec.purpose : "";
   return [path, source, purpose].map(oneLine).join(" | ");
 }

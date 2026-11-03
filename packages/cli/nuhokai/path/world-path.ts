@@ -9,14 +9,14 @@ export const WorldPath = node({
   status: "built",
   source: ["src/shared/paths.ts"],
   ports: {
-    inWorld: {
+    nameInWorld: {
       kind: "call",
       purpose: "Name a file in the world, cwd-relative",
       input: "project directory (cwd-relative), segments inside nuhokai/",
       output: "<project directory>/nuhokai/<segments>, / separators; nuhokai/<segments> for the cwd",
       errors: [],
     },
-    inProject: {
+    nameInProject: {
       kind: "call",
       purpose: "Name a path in the project directory, cwd-relative",
       input: "project directory (cwd-relative), a /-separated path or glob relative to it, as a source entry is",
@@ -43,17 +43,17 @@ export const WorldPath = node({
     },
     {
       id: "R5",
-      text: "inProject: project directory + path as R2 joins it, without nuhokai/; a glob's characters (* ? [ ] { }) pass unchanged, so src/** under --path packages/cli is packages/cli/src/**; an absolute path stays as it is.",
+      text: "nameInProject: project directory + path as R2 joins it, without nuhokai/; a glob's characters (* ? [ ] { }) pass unchanged, so src/** under --path packages/cli is packages/cli/src/**; an absolute path stays as it is.",
     },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
   ],
   testCases: [
     {
-      text: "inWorld('packages/cli', 'stock', 'reserve.ts') → packages/cli/nuhokai/stock/reserve.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
+      text: "nameInWorld('packages/cli', 'stock', 'reserve.ts') → packages/cli/nuhokai/stock/reserve.ts on every platform; index.ts, tsconfig.json, .generated/world/index.d.ts, .generated/map.html come from these names.",
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "inWorld('.', '.generated/map.html') → nuhokai/.generated/map.html; inWorld('.') → nuhokai, never ./nuhokai; absolute directory → absolute name.",
+      text: "nameInWorld('.', '.generated/map.html') → nuhokai/.generated/map.html; nameInWorld('.') → nuhokai, never ./nuhokai; absolute directory → absolute name.",
       demonstrates: ["R2", "R4"],
     },
     {
@@ -61,7 +61,7 @@ export const WorldPath = node({
       demonstrates: ["R3", "C1"],
     },
     {
-      text: "inProject('packages/cli', 'src/bin.ts') → packages/cli/src/bin.ts; inProject('.', 'src/**') → src/**, never ./src/**; inProject('packages/cli', '/etc/x') → /etc/x.",
+      text: "nameInProject('packages/cli', 'src/bin.ts') → packages/cli/src/bin.ts; nameInProject('.', 'src/**') → src/**, never ./src/**; nameInProject('packages/cli', '/etc/x') → /etc/x.",
       demonstrates: ["R5"],
     },
   ],

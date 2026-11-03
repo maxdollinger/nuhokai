@@ -1,7 +1,7 @@
 import { lstatSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { CliError } from "./failure.ts";
-import { inWorld, WORLD_DIR } from "./paths.ts";
+import { nameInWorld, WORLD_DIR } from "./paths.ts";
 
 /**
  * No world to work on: nothing at `<root>/nuhokai`, or something that is no directory. A CliError like any expected
@@ -44,6 +44,6 @@ export function requireWorld(root: string): void {
     );
   }
   if (state.kind === "occupied" && !statSync(join(root, WORLD_DIR), { throwIfNoEntry: false })?.isDirectory()) {
-    throw new NoWorldError(`${inWorld(root)} exists but is not a directory`);
+    throw new NoWorldError(`${nameInWorld(root)} exists but is not a directory`);
   }
 }

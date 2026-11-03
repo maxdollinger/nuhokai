@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Browser, ThreeJs } from "../external.ts";
 
 /** The map's page: what the browser draws from the loaded world. */
 export const Viewer = node({
@@ -8,7 +9,7 @@ export const Viewer = node({
   status: "building",
   source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
-    page: {
+    draw: {
       kind: "call",
       purpose: "Draw the loaded world in the browser",
       input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
@@ -201,4 +202,4 @@ export const Viewer = node({
       why: "The query's dimming overrides selection: a click under it would select out of sight.",
     },
   ],
-}).edges({});
+}).edges({ uses: () => [Browser.runPage, Browser.store, ThreeJs.render] });
