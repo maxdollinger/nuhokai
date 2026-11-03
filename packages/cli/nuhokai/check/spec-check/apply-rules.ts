@@ -12,7 +12,8 @@ export const ApplyRules = node({
     run: {
       kind: "call",
       purpose: "Judge the loaded world against the spec rules",
-      input: "project directory, cwd-relative; the loaded world, as LoadWorld.load answers it",
+      input:
+        "project directory, cwd-relative; the loaded world, as LoadWorld.load answers it; the files TypeCheck found an error in",
       output: "findings as Diagnostics.format takes them: one per violation",
     },
   },

@@ -19,7 +19,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, path, file, line? }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? and column? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, path, file, line?, column?, source?: { at?, entries } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line?, column? }[]; orphans: { id, name, file, line?, column? }[]",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -41,7 +41,7 @@ export const LoadWorld = node({
     },
     {
       id: "R2",
-      text: "Node = a node(…).edges(…) call, as its NodeSpec per packages/world/README.md. Name: export name; exported twice → the defining file's (the one holding the call), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
+      text: "Node = a node(…).edges(…) call, as its NodeSpec per packages/world/README.md; each call is exactly one node, as a function of the world's own is never called: a uses arrow two nodes share holds one tbd placeholder. Name: export name; exported twice → the defining file's (the one holding the call), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
     { id: "R3", text: "Order: depth-first from the world, parent before children, list order; each node once." },
     {
@@ -50,7 +50,7 @@ export const LoadWorld = node({
     },
     {
       id: "R5",
-      text: "Load error: one CliError naming the cwd-relative file and, if known, line: 'nuhokai/orders.ts:3: <message>', under --path app 'app/nuhokai/orders.ts:3: <message>'.",
+      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3:14: <rule>', under --path app 'app/nuhokai/orders.ts:3:14: <rule>'. An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
     },
     {
       id: "R6",
@@ -58,15 +58,15 @@ export const LoadWorld = node({
     },
     {
       id: "R7",
-      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children.",
+      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children; with the file the list is written in and the line and column of the item there (or the ...spread that brought it in), when there.",
     },
     {
       id: "R8",
-      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2.",
+      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2, with its node() call's line and column.",
     },
     {
       id: "R9",
-      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line of its node() call when that file holds it.",
+      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line and column of its node() call when that file holds it; and where its source property and each entry were written, when in that file, so check points at the entry.",
     },
     {
       id: "R10",
@@ -74,11 +74,11 @@ export const LoadWorld = node({
     },
     {
       id: "R11",
-      text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its NoWorldError, nothing read; every other load error is a plain CliError. Callers never inspect for the load's sake.",
+      text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its NoWorldError, nothing read; every other load error is a LoadError, or a plain CliError when the checker itself fails. Callers never inspect for the load's sake.",
     },
     {
       id: "R12",
-      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements, and every dome's ports, are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return, applied only as uses and implements: a world file never calls its own function, so it cannot recurse. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
+      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements, and every dome's ports, are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and functions without parameters that are an expression or one return, read as an edge's list where they were written and never called; a function with parameters, used or not, is a load error at its first parameter, as it can only be a factory. A name resolves to its declaration through imports, re-exports and aliases; one from a package is a load error at its import, where the fix is. Anything else is a load error at its line; another call, a call to a function of the world's own included, reads 'world files are declarative: they call only …, not <callee>(...); write what it would make out as data', so a world is never run: no factory, no recursion.",
     },
     {
       id: "R13",
@@ -122,11 +122,11 @@ export const LoadWorld = node({
       demonstrates: ["R10"],
     },
     {
-      text: "Syntax error, a uses function with a block of statements (also an orphan's), a call to String, a top-level throw, an unused const holding Date.now(), node imported as n, a name imported from a package or a missing file, non-world default export, uses returning a non-list → one CliError each naming the file, with its line where it points at code. Unexported node → named by id.",
+      text: "Syntax error, a uses function with a block of statements (also an orphan's), a call to String, a top-level throw, an unused const holding Date.now(), node imported as n, a name imported from a package or a missing file, non-world default export, uses returning a non-list, a conditional expression, a draft in the world's children → one CliError each naming the file, with its line where it points at code, and the code it cannot read in words and quoted. Unexported node → named by id.",
       demonstrates: ["R2", "R5", "R6", "R12"],
     },
     {
-      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
+      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>:<column>' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
       demonstrates: ["R1", "R2", "R5"],
     },
     {
@@ -138,11 +138,22 @@ export const LoadWorld = node({
       demonstrates: ["R13"],
     },
     {
-      text: "Barrel index.ts re-exporting Bad from zbad.ts → named Bad, a Bad.uses returning no list blames nuhokai/zbad.ts; `export { Late as Early }` keeps Late.",
+      text: "Barrel index.ts re-exporting Bad from zbad.ts → named Bad, a Bad.uses returning no list blames nuhokai/zbad.ts at Bad's node() line; `export { Late as Early }` keeps Late.",
       demonstrates: ["R2", "R5"],
     },
   ],
   decisions: [
+    {
+      decision:
+        "A function of the world's own is only ever read, as an edge's arrow without parameters; calling one is a load error.",
+      why: "Reading a call means substituting arguments into a body: a small interpreter, with scopes, identity per call (one node or two?) and recursion that never ends. The format needs arrows only so edges can refer to nodes not yet declared; a node() call then is exactly one node.",
+      rejected: [
+        {
+          option: "Read calls to world functions (factories, helpers)",
+          why: "Every rule about them (a node per application, a shared arrow's placeholder once, a depth guard) patched the interpreter, and each fix broke another case.",
+        },
+      ],
+    },
     {
       decision: "LoadWorld runs Inspect.requireWorld itself.",
       why: "Every load needs a world, and every caller guarded it the same way; one guard here cannot be forgotten by the next command.",

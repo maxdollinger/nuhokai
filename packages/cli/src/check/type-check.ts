@@ -5,7 +5,7 @@ import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
 import { CliError } from "../shared/failure.ts";
 import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/world-path.ts";
-import { compareFindings, type Finding } from "./diagnostics.ts";
+import { compareFindings, type Finding, positionOf } from "./diagnostics.ts";
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
 const LITERALS = new Set([
@@ -17,14 +17,190 @@ const LITERALS = new Set([
   SyntaxKind.RegularExpressionLiteral,
 ]);
 
-/** A diagnostic's text with its chain, one message per line; Diagnostics flattens it. */
-function messageOf(diagnostic: Diagnostic): string {
-  return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(messageOf)].join("\n");
+/** A diagnostic's messages, its own first, then its chain's in order. */
+function messagesOf(diagnostic: Diagnostic): string[] {
+  return [diagnostic.text, ...(diagnostic.messageChain ?? []).flatMap(messagesOf)];
 }
 
-/** The 1-based line of a position. */
-function lineOf(file: SourceFile, position: number): number {
-  return file.getLineAndCharacterOfPosition(position).line + 1;
+/**
+ * A quoted type that is a `Forbidden<"…">` the error is about: the whole type, or the last member of its intersection
+ * (`X & Forbidden<"…">`, also under NoInfer). One inside an object type the error is not about (`{ readonly
+ * externalType?: Forbidden<"…">; }` beside an unknown property) is no match.
+ */
+const FORBIDDEN = /(?:^|& )(?:readonly )?(?:NoInfer<)?Forbidden<"((?:[^"\\]|\\.)*)">>?(?:\[\])?$/;
+
+/**
+ * An object type longer than this, where tsc names the type of a value the reader wrote (the type of a literal,
+ * not the one it should match), is that literal spelled out: `{ … }` says enough.
+ */
+const LONG_OBJECT = 40;
+
+/** The text before a quoted type that names the type of the reader's value, not the type it should match. */
+const VALUE_TYPE = /(?:^|\. )Type $|Argument of type $|is missing in type $/;
+
+/** tsc's codes for a module it cannot find (TS2307, TS2792). */
+const UNRESOLVED_MODULE = new Set([2307, 2792]);
+
+/** How R2's finding for an import from outside the world starts. */
+const IMPORT_RULE = "world files import only @nuhokai/world";
+
+/** tsc's advice to install type definitions or change the library: a world file's fix is never either. */
+const SETUP_ADVICE = / Do you need to [^?]*\?.*$/;
+
+/** The fix for a name or member tsc advised installing or a newer library for. */
+const SETUP_FIX =
+  "remove the code that uses it: world files hold data only (do not edit nuhokai/tsconfig.json, it is CLI-owned)";
+
+/** Generics whose own name says nothing: their type argument stands in their place. */
+const TRANSPARENT = new Set(["NoInfer", "Readonly"]);
+
+/** The index just past the string or template literal whose quote is at `start`, past its escapes. */
+function pastLiteral(text: string, start: number): number {
+  return closedLiteral(text, start) ?? text.length;
+}
+
+/**
+ * The index just past the literal whose quote is at `start`, or undefined when it never closes: tsc cuts a long
+ * type off mid-literal (`"01a...`), and the rest of its message is no literal.
+ */
+function closedLiteral(text: string, start: number): number | undefined {
+  const quote = text[start];
+  for (let index = start + 1; index < text.length; index++) {
+    if (text[index] === "\\") index++;
+    else if (text[index] === quote) return index + 1;
+  }
+  return undefined;
+}
+
+/** The index just past the `close` matching the `open` at `start`; a literal's text holds no bracket of the type. */
+function pastMatching(text: string, start: number, open: string, close: string): number {
+  let depth = 0;
+  for (let index = start; index < text.length; index++) {
+    const char = text[index];
+    if (char === '"' || char === "`") index = pastLiteral(text, index) - 1;
+    else if (char === open) depth++;
+    else if (char === close && !(close === ">" && text[index - 1] === "=")) {
+      depth--;
+      if (depth === 0) return index + 1;
+    }
+  }
+  return text.length;
+}
+
+/**
+ * A type as tsc printed it, cut to its names: a generic's arguments dropped (`NodeShape<undefined, {}, …>` →
+ * `NodeShape`), but a Forbidden's message kept and a transparent generic replaced by its argument, and an object
+ * type intersected onto a named one dropped (`NodeShape & { readonly ports?: {}; }` → `NodeShape`). The world
+ * format's generics carry its bookkeeping, which says nothing about the error.
+ */
+function shortType(type: string): string {
+  let short = "";
+  for (let index = 0; index < type.length; ) {
+    const name = /^[A-Za-z_$][\w$]*</.exec(type.slice(index));
+    if (name === null) {
+      const char = type[index] ?? "";
+      if (char === '"' || char === "`") {
+        const end = pastLiteral(type, index);
+        short += type.slice(index, end);
+        index = end;
+        continue;
+      }
+      short += char;
+      index++;
+      continue;
+    }
+    const identifier = name[0].slice(0, -1);
+    const end = pastMatching(type, index + identifier.length, "<", ">");
+    // tsc cut the type off inside this generic's arguments: the name, and that it goes on.
+    if (end === type.length && !type.endsWith(">")) short += `${identifier}<…>`;
+    else if (identifier === "Forbidden") short += type.slice(index, end);
+    else if (TRANSPARENT.has(identifier)) short += shortType(type.slice(index + identifier.length + 1, end - 1));
+    else short += identifier;
+    index = end;
+  }
+  // An object type after a named one is the format's per-node constraints, never what the error is about.
+  for (let at = short.indexOf(" & {"); at > 0 && /[\w$\]>)]$/.test(short.slice(0, at)); at = short.indexOf(" & {")) {
+    short = short.slice(0, at) + short.slice(pastMatching(short, at + 3, "{", "}"));
+  }
+  return short;
+}
+
+/**
+ * A message cut at the types tsc quoted in it: text outside quotes and each quoted text in turn, starting outside.
+ * A quote ends only outside the string and template literals inside it, so `'{ purpose: "the user's" }'` is one type.
+ */
+function quotedParts(message: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let quoted = false;
+  for (let index = 0; index < message.length; index++) {
+    const char = message[index];
+    const literalEnd = quoted && (char === '"' || char === "`") ? closedLiteral(message, index) : undefined;
+    if (literalEnd !== undefined) index = literalEnd - 1;
+    else if (char === "'") {
+      // An apostrophe in tsc's prose ("can't") opens no type.
+      if (!quoted && /\p{L}/u.test(message[index - 1] ?? "") && /\p{L}/u.test(message[index + 1] ?? "")) continue;
+      parts.push(message.slice(start, index));
+      start = index + 1;
+      quoted = !quoted;
+    }
+  }
+  parts.push(message.slice(start));
+  // A quote never closed opens no type either: it is text, with its quote.
+  if (quoted) {
+    const open = parts.pop() ?? "";
+    parts.push(`${parts.pop() ?? ""}'${open}`);
+  }
+  return parts;
+}
+
+/** The Forbidden messages the types quoted in a message are about. */
+function forbiddenIn(message: string): string[] {
+  return quotedParts(message)
+    .filter((_part, index) => index % 2 === 1)
+    .flatMap((type) => FORBIDDEN.exec(type)?.[1] ?? []);
+}
+
+/**
+ * Every type tsc quoted in a message, cut to its names, and the long object type of a value the reader wrote to
+ * `{ … }`; a quoted type without a generic stays as it is.
+ */
+function shortTypes(message: string): string {
+  return quotedParts(message)
+    .map((part, index, parts) => {
+      if (index % 2 === 0) return part;
+      const valueType = VALUE_TYPE.test(parts[index - 1] ?? "");
+      if (valueType && part.startsWith("{") && part.length > LONG_OBJECT) return "'{ … }'";
+      return `'${part.includes("<") ? shortType(part) : part}'`;
+    })
+    .join("");
+}
+
+/**
+ * What a tsc error says, as one rule and the fix when there is one. An error about a `Forbidden<"…">` is its message
+ * alone, as the world format wrote it for the reader (TypeCheck R4); otherwise each message of the chain with its
+ * types cut to their names, and tsc's advice to install types or change the library replaced by the world's fix.
+ */
+function readTscError(messages: readonly string[]): { rule: string; fix?: string; formatMessage?: true } {
+  const forbidden = [...new Set(messages.flatMap(forbiddenIn))];
+  if (forbidden.length > 0) {
+    return { rule: forbidden.map((text) => (text ?? "").replace(/\\(.)/g, "$1")).join("; "), formatMessage: true };
+  }
+  const advised = messages.some((message) => SETUP_ADVICE.test(message));
+  const rule = messages.map((message) => shortTypes(message.replace(SETUP_ADVICE, ""))).join(" ");
+  // The fix follows after "; ", so the rule's own closing period goes.
+  return advised ? { rule: rule.replace(/\.$/, ""), fix: SETUP_FIX } : { rule };
+}
+
+/** A tsc error's finding text, as readTscError reads its messages. */
+function ruleOf(diagnostic: Diagnostic): { rule: string; fix?: string; formatMessage?: true } {
+  return readTscError(messagesOf(diagnostic));
+}
+
+/** The 1-based line and column of a position. */
+function lineOf(file: SourceFile, position: number): { line: number; column: number } {
+  const { line, character } = file.getLineAndCharacterOfPosition(position);
+  return { line: line + 1, column: character + 1 };
 }
 
 /**
@@ -61,13 +237,13 @@ function isConstAssertion(cast: Node): boolean {
  * never depends on the repo's packages, and no cast, non-null assertion, any or @ts- directive, so nothing bypasses
  * the rules tsc checks. One finding per offence, at its line. Whether the file is data is LoadWorld's to judge.
  */
-function declarativeFindings(file: SourceFile, worldDir: string, name: string): Finding[] {
+function declarativeFindings(file: SourceFile, worldDir: string, name: string, refused: Set<string>): Finding[] {
   const findings: Finding[] = [];
   const error = (node: Node | number, rule: string, fix: string) =>
     findings.push({
       severity: "error",
       file: name,
-      line: lineOf(file, typeof node === "number" ? node : node.getStart(file)),
+      ...lineOf(file, typeof node === "number" ? node : node.getStart(file)),
       rule,
       fix,
     });
@@ -79,9 +255,12 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
       const target = resolve(dirname(file.fileName), text);
       if (target.startsWith(`${worldDir}${sep}`)) return;
     }
+    // Where tsc reports a module it cannot find: the specifier, wherever the import statement starts.
+    const at = lineOf(file, specifier.getStart(file));
+    refused.add(`${name}:${at.line}:${at.column}`);
     error(
       node,
-      `world files import only @nuhokai/world and files under nuhokai/, not ${text === undefined ? "a computed module" : `"${text}"`}`,
+      `${IMPORT_RULE} and files under nuhokai/, not ${text === undefined ? "a computed module" : `"${text}"`}`,
       "move what the import provides into the world, or drop the import",
     );
   };
@@ -134,10 +313,11 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string): 
   return findings;
 }
 
-/** The 1-based line of a position in a file the checker did not parse, such as the tsconfig. */
-function lineInText(path: string, position: number): number | undefined {
+/** The 1-based line and column of a position in a file the checker did not parse, such as the tsconfig. */
+function lineInText(path: string, position: number): { line: number; column: number } | undefined {
   try {
-    return readFileSync(path, "utf8").slice(0, position).split("\n").length;
+    const before = readFileSync(path, "utf8").slice(0, position).split("\n");
+    return { line: before.length, column: (before.at(-1)?.length ?? 0) + 1 };
   } catch {
     return undefined;
   }
@@ -161,7 +341,7 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   const printedName = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
-  const { files, diagnostics } = await withChecker(
+  const { files, syntactic, diagnostics } = await withChecker(
     { root, config: resolve(tsconfig), name: tsconfig, checker: checker() },
     async (project) => {
       const program = project.program;
@@ -174,35 +354,56 @@ export async function runTypeCheck(root: string, checker: () => string = checker
         ...(await program.getConfigFileParsingDiagnostics()),
         ...(await program.getProgramDiagnostics()),
         ...(await program.getGlobalDiagnostics()),
-        ...(await program.getSyntacticDiagnostics()),
         ...(await program.getSemanticDiagnostics()),
       ];
-      return { files, diagnostics };
+      // Syntax errors apart: R5 keeps a file's first alone.
+      return { files, syntactic: await program.getSyntacticDiagnostics(), diagnostics };
     },
   );
 
+  // R5: a file that does not parse is its first syntax error alone; what follows it is the parser's guesswork.
+  const firstSyntaxError = new Map<string | undefined, Diagnostic>();
+  for (const diagnostic of syntactic) {
+    const known = firstSyntaxError.get(diagnostic.fileName);
+    if (!known || diagnostic.pos < known.pos) firstSyntaxError.set(diagnostic.fileName, diagnostic);
+  }
+  const unparsed = new Set([...firstSyntaxError.keys()].flatMap((name) => (name === undefined ? [] : resolve(name))));
+
   const findings: Finding[] = [];
+  /** tsc's findings for a module it cannot resolve: kept unless R2 refuses that import anyway. */
+  const unresolved: Finding[] = [];
   const seen = new Set<string>();
-  for (const diagnostic of diagnostics) {
+  for (const diagnostic of [...firstSyntaxError.values(), ...diagnostics]) {
+    if (diagnostic.fileName !== undefined && firstSyntaxError.get(diagnostic.fileName) !== diagnostic) {
+      if (unparsed.has(resolve(diagnostic.fileName))) continue;
+    }
     if (diagnostic.category !== DiagnosticCategory.Error) continue;
     const key = `${diagnostic.fileName}:${diagnostic.pos}:${diagnostic.code}:${diagnostic.text}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const path = diagnostic.fileName === undefined ? undefined : resolve(diagnostic.fileName);
     if (path === undefined || path === resolve(tsconfig)) {
-      const line = path === undefined ? undefined : lineInText(path, diagnostic.pos);
-      findings.push({ severity: "error", file: tsconfig, ...(line ? { line } : {}), rule: messageOf(diagnostic) });
+      const at = path === undefined ? undefined : lineInText(path, diagnostic.pos);
+      findings.push({ severity: "error", file: tsconfig, ...positionOf(at ?? {}), ...ruleOf(diagnostic) });
       continue;
     }
     if (!inWorldFiles(path)) continue;
     const file = files.get(path);
-    findings.push({
+    const finding: Finding = {
       severity: "error",
       file: printedName(path),
-      ...(file ? { line: lineOf(file, diagnostic.pos) } : {}),
-      rule: messageOf(diagnostic),
-    });
+      ...(file ? lineOf(file, diagnostic.pos) : {}),
+      ...ruleOf(diagnostic),
+    };
+    if (UNRESOLVED_MODULE.has(diagnostic.code)) unresolved.push(finding);
+    else findings.push(finding);
   }
-  for (const [path, file] of files) findings.push(...declarativeFindings(file, worldDir, printedName(path)));
+  /** Each specifier R2 refuses, by file:line:column. */
+  const refused = new Set<string>();
+  for (const [path, file] of files) {
+    if (!unparsed.has(path)) findings.push(...declarativeFindings(file, worldDir, printedName(path), refused));
+  }
+  // An import R2 refuses already says what to do with it: tsc's "cannot find module" at its specifier says it again.
+  findings.push(...unresolved.filter((finding) => !refused.has(`${finding.file}:${finding.line}:${finding.column}`)));
   return findings.sort(compareFindings);
 }

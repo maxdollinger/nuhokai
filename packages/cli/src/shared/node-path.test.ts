@@ -65,9 +65,9 @@ test("NodePath R3: exact, case-sensitive, one trailing / allowed", () => {
 });
 
 test("NodePath R4: a miss names the closest name, else the command listing the deepest node found", () => {
-  expect(failure(example, "shop/stock")).toBe("no node 'shop/stock'; did you mean 'Shop/Stock'?");
-  expect(failure(example, "Shop/Stok")).toBe("no node 'Shop/Stok'; did you mean 'Shop/Stock'?");
-  expect(failure(example, "Shp")).toBe("no node 'Shp'; did you mean 'Shop'?");
+  expect(failure(example, "shop/stock")).toBe("no node 'shop/stock'; did you mean `nuhokai tree Shop/Stock`?");
+  expect(failure(example, "Shop/Stok")).toBe("no node 'Shop/Stok'; did you mean `nuhokai tree Shop/Stock`?");
+  expect(failure(example, "Shp")).toBe("no node 'Shp'; did you mean `nuhokai tree Shop`?");
   expect(failure(example, "Shop/Basket")).toBe("no node 'Shop/Basket'; `nuhokai tree Shop` lists its children");
   expect(failure(example, "Basket")).toBe("no node 'Basket'; `nuhokai tree` lists the top level");
   expect(failure(example, "Shop/Stock/Item")).toBe(
@@ -92,9 +92,9 @@ test("NodePath R4: a command in a message carries --path, quoted where a shell n
 });
 
 test("NodePath R4: the rest of the path is corrected as far as it has close names", () => {
-  expect(failure(example, "Shp/Stock")).toBe("no node 'Shp/Stock'; did you mean 'Shop/Stock'?");
-  expect(failure(example, "Shp/Basket")).toBe("no node 'Shp/Basket'; did you mean 'Shop'?");
-  expect(failure(example, "shop/stok")).toBe("no node 'shop/stok'; did you mean 'Shop/Stock'?");
+  expect(failure(example, "Shp/Stock")).toBe("no node 'Shp/Stock'; did you mean `nuhokai tree Shop/Stock`?");
+  expect(failure(example, "Shp/Basket")).toBe("no node 'Shp/Basket'; did you mean `nuhokai tree Shop`?");
+  expect(failure(example, "shop/stok")).toBe("no node 'shop/stok'; did you mean `nuhokai tree Shop/Stock`?");
 });
 
 test("NodePath R3: an empty path or segment names no node", () => {

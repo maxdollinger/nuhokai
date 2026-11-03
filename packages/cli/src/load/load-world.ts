@@ -13,23 +13,30 @@ import { join, resolve } from "node:path";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import type { SourceFile } from "typescript/unstable/ast";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
-import { CliError, errorLine, oneLine } from "../shared/failure.ts";
+import { errorLine, oneLine } from "../shared/failure.ts";
 import { requireWorld } from "../shared/inspect.ts";
 import { nameNodes } from "../shared/node-path.ts";
 import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/world-path.ts";
 import {
+  type At,
   Fn,
   InheritedV,
-  LocatedError,
+  LoadError,
   NodeV,
   PlaceholderV,
   PortV,
+  type Position,
   plain,
+  positionIn,
   Reader,
   type Rec,
+  type SourcePlaces,
   type Val,
+  valueInWords,
   WorldV,
 } from "./reader.ts";
+
+export { LoadError, type Position, type SourcePlaces };
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -45,6 +52,11 @@ export interface Placeholder {
 export interface Listing {
   readonly node: string;
   readonly parent: string | null;
+  /** The file the list was written in: its owner's node() or defineWorld call's. */
+  readonly file: string;
+  /** Where the item was written in `file` (or the `...spread` that brought it in), when it is there. */
+  readonly line?: number;
+  readonly column?: number;
 }
 
 /** An exported node the walk from the world never reaches. */
@@ -53,6 +65,9 @@ export interface Orphan {
   readonly name: string;
   /** The defining file, else the first that exports it, named from the cwd. */
   readonly file: string;
+  /** Its node() call's line and column, when that call is in `file`. */
+  readonly line?: number;
+  readonly column?: number;
 }
 
 /** A reachable node as loaded: its NodeSpec, where it sits in the hierarchy, and where it is defined. */
@@ -68,8 +83,11 @@ export interface LoadedNode {
   readonly path: string;
   /** Its defining file (R2), named from the cwd. */
   readonly file: string;
-  /** The line of its node() call; absent when the defining file is not the one holding the call. */
+  /** The line and column of its node() call; absent when the defining file is not the one holding the call. */
   readonly line?: number;
+  readonly column?: number;
+  /** Where its source and each entry were written in `file`, when it holds the call. */
+  readonly source?: SourcePlaces;
 }
 
 /** The world as data: what `map` draws, `check` judges and `tree` prints. */
@@ -78,6 +96,16 @@ export interface LoadedWorld {
   readonly id: string;
   /** The world file, nuhokai/index.ts, named from the cwd: where findings about the world point. */
   readonly file: string;
+  /**
+   * The file holding the defineWorld call, named from the cwd: `file` itself, or a world file it re-exports the
+   * world from. Findings about the world's own fields point here, at `line` and `column`.
+   */
+  readonly definedIn: string;
+  /** The defineWorld call's line and column in `definedIn`. */
+  readonly line?: number;
+  readonly column?: number;
+  /** Where the world's source was written in `definedIn`. */
+  readonly sourcePlaces?: SourcePlaces;
   /** The world's name, as given; absent if it is no string. */
   readonly name?: string;
   /** The world's source, as given; absent if it is no list. */
@@ -112,15 +140,19 @@ function worldFiles(root: string): string[] {
           kind = statSync(at, { throwIfNoEntry: false });
         } catch (error) {
           const code = (error as { code?: unknown } | null)?.code;
-          throw new CliError(
-            `${nameInWorld(root, name)}: the symlink cannot be resolved (${String(code ?? errorLine(error))})`,
+          throw new LoadError(
+            nameInWorld(root, name),
+            undefined,
+            `the symlink cannot be resolved (${String(code ?? errorLine(error))})`,
           );
         }
         // A world reads only what the project holds: a link out of it would pull any .ts on the machine into output.
         const real = kind ? realpathSync(at) : undefined;
         if (real !== undefined && !inside.some((boundary) => isInside(real, boundary))) {
-          throw new CliError(
-            `${nameInWorld(root, name)}: the symlink leads outside the project directory; a world reads only files inside it`,
+          throw new LoadError(
+            nameInWorld(root, name),
+            undefined,
+            "the symlink leads outside the project directory; a world reads only files inside it",
           );
         }
       }
@@ -163,7 +195,7 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
   // No world, or something else at nuhokai/: the same error every command gives, naming init.
   requireWorld(root);
   const worldFile = nameInWorld(root, WORLD_INDEX);
-  if (!existsSync(worldFile)) throw new CliError(`${worldFile}: not found; it is the world's entry point`);
+  if (!existsSync(worldFile)) throw new LoadError(worldFile, undefined, "not found; it is the world's entry point");
   const paths = worldFiles(root).map((path) => nameInWorld(root, path));
   const names = new Map<string, string>();
   for (const name of paths) {
@@ -183,7 +215,7 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
     const files = await Promise.all(
       paths.map(async (name): Promise<[string, SourceFile]> => {
         const file = (await program.getSourceFile(resolve(name))) ?? (await program.getSourceFile(realpathSync(name)));
-        if (!file) throw new CliError(`${name}: the type checker did not read it`);
+        if (!file) throw new LoadError(name, undefined, "the type checker did not read it");
         return [name, file];
       }),
     );
@@ -191,10 +223,7 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
     const syntax = await Promise.all(files.map(([, file]) => program.getSyntacticDiagnostics(file.fileName)));
     for (const [at, [name, file]] of files.entries()) {
       const first = syntax[at]?.[0];
-      if (first) {
-        const line = file.getLineAndCharacterOfPosition(first.pos).line + 1;
-        throw new CliError(`${name}:${line}: ${oneLine(first.text)}`);
-      }
+      if (first) throw new LoadError(name, positionIn(file, first.pos), oneLine(first.text));
     }
     const reader = new Reader(project, names);
     await reader.prepare(files.map(([, file]) => file));
@@ -251,36 +280,78 @@ function nodeName(context: Context, node: NodeV): string {
   return context.nodeNames.get(node)?.name ?? node.id;
 }
 
-/** R6: index.ts's default export, which must be a world with a string id and a list of children. */
-function worldIn(modules: Modules, worldFile: string): { def: Rec; id: string; children: readonly Val[] } {
+/**
+ * R6: index.ts's default export, which must be a world with a string id and a list of children; an error about the id
+ * or children is at that property, in the file defineWorld is written in.
+ */
+function worldIn(
+  reader: Reader,
+  modules: Modules,
+  worldFile: string,
+): { at: At; def: Rec; id: string; children: readonly Val[] } {
   const world = modules.find(([file]) => file === worldFile)?.[1].find(([exported]) => exported === "default")?.[1];
-  if (!(world instanceof WorldV) || typeof world.def.id !== "string" || !Array.isArray(world.def.children)) {
-    throw new CliError(
-      `${worldFile}: the default export is not a world; export default defineWorld({ id: "...", name: "...", source: [...], children: [...] })`,
+  if (!(world instanceof WorldV)) {
+    throw new LoadError(
+      worldFile,
+      undefined,
+      'the default export is not a world; export default defineWorld({ id: "...", name: "...", source: [...], children: [...] })',
     );
   }
-  return { def: world.def, id: world.def.id, children: world.def.children };
+  if (typeof world.def.id !== "string") {
+    const at = reader.propertyAt(world.def, "id") ?? world.at;
+    throw new LoadError(
+      at.file,
+      at,
+      "the world's id is not a string; keep the id init gave it, or give it a fresh UUID",
+    );
+  }
+  if (!Array.isArray(world.def.children)) {
+    const at = reader.propertyAt(world.def, "children") ?? world.at;
+    throw new LoadError(at.file, at, "the world's children is not a list of nodes: children: [A, B]");
+  }
+  return { at: world.at, def: world.def, id: world.def.id, children: world.def.children };
+}
+
+/** A node's load error, at its node() call. */
+function failAt(context: Context, node: NodeV, rule: string): LoadError {
+  return new LoadError(node.at.file, node.at, `${nodeName(context, node)}${rule}`);
 }
 
 /** R3, R7: depth-first from the world's children, a parent before its children, list order; every listing kept. */
-async function walk(context: Context, top: readonly Val[]): Promise<{ placed: Placed[]; listings: Listing[] }> {
+async function walk(
+  context: Context,
+  world: { at: At; def: Rec; children: readonly Val[] },
+): Promise<{ placed: Placed[]; listings: Listing[] }> {
+  const { reader } = context;
   const placed: Placed[] = [];
   const listings: Listing[] = [];
   const seen = new Set<NodeV>();
   const place = async (children: readonly Val[], parent: NodeV | null): Promise<void> => {
-    for (const child of children) {
+    for (const [position, child] of children.entries()) {
+      // The item in the list owner's file (or the spread that brought it in); else the owner's call.
+      const listedAt = parent ? parent.at : world.at;
+      const at = reader.itemIn(children, position, listedAt.file);
       if (!(child instanceof NodeV)) {
         const owner = parent ? `${nodeName(context, parent)}'s children` : "the world's children";
-        throw new CliError(`${fileOf(context, parent)}: ${owner} list a value that is not a node`);
+        const what = `${owner} list a value that is not a node: item ${position + 1} is ${valueInWords(child)}; list nodes made by node(...).edges(...), e.g. children: [A, B]`;
+        const where = at ?? listedAt;
+        // tsc reports a bad item at the `children:` property when the item came in through a spread.
+        const property = reader.propertyAt(parent ? parent.def : world.def, "children");
+        throw new LoadError(where.file, where, what, property?.file === where.file ? [property] : []);
       }
-      listings.push({ node: child.id, parent: parent ? parent.id : null });
+      listings.push({
+        node: child.id,
+        parent: parent ? parent.id : null,
+        file: listedAt.file,
+        ...(at ? { line: at.line, column: at.column } : {}),
+      });
       if (seen.has(child)) continue;
       seen.add(child);
       placed.push({ node: child, parent });
       await place(context.reader.childrenOf(child), child);
     }
   };
-  await place(top, null);
+  await place(world.children, null);
   return { placed, listings };
 }
 
@@ -289,8 +360,8 @@ async function lazily<T>(context: Context, node: NodeV, field: string, read: () 
   try {
     return await read();
   } catch (error) {
-    if (error instanceof LocatedError) throw error;
-    throw new CliError(`${fileOf(context, node)}: ${nodeName(context, node)}.${field}: ${errorLine(error)}`);
+    if (error instanceof LoadError && error.line !== undefined) throw error;
+    throw failAt(context, node, `.${field}: ${error instanceof LoadError ? error.rule : errorLine(error)}`);
   }
 }
 
@@ -298,10 +369,11 @@ async function lazily<T>(context: Context, node: NodeV, field: string, read: () 
 async function edgeList(context: Context, node: NodeV, edge: "uses" | "implements"): Promise<readonly Val[]> {
   const fn = { ...node.def, ...node.edges }[edge];
   if (fn === undefined) return [];
-  const read = () => (fn instanceof Fn ? context.reader.apply(fn) : Promise.resolve(fn));
+  const read = () => (fn instanceof Fn ? context.reader.edgeValue(fn) : Promise.resolve(fn));
   const list = await lazily(context, node, edge, read);
   if (!Array.isArray(list)) {
-    throw new CliError(`${fileOf(context, node)}: ${nodeName(context, node)}.${edge} does not return a list`);
+    const example = edge === "uses" ? "uses: () => [A.run]" : "implements: () => [Contract]";
+    throw failAt(context, node, `.${edge} does not return a list; return one, e.g. ${example}`);
   }
   return list;
 }
@@ -334,8 +406,10 @@ async function usesOf(
         ? Object.hasOwn(await lazily(context, target, "ports", () => context.reader.portsOf(target)), ref.name)
         : port instanceof PortV;
     if (!(target instanceof NodeV) || !(port instanceof PortV) || !owns) {
-      throw new CliError(
-        `${fileOf(context, node)}: ${nodeName(context, node)}.uses lists a value that is not a port reference`,
+      throw failAt(
+        context,
+        node,
+        ".uses lists a value that is not a port reference; list other nodes' ports, e.g. uses: () => [A.run]",
       );
     }
     const used = ports.get(target) ?? [];
@@ -349,8 +423,10 @@ async function usesOf(
 async function implementsOf(context: Context, node: NodeV): Promise<Edge[]> {
   return (await edgeList(context, node, "implements")).map((contract) => {
     if (!(contract instanceof NodeV)) {
-      throw new CliError(
-        `${fileOf(context, node)}: ${nodeName(context, node)}.implements lists a value that is not a node`,
+      throw failAt(
+        context,
+        node,
+        ".implements lists a value that is not a node; list abstract nodes, e.g. implements: () => [Contract]",
       );
     }
     return { kind: "implements", to: contract.id };
@@ -373,7 +449,7 @@ async function specOf(
     uses: _uses,
     ...rest
   } = { ...node.def, ...node.edges };
-  const fields = plain(rest, fileOf(context, node)) as Record<string, unknown>;
+  const fields = plain(context.reader, rest, node.at, nodeName(context, node)) as Record<string, unknown>;
   const spec = {
     schema: "nuhokai/node@1",
     id,
@@ -386,7 +462,11 @@ async function specOf(
   if (node.def.ports !== undefined) {
     const ports = await lazily(context, node, "ports", () => context.reader.portsOf(node));
     spec.ports = Object.entries(ports).map(
-      ([name, port]) => ({ name, ...(plain(port, fileOf(context, node)) as object) }) as Port,
+      ([name, port]) =>
+        ({
+          name,
+          ...(plain(context.reader, port, node.at, `${nodeName(context, node)}.ports.${name}`) as object),
+        }) as Port,
     );
   }
   const edges = [...(await usesOf(context, node, placeholders)), ...(await implementsOf(context, node))];
@@ -402,7 +482,13 @@ function orphansOf(context: Context, modules: Modules, reached: ReadonlySet<Node
     for (const [, value] of exports) {
       if (!(value instanceof NodeV) || reached.has(value) || orphaned.has(value)) continue;
       orphaned.add(value);
-      orphans.push({ id: value.id, name: nodeName(context, value), file: fileOf(context, value) });
+      const file = fileOf(context, value);
+      orphans.push({
+        id: value.id,
+        name: nodeName(context, value),
+        file,
+        ...(value.at.file === file ? { line: value.at.line, column: value.at.column } : {}),
+      });
     }
   }
   return orphans;
@@ -422,8 +508,8 @@ async function worldOf(
     nodeNames: namesOf(modules, (value): value is NodeV => value instanceof NodeV),
     placeholderNames: namesOf(modules, (value): value is PlaceholderV => value instanceof PlaceholderV),
   };
-  const world = worldIn(modules, worldFile);
-  const { placed, listings } = await walk(context, world.children);
+  const world = worldIn(reader, modules, worldFile);
+  const { placed, listings } = await walk(context, world);
 
   // R10: parents by position, so duplicate ids cannot misplace a node; children and paths from them.
   const position = new Map(placed.map(({ node }, at) => [node, at]));
@@ -440,7 +526,7 @@ async function worldOf(
   const placeholders = new Map<PlaceholderV, Placeholder>();
   const nodes: LoadedNode[] = [];
   for (const [at, entry] of placed.entries()) {
-    // R9: the defining file, and the line of the node() call when that file holds it.
+    // R9: the defining file, and the node() call's place and where its source was written, when that file holds it.
     const file = fileOf(context, entry.node);
     nodes.push({
       index: at,
@@ -449,7 +535,13 @@ async function worldOf(
       children: children[at] ?? [],
       path: paths[at] ?? "",
       file,
-      ...(entry.node.at.file === file ? { line: entry.node.at.line } : {}),
+      ...(entry.node.at.file === file
+        ? {
+            line: entry.node.at.line,
+            column: entry.node.at.column,
+            source: reader.sourcePlaces(entry.node.def, "source", file),
+          }
+        : {}),
     });
   }
 
@@ -466,8 +558,14 @@ async function worldOf(
   return {
     id: world.id,
     ...(typeof world.def.name === "string" ? { name: world.def.name } : {}),
-    ...(Array.isArray(world.def.source) ? { source: plain(world.def.source, worldFile) as unknown[] } : {}),
+    ...(Array.isArray(world.def.source)
+      ? { source: plain(reader, world.def.source, world.at, "the world's source") as unknown[] }
+      : {}),
     file: worldFile,
+    definedIn: world.at.file,
+    line: world.at.line,
+    column: world.at.column,
+    sourcePlaces: reader.sourcePlaces(world.def, "source", world.at.file),
     nodes,
     top,
     placeholders: [...placeholders.values()],

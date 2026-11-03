@@ -91,7 +91,7 @@ test("PrintTree R1, R3: a node file that does not parse is one failure line nami
   expect(await tree(example, "Shop/Stok")).toEqual({
     outcome: "invalid",
     out: [],
-    err: ["no node 'Shop/Stok'; did you mean 'Shop/Stock'?"],
+    err: ["no node 'Shop/Stok'; did you mean `nuhokai tree Shop/Stock --path <root>`?"],
   });
 });
 

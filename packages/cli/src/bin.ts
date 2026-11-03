@@ -49,6 +49,20 @@ function synopsis(name: string, { positionals, options }: Cmd): string {
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
+/**
+ * What every command shares, in usage and in each command's help, where `command` names the command: where failures
+ * go and what the exit code says. Usage adds how an unknown command fails.
+ */
+function contract(command: string): string[] {
+  const unknown =
+    command === "<command>" ? "; an unknown command is `nuhokai: unknown command '<name>'`, then usage" : "";
+  const help = command === "<command>" ? "that command's help" : "this help";
+  return [
+    `Failures: one line each on stderr, \`nuhokai ${command}: <message>\`; an argument error (an unknown option, a bad option value, an extra argument; exit 2) prints ${help} after its line${unknown}. Every path printed opens from the current directory.`,
+    `Exit codes: ${EXIT.ok} ok, ${EXIT.failed} errors found or the command failed, ${EXIT.invalid} an invalid argument (an unknown option, a node path naming no node).`,
+  ];
+}
+
 function usage(commands: Commands): string {
   const synopses = Object.entries(commands).map(([name, cmd]) => [synopsis(name, cmd), cmd.description] as const);
   // The synopsis column's width, so every description starts in one column.
@@ -61,28 +75,43 @@ function usage(commands: Commands): string {
     "Commands:",
     ...synopses.map(([form, description]) => `  ${form.padEnd(width)}${description}`),
     "",
-    "Run `nuhokai <command> --help` for command options.",
+    ...contract("<command>"),
+    "",
+    "Run `nuhokai <command> --help` for its arguments, options and output.",
   ].join("\n");
 }
 
-/** One help text per command, answered by Cli before any value is judged: its own options, --path and --help. */
+/** Rows of two columns, the second starting in one column: "  -L, --level <n>  levels below …". */
+function columns(rows: readonly (readonly [string, string])[]): string[] {
+  const width = Math.max(...rows.map(([left]) => left.length)) + 2;
+  return rows.map(([left, text]) => `  ${left.padEnd(width)}${text}`);
+}
+
+/**
+ * One help text per command, answered by Cli before any value is judged: its arguments, its own options, --path and
+ * --help, then what it prints and the contract every command shares.
+ */
 function commandUsage(name: string, cmd: Cmd): string {
-  const { description, options } = cmd;
-  const lines: (readonly [string, string])[] = [
+  const { description, options, output } = cmd;
+  const args = cmd.arguments;
+  const flags: (readonly [string, string])[] = [
     ...[...options, PATH_OPTION].map((option): [string, string] => [
       `${spellings(option).join(", ")} ${option.value}`,
       option.text,
     ]),
     ["--help", "show this help"],
   ];
-  const width = Math.max(...lines.map(([flags]) => flags.length)) + 2;
   return [
     `nuhokai ${name} — ${description}`,
     "",
     `Usage: ${synopsis(name, cmd)}`,
     "",
+    ...(args.length > 0 ? ["Arguments:", ...columns(args.map((arg) => [arg.name, arg.text] as const)), ""] : []),
     "Options:",
-    ...lines.map(([flags, text]) => `  ${flags.padEnd(width)}${text}`),
+    ...columns(flags),
+    "",
+    `Output: ${output}.`,
+    ...contract(name),
   ].join("\n");
 }
 

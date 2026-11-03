@@ -36,7 +36,7 @@ export const Tree = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "In packages/cli, `tree Check -L 2` → Check, its five children, SpecCheck's three; `tree -L 0` → every node, none collapsed; `tree Chek` → did you mean 'Check', exit 2.",
+      text: "In packages/cli, `tree Check -L 2` → Check, its five children, SpecCheck's three; `tree -L 0` → every node, none collapsed; `tree Chek` → did you mean `nuhokai tree Check`?, exit 2.",
       demonstrates: ["R2"],
     },
     {

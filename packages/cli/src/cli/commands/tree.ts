@@ -15,6 +15,14 @@ export const LEVEL_OPTION: Option<number> = {
 export const treeCmd: Cmd = {
   description: "Print the node hierarchy, one line per node: path | source | purpose",
   positionals: ["[node]"],
+  arguments: [
+    {
+      name: "node",
+      text: "the node to start from, by its path as tree prints it, e.g. Check/SpecCheck (default: the top level)",
+    },
+  ],
+  output:
+    "one line per node, `<path> | <source> | <purpose>`; a dome whose children the level cuts off shows `<path>/ (<children_count>)`",
   options: [LEVEL_OPTION],
   // The node passes unchanged: which node it names is Tree's to judge.
   async run(root, { positionals: [node], get }) {

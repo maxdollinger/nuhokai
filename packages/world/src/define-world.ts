@@ -30,4 +30,6 @@ export declare function defineWorld<const Name extends string, const Children ex
 
 /** A literal name must not be blank; a widened `string` is left to check. */
 type NameRule<Name extends string> =
-  Blank<Name> extends true ? Forbidden<"name must not be empty or whitespace"> : unknown;
+  Blank<Name> extends true
+    ? Forbidden<"name must not be empty or whitespace: give the world a name, e.g. Shop">
+    : unknown;

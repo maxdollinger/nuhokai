@@ -1,9 +1,9 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
-import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
 import { isAncestor } from "../../shared/node-path.ts";
 import { isInside } from "../../shared/world-path.ts";
-import { at, compareText, type Finding } from "../diagnostics.ts";
+import { at, atWorld, compareText, type Finding, positionOf } from "../diagnostics.ts";
 import type { Ids } from "./ids.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
@@ -102,7 +102,16 @@ interface Owner {
   readonly node?: LoadedNode;
   readonly file: string;
   readonly line?: number;
+  readonly column?: number;
   readonly label: string;
+  /** Where its source and each entry were written: a finding about one points there, else at the owner. */
+  readonly source?: SourcePlaces;
+}
+
+/** One string entry of a source, with where it was written when known. */
+interface Entry {
+  readonly text: string;
+  readonly at?: Position;
 }
 
 /**
@@ -113,38 +122,46 @@ interface Owner {
 export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
-  const error = (owner: Owner, rule: string, fix: string) =>
+  const error = (owner: Owner, rule: string, fix: string, where?: Position) =>
     findings.push({
       severity: "error",
-      ...at(owner),
+      file: owner.file,
+      ...positionOf(where ?? owner),
       ...(owner.node ? { node: owner.node.path } : {}),
       rule,
       fix,
     });
 
   /** SourceRules R3: the entries of a source that is a list, strings only; anything else is an error, never a crash. */
-  const entriesOf = (owner: Owner, source: unknown): string[] | undefined => {
+  const entriesOf = (owner: Owner, source: unknown): Entry[] | undefined => {
     if (!Array.isArray(source)) {
-      error(owner, `${owner.label}'s source is not a list`, 'make it a list of paths or globs, e.g. ["src/**"]');
+      const fix = 'make it a list of paths or globs, e.g. ["src/**"]';
+      error(owner, `${owner.label}'s source is not a list`, fix, owner.source?.at);
       return undefined;
     }
-    const entries: string[] = [];
-    for (const entry of source) {
-      if (typeof entry === "string") entries.push(entry);
+    const entries: Entry[] = [];
+    for (const [index, entry] of source.entries()) {
+      const at = owner.source?.entries[index];
+      if (typeof entry === "string") entries.push(at ? { text: entry, at } : { text: entry });
       else {
-        error(owner, `${owner.label}'s source lists ${describe(entry)}, which is not a string`, "list paths or globs");
+        const rule = `${owner.label}'s source lists ${describe(entry)}, which is not a string`;
+        error(owner, rule, "list paths or globs", at);
       }
     }
     return entries;
   };
 
   // The world's source: inside the project directory, every entry matching a file (SpecCheck R10, R6).
-  const worldOwner: Owner = { file: world.file, label: "the world" };
+  const worldOwner: Owner = {
+    ...atWorld(world),
+    label: "the world",
+    ...(world.sourcePlaces ? { source: world.sourcePlaces } : {}),
+  };
   const worldEntries = entriesOf(worldOwner, world.source);
   let covered: Set<string> | undefined;
   if (worldEntries) {
     covered = new Set();
-    for (const entry of worldEntries) {
+    for (const { text: entry, at: where } of worldEntries) {
       const expansion = expand(project, entry);
       if ("refused" in expansion) {
         error(
@@ -153,6 +170,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
             ? `the world's source entry "${entry}" lies outside the project directory`
             : `the world's source entry "${entry}" has a .. segment`,
           "list only paths inside the project directory, without .., or run check with --path at the directory holding the code",
+          where,
         );
         continue;
       }
@@ -161,6 +179,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
           worldOwner,
           `the world's source entry "${entry}" matches no file`,
           "fix the path or glob, or drop the entry",
+          where,
         );
       }
       for (const file of expansion.files) covered.add(file);
@@ -171,9 +190,9 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   const owners = new Map<string, LoadedNode[]>();
   for (const node of world.nodes) {
     if (ids.duplicated.has(node.spec.id)) continue;
-    const owner: Owner = { node, ...at(node), label: node.spec.name };
+    const owner: Owner = { node, ...at(node), label: node.spec.name, ...(node.source ? { source: node.source } : {}) };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
-    for (const entry of entries ?? []) {
+    for (const { text: entry, at: where } of entries ?? []) {
       const expansion = expand(project, entry);
       if ("refused" in expansion) {
         error(
@@ -182,11 +201,12 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
             ? `source entry "${entry}" lies outside the project directory, so outside the world's source`
             : `source entry "${entry}" has a .. segment`,
           "list only paths inside the world's source, without ..",
+          where,
         );
         continue;
       }
       if (!expansion.files.length) {
-        error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry");
+        error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry", where);
         continue;
       }
       const uncovered = covered && expansion.files.find((file) => !covered.has(file));
@@ -194,7 +214,8 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         error(
           owner,
           `source entry "${entry}" matches ${uncovered}, which is not under the world's source`,
-          `narrow the entry to the world's source, or add the file to the world's source in ${world.file}`,
+          `narrow the entry to the world's source, or add the file to the world's source in ${world.definedIn}`,
+          where,
         );
       }
       for (const file of expansion.files) {

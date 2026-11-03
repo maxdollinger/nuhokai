@@ -15,8 +15,14 @@ export const DataRules = node({
       id: "R2",
       text: "A finding's location is the offending node's entry in LoadWorld's files; one about a listing points at the file of the list it is in.",
     },
-    { id: "R3", text: "A finding about the world itself points at the world file (LoadWorld's file), without a line." },
-    { id: "R4", text: "A missing, non-string or blank world name is an error, never a crash." },
+    {
+      id: "R3",
+      text: "A finding about the world itself points at its defineWorld call, line and column, in the file holding it (LoadWorld's definedIn: index.ts, or a world file it re-exports the world from).",
+    },
+    {
+      id: "R4",
+      text: "A missing, non-string or blank world name is an error, never a crash. It re-checks what tsc checks of defineWorld's name, so after a type error in the file holding defineWorld it is left out; a name tsc cannot judge (a const typed string) is still reported beside a type error elsewhere.",
+    },
   ],
   ports: {
     check: {

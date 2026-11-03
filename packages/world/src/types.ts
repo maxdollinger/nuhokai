@@ -460,7 +460,7 @@ type ExternalOf<N> = FlagsOf<N> extends { readonly external: infer E } ? E : nev
 
 /** Why a child entry is not a node at all. */
 type NotANode<V> = V extends string
-  ? Forbidden<"a child is a node reference, not a string">
+  ? Forbidden<"a child is a node reference, not a string: list the node's const, e.g. children: [Orders]">
   : V extends { readonly $ref: "draft" }
     ? Forbidden<"a draft is not a node: call .edges(), also with {}">
     : V extends PortRef
