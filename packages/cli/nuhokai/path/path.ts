@@ -42,6 +42,8 @@ export const Path = node({
   ports: {
     nameInWorld: WorldPath.nameInWorld,
     nameInProject: WorldPath.nameInProject,
+    suggestedCommand: WorldPath.suggestedCommand,
+    isInside: WorldPath.isInside,
     nameNodes: NodePath.nameNodes,
     findNode: NodePath.findNode,
   },

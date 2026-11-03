@@ -1,8 +1,18 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
+import { CliError } from "../shared/failure.ts";
 import { writeMap } from "./map-file.ts";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -135,4 +145,29 @@ test("the write failed: a directory in the map's place is a filesystem error, an
 
   expect(() => writeMap(root, oneNode("blocked"))).toThrow(expect.objectContaining({ code: "EISDIR" }));
   expect(files(root)).toEqual([]);
+});
+
+test("a map.html symlinked out of the project is replaced, never written through", () => {
+  const root = tempDir();
+  const victim = join(tempDir(), "target.txt");
+  writeFileSync(victim, "keep me\n");
+  mkdirSync(join(root, "nuhokai/.generated"), { recursive: true });
+  symlinkSync(victim, join(root, "nuhokai/.generated/map.html"));
+
+  writeMap(root, oneNode("safe"));
+
+  expect(readFileSync(victim, "utf8")).toBe("keep me\n");
+  expect(lstatSync(join(root, "nuhokai/.generated/map.html")).isSymbolicLink()).toBe(false);
+  expect(readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8")).toContain('"purpose":"safe"');
+  expect(files(root)).toEqual(["nuhokai/.generated/map.html"]);
+});
+
+test("a .generated/ linked out of the world is refused; nothing is written there", () => {
+  const root = tempDir();
+  const elsewhere = tempDir();
+  mkdirSync(join(root, "nuhokai"));
+  symlinkSync(elsewhere, join(root, "nuhokai/.generated"));
+
+  expect(() => writeMap(root, oneNode("refused"))).toThrow(CliError);
+  expect(readdirSync(elsewhere)).toEqual([]);
 });

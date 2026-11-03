@@ -1,5 +1,6 @@
 import type { LoadedWorld } from "../load/load-world.ts";
 import { CliError } from "./failure.ts";
+import { suggestedCommand } from "./paths.ts";
 
 /** The world's shape findNode reads: each node's name, path and children, and the top level, as LoadWorld answers them. */
 export type Hierarchy = Pick<LoadedWorld, "nodes" | "top">;
@@ -23,8 +24,7 @@ export function nameNodes(nodes: readonly { readonly name: string; readonly pare
  * a message carry `--path <root>` unless `root` is the cwd, so they run as printed.
  */
 export function findNode(world: Hierarchy, typed: string, root: string): number {
-  const command = (name: string, ...args: string[]) =>
-    `\`${["nuhokai", name, ...args, ...(root === "." ? [] : ["--path", root])].map(shellWord).join(" ")}\``;
+  const command = (name: string, ...args: string[]) => suggestedCommand(name, args, root);
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
   if (path === "" || segments.some((segment) => segment === "")) {
@@ -72,11 +72,6 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
   }
   // segments is never empty, so the loop chose a node.
   return parent as number;
-}
-
-/** A word as a shell reads it back: unchanged when plain, else single-quoted. */
-function shellWord(word: string): string {
-  return /^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`;
 }
 
 /**

@@ -32,7 +32,7 @@ export const Inspect = node({
     { id: "R3", text: "Nothing there → absent." },
     {
       id: "R4",
-      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd); occupied → one error naming the path, except a symlink to a directory; world passes.",
+      text: "requireWorld: absent → one error naming init and the cwd-relative project directory ('here' for the cwd), the init command shell-quoted as Path suggests every command; occupied → one error naming the path, except a symlink to a directory; world passes.",
     },
     {
       id: "R5",
@@ -80,4 +80,4 @@ export const Inspect = node({
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, Path.suggestedCommand, FileSystem.read] });

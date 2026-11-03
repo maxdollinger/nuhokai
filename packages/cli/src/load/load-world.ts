@@ -8,18 +8,7 @@
  * consts, imports between world files, and arrow functions whose body is an expression or one `return`. Anything
  * else is a CliError at its file and line.
  */
-import {
-  type Dirent,
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  type Stats,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { type Dirent, existsSync, readdirSync, realpathSync, type Stats, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import type { SourceFile } from "typescript/unstable/ast";
@@ -27,8 +16,20 @@ import { checkerPath, withChecker } from "../check/type-check.ts";
 import { CliError, errorLine, oneLine } from "../shared/failure.ts";
 import { requireWorld } from "../shared/inspect.ts";
 import { nameNodes } from "../shared/node-path.ts";
-import { nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
-import { Fn, HoleV, InheritedV, NodeV, PortV, plain, Reader, type Rec, type Val, WorldV } from "./reader.ts";
+import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
+import {
+  Fn,
+  HoleV,
+  InheritedV,
+  LocatedError,
+  NodeV,
+  PortV,
+  plain,
+  Reader,
+  type Rec,
+  type Val,
+  WorldV,
+} from "./reader.ts";
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -96,7 +97,8 @@ export interface LoadedWorld {
 /**
  * Every world file, from the world folder with `/` separators, sorted: all `.ts` but `.generated/`, `.d.ts` and tests.
  * Symlinks are followed, but never into a directory already on the way down, so a symlink loop is walked once; a
- * link that cannot be resolved at all is a load error naming it.
+ * link that cannot be resolved, or that leads outside the project directory and the world folder, is a load error
+ * naming it.
  */
 export function worldFiles(root: string): string[] {
   const files: string[] = [];
@@ -114,6 +116,13 @@ export function worldFiles(root: string): string[] {
             `${nameInWorld(root, name)}: the symlink cannot be resolved (${String(code ?? errorLine(error))})`,
           );
         }
+        // A world reads only what the project holds: a link out of it would pull any .ts on the machine into output.
+        const real = kind ? realpathSync(at) : undefined;
+        if (real !== undefined && !inside.some((boundary) => isInside(real, boundary))) {
+          throw new CliError(
+            `${nameInWorld(root, name)}: the symlink leads outside the project directory; a world reads only files inside it`,
+          );
+        }
       }
       if (kind?.isDirectory()) {
         const real = realpathSync(at);
@@ -124,9 +133,14 @@ export function worldFiles(root: string): string[] {
     }
   };
   const dir = nameInWorld(root);
+  // nuhokai/ may itself be a symlink to a directory (Inspect): what lies under it is the world's too.
+  const inside = [realpathSync(root), realpathSync(dir)];
   walk(dir, "", new Set([realpathSync(dir)]));
   return files.sort();
 }
+
+/** The loader's own tsconfig, in the world folder but only in the checker's memory: never written, so never in the way. */
+const LOADER_TSCONFIG = ".nuhokai-load.tsconfig.json";
 
 /** What the loader's own project needs: the files parsed and their imports resolved, nothing type-checked. */
 const READ_OPTIONS = {
@@ -158,38 +172,35 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
   }
 
   // The loader's own project: exactly the world files, no lib, whatever nuhokai/tsconfig.json says or whether it is
-  // there. Reading needs only the files parsed and their names resolved; type-checking is TypeCheck's.
-  const projectDir = mkdtempSync(join(tmpdir(), "nuhokai-load-"));
-  const config = join(projectDir, "tsconfig.json");
-  writeFileSync(config, JSON.stringify({ compilerOptions: READ_OPTIONS, files: paths.map((name) => resolve(name)) }));
-  try {
-    return await withChecker(root, config, nameInWorld(root), checker(), async (project) => {
-      const program = project.program;
-      const files = await Promise.all(
-        paths.map(async (name): Promise<[string, SourceFile]> => {
-          const file =
-            (await program.getSourceFile(resolve(name))) ?? (await program.getSourceFile(realpathSync(name)));
-          if (!file) throw new CliError(`${name}: the type checker did not read it`);
-          return [name, file];
-        }),
-      );
-      // A file that does not parse is a load error at its first syntax error.
-      const syntax = await Promise.all(files.map(([, file]) => program.getSyntacticDiagnostics(file.fileName)));
-      for (const [at, [name, file]] of files.entries()) {
-        const first = syntax[at]?.[0];
-        if (first) {
-          const line = file.getLineAndCharacterOfPosition(first.pos).line + 1;
-          throw new CliError(`${name}:${line}: ${oneLine(first.text)}`);
-        }
+  // there. Reading needs only the files parsed and their names resolved; type-checking is TypeCheck's. The checker
+  // reads its tsconfig from memory, so nothing is written, in the project or elsewhere, and nothing is left behind.
+  const config = resolve(nameInWorld(root), LOADER_TSCONFIG);
+  const virtual = new Map([
+    [config, JSON.stringify({ compilerOptions: READ_OPTIONS, files: paths.map((name) => resolve(name)) })],
+  ]);
+  return withChecker({ root, config, name: nameInWorld(root), checker: checker(), virtual }, async (project) => {
+    const program = project.program;
+    const files = await Promise.all(
+      paths.map(async (name): Promise<[string, SourceFile]> => {
+        const file = (await program.getSourceFile(resolve(name))) ?? (await program.getSourceFile(realpathSync(name)));
+        if (!file) throw new CliError(`${name}: the type checker did not read it`);
+        return [name, file];
+      }),
+    );
+    // A file that does not parse is a load error at its first syntax error.
+    const syntax = await Promise.all(files.map(([, file]) => program.getSyntacticDiagnostics(file.fileName)));
+    for (const [at, [name, file]] of files.entries()) {
+      const first = syntax[at]?.[0];
+      if (first) {
+        const line = file.getLineAndCharacterOfPosition(first.pos).line + 1;
+        throw new CliError(`${name}:${line}: ${oneLine(first.text)}`);
       }
-      const reader = new Reader(project, names);
-      await reader.prepare(files.map(([, file]) => file));
-      for (const [, file] of files) await reader.readStatements(file);
-      return worldOf(reader, files, index);
-    });
-  } finally {
-    rmSync(projectDir, { recursive: true, force: true });
-  }
+    }
+    const reader = new Reader(project, names);
+    await reader.prepare(files.map(([, file]) => file));
+    for (const [, file] of files) await reader.readStatements(file);
+    return worldOf(reader, files, index);
+  });
 }
 
 /** What the exports say about a node or hole (R2): its name, and the file errors about it name. */
@@ -278,7 +289,7 @@ async function lazily<T>(context: Context, node: NodeV, field: string, read: () 
   try {
     return await read();
   } catch (error) {
-    if (error instanceof CliError && /^\S+:\d+: /.test(error.message)) throw error;
+    if (error instanceof LocatedError) throw error;
     throw new CliError(`${fileOf(context, node)}: ${nameOf(context, node)}.${field}: ${errorLine(error)}`);
   }
 }
@@ -287,7 +298,7 @@ async function lazily<T>(context: Context, node: NodeV, field: string, read: () 
 async function edgeList(context: Context, node: NodeV, edge: "uses" | "implements"): Promise<readonly Val[]> {
   const fn = { ...node.def, ...node.edges }[edge];
   if (fn === undefined) return [];
-  const read = () => (fn instanceof Fn ? context.reader.apply(fn, []) : Promise.resolve(fn));
+  const read = () => (fn instanceof Fn ? context.reader.apply(fn) : Promise.resolve(fn));
   const list = await lazily(context, node, edge, read);
   if (!Array.isArray(list)) {
     throw new CliError(`${fileOf(context, node)}: ${nameOf(context, node)}.${edge} does not return a list`);
@@ -303,7 +314,8 @@ async function usesOf(context: Context, node: NodeV, placeholders: Map<HoleV, Pl
       let placeholder = placeholders.get(ref);
       if (!placeholder) {
         const name = context.holes.get(ref)?.name;
-        const description = ref.description as string;
+        // An unchecked world may give no description; the map and check still get a string.
+        const description = typeof ref.description === "string" ? ref.description : "";
         placeholder = { kind: ref.kind, description, ...(name && { name }), users: [] };
         placeholders.set(ref, placeholder);
       }

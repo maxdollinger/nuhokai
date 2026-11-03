@@ -28,13 +28,15 @@ export const LoadWorld = node({
         "default export not a world",
         "uses or implements returns a non-list",
         "a symlink in nuhokai/ cannot be resolved",
+        "a symlink in nuhokai/ leads outside the project directory",
+        "a value refers to itself while being read",
       ],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Reads all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts, with the pinned checker in a project of its own: exactly those files, no lib, whatever nuhokai/tsconfig.json says or whether it is there. Runs nothing, so import cycles never matter and nothing is installed.",
+      text: "Reads all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts, with the pinned checker in a project of its own: exactly those files, no lib, whatever nuhokai/tsconfig.json says or whether it is there. Runs nothing, so import cycles never matter and nothing is installed; a value that refers to itself is a load error at its line, never a hang. A symlink is followed only while it stays inside the project directory or the world folder; one leading out is a load error naming it.",
     },
     {
       id: "R2",
@@ -43,7 +45,7 @@ export const LoadWorld = node({
     { id: "R3", text: "Order: depth-first from the world, parent before children, list order; each node once." },
     {
       id: "R4",
-      text: "tbd: no edge; one placeholder per tbd call with all its users; ordered by first use. Named by export as R2 names a node; an unexported (inline) tbd has no name.",
+      text: "tbd: no edge; one placeholder per tbd call with all its users; ordered by first use. Named by export as R2 names a node; an unexported (inline) tbd has no name. A description that is no string is empty.",
     },
     {
       id: "R5",
@@ -75,7 +77,7 @@ export const LoadWorld = node({
     },
     {
       id: "R12",
-      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements, and every dome's ports, are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
+      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements, and every dome's ports, are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return, applied only as uses and implements: a world file never calls its own function, so it cannot recurse. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
     },
     {
       id: "R13",
@@ -85,7 +87,7 @@ export const LoadWorld = node({
     {
       id: "C2",
       kind: "constraint",
-      text: "Writes nothing in the project and prompts nothing; spawns only the checker, and its project file lives in a temporary directory removed afterwards.",
+      text: "Writes nothing in the project and prompts nothing; spawns only the checker, and its project file lives only in the checker's memory: nothing is written anywhere, so nothing is left behind, not even on an interrupt.",
     },
   ],
   testCases: [
@@ -214,6 +216,7 @@ export const LoadWorld = node({
     Inspect.requireWorld,
     Path.nameInWorld,
     Path.nameNodes,
+    Path.isInside,
     Failure.format,
     FileSystem.read,
     FileSystem.write,

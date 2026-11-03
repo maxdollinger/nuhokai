@@ -626,3 +626,98 @@ test("the CLI: a world file using a package is one load error naming it; nothing
   expect(existsSync(join(repo, "node_modules"))).toBe(false);
   expect(cached()).toEqual(before);
 });
+
+test("a value cycle across files is a load error at its line, never a hang", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { A } from "./a.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [], description: A as never });
+`,
+    "a.ts": `import { B } from "./b.ts";\nexport const A: { readonly next: unknown } = { next: B };\n`,
+    "b.ts": `import { A } from "./a.ts";\nexport const B: { readonly next: unknown } = { next: A };\n`,
+  });
+  const error = await loadError(root);
+  expect(error).toBeInstanceOf(CliError);
+  expect((error as Error).message).toContain("a value refers to itself while being read");
+});
+
+test("a world file's own function is never called, so it cannot recurse: a call to it is a load error at the call", async () => {
+  const recursive = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const f = (): string => f();
+export const A = node({ id: "a", purpose: f(), status: "planned", source: [], ports: {} }).edges({});
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+  const error = await loadError(recursive);
+  expect(error).toBeInstanceOf(CliError);
+  expect((error as Error).message).toBe(
+    `${recursive}/nuhokai/index.ts:3: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not f(...)`,
+  );
+});
+
+test("a tbd without a description is a placeholder with an empty one, so the map can still search it", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld, node, tbd } from "@nuhokai/world";
+const hole = tbd.call({} as never);
+export const A = node(${leaf("a")}).edges({ uses: () => [hole] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+  expect((await loadWorld(root)).placeholders).toEqual([{ kind: "call", description: "", users: ["a"] }]);
+});
+
+test("a load error under a project directory with a space names its file and line once", async () => {
+  const parent = tempDir();
+  const root = join(parent, "sp ace");
+  mkdirSync(join(root, "nuhokai"), { recursive: true });
+  writeFileSync(
+    join(root, "nuhokai/index.ts"),
+    `import { defineWorld, node } from "@nuhokai/world";
+export const A = node(${leaf("a")}).edges({ uses: () => [Date.now()] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  );
+  writeCliFiles(root);
+  const error = await loadError(root);
+  expect((error as Error).message).toStartWith(`${root}/nuhokai/index.ts:2: world files are declarative`);
+});
+
+test("a symlink out of the project directory is a load error naming it; nothing outside is read", async () => {
+  const outside = tempDir();
+  writeFileSync(join(outside, "secret.ts"), "export const secret = 1;\n");
+  const root = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+export const A = node(${leaf("a")}).edges({});
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+  symlinkSync(outside, join(root, "nuhokai/ext"));
+  const error = await loadError(root);
+  expect(error).toBeInstanceOf(CliError);
+  expect((error as Error).message).toBe(
+    `${root}/nuhokai/ext: the symlink leads outside the project directory; a world reads only files inside it`,
+  );
+});
+
+test("loading writes nothing: no temporary project is left behind, in the project or elsewhere", async () => {
+  const leftovers = () =>
+    readdirSync(tmpdir()).filter((name) => name.startsWith("nuhokai-load-") && !name.startsWith("nuhokai-load-test-"));
+  const before = leftovers();
+  const root = exampleWorld();
+  const files = readdirSync(root, { recursive: true }).sort();
+  await loadWorld(root);
+  expect(readdirSync(root, { recursive: true }).sort()).toEqual(files);
+  expect(leftovers()).toEqual(before);
+});
+
+test("no world: the suggested init command quotes a project directory the shell would split", async () => {
+  const parent = tempDir();
+  const root = join(parent, "a;touch x");
+  mkdirSync(root);
+  const error = await loadError(root);
+  expect(error).toBeInstanceOf(NoWorldError);
+  expect((error as Error).message).toBe(
+    `no nuhokai/ in ${root}; run \`nuhokai init --path '${root}'\` to start a world there`,
+  );
+});

@@ -1,7 +1,7 @@
 import { lstatSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { CliError } from "./failure.ts";
-import { nameInWorld, WORLD_DIR } from "./paths.ts";
+import { nameInWorld, suggestedCommand, WORLD_DIR } from "./paths.ts";
 
 /**
  * No world to work on: nothing at `<root>/nuhokai`, or something that is no directory. A CliError like any expected
@@ -40,7 +40,7 @@ export function requireWorld(root: string): void {
     throw new NoWorldError(
       root === "."
         ? `no ${WORLD_DIR}/ here; run \`nuhokai init\` to start a world here, or pass --path <project dir>`
-        : `no ${WORLD_DIR}/ in ${root}; run \`nuhokai init --path ${root}\` to start a world there`,
+        : `no ${WORLD_DIR}/ in ${root}; run ${suggestedCommand("init", [], root)} to start a world there`,
     );
   }
   if (state.kind === "occupied" && !statSync(join(root, WORLD_DIR), { throwIfNoEntry: false })?.isDirectory()) {

@@ -1,7 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
-import { nameInWorld, WORLD_MAP } from "../shared/paths.ts";
+import { CliError } from "../shared/failure.ts";
+import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_MAP } from "../shared/paths.ts";
 import { SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain/map-assets.gen.ts";
 import type { MapWorld } from "./scene.js";
 
@@ -50,7 +51,20 @@ function mapHtml(world: LoadedWorld): string {
 export function writeMap(root: string, world: LoadedWorld): string {
   const file = nameInWorld(root, WORLD_MAP);
   const html = mapHtml(world);
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, html);
+  const dir = dirname(file);
+  mkdirSync(dir, { recursive: true });
+  // A .generated/ that links out of the world would make map write wherever it points.
+  if (!isInside(realpathSync(dir), realpathSync(nameInWorld(root)))) {
+    throw new CliError(`${nameInWorld(root, WORLD_GENERATED_DIR)} leads outside ${nameInWorld(root)}; remove the link`);
+  }
+  // A fresh file renamed over map.html replaces whatever is there, a symlink included, instead of writing through it;
+  // a write that fails leaves the previous map as it was.
+  const temp = join(dir, `.map-${Bun.randomUUIDv7()}.html`);
+  try {
+    writeFileSync(temp, html, { flag: "wx" });
+    renameSync(temp, file);
+  } finally {
+    rmSync(temp, { force: true });
+  }
   return file;
 }

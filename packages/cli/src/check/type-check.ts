@@ -160,22 +160,42 @@ function checkerFailure(error: unknown): CliError {
   return error instanceof CliError ? error : new CliError(`the type checker failed: ${errorLine(error)}`);
 }
 
+/** A JavaScript runtime error: a bug in our code or the client's, never a checker failure to explain. */
+function isProgrammingError(error: unknown): boolean {
+  return error instanceof TypeError || error instanceof RangeError || error instanceof ReferenceError;
+}
+
+/** How to reach the checker: from `root`, the tsconfig at `config` (absolute), named `name` in messages. */
+export interface CheckerSession {
+  readonly root: string;
+  readonly config: string;
+  readonly name: string;
+  /** The checker's executable. */
+  readonly checker: string;
+  /** Files the checker reads from memory instead of the disk, by absolute path, such as a tsconfig never written. */
+  readonly virtual?: ReadonlyMap<string, string>;
+}
+
 /**
- * Open the project of the tsconfig at `config` (absolute) in the checker at `checker`, from `root`, and answer what
- * `use` makes of it. Every failure, `use`'s and the checker's closing included, is one CliError, a CliError of ours
- * as it is; a failure closing the checker after another never hides that other. `name` is how a message names the
- * project. LoadWorld and TypeCheck share it, so both talk to the checker the same way.
+ * Open the session's project in the checker and answer what `use` makes of it. Every checker failure, its closing
+ * included, is one CliError, a CliError of ours as it is; a failure closing the checker after another never hides that
+ * other. A programming error is no checker failure: it propagates with its stack. LoadWorld and TypeCheck share it,
+ * so both talk to the checker the same way.
  */
-export async function withChecker<T>(
-  root: string,
-  config: string,
-  name: string,
-  checker: string,
-  use: (project: Project) => Promise<T>,
-): Promise<T> {
+export async function withChecker<T>(session: CheckerSession, use: (project: Project) => Promise<T>): Promise<T> {
+  const { root, config, name, checker, virtual } = session;
   let api: API;
   try {
-    api = new API({ cwd: resolve(root), tsserverPath: checker });
+    api = new API({
+      cwd: resolve(root),
+      tsserverPath: checker,
+      ...(virtual && {
+        fs: {
+          readFile: (path: string) => virtual.get(resolve(path)),
+          fileExists: (path: string) => (virtual.has(resolve(path)) ? true : undefined),
+        },
+      }),
+    });
   } catch (error) {
     throw checkerFailure(error);
   }
@@ -187,6 +207,7 @@ export async function withChecker<T>(
     result = await use(project);
   } catch (error) {
     await api.close().catch(() => {});
+    if (isProgrammingError(error)) throw error;
     throw checkerFailure(error);
   }
   try {
@@ -226,22 +247,25 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   const nameOf = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
-  const { files, diagnostics } = await withChecker(root, resolve(tsconfig), tsconfig, checker(), async (project) => {
-    const program = project.program;
-    const files = new Map<string, SourceFile>();
-    for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
-      const file = await program.getSourceFile(path);
-      if (file) files.set(path, file);
-    }
-    const diagnostics = [
-      ...(await program.getConfigFileParsingDiagnostics()),
-      ...(await program.getProgramDiagnostics()),
-      ...(await program.getGlobalDiagnostics()),
-      ...(await program.getSyntacticDiagnostics()),
-      ...(await program.getSemanticDiagnostics()),
-    ];
-    return { files, diagnostics };
-  });
+  const { files, diagnostics } = await withChecker(
+    { root, config: resolve(tsconfig), name: tsconfig, checker: checker() },
+    async (project) => {
+      const program = project.program;
+      const files = new Map<string, SourceFile>();
+      for (const path of (await program.getSourceFileNames()).map((name) => resolve(name)).filter(inWorldFiles)) {
+        const file = await program.getSourceFile(path);
+        if (file) files.set(path, file);
+      }
+      const diagnostics = [
+        ...(await program.getConfigFileParsingDiagnostics()),
+        ...(await program.getProgramDiagnostics()),
+        ...(await program.getGlobalDiagnostics()),
+        ...(await program.getSyntacticDiagnostics()),
+        ...(await program.getSemanticDiagnostics()),
+      ];
+      return { files, diagnostics };
+    },
+  );
 
   const findings: Finding[] = [];
   const seen = new Set<string>();

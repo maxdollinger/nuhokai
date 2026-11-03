@@ -1,6 +1,7 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import { isInside } from "../../shared/paths.ts";
 import { compareText, type Finding } from "../diagnostics.ts";
 import { at, type WorldTree } from "./world-tree.ts";
 
@@ -24,7 +25,7 @@ class ProjectFiles {
 
   /** Whether a real path lies inside the project directory. */
   #inside(real: string): boolean {
-    return real === this.#realRoot || real.startsWith(`${this.#realRoot}${sep}`);
+    return isInside(real, this.#realRoot);
   }
 
   /** The real path behind a relative path, if it exists and stays inside the project directory. */

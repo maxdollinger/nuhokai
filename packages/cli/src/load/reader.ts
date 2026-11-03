@@ -53,7 +53,13 @@ import { compareText } from "../check/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 
 /** A name that resolves to no declaration in the world: as a callee, it is a call the format does not allow. */
-class UnknownName extends CliError {}
+/**
+ * A load error that already names its file and line (`nuhokai/orders.ts:3: …`), so nothing wraps it again. Typed
+ * apart instead of recognised by its text: a project directory may hold spaces or colons.
+ */
+export class LocatedError extends CliError {}
+
+class UnknownName extends LocatedError {}
 
 /** The functions a world file may call, imported from @nuhokai/world under their own name. */
 const WORLD_FUNCTIONS = new Set(["node", "defineWorld", "inherited", "tbd"]);
@@ -230,9 +236,9 @@ export class Reader {
     };
   }
 
-  fail(node: Node, message: string): CliError {
+  fail(node: Node, message: string): LocatedError {
     const { file, line } = this.at(node);
-    return new CliError(`${file}:${line}: ${message}`);
+    return new LocatedError(`${file}:${line}: ${message}`);
   }
 
   /** What an expression is, read without running it. */
@@ -376,9 +382,10 @@ export class Reader {
 
   /** A const's or default export's value, read once. */
   async declaration(declaration: Node, from: Node): Promise<Val> {
+    // Before the cache: a value met again while it is being read is a cycle, and its pending read would await itself.
+    if (this.reading.has(declaration)) throw this.fail(from, "a value refers to itself while being read");
     const known = this.declared.get(declaration);
     if (known) return known;
-    if (this.reading.has(declaration)) throw this.fail(from, "a value refers to itself while being read");
     let value: Promise<Val>;
     if (isVariableDeclaration(declaration)) {
       const initializer = declaration.initializer;
@@ -432,7 +439,8 @@ export class Reader {
       if (isSpreadElement(arg)) throw this.fail(arg, "a call here takes no spread");
       args.push(await this.read(arg, env));
     }
-    if (callee instanceof Fn) return this.apply(callee, args);
+    // A world file's own function is never called: only the format's are, and LoadWorld applies uses and implements.
+    if (callee instanceof Fn) throw notAllowed();
     if (callee instanceof EdgesFn) {
       return this.once(expr, () => {
         const edges = args[0];
@@ -473,13 +481,16 @@ export class Reader {
     return this.made.get(call);
   }
 
-  /** A function's value for these arguments: its expression body, or the one `return` of its block. */
-  async apply(fn: Fn, args: readonly Val[]): Promise<Val> {
+  /**
+   * A uses or implements function's value, called without arguments as the format calls it: its expression body, or
+   * the one `return` of its block. Nothing else is ever applied, so no world file can recurse.
+   */
+  async apply(fn: Fn): Promise<Val> {
     const env = new Map(fn.env);
-    fn.node.parameters.forEach((parameter, index) => {
+    for (const parameter of fn.node.parameters) {
       if (!isIdentifier(parameter.name)) throw this.fail(parameter, "a parameter here is a plain name");
-      env.set(parameter, args[index]);
-    });
+      env.set(parameter, undefined);
+    }
     const body = fn.node.body;
     if (body && isBlock(body)) {
       const [statement, ...rest] = body.statements;
@@ -496,7 +507,7 @@ export class Reader {
     const children = node.def.children;
     if (children === undefined) return [];
     if (!Array.isArray(children)) {
-      throw new CliError(`${node.at.file}:${node.at.line}: children is a list of nodes: children: [A, B]`);
+      throw new LocatedError(`${node.at.file}:${node.at.line}: children is a list of nodes: children: [A, B]`);
     }
     return children;
   }
@@ -508,26 +519,26 @@ export class Reader {
       const where = `${node.at.file}:${node.at.line}`;
       if (node.def.children === undefined) {
         if (ports === undefined) return {};
-        if (!isRec(ports)) throw new CliError(`${where}: a leaf's ports are a record of port definitions`);
+        if (!isRec(ports)) throw new LocatedError(`${where}: a leaf's ports are a record of port definitions`);
         return ports as Record<string, Rec>;
       }
       if (ports === undefined) return {};
       if (!isRec(ports)) {
-        throw new CliError(`${where}: a dome's ports are a record of its children's ports: ports: { run: A.run }`);
+        throw new LocatedError(`${where}: a dome's ports are a record of its children's ports: ports: { run: A.run }`);
       }
       const children = this.childrenOf(node);
       const resolved: Record<string, Rec> = {};
       for (const [name, ref] of Object.entries(ports)) {
         const child = ref instanceof PortV || ref instanceof InheritedV ? ref.node : undefined;
         if (!(child instanceof NodeV) || !children.includes(child)) {
-          throw new CliError(
+          throw new LocatedError(
             `${where}: \`${name}\` exposes a port of a node that is not one of this dome's direct children`,
           );
         }
         const port = ref instanceof InheritedV ? (ref.port instanceof PortV ? ref.port : undefined) : (ref as PortV);
-        if (!port) throw new CliError(`${where}: \`${name}\` inherits no port`);
+        if (!port) throw new LocatedError(`${where}: \`${name}\` inherits no port`);
         const source = (await this.portsOf(port.node))[port.name];
-        if (!source) throw new CliError(`${where}: \`${port.name}\` is not a port of its node`);
+        if (!source) throw new LocatedError(`${where}: \`${port.name}\` is not a port of its node`);
         withKey(resolved, name, { ...source, delegate: { to: child.id, port: port.name } });
       }
       return resolved;
