@@ -9,7 +9,7 @@ export const NodePath = node({
   status: "built",
   source: ["src/shared/node-path.ts", "src/shared/node-path.test.ts"],
   ports: {
-    nodePaths: {
+    nameNodes: {
       kind: "call",
       purpose: "Name every node of a loaded world",
       input: "the loaded world, as LoadWorld.load answers it",
@@ -48,7 +48,7 @@ export const NodePath = node({
     },
     {
       id: "R5",
-      text: "Two siblings with the segment's name → one CliError naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nodePaths still names both.",
+      text: "Two siblings with the segment's name → one CliError naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nameNodes still names both.",
     },
     {
       id: "C1",
@@ -58,7 +58,7 @@ export const NodePath = node({
   ],
   testCases: [
     {
-      text: "Example world: nodePaths → Postgres, AuditLog, Shop, Shop/Orders, Shop/Stock in nodes order; dome P (id x) with children C1 (id x) and C2 → C2 is P/C2.",
+      text: "Example world: nameNodes → Postgres, AuditLog, Shop, Shop/Orders, Shop/Stock in nodes order; dome P (id x) with children C1 (id x) and C2 → C2 is P/C2.",
       demonstrates: ["R1", "R2"],
     },
     {
@@ -66,7 +66,7 @@ export const NodePath = node({
       demonstrates: ["R3", "R4"],
     },
     {
-      text: "Two top-level nodes both named Orders (exported from two files) → findNode Orders fails naming `nuhokai check`; nodePaths lists Orders twice.",
+      text: "Two top-level nodes both named Orders (exported from two files) → findNode Orders fails naming `nuhokai check`; nameNodes lists Orders twice.",
       demonstrates: ["R5"],
     },
   ],

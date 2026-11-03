@@ -9,7 +9,7 @@ export type Hierarchy = Pick<LoadedWorld, "nodes" | "parents">;
  * (`Check/SpecCheck`), a top-level node's path its name alone. Built from parents by position, never by id,
  * so duplicate ids cannot misplace a node.
  */
-export function nodePaths(world: Hierarchy): string[] {
+export function nameNodes(world: Hierarchy): string[] {
   const paths: string[] = [];
   world.nodes.forEach((spec, index) => {
     const parent = world.parents[index] ?? null;
@@ -48,7 +48,7 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
-  const paths = nodePaths(world);
+  const paths = nameNodes(world);
   const children = childrenOf(world);
   let parent: number | null = null;
   for (const [depth, segment] of segments.entries()) {

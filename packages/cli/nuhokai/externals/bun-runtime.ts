@@ -11,13 +11,13 @@ export const BunRuntime = node({
   status: "built",
   source: [],
   ports: {
-    glob: {
+    matchGlob: {
       kind: "call",
       purpose: "Match a /-separated relative path against a glob in Bun's syntax",
       input: "glob and path",
       output: "whether the path matches",
     },
-    uuid: {
+    makeUuid: {
       kind: "call",
       purpose: "A fresh, time-ordered UUIDv7",
       output: "the UUID as a string",

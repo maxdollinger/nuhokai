@@ -38,14 +38,6 @@ export const LoadWorld = node({
       text: "Reads all nuhokai/**/*.ts, symlinks included, except .generated/, *.d.ts, *.test.ts, with the pinned checker in a project of its own: exactly those files, no lib, whatever nuhokai/tsconfig.json says or whether it is there. Runs nothing, so import cycles never matter and nothing is installed.",
     },
     {
-      id: "R12",
-      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
-    },
-    {
-      id: "R13",
-      text: "A dome's ports are copied from the child ports they reference, each with delegate { to: child id, port }; a port of a non-child, or one its node lacks, is a load error at the dome's node() line.",
-    },
-    {
       id: "R2",
       text: "Node = a node(…).edges(…) call, as its NodeSpec per packages/world/README.md. Name: export name; exported twice → the defining file's (the one holding the call), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
@@ -81,6 +73,14 @@ export const LoadWorld = node({
     {
       id: "R11",
       text: "Inspect.requireWorld first: no world or a non-directory at nuhokai/ → its NoWorldError, nothing read; every other load error is a plain CliError. Callers never inspect for the load's sake.",
+    },
+    {
+      id: "R12",
+      text: "A world file is data, and LoadWorld is the one judge of that: every top-level statement is an import, an export or a declaration, and every top-level value and every node's uses and implements, and every dome's ports, are read, reached from the world or not. Readable: literals, objects, arrays, spreads, string + and templates, as const, consts, imports between world files, node, .edges, defineWorld, tbd.call, tbd.event and inherited imported from @nuhokai/world under their own name, and arrow functions that are an expression or one return. A name resolves to its declaration through imports, re-exports and aliases. Anything else is a load error at its line; another call reads 'world files are declarative: they call only …, not <callee>(...)'.",
+    },
+    {
+      id: "R13",
+      text: "A dome's ports are copied from the child ports they reference, each with delegate { to: child id, port }; a port of a non-child, or one its node lacks, is a load error at the dome's node() line.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
@@ -132,7 +132,7 @@ export const LoadWorld = node({
       demonstrates: ["R1"],
     },
     {
-      text: "ports: { run: Other.run } with Other no child, or { run: Leaf.nope } → one CliError at the dome's node() line.",
+      text: "ports: { run: Other.run } with Other no child, or { run: Leaf.nope } → one CliError at the dome's node() line, also when no one lists the dome.",
       demonstrates: ["R13"],
     },
     {
@@ -205,5 +205,5 @@ export const LoadWorld = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.requireWorld, Path.inWorld, Failure.format, FileSystem.read, FileSystem.write, Tsgo.read],
+  uses: () => [Inspect.requireWorld, Path.nameInWorld, Failure.format, FileSystem.read, FileSystem.write, Tsgo.read],
 });

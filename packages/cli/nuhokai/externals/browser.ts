@@ -11,7 +11,7 @@ export const Browser = node({
   status: "built",
   source: [],
   ports: {
-    page: {
+    runPage: {
       kind: "call",
       purpose:
         "Run a local HTML page: inline scripts, a WebGL canvas, pointer, wheel and keyboard input, media queries, a live region for screen readers",
@@ -19,7 +19,7 @@ export const Browser = node({
       output: "the rendered, interactive page",
       errors: ["no WebGL"],
     },
-    storage: {
+    store: {
       kind: "call",
       purpose: "localStorage: string values by key, per browser and origin, kept across page loads",
       input: "key, and the value to set",

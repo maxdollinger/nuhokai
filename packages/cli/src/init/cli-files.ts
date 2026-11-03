@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { inWorld, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE } from "../shared/paths.ts";
+import { nameInWorld, WORLD_TSCONFIG, WORLD_TYPES_DIR, WORLD_TYPES_FILE } from "../shared/paths.ts";
 import { WORLD_TYPES } from "../toolchain/world-types.gen.ts";
 
 /**
@@ -43,7 +43,7 @@ export interface CliFilesResult {
 
 /** Lay down the CLI-owned files inside an existing directory, never rewriting identical bytes. */
 export function writeCliFiles(dir: string): CliFilesResult {
-  mkdirSync(inWorld(dir, WORLD_TYPES_DIR), { recursive: true });
+  mkdirSync(nameInWorld(dir, WORLD_TYPES_DIR), { recursive: true });
 
   const files: [path: string, content: string][] = [
     [TSCONFIG_PATH, TSCONFIG_TEMPLATE],
@@ -53,7 +53,7 @@ export function writeCliFiles(dir: string): CliFilesResult {
   const written: string[] = [];
   const unchanged: string[] = [];
   for (const [path, content] of files) {
-    const file = inWorld(dir, path);
+    const file = nameInWorld(dir, path);
     if (existsSync(file) && readFileSync(file, "utf8") === content) {
       unchanged.push(path);
       continue;

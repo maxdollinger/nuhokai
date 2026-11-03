@@ -25,4 +25,4 @@ export const DataRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Path.nodePaths] });
+}).edges({ uses: () => [Path.nameNodes] });

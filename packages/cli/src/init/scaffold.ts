@@ -1,6 +1,6 @@
 import { CliError, isExpected, oneLine } from "../shared/failure.ts";
 import { inspectTarget } from "../shared/inspect.ts";
-import { inWorld } from "../shared/paths.ts";
+import { nameInWorld } from "../shared/paths.ts";
 import { publishWorld } from "./publish.ts";
 
 /** What the run port may observe and answer; the defaults are the real process. */
@@ -22,11 +22,11 @@ export async function runInit(root: string, environment: InitEnvironment = {}): 
     const state = inspectTarget(root);
 
     if (state.kind === "world") {
-      out(`${inWorld(root)}/ already exists; nothing to do`);
+      out(`${nameInWorld(root)}/ already exists; nothing to do`);
       return 0;
     }
     if (state.kind === "occupied") {
-      throw new CliError(`${inWorld(root)} exists but is not a directory`);
+      throw new CliError(`${nameInWorld(root)} exists but is not a directory`);
     }
 
     for (const path of publishWorld(root)) out(path);

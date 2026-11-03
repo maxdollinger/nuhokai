@@ -49,4 +49,4 @@ export const Publish = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.inWorld, ExampleWorld.write, CliFiles.write, FileSystem.write] });
+}).edges({ uses: () => [Path.nameInWorld, ExampleWorld.write, CliFiles.write, FileSystem.write] });

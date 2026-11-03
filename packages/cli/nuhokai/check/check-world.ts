@@ -84,8 +84,8 @@ export const CheckWorld = node({
     Diagnostics.format,
     Failure.format,
     Failure.isExpected,
-    Path.nodePaths,
-    Terminal.stdout,
-    Terminal.stderr,
+    Path.nameNodes,
+    Terminal.print,
+    Terminal.printError,
   ],
 });

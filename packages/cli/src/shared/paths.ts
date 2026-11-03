@@ -16,7 +16,7 @@ export const WORLD_MAP = `${WORLD_GENERATED_DIR}/map.html`;
  * it and `/`-separated: `nuhokai/…` when `root` is `.`, else `<root>/nuhokai/…`.
  * Opens as printed, from the cwd that named `root`.
  */
-export function inWorld(root: string, ...parts: string[]): string {
+export function nameInWorld(root: string, ...parts: string[]): string {
   return join(root, WORLD_DIR, ...parts)
     .split(sep)
     .join("/");
@@ -28,6 +28,6 @@ export function inWorld(root: string, ...parts: string[]): string {
  * `src/**` under `packages/cli` is `packages/cli/src/**`; an absolute path stays as it is. Opens as printed,
  * from the cwd that named `root`.
  */
-export function inProject(root: string, path: string): string {
+export function nameInProject(root: string, path: string): string {
   return (isAbsolute(path) ? path : join(root, path)).split(sep).join("/");
 }

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { inWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
+import { nameInWorld, WORLD_EXAMPLE, WORLD_INDEX } from "../shared/paths.ts";
 
 /** The world entry point under the world id `id`: the loader's only entry, listing the one example node. */
 export function worldIndexSource(id: string): string {
@@ -53,8 +53,8 @@ export const EXAMPLE_WORLD_PATHS = [WORLD_INDEX, WORLD_EXAMPLE] as const;
 
 /** Lay down the authored example world inside an existing directory, under a fresh world id. */
 export function writeExampleWorld(dir: string): string[] {
-  mkdirSync(inWorld(dir), { recursive: true });
-  writeFileSync(inWorld(dir, WORLD_INDEX), worldIndexSource(Bun.randomUUIDv7()));
-  writeFileSync(inWorld(dir, WORLD_EXAMPLE), EXAMPLE_TEMPLATE);
+  mkdirSync(nameInWorld(dir), { recursive: true });
+  writeFileSync(nameInWorld(dir, WORLD_INDEX), worldIndexSource(Bun.randomUUIDv7()));
+  writeFileSync(nameInWorld(dir, WORLD_EXAMPLE), EXAMPLE_TEMPLATE);
   return [...EXAMPLE_WORLD_PATHS];
 }

@@ -50,11 +50,11 @@ export const Scaffold = node({
 }).edges({
   uses: () => [
     Inspect.inspect,
-    Path.inWorld,
+    Path.nameInWorld,
     Failure.format,
     Failure.isExpected,
     Publish.run,
-    Terminal.stdout,
-    Terminal.stderr,
+    Terminal.print,
+    Terminal.printError,
   ],
 });

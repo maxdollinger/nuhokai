@@ -65,4 +65,4 @@ export const ExampleWorld = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.inWorld, FileSystem.write, BunRuntime.uuid] });
+}).edges({ uses: () => [Path.nameInWorld, FileSystem.write, BunRuntime.makeUuid] });

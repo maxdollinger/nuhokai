@@ -80,4 +80,4 @@ export const Inspect = node({
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [Path.inWorld, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, FileSystem.read] });

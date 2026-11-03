@@ -3,7 +3,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
 import { API, type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
 import { CliError, oneLine } from "../shared/failure.ts";
-import { inWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
+import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/paths.ts";
 import { compareFindings, type Finding } from "./diagnostics.ts";
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
@@ -232,16 +232,16 @@ function lineInText(path: string, position: number): number | undefined {
  * the checker's executable.
  */
 export async function runTypeCheck(root: string, checker: () => string = checkerPath): Promise<Finding[]> {
-  const tsconfig = inWorld(root, WORLD_TSCONFIG);
+  const tsconfig = nameInWorld(root, WORLD_TSCONFIG);
   if (!existsSync(tsconfig)) {
     throw new CliError(
       `${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\` (\`nuhokai update\` will restore it)`,
     );
   }
-  const worldDir = resolve(inWorld(root));
-  const generated = resolve(inWorld(root, WORLD_GENERATED_DIR));
+  const worldDir = resolve(nameInWorld(root));
+  const generated = resolve(nameInWorld(root, WORLD_GENERATED_DIR));
   /** A world file named as the loader names it: under the project directory as `root` names it. */
-  const nameOf = (path: string) => inWorld(root, ...relative(worldDir, path).split(sep));
+  const nameOf = (path: string) => nameInWorld(root, ...relative(worldDir, path).split(sep));
   const inWorldFiles = (path: string) =>
     path.startsWith(`${worldDir}${sep}`) && !path.startsWith(`${generated}${sep}`) && path.endsWith(".ts");
   const { files, diagnostics } = await askChecker(root, tsconfig, checker(), inWorldFiles);

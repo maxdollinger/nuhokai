@@ -34,5 +34,5 @@ export const DrawMap = node({
     },
   ],
 }).edges({
-  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected, Terminal.stdout, Terminal.stderr],
+  uses: () => [LoadWorld.load, MapFile.write, Failure.format, Failure.isExpected, Terminal.print, Terminal.printError],
 });

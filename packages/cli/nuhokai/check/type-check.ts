@@ -53,4 +53,4 @@ export const TypeCheck = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.inWorld, Failure.format, Tsgo.check, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, Failure.format, Tsgo.check, FileSystem.read] });

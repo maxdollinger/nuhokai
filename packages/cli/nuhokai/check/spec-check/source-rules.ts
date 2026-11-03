@@ -32,4 +32,4 @@ export const SourceRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Path.nodePaths, FileSystem.read, BunRuntime.glob] });
+}).edges({ uses: () => [Path.nameNodes, FileSystem.read, BunRuntime.matchGlob] });

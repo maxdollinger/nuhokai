@@ -70,7 +70,7 @@ import { API, type Project, SymbolFlags, type Symbol as TsSymbol } from "typescr
 import { checkerPath } from "../check/type-check.ts";
 import { CliError, oneLine } from "../shared/failure.ts";
 import { requireWorld } from "../shared/inspect.ts";
-import { inWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
+import { nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/paths.ts";
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -146,7 +146,7 @@ export function worldFiles(root: string): string[] {
         } catch (error) {
           const code = (error as { code?: unknown } | null)?.code;
           throw new CliError(
-            `${inWorld(root, name)}: the symlink cannot be resolved (${String(code ?? oneLine(error))})`,
+            `${nameInWorld(root, name)}: the symlink cannot be resolved (${String(code ?? oneLine(error))})`,
           );
         }
       }
@@ -158,7 +158,7 @@ export function worldFiles(root: string): string[] {
       }
     }
   };
-  const dir = inWorld(root);
+  const dir = nameInWorld(root);
   walk(dir, "", new Set([realpathSync(dir)]));
   return files.sort();
 }
@@ -817,9 +817,9 @@ interface Named {
 export async function loadWorld(root: string, checker: () => string = checkerPath): Promise<LoadedWorld> {
   // No world, or something else at nuhokai/: the same error every command gives, naming init.
   requireWorld(root);
-  const index = inWorld(root, WORLD_INDEX);
+  const index = nameInWorld(root, WORLD_INDEX);
   if (!existsSync(index)) throw new CliError(`${index}: not found; it is the world's entry point`);
-  const paths = worldFiles(root).map((path) => inWorld(root, path));
+  const paths = worldFiles(root).map((path) => nameInWorld(root, path));
   const names = new Map<string, string>();
   for (const name of paths) {
     names.set(resolve(name), name);
@@ -835,7 +835,7 @@ export async function loadWorld(root: string, checker: () => string = checkerPat
   try {
     const snapshot = await api.updateSnapshot({ openProject: config });
     const project = snapshot.getProject(config);
-    if (!project) throw new CliError(`${inWorld(root)}: the type checker opened no project for the world files`);
+    if (!project) throw new CliError(`${nameInWorld(root)}: the type checker opened no project for the world files`);
     const program = project.program;
     const files = await Promise.all(
       paths.map(async (name): Promise<[string, SourceFile]> => {
@@ -1006,11 +1006,13 @@ async function worldOf(reader: Reader, sources: readonly [string, SourceFile][],
     nodes.push(spec);
   }
 
-  // Every node's edges are read, also an orphan's, so code in them is a load error wherever the node is listed.
+  // Every node is read whole, also an orphan: its edges, and a dome's ports with their check, so a broken node is a
+  // load error whether or not the world lists it.
   for (const node of reader.nodes()) {
     if (seen.has(node)) continue;
     await edgeList(node, "uses");
     await edgeList(node, "implements");
+    if (node.def.ports !== undefined) await lazily(node, "ports", () => reader.portsOf(node));
   }
 
   // R8: exported but never reached, in sorted file order.

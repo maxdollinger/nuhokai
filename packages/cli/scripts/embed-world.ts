@@ -5,6 +5,11 @@ import { dirname, join, relative } from "node:path";
 /** Where the generated asset lives; the test reads it, the CLI imports it. */
 export const GENERATED_FILE = join(import.meta.dir, "../src/toolchain/world-types.gen.ts");
 
+/** The committed copies of the declarations in this repo's own worlds, as `init` writes them into a user's. */
+export const WORLD_TYPES_COPIES = ["../nuhokai", "../../world/nuhokai"].map((world) =>
+  join(import.meta.dir, world, ".generated/world/index.d.ts"),
+);
+
 /** The repo's pinned checker; the test runs it against a consumer world. */
 export const TSC = join(import.meta.dir, "../../../node_modules/.bin/tsc");
 
@@ -99,17 +104,29 @@ export function renderGeneratedModule(worldTypes: string = renderWorldTypes()): 
   return `${HEADER}// The self-contained @nuhokai/world declarations.\nexport const WORLD_TYPES: string = ${JSON.stringify(worldTypes)};\n`;
 }
 
-/** Write the generated asset; `unchanged` when it is already byte-identical. */
-export function writeWorldTypes(): "written" | "unchanged" {
-  const generated = renderGeneratedModule();
-  if (existsSync(GENERATED_FILE) && readFileSync(GENERATED_FILE, "utf8") === generated) return "unchanged";
+/** Write `content` to `file` unless it is already byte-identical; whether it was written. */
+function writeIfChanged(file: string, content: string): boolean {
+  if (existsSync(file) && readFileSync(file, "utf8") === content) return false;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, content);
+  return true;
+}
 
-  mkdirSync(dirname(GENERATED_FILE), { recursive: true });
-  writeFileSync(GENERATED_FILE, generated);
-  return "written";
+/** Write the generated asset and this repo's world copies of the declarations; the paths written, none if all were current. */
+export function writeWorldTypes(): string[] {
+  const worldTypes = renderWorldTypes();
+  return [
+    [GENERATED_FILE, renderGeneratedModule(worldTypes)] as const,
+    ...WORLD_TYPES_COPIES.map((copy) => [copy, worldTypes] as const),
+  ].flatMap(([file, content]) => (writeIfChanged(file, content) ? [file] : []));
 }
 
 if (import.meta.main) {
-  const path = relative(join(import.meta.dir, "../../.."), GENERATED_FILE);
-  console.log(writeWorldTypes() === "written" ? `world types: wrote ${path}` : `world types: ${path} is up to date`);
+  const repo = join(import.meta.dir, "../../..");
+  const written = writeWorldTypes().map((file) => relative(repo, file));
+  console.log(
+    written.length
+      ? `world types: wrote ${written.join(", ")}`
+      : `world types: ${relative(repo, GENERATED_FILE)} and the worlds' copies are up to date`,
+  );
 }

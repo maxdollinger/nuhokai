@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WORLD_TYPES } from "../src/toolchain/world-types.gen.ts";
-import { GENERATED_FILE, renderGeneratedModule, renderWorldTypes, TSC } from "./embed-world.ts";
+import { GENERATED_FILE, renderGeneratedModule, renderWorldTypes, TSC, WORLD_TYPES_COPIES } from "./embed-world.ts";
 
 const dependency = `
 import { node } from "./dts/index.ts";
@@ -64,6 +64,11 @@ function run(project: string) {
 
 test("the embedded world types are up to date", () => {
   expect(readFileSync(GENERATED_FILE, "utf8")).toBe(renderGeneratedModule());
+});
+
+test("this repo's worlds hold the same declarations init writes: bun run embed refreshes them", () => {
+  const worldTypes = renderWorldTypes();
+  for (const copy of WORLD_TYPES_COPIES) expect(readFileSync(copy, "utf8"), copy).toBe(worldTypes);
   expect(WORLD_TYPES).toBe(renderWorldTypes());
 });
 

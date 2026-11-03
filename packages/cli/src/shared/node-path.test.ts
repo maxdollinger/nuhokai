@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import { CliError } from "./failure.ts";
-import { childrenOf, findNode, nodePaths } from "./node-path.ts";
+import { childrenOf, findNode, nameNodes } from "./node-path.ts";
 
 /** A world's shape: each node by name and id, under its parent's position. */
 function hierarchy(entries: readonly [name: string, parent: number | null, id?: string][]) {
@@ -31,10 +31,10 @@ function failure(world: ReturnType<typeof hierarchy>, typed: string, root = ".")
 }
 
 test("NodePath R1, R2: paths from the top level down, in nodes order, by position not id", () => {
-  expect(nodePaths(example)).toEqual(["Postgres", "AuditLog", "Shop", "Shop/Orders", "Shop/Stock"]);
+  expect(nameNodes(example)).toEqual(["Postgres", "AuditLog", "Shop", "Shop/Orders", "Shop/Stock"]);
   // C1 shares P's id: C2 is still P's child.
   expect(
-    nodePaths(
+    nameNodes(
       hierarchy([
         ["P", null, "x"],
         ["C1", 0, "x"],
@@ -99,7 +99,7 @@ test("NodePath R3: an empty path or segment names no node", () => {
 
 test("NodePath R3: a node whose name holds / is reported, not suggested away", () => {
   const slashed = hierarchy([["Ex/ample", null]]);
-  expect(nodePaths(slashed)).toEqual(["Ex/ample"]);
+  expect(nameNodes(slashed)).toEqual(["Ex/ample"]);
   expect(failure(slashed, "Ex/ample")).toBe(
     "no node 'Ex/ample': a name on it holds /, which a node path cannot address; rename the node",
   );
@@ -114,5 +114,5 @@ test("NodePath R5: siblings sharing a name make their path ambiguous; paths stil
   expect(failure(clash, "Orders", "app")).toBe(
     "'Orders' names 2 siblings; `nuhokai check --path app` reports the clash",
   );
-  expect(nodePaths(clash)).toEqual(["Orders", "Orders"]);
+  expect(nameNodes(clash)).toEqual(["Orders", "Orders"]);
 });

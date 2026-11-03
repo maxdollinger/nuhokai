@@ -24,7 +24,7 @@ export const Path = node({
   ],
   decisions: [
     {
-      decision: "Port names are the functions' names: inWorld, inProject, nodePaths, findNode.",
+      decision: "Port names are the functions' names: nameInWorld, nameInProject, nameNodes, findNode.",
       why: "One name per operation, in specs, code and tests alike; a reader of either finds the other.",
     },
     {
@@ -40,9 +40,9 @@ export const Path = node({
   ],
   children: [WorldPath, NodePath],
   ports: {
-    inWorld: WorldPath.inWorld,
-    inProject: WorldPath.inProject,
-    nodePaths: NodePath.nodePaths,
+    nameInWorld: WorldPath.nameInWorld,
+    nameInProject: WorldPath.nameInProject,
+    nameNodes: NodePath.nameNodes,
     findNode: NodePath.findNode,
   },
 }).edges({});

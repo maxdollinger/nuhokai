@@ -1,9 +1,7 @@
 import { node } from "@nuhokai/world";
 import { Check } from "./check/check.ts";
-import { BunRuntime } from "./externals/bun-runtime.ts";
 import { FileSystem } from "./externals/file-system.ts";
 import { Terminal } from "./externals/terminal.ts";
-import { Tsgo } from "./externals/tsgo.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
 import { Tree } from "./tree/tree.ts";
@@ -12,17 +10,10 @@ import { Tree } from "./tree/tree.ts";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes and the distribution. " +
-    "Implements no command.",
+    "Command surface: parse argv, print usage, dispatch to command nodes; owns exit codes. Implements no command; " +
+    "Build makes and ships it.",
   status: "building",
-  source: [
-    "src/bin.ts",
-    "src/bin.test.ts",
-    "scripts/embed-world.ts",
-    "scripts/embed-world.test.ts",
-    "scripts/package-release.ts",
-    "scripts/smoke-release.sh",
-  ],
+  source: ["src/bin.ts", "src/bin.test.ts"],
   ports: {
     dispatch: {
       kind: "call",
@@ -164,16 +155,5 @@ export const Cli = node({
     },
   ],
 }).edges({
-  uses: () => [
-    Init.run,
-    WorldMap.run,
-    Check.run,
-    Tree.run,
-    Terminal.stdout,
-    Terminal.stderr,
-    FileSystem.read,
-    FileSystem.write,
-    Tsgo.emit,
-    BunRuntime.build,
-  ],
+  uses: () => [Init.run, WorldMap.run, Check.run, Tree.run, Terminal.print, Terminal.printError, FileSystem.read],
 });

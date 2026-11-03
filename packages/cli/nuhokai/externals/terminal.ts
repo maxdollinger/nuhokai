@@ -12,12 +12,12 @@ export const Terminal = node({
   status: "built",
   source: [],
   ports: {
-    stdout: {
+    print: {
       kind: "call",
       purpose: "Take one line of a command's result: a written path, a diagnostic, a tree line, the usage",
       input: "one line of text",
     },
-    stderr: {
+    printError: {
       kind: "call",
       purpose: "Take one line about a failure or a wrong invocation, prefixed 'nuhokai <command>: '",
       input: "one line of text, or the usage after a usage error",

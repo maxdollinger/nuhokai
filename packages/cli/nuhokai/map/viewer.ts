@@ -10,7 +10,7 @@ export const Viewer = node({
   status: "building",
   source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
-    page: {
+    draw: {
       kind: "call",
       purpose: "Draw the loaded world in the browser",
       input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
@@ -203,4 +203,4 @@ export const Viewer = node({
       why: "The query's dimming overrides selection: a click under it would select out of sight.",
     },
   ],
-}).edges({ uses: () => [Browser.page, Browser.storage, ThreeJs.render] });
+}).edges({ uses: () => [Browser.runPage, Browser.store, ThreeJs.render] });

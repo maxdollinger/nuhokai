@@ -1,4 +1,5 @@
 import { defineWorld } from "@nuhokai/world";
+import { Build } from "./build.ts";
 import { Check } from "./check/check.ts";
 import { Cli } from "./cli.ts";
 import { Browser } from "./externals/browser.ts";
@@ -23,6 +24,7 @@ export default defineWorld({
   source: ["src/**", "scripts/**"],
   children: [
     Cli,
+    Build,
     Init,
     WorldMap,
     Check,

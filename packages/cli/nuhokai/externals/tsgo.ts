@@ -28,7 +28,7 @@ export const Tsgo = node({
     },
     emit: {
       kind: "call",
-      purpose: "Emit declaration files for a project",
+      purpose: "Emit declaration files for a project; Build only, through the repo's own install of the same version",
       input: "a tsconfig.json with declaration output",
       output: ".d.ts files in the outDir",
       errors: ["type errors (nothing emitted)"],

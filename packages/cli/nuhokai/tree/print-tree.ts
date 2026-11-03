@@ -55,7 +55,7 @@ export const PrintTree = node({
     TreeLines.render,
     Failure.format,
     Failure.isExpected,
-    Terminal.stdout,
-    Terminal.stderr,
+    Terminal.print,
+    Terminal.printError,
   ],
 });

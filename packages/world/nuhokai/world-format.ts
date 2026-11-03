@@ -12,7 +12,7 @@ export const WorldFormat = node({
   status: "building",
   source: ["src/**"],
   ports: {
-    node: {
+    declareNode: {
       kind: "call",
       purpose: "Declare a leaf or dome: children in step one, uses in .edges()",
       input: "node-spec fields; a leaf's ports by name, or a dome's children list and its record of their ports",
@@ -24,19 +24,19 @@ export const WorldFormat = node({
       input: "world id, name, optional description, source, top-level nodes",
       output: "the world, typed",
     },
-    inherited: {
+    referenceInherited: {
       kind: "call",
       purpose: "Reference a port inherited from an implemented contract",
       input: "implementor, contract's port",
       output: "inherited port reference",
     },
-    tbdCall: {
+    declareCallHole: {
       kind: "call",
       purpose: "Placeholder for a call port not designed yet",
       input: "description",
       output: "unresolved port reference",
     },
-    tbdEvent: {
+    declareEventHole: {
       kind: "call",
       purpose: "Placeholder for an event port not designed yet",
       input: "description",

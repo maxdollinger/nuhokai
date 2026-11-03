@@ -494,7 +494,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Cal
   }
 });
 
-test("a dome port of a non-child or a missing port is one load error at the dome's node() line", async () => {
+test("a dome port of a non-child or a missing port is one load error at the dome's node() line, listed or not", async () => {
   const dome = (ports: string) => `import { node } from "@nuhokai/world";
 import { Leaf, Other } from "./leaf.ts";
 export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: [Leaf], ports: ${ports} }).edges({});
@@ -519,6 +519,18 @@ export const Other = node(${leaf("other", '{ run: { kind: "call", purpose: "run"
     const root = world(files(dome(ports)));
     expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/dome.ts:3: ${message}`);
   }
+
+  // The same dome listed nowhere, an orphan: still read whole, still the same error.
+  const orphaned = world({
+    ...files(dome("{ run: Other.run }")),
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Leaf } from "./leaf.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Leaf] });
+`,
+  });
+  expect(((await loadError(orphaned)) as Error).message).toBe(
+    `${orphaned}/nuhokai/dome.ts:3: \`run\` exposes a port of a node that is not one of this dome's direct children`,
+  );
 });
 
 test("generated files, declarations and tests are never read", async () => {
