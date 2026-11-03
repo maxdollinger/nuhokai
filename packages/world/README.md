@@ -156,8 +156,7 @@ A compile-time check fails if the two drift apart.
 
 The world must be type-checked with `strict: true`. `inherited()` relies on `strictFunctionTypes`; the other checks
 also hold without `strict`. `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are not relied upon. The CLI
-owns the world's tsconfig: `nuhokai init` writes one with these options instead of trusting the repo's; the planned
-`nuhokai update` refreshes it.
+owns the world's tsconfig: `nuhokai init` writes one with these options instead of trusting the repo's.
 
 ## Types and the zero-dependency goal
 

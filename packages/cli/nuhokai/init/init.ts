@@ -67,12 +67,12 @@ export const Init = node({
   decisions: [
     {
       decision: "An existing nuhokai/ is a no-op (ok, exit 0); init only writes, never checks.",
-      why: "Scripts and agents re-run init; an existing world means 'nothing to do'. Changing files is update's job, diagnostics check's.",
+      why: "Scripts and agents re-run init; an existing world means 'nothing to do'. Changing files is the author's, diagnostics check's.",
       rejected: [
         { option: "Error when the folder exists", why: "Common re-runs would fail for no reason." },
         {
           option: "Fill in missing files or run check",
-          why: "Update and check own that; init would mix generated and authored files.",
+          why: "Check owns diagnostics; init would mix generated and authored files.",
         },
         {
           option: "A --force flag",
@@ -82,7 +82,7 @@ export const Init = node({
     },
     {
       decision:
-        "Init is a boundary dome: run delegates to Scaffold. Inspect, Path and Failure are top-level nodes shared with WorldMap, Check and Tree; CliFiles is Init's until update needs it.",
+        "Init is a boundary dome: run delegates to Scaffold. Inspect, Path and Failure are top-level nodes shared with WorldMap, Check and Tree; CliFiles is Init's.",
       why: "One public contract, one owner per shared concern, an interior that re-cuts without touching Cli.",
       rejected: [
         { option: "Init's body as loose code", why: "The interior stays unreadable in the map." },

@@ -268,7 +268,7 @@ test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the
   expect(result.outcome).toBe("failed");
   expect(result.out).toHaveLength(1);
   expect(result.err).toEqual([
-    "<root>/nuhokai/tsconfig.json: not found; it is CLI-owned: copy it from a fresh `nuhokai init` (`nuhokai update` will restore it)",
+    "<root>/nuhokai/tsconfig.json: not found; it is CLI-owned: copy it from a fresh `nuhokai init`",
   ]);
 });
 

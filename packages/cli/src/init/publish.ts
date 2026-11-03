@@ -16,7 +16,7 @@ export function publishWorld(root: string): string[] {
     const authored = writeExampleWorld(staging);
     const owned = writeCliFiles(staging);
     renameSync(join(staging, WORLD_DIR), join(root, WORLD_DIR));
-    return [...authored, ...owned.written].map((path) => nameInWorld(root, path));
+    return [...authored, ...owned].map((path) => nameInWorld(root, path));
   } finally {
     try {
       rmSync(staging, { recursive: true, force: true });

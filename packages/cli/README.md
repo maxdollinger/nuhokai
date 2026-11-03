@@ -30,13 +30,12 @@ stale. A test also type-checks a consumer world against the bundled declarations
 
 ## Commands
 
-| Command  | Purpose                                                                                |
-| -------- | -------------------------------------------------------------------------------------- |
-| `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
-| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`               |
-| `update` | refresh the CLI-owned `tsconfig.json` and the `@nuhokai/world` types (planned)         |
+| Command | Purpose                                                                                |
+| ------- | -------------------------------------------------------------------------------------- |
+| `check` | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
+| `init`  | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
+| `map`   | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
+| `tree`  | print the node hierarchy, one line per node: `path \| source \| purpose`               |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -98,7 +97,7 @@ like every other path, and the whole purpose stays on the line. Like `map`, `tre
 names no node exits 2 with the closest match (`did you mean 'Check/SpecCheck'?`) or the `tree` command listing where it
 went wrong.
 
-`init` (and, later, `update`) exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
+`init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
 
 ## Distribution

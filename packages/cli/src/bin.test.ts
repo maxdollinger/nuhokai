@@ -50,8 +50,7 @@ async function failed(argv: string[]): Promise<[number | undefined, string[]]> {
 }
 
 test("usage lists every command", async () => {
-  for (const command of ["check", "init", "map", "tree", "update"])
-    expect(await usage()).toContain(`nuhokai ${command}`);
+  for (const command of ["check", "init", "map", "tree"]) expect(await usage()).toContain(`nuhokai ${command}`);
 });
 
 test("--help exits 0", async () => {
@@ -392,10 +391,6 @@ test("Terminal R1: a control character a command's line carries reaches the term
   } finally {
     run.mockRestore();
   }
-});
-
-test("Cli R2: `nuhokai update` is not built yet: one failure line, exit 1", async () => {
-  expect(await printed(["update"])).toEqual({ code: 1, out: [], err: ["nuhokai update: not implemented yet"] });
 });
 
 test("Cli R9: a command whose run throws at once still has its CutShort's lines printed, then its bug thrown", async () => {

@@ -64,11 +64,11 @@ export const Inspect = node({
   decisions: [
     {
       decision: "Any directory counts as a world.",
-      why: "Commands never repair or update; a broken world is update's and check's business.",
+      why: "Commands never repair; a broken world is check's business.",
       rejected: [
         {
           option: "Require nuhokai/index.ts or load and validate",
-          why: "Commands must work before the loader does; a half-written world is update's and check's too.",
+          why: "Commands must work before the loader does; a half-written world is check's too.",
         },
       ],
     },

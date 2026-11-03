@@ -7,7 +7,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -167,15 +166,15 @@ test("init writes into the directory it is given", async () => {
   expect(existsSync(join(repo, "nuhokai"))).toBe(false);
 });
 
-test("a second write of identical CLI-owned files rewrites nothing", () => {
+test("CliFiles R4: two writes give the same bytes", () => {
   const repo = tempDir();
-  const modificationTimes = () =>
-    [WORLD_TSCONFIG, WORLD_TYPES_PATH].map((path) => statSync(join(repo, "nuhokai", path)).mtimeMs);
+  const bytes = () =>
+    [WORLD_TSCONFIG, WORLD_TYPES_PATH].map((path) => readFileSync(join(repo, "nuhokai", path), "utf8"));
 
-  expect(writeCliFiles(repo)).toEqual({ written: [WORLD_TSCONFIG, WORLD_TYPES_PATH], unchanged: [] });
-  const written = modificationTimes();
-  expect(writeCliFiles(repo)).toEqual({ written: [], unchanged: [WORLD_TSCONFIG, WORLD_TYPES_PATH] });
-  expect(modificationTimes()).toEqual(written);
+  expect(writeCliFiles(repo)).toEqual([WORLD_TSCONFIG, WORLD_TYPES_PATH]);
+  const first = bytes();
+  writeCliFiles(repo);
+  expect(bytes()).toEqual(first);
 });
 
 test("a programming error crashes instead of becoming one failure line", async () => {

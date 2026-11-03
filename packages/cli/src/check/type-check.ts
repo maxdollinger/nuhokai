@@ -153,9 +153,7 @@ function lineInText(path: string, position: number): number | undefined {
 export async function runTypeCheck(root: string, checker: () => string = checkerPath): Promise<Finding[]> {
   const tsconfig = nameInWorld(root, WORLD_TSCONFIG);
   if (!existsSync(tsconfig)) {
-    throw new CliError(
-      `${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\` (\`nuhokai update\` will restore it)`,
-    );
+    throw new CliError(`${tsconfig}: not found; it is CLI-owned: copy it from a fresh \`nuhokai init\``);
   }
   const worldDir = resolve(nameInWorld(root));
   const generated = resolve(nameInWorld(root, WORLD_GENERATED_DIR));

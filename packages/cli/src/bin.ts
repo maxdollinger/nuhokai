@@ -7,7 +7,6 @@ import { checkCmd } from "./cli/commands/check.ts";
 import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
-import { updateCmd } from "./cli/commands/update.ts";
 import { plainText } from "./shared/failure.ts";
 import { CutShort, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
 
@@ -163,13 +162,12 @@ function usageError(name: string, cmd: Cmd, error: string): number {
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
 export async function main(argv: readonly string[]): Promise<number> {
-  // The commands the CLI exposes, in usage's order; `update` is planned, the others run today.
+  // The commands the CLI exposes, in usage's order.
   const commands: Commands = {
     check: checkCmd,
     init: initCmd,
     map: mapCmd,
     tree: treeCmd,
-    update: updateCmd,
   };
   const [first, ...typed] = argv;
   if (first === undefined || HELP_WORDS.includes(first)) {

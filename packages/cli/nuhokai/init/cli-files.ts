@@ -15,7 +15,7 @@ export const CliFiles = node({
       kind: "call",
       purpose: "Write the CLI-owned files",
       input: "an existing directory",
-      output: "which of tsconfig.json and .generated/world/index.d.ts (in nuhokai/) were written vs already identical",
+      output: "the two paths written in nuhokai/: tsconfig.json, .generated/world/index.d.ts",
       errors: ["directory not writable"],
     },
   },
@@ -29,7 +29,7 @@ export const CliFiles = node({
       id: "R3",
       text: ".d.ts emitted from @nuhokai/world at build time and embedded, self-contained: no node_modules or repo resolution.",
     },
-    { id: "R4", text: "Byte-identical per CLI version; identical files are not rewritten." },
+    { id: "R4", text: "Byte-identical per CLI version." },
     { id: "C1", kind: "constraint", text: "Writes nothing outside the given directory." },
   ],
   testCases: [
@@ -38,7 +38,7 @@ export const CliFiles = node({
       demonstrates: ["R1", "R2", "R3"],
     },
     {
-      text: "Second write into unchanged files rewrites nothing and says so; two runs → identical bytes.",
+      text: "Two writes → identical bytes.",
       demonstrates: ["R4"],
     },
   ],

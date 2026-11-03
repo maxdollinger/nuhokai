@@ -25,7 +25,6 @@ export const Cli = node({
     "src/cli/commands/map.ts",
     "src/cli/commands/tree.ts",
     "src/cli/commands/tree.test.ts",
-    "src/cli/commands/update.ts",
   ],
   ports: {
     dispatch: {
@@ -58,7 +57,7 @@ export const Cli = node({
     },
     {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, update, map none; tree at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and tree's R8 options → 'unknown option'; then Cli counts the positionals against the Cmd's declared ones: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, map none; tree at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and tree's R8 options → 'unknown option'; then Cli counts the positionals against the Cmd's declared ones: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
@@ -121,7 +120,7 @@ export const Cli = node({
       demonstrates: ["R2", "R9"],
     },
     {
-      text: "A result line holding ESC and a failure line holding a bare carriage return → each printed with a space instead; `nuhokai update` → 'nuhokai update: not implemented yet', exit 1; SpecCheck throwing a TypeError on a world with a tsc error → the tsc line on stdout, then the TypeError thrown; a run throwing a CutShort at once → its lines printed, then its bug thrown.",
+      text: "A result line holding ESC and a failure line holding a bare carriage return → each printed with a space instead; SpecCheck throwing a TypeError on a world with a tsc error → the tsc line on stdout, then the TypeError thrown; a run throwing a CutShort at once → its lines printed, then its bug thrown.",
       demonstrates: ["R2", "R9"],
     },
     {
