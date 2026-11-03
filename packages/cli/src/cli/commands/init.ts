@@ -1,15 +1,12 @@
 /** `nuhokai init`: no argument; runs Init. */
-import { type Cmd, extraArgument } from "../cmd.ts";
+import type { Cmd } from "../cmd.ts";
 
 export const initCmd: Cmd = {
   description: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
-  args: "",
+  positionals: [],
   options: [],
-  parse: (_values, positionals) =>
-    extraArgument(positionals, 0) ?? {
-      async run(root) {
-        const { runInit } = await import("../../init/index.ts");
-        return runInit(root);
-      },
-    },
+  async run(root) {
+    const { runInit } = await import("../../init/index.ts");
+    return runInit(root);
+  },
 };

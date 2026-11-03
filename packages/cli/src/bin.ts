@@ -2,7 +2,7 @@
 
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
-import type { Cmd, Option, OptionValue, OptionValues, Runner } from "./cli/cmd.ts";
+import type { Args, Cmd, Option } from "./cli/cmd.ts";
 import { checkCmd } from "./cli/commands/check.ts";
 import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
@@ -31,19 +31,33 @@ const HELP_FLAGS = ["--help", "-h"];
 const HELP_WORDS = ["help", ...HELP_FLAGS];
 
 /** The one option every command takes: the project directory holding nuhokai/, instead of the cwd. */
-const PATH_OPTION: Option = {
+const PATH_OPTION: Option<string> = {
   names: ["--path"],
   value: "<dir>",
   needs: "a directory",
   text: "the project directory holding nuhokai/ (default: the current directory)",
+  // Any value names a path; whether it is a directory is judged last, before the command runs.
+  parse: (raw) => raw,
 };
+
+/** An option's value as typed: the spelling that named it (for messages) and the raw value, not yet judged. */
+interface OptionValue {
+  readonly spelling: string;
+  readonly raw: string;
+}
 
 const NAMES = Object.keys(COMMANDS) as CommandName[];
 
-/** A command's argument form: "nuhokai tree [node] [-L <n>]". */
+/** An option's spellings, shortest first: "-L, --level". */
+function spellings(option: Option): string[] {
+  return [...option.names].sort((a, b) => a.length - b.length);
+}
+
+/** A command's argument form, from its positionals and its own options: "nuhokai tree [node] [-L <n>]". */
 function synopsis(name: CommandName): string {
-  const { args } = COMMANDS[name];
-  return args ? `nuhokai ${name} ${args}` : `nuhokai ${name}`;
+  const { positionals, options } = COMMANDS[name];
+  const optional = options.map((option) => `[${spellings(option)[0]} ${option.value}]`);
+  return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
 /** The synopsis column's width, so every description starts in one column. */
@@ -62,12 +76,12 @@ export function usage(): string {
   ].join("\n");
 }
 
-/** One help text per command, answered by Cli before parse: the command's own options, --path and --help. */
+/** One help text per command, answered by Cli before any value is judged: its own options, --path and --help. */
 export function commandUsage(name: CommandName): string {
   const { description, options } = COMMANDS[name];
   const lines: (readonly [string, string])[] = [
     ...[...options, PATH_OPTION].map((option): [string, string] => [
-      `${[...option.names].sort((a, b) => a.length - b.length).join(", ")} ${option.value}`,
+      `${spellings(option).join(", ")} ${option.value}`,
       option.text,
     ]),
     ["--help", "show this help"],
@@ -95,7 +109,7 @@ function isCommandName(value: string): value is CommandName {
  * Split one option off the arguments, touching nothing else: `--name <value>`, `--name=<value>` for a long name,
  * or a short name and its value. A missing value (a help flag included) or a second occurrence is the
  * invocation's fault, so it is a message naming the spelling typed, never a command run. The value itself is the
- * command's to judge, after help.
+ * option's parse to judge, after help.
  */
 function splitOption(
   args: readonly string[],
@@ -122,7 +136,7 @@ function splitOption(
 function splitOptions(
   args: readonly string[],
   options: readonly Option[],
-): { values: OptionValues; rest: readonly string[] } | { error: string } {
+): { values: ReadonlyMap<Option, OptionValue>; rest: readonly string[] } | { error: string } {
   const values = new Map<Option, OptionValue>();
   let rest = args;
   for (const option of options) {
@@ -136,7 +150,7 @@ function splitOptions(
 
 /**
  * What is left once the options are split off, as a usage error or none: a help flag beside other arguments is
- * unexpected, and any other dash argument a mistyped or unknown option. The positionals are the command's to count.
+ * unexpected, and any other dash argument a mistyped or unknown option. The positionals are counted after it.
  */
 function strayArgument(rest: readonly string[]): { error: string } | undefined {
   const helpFlag = rest.find(isHelpFlag);
@@ -171,7 +185,7 @@ function usageError(name: CommandName, error: string): number {
 
 /** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
 export async function main(argv: readonly string[]): Promise<number> {
-  const [first, ...args] = argv;
+  const [first, ...typed] = argv;
   if (first === undefined || HELP_WORDS.includes(first)) {
     console.log(usage());
     return 0;
@@ -181,7 +195,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 2;
   }
   const cmd: Cmd = COMMANDS[first];
-  const split = splitOptions(args, [PATH_OPTION, ...cmd.options]);
+  const split = splitOptions(typed, [PATH_OPTION, ...cmd.options]);
   if ("error" in split) return usageError(first, split.error);
   // Help wins over any value, a bad --path included: values are judged only after it.
   if (split.rest.length === 1 && isHelpFlag(split.rest[0] ?? "")) {
@@ -190,26 +204,38 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   const stray = strayArgument(split.rest);
   if (stray) return usageError(first, stray.error);
-  const parsed = cmd.parse(split.values, split.rest);
-  if ("error" in parsed) return usageError(first, parsed.error);
+  // The count before any value: the first positional past the command's declared ones is named.
+  const extra = split.rest[cmd.positionals.length];
+  if (extra !== undefined) return usageError(first, `unexpected argument '${extra}'`);
+  const values = new Map<Option, unknown>();
+  for (const [option, { spelling, raw }] of split.values) {
+    const value = option.parse(raw);
+    if (value === undefined) return usageError(first, `${spelling} needs ${option.needs}, got '${raw}'`);
+    values.set(option, value);
+  }
+  const args: Args = {
+    positionals: split.rest,
+    // A closure, not a method, so a command may destructure it; each value is its own option's parse result.
+    get: <T>(option: Option<T>) => values.get(option) as T | undefined,
+  };
   // The project directory is --path against the cwd, else the cwd itself.
   const cwd = process.cwd();
-  const named = split.values.get(PATH_OPTION)?.raw ?? ".";
+  const named = args.get(PATH_OPTION) ?? ".";
   const dir = resolve(cwd, named);
   if (!isDirectory(dir)) return usageError(first, `not a directory: ${named}`);
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  return finish(first, parsed, root);
+  return finish(first, cmd, root, args);
 }
 
 /**
  * Run the command, print its Report and map its outcome to the exit code; a bug crashes, after the lines answered
- * before it, whether the runner throws or rejects.
+ * before it, whether run throws or rejects.
  */
-async function finish(name: CommandName, runner: Runner, root: string): Promise<number> {
+async function finish(name: CommandName, cmd: Cmd, root: string, args: Args): Promise<number> {
   let report: Report;
   try {
-    report = await runner.run(root);
+    report = await cmd.run(root, args);
   } catch (error) {
     if (!(error instanceof CutShort)) throw error;
     print(name, error.lines);

@@ -275,8 +275,18 @@ test("Cli R6, R8: a missing or second --level, a bad one or -L on another comman
     expect(await failed(["tree", "-L", "--help"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
     expect(await failed(["tree", "-L", "1", "--level", "2"])).toEqual([2, ["nuhokai tree: --level given twice"]]);
     expect(await failed(["tree", "-L", "1", "-L", "2"])).toEqual([2, ["nuhokai tree: -L given twice"]]);
-    // The value itself is tree's parse to judge (tree.test.ts); once end to end:
+    // A value the option's parse rejects (tree.test.ts) is a usage error naming the spelling typed.
     expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
+    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got '-1'"]]);
+    expect(await failed(["tree", "--level", "1.5"])).toEqual([
+      2,
+      ["nuhokai tree: --level needs a whole number, got '1.5'"],
+    ]);
+    expect(await failed(["tree", "--level=1.5"])).toEqual([
+      2,
+      ["nuhokai tree: --level needs a whole number, got '1.5'"],
+    ]);
+    expect(await failed(["tree", "a", "b", "c"])).toEqual([2, ["nuhokai tree: unexpected argument 'b'"]]);
     expect(await failed(["tree", "--depth", "2"])).toEqual([2, ["nuhokai tree: unknown option '--depth'"]]);
     expect(await failed(["map", "-L", "1"])).toEqual([2, ["nuhokai map: unknown option '-L'"]]);
     expect(run).not.toHaveBeenCalled();
@@ -361,17 +371,15 @@ test("Cli R2: `nuhokai update` is not built yet: one failure line, exit 1", asyn
   expect(await printed(["update"])).toEqual({ code: 1, out: [], err: ["nuhokai update: not implemented yet"] });
 });
 
-test("Cli R9: a runner that throws at once still has its CutShort's lines printed, then its bug thrown", async () => {
+test("Cli R9: a command whose run throws at once still has its CutShort's lines printed, then its bug thrown", async () => {
   const bug = new TypeError("boom");
-  const parse = spyOn(COMMANDS.tree, "parse").mockReturnValue({
-    run: () => {
-      throw new CutShort([resultLine("a"), failureLine("x")], bug);
-    },
+  const run = spyOn(COMMANDS.tree, "run").mockImplementation(() => {
+    throw new CutShort([resultLine("a"), failureLine("x")], bug);
   });
   try {
     expect(await printed(["tree"])).toEqual({ thrown: bug, out: ["a"], err: ["nuhokai tree: x"] });
   } finally {
-    parse.mockRestore();
+    run.mockRestore();
   }
 });
 

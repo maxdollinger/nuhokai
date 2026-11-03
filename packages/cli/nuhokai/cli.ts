@@ -10,10 +10,10 @@ import { Tree } from "./tree/tree.ts";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch through a registry of per-command Cmds (help text, options, " +
-    "a parse of their values and positionals into a runner holding the deferred call into the command node), print " +
-    "their reports; owns exit codes and is the only node that touches the terminal. Implements no command; Build " +
-    "makes and ships it.",
+    "Command surface: parse argv, print usage, dispatch through a registry of per-command Cmds (help text, declared " +
+    "positionals, options each with the parse of its value, and a run holding the deferred call into the command " +
+    "node), print their reports; owns exit codes and is the only node that touches the terminal. Implements no " +
+    "command; Build makes and ships it.",
   status: "building",
   source: [
     "src/bin.ts",
@@ -31,7 +31,7 @@ export const Cli = node({
     dispatch: {
       kind: "call",
       purpose:
-        "Parse argv: split --path and the command's options off, answer help, then the command's Cmd judges the values and positionals into a runner; run it, print its report",
+        "Parse argv: split --path and the command's options off, answer help, count the positionals against the command's Cmd, judge each value by its option's parse; run the Cmd with the directory and the typed arguments, print its report",
       input: "argv without the executable",
       output:
         "exit code: 0 ok, 1 errors or failure, 2 usage or argument error; stdout: result lines; stderr: 'nuhokai <command>: ' failure lines and usage errors",
@@ -50,7 +50,7 @@ export const Cli = node({
     },
     {
       id: "R4",
-      text: "No loading, rule, tsc or writing logic in Cli: each command is its own node. Each command's Cmd imports its node only inside the runner its parse returns, so usage and help load none: bin.ts statically reaches only Cli's own files, Report and Failure.",
+      text: "No loading, rule, tsc or writing logic in Cli: each command is its own node. Each command's Cmd imports its node only inside its run, called only when the command runs, so usage and help load none: bin.ts statically reaches only Cli's own files, Report and Failure.",
     },
     {
       id: "R5",
@@ -58,7 +58,7 @@ export const Cli = node({
     },
     {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, update, map none; tree at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and tree's R8 options → 'unknown option'; then the command's Cmd counts its positionals: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, update, map none; tree at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and tree's R8 options → 'unknown option'; then Cli counts the positionals against the Cmd's declared ones: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
@@ -66,11 +66,11 @@ export const Cli = node({
     },
     {
       id: "R8",
-      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, -1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli splits it off as it does --path; tree's Cmd judges the value, and its runner hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
+      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, -1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli splits it off as it does --path and judges the value by the option's parse; tree's run hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
     },
     {
       id: "R9",
-      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters as one space (Terminal R1), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its runner throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
+      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters as one space (Terminal R1), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its run throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
@@ -105,7 +105,7 @@ export const Cli = node({
       demonstrates: ["R6"],
     },
     {
-      text: "tree's parse alone, given -L as typed and the positionals: none → a runner reaching Tree with (no node, 1); -L 2, Check with --level 0, help → (none, 2), (Check, 0), (help, 1); -L x, -1, --level 1.5 → the usage error naming the spelling; `a b c`, and `a b` beside -L x → unexpected argument 'b'.",
+      text: "--level's parse alone: 0, 2, 10 → the number; x, -1, 1.5 → none. tree's run alone, given the positionals and the level: none → Tree with (no node, 1); -L 2, Check with --level 0, help → (none, 2), (Check, 0), (help, 1). Through Cli: -L x, -1, --level 1.5 → the usage error naming the spelling; `a b c`, and `a b` beside -L x → unexpected argument 'b'.",
       demonstrates: ["R6", "R8"],
     },
     {
@@ -121,7 +121,7 @@ export const Cli = node({
       demonstrates: ["R2", "R9"],
     },
     {
-      text: "A result line holding ESC and a failure line holding a bare carriage return → each printed with a space instead; `nuhokai update` → 'nuhokai update: not implemented yet', exit 1; SpecCheck throwing a TypeError on a world with a tsc error → the tsc line on stdout, then the TypeError thrown; a runner throwing a CutShort at once → its lines printed, then its bug thrown.",
+      text: "A result line holding ESC and a failure line holding a bare carriage return → each printed with a space instead; `nuhokai update` → 'nuhokai update: not implemented yet', exit 1; SpecCheck throwing a TypeError on a world with a tsc error → the tsc line on stdout, then the TypeError thrown; a run throwing a CutShort at once → its lines printed, then its bug thrown.",
       demonstrates: ["R2", "R9"],
     },
     {
@@ -183,7 +183,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Cli parses every option, a command's own too (tree's --level: split off by Cli, its value judged by tree's Cmd), and hands run typed values.",
+        "Cli parses every option, a command's own too (tree's --level: split off by Cli, its value judged by the option's parse), and hands run typed values.",
       why: "One parser and one help text; commands stay flag-free, as with --path. The value's meaning (which node) stays the command's.",
       rejected: [
         {
@@ -194,8 +194,8 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, args, options, parse), and bin.ts dispatches through a plain const registry of them. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, and builds 'nuhokai <name> <args>'; parse judges the values and positionals and returns a usage error or a runner whose run(root) holds the deferred import.",
-      why: "Adding a command touches one file instead of five parallel tables; the typed arguments live in the runner's closure, so no generic parameter links parse to a later call and nothing can pass the wrong arguments; help derives from the same options parse is given, and the runner holds the deferred import so help never loads a command node.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, options each with its parse, run), and bin.ts dispatches through a plain const registry of them. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+      why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {
           option: "Each command node exports its own Cmd",
@@ -208,6 +208,10 @@ export const Cli = node({
         {
           option: "A generic Cmd<A> whose parse returns A and exec(root, A) takes it",
           why: "A registry of Cmd<unknown> accepts any exec and, by method bivariance, a parse and exec that disagree; it needs a helper to tie them and a guard to tell an error from A.",
+        },
+        {
+          option: "parse returning a runner closure",
+          why: "Repeats the count and the import wrapper in every command.",
         },
       ],
     },
