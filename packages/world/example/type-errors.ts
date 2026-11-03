@@ -111,7 +111,7 @@ export const emptyChildren = node({
 export const stringChild = node({
   ...base,
   children: [
-    // @ts-expect-error a child is a node reference, not a string
+    // @ts-expect-error a child is a node reference, not a string: list the node's const, e.g. children: [Orders]
     "cmd",
   ],
 }).edges({});
@@ -470,7 +470,7 @@ export const stringInWorld = defineWorld({
   name: "w",
   source: [],
   children: [
-    // @ts-expect-error a child is a node reference, not a string
+    // @ts-expect-error a child is a node reference, not a string: list the node's const, e.g. children: [Orders]
     "shop",
   ],
 });
@@ -513,7 +513,7 @@ export const worldWithoutName = defineWorld({ id: "w", source: [], children: [Po
 
 export const blankNameWorld = defineWorld({
   id: "w",
-  // @ts-expect-error name must not be empty or whitespace
+  // @ts-expect-error name must not be empty or whitespace: give the world a name, e.g. Shop
   name: " \t",
   source: [],
   children: [Postgres],

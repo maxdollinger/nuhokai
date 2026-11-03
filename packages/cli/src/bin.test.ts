@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main } from "./bin.ts";
 import * as specCheck from "./check/spec-check/apply-rules.ts";
+import { checkCmd } from "./cli/commands/check.ts";
+import { initCmd } from "./cli/commands/init.ts";
+import { mapCmd } from "./cli/commands/map.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
 import { runInit } from "./init/scaffold.ts";
 import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
@@ -136,7 +139,7 @@ test("--path names the project directory, against the cwd; without it the cwd is
     expect(await printed(["map", "--path", "packages/app"])).toEqual({
       code: 1,
       out: [],
-      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected."],
+      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1:21: Expression expected."],
     });
     expect(await printed(["map", "--path", "packages"])).toEqual({
       code: 1,
@@ -235,7 +238,7 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
       out: [],
       err: ["nuhokai check: no nuhokai/ here; run `nuhokai init` to start a world here, or pass --path <project dir>"],
     });
-    expect(await printed(["check", "--path=app"])).toEqual({ code: 0, out: [], err: [] });
+    expect(await printed(["check", "--path=app"])).toEqual({ code: 0, out: ["ok: 0 errors, 0 warnings"], err: [] });
     // Findings name their files from the cwd.
     writeFileSync(
       join(project, "nuhokai/orphan.ts"),
@@ -245,7 +248,8 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
     expect(await printed(["check"])).toEqual({
       code: 0,
       out: [
-        "warning: nuhokai/orphan.ts: Orphan: Orphan is exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+        "warning: nuhokai/orphan.ts:3:23: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+        "ok: 0 errors, 1 warning",
       ],
       err: [],
     });
@@ -253,6 +257,32 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
     process.chdir(cwd);
     rmSync(parent, { recursive: true, force: true });
   }
+});
+
+test("Cli R3: usage and each command's help state the output, where failures go and the exit codes", async () => {
+  const exitCodes =
+    "Exit codes: 0 ok, 1 errors found or the command failed, 2 an invalid argument (an unknown option, a node path naming no node).";
+  const commands = { check: checkCmd, init: initCmd, map: mapCmd, tree: treeCmd };
+  expect(await usage()).toContain(exitCodes);
+  expect(await usage()).toContain(
+    "Failures: one line each on stderr, `nuhokai <command>: <message>`; an argument error (an unknown option, a bad option value, an extra argument; exit 2) prints that command's help after its line; an unknown command is `nuhokai: unknown command '<name>'`, then usage.",
+  );
+  expect(await help("map")).toContain(
+    "an argument error (an unknown option, a bad option value, an extra argument; exit 2) prints this help after its line. Every path",
+  );
+  expect(await help("tree")).toContain("`<path>/ (<children_count>)`");
+  for (const [name, cmd] of Object.entries(commands)) {
+    expect(await help(name)).toContain(`\nOutput: ${cmd.output}.\n`);
+    expect(await help(name)).toContain(`Failures: one line each on stderr, \`nuhokai ${name}: <message>\``);
+    expect(await help(name)).toEndWith(exitCodes);
+  }
+  expect(await help("check")).toContain(
+    "Output: one line per finding, `<error|warning>: <file>:<line>:<column>: <node>: <rule>; <fix>`",
+  );
+  expect(await help("tree")).toContain(
+    "Arguments:\n  node  the node to start from, by its path as tree prints it, e.g. Check/SpecCheck (default: the top level)\n",
+  );
+  expect(await help("map")).not.toContain("Arguments:");
 });
 
 test("`nuhokai tree --help` lists --level; usage shows tree's argument form", async () => {
@@ -418,7 +448,7 @@ test("Cli R9: a bug in a command still crashes with it, after Cli prints the lin
     process.chdir(project);
     expect(await printed(["check"])).toEqual({
       thrown: bug,
-      out: ["error: nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'."],
+      out: ["error: nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'."],
       err: [],
     });
   } finally {

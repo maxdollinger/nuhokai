@@ -72,6 +72,7 @@ function oneNode(purpose: string): LoadedWorld {
     top: [0],
     placeholders: [],
     file: "nuhokai/index.ts",
+    definedIn: "nuhokai/index.ts",
     listings: [],
     orphans: [],
   };

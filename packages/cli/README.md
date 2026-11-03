@@ -54,11 +54,12 @@ Every command works in one project directory: the current directory, or the one 
 directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` prints map's help. Before a command,
 `help`, `--help` and `-h` print the usage; after one only `--help` and `-h` are help, so `nuhokai tree help`
 starts from a node named `help`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
-exit 2 and run nothing. Without a `nuhokai/`
+exit 2 and run nothing. `--help` is enough to drive the CLI without this README: the usage states where failures go and
+what each exit code means, and each command's help adds what its arguments are and the shape of every line it prints. Without a `nuhokai/`
 there, `check`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
-`packages/cli/nuhokai/<file>:<line>`.
+`packages/cli/nuhokai/<file>:<line>:<column>`.
 
 `init` writes those four files and nothing else. `index.ts` carries a fresh world id, generated per run, so two
 projects never share per-world state such as the map's saved layout; everything else is the same per CLI version. An
@@ -68,12 +69,19 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
 `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
-yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
-from the world. World files must stay declarative: the loader rejects anything that is not data (calls other than the
+yet. Every finding is one stdout line, `<severity>: <file>:<line>:<column>: <node>: <rule>; <fix>`, naming a node by its path
+from the world. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
+(`Forbidden<"…">`) is that message alone (`a draft is not a node: call .edges(), also with {}`), any other names
+types without their arguments (`'NodeShape'`) and a long object literal as `'{ … }'`, and tsc's advice to change the library or install types gives way to
+the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
 format's functions among it), and the type check allows imports only from `@nuhokai/world` and other world files and
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
-exits 1 on any error and 0 otherwise; orphans are warnings. A missing world is one stderr line; a world that fails to
-load still gets every tsc finding, then one stderr line for the load failure.
+exits 1 on any error and 0 otherwise; orphans are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
+or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
+load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file, line and column (where a type-check finding
+sits at that very position, one of the two: that finding when it says what to do, else the loader's)
+(``error: nuhokai/b.ts:3:1: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}` ``),
+so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
@@ -94,7 +102,7 @@ imported from a package, a statement block in `uses`, a top-level statement) is 
 `nuhokai tree Check -L 2` starts from Check and prints two levels below it. `-L`/`--level` defaults to 1, and `0` prints
 everything; a dome cut off by the level shows `/ (<n>)` and its child count. Sources print from the current directory,
 like every other path, and the whole purpose stays on the line. Like `map`, `tree` does not run `check`. A path that
-names no node exits 2 with the closest match (`did you mean 'Check/SpecCheck'?`) or the `tree` command listing where it
+names no node exits 2 with the closest match (``did you mean `nuhokai tree Check/SpecCheck`?``, a command to run as printed) or the `tree` command listing where it
 went wrong.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the

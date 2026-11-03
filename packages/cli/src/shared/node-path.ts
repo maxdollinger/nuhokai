@@ -42,7 +42,7 @@ export function nameNodes(nodes: readonly { readonly name: string; readonly pare
 /**
  * The position in `nodes` of the node a typed hierarchy path names: exact and case-sensitive, one segment at a
  * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one CliError
- * naming the closest match (the rest of the path corrected as far as it goes), or the command listing the
+ * naming the command for the closest match (the rest of the path corrected as far as it goes), or the command listing the
  * deepest node found; two siblings sharing a segment's name are one CliError naming nuhokai check. Commands in
  * a message carry `--path <root>` unless `root` is the cwd, so they run as printed.
  */
@@ -90,7 +90,7 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       corrected = `${corrected}/${name}`;
       at = below.find((node) => node.spec.name === name);
     }
-    throw new CliError(`no node '${typed}'; did you mean '${corrected}'?`);
+    throw new CliError(`no node '${typed}'; did you mean ${command("tree", corrected)}?`);
   }
   // segments is never empty, so the loop chose a node.
   return (parent as HierarchyNode).index;

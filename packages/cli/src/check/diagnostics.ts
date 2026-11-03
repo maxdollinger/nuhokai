@@ -6,25 +6,48 @@ export interface Finding {
   /** Named from the cwd, as the loader names world files. */
   readonly file: string;
   readonly line?: number;
+  /** 1-based, only beside a line. */
+  readonly column?: number;
   /** The node's path from the world, `Check/SpecCheck`; absent when the file defines no node to name. */
   readonly node?: string;
   /** The broken rule, one sentence. */
   readonly rule: string;
   /** How to fix it, listing the alternatives when there is a choice. */
   readonly fix?: string;
+  /** The rule is a message the world format wrote for its reader (a tsc error about a Forbidden<"…">). */
+  readonly formatMessage?: true;
 }
 
-/** A finding's location: a file and its line when known, as a node or a listing holds them. */
-export function at(place: { readonly file: string; readonly line?: number | undefined }): {
+/** Where in a file, as a finding spreads it in: the line and column that are known, a column only beside a line. */
+export function positionOf(at: { readonly line?: number; readonly column?: number }): {
+  line?: number;
+  column?: number;
+} {
+  if (at.line === undefined) return {};
+  return at.column === undefined ? { line: at.line } : { line: at.line, column: at.column };
+}
+
+/** A finding's location: a file and its line and column when known, as a node or a listing holds them. */
+export function at(place: { readonly file: string; readonly line?: number; readonly column?: number }): {
   file: string;
   line?: number;
+  column?: number;
 } {
-  return place.line === undefined ? { file: place.file } : { file: place.file, line: place.line };
+  return { file: place.file, ...positionOf(place) };
 }
 
-/** An error about a node: at its node() line, named by its path. */
+/** A finding about the world itself: the file holding the defineWorld call, at that call. */
+export function atWorld(world: { readonly definedIn: string; readonly line?: number; readonly column?: number }): {
+  file: string;
+  line?: number;
+  column?: number;
+} {
+  return { file: world.definedIn, ...positionOf(world) };
+}
+
+/** An error about a node: at its node() call, named by its path. */
 export function nodeError(
-  node: { readonly file: string; readonly line?: number | undefined; readonly path: string },
+  node: { readonly file: string; readonly line?: number; readonly column?: number; readonly path: string },
   rule: string,
   fix: string,
 ): Finding {
@@ -32,11 +55,13 @@ export function nodeError(
 }
 
 /**
- * One finding as one line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`.
- * A missing line, node or fix drops its part; every text field is flattened to one line.
+ * One finding as one line, `<severity>: <file>:<line>:<column>: <node>: <rule>; <fix>`.
+ * A missing line, column, node or fix drops its part; every text field is flattened to one line.
  */
 export function formatFinding(finding: Finding): string {
-  const at = finding.line === undefined ? oneLine(finding.file) : `${oneLine(finding.file)}:${finding.line}`;
+  const position =
+    finding.line === undefined ? "" : `:${finding.line}${finding.column === undefined ? "" : `:${finding.column}`}`;
+  const at = `${oneLine(finding.file)}${position}`;
   const parts = [`${finding.severity}: ${at}`];
   if (finding.node !== undefined) parts.push(oneLine(finding.node));
   const rule = oneLine(finding.rule);
@@ -49,11 +74,15 @@ export function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** The one order of findings: file, then line (a finding without one first), then rule, then node; code-unit order. */
+/**
+ * The one order of findings: file, then line and column (a finding without one first), then rule, then node;
+ * code-unit order.
+ */
 export function compareFindings(a: Finding, b: Finding): number {
   return (
     compareText(a.file, b.file) ||
     (a.line ?? 0) - (b.line ?? 0) ||
+    (a.column ?? 0) - (b.column ?? 0) ||
     compareText(a.rule, b.rule) ||
     compareText(a.node ?? "", b.node ?? "")
   );

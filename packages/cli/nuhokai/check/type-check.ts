@@ -16,7 +16,7 @@ export const TypeCheck = node({
       kind: "call",
       purpose: "Type-check the project directory's world",
       input: "project directory, cwd-relative",
-      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line",
+      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line:column",
       errors: ["no nuhokai/tsconfig.json: says how to restore it"],
     },
   },
@@ -30,6 +30,14 @@ export const TypeCheck = node({
       id: "R3",
       text: "Uses nuhokai/tsconfig.json; without it, one failure saying how to restore it, and no findings.",
     },
+    {
+      id: "R4",
+      text: 'A finding says what to change in the world, not how tsc typed it: an error about a Forbidden<"…"> of the format (also a readonly Forbidden<"…">[]) is that message alone; any other keeps tsc\'s words with each type cut to its names (NodeShape, not its arguments and constraints) and the type of a value the reader wrote (Argument of type, missing in type) as { … } when tsc spells out a long object literal, while the type it should match stays; a quote inside a string literal type or an apostrophe in the prose of tsc ending no type, and a type tsc cut off mid-literal keeping its names (NodeHandle<…>); tsc\'s advice to change the library or install types is replaced by the world\'s fix, since the tsconfig is CLI-owned.',
+    },
+    {
+      id: "R5",
+      text: "One break, one finding: a file that does not parse is its first syntax error alone (the parser's guesses after it are noise), and tsc's 'cannot find module' at the specifier of an import R2 refuses is left out, R2's finding saying what to do, the import on one line or several.",
+    },
   ],
   testCases: [
     {
@@ -39,6 +47,14 @@ export const TypeCheck = node({
     {
       text: "children: [Contract as any] and a @ts-expect-error line → two errors, Reflect.get(...) none (LoadWorld's); a test file importing bun:test fails too.",
       demonstrates: ["R2"],
+    },
+    {
+      text: "children: [Draft] (no .edges) → 'a draft is not a node: call .edges(), also with {}'; purpos: 'x' → \"… does not exist in type 'NodeShape'. Did you mean to write 'purpose'?\"; typeof console → \"Cannot find name 'console'; remove the code that uses it: world files hold data only (…)\".",
+      demonstrates: ["R4"],
+    },
+    {
+      text: 'An unterminated string in a.ts → only "\',\' expected." at its line; import { pad } from "left-pad" → R2\'s finding alone.',
+      demonstrates: ["R5"],
     },
   ],
   decisions: [

@@ -20,15 +20,20 @@ import { type LoadedWorld, loadWorld } from "./load-world.ts";
 /** Each loaded node's NodeSpec, in nodes order. */
 const specs = (world: LoadedWorld) => world.nodes.map((node) => node.spec);
 
-/** Where each loaded node sits and is defined: its id, path, parent and children by position, file and line. */
+/**
+ * Where each loaded node sits and is defined: its id, path, parent and children by position, file, line and column,
+ * and where its source was written.
+ */
 const places = (world: LoadedWorld) =>
-  world.nodes.map(({ spec, path, parent, children, file, line }) => ({
+  world.nodes.map(({ spec, path, parent, children, file, line, column, source }) => ({
     id: spec.id,
     path,
     parent,
     children,
     file,
     line,
+    column,
+    source,
   }));
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
@@ -327,6 +332,81 @@ export const held = { Made: node(${leaf("made")}).edges({}) };
   expect(specs(loaded).map((spec) => spec.name)).toEqual(["Late", "First", "hidden"]);
 });
 
+test("a call to a function of the world's own is a load error at the call, never applied: no factory, no recursion", async () => {
+  const factory = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const mk = (id: string) => node({ id, purpose: "p", status: "planned", source: [] }).edges({});
+export const Made = mk("made");
+export default defineWorld({ id: "w", name: "w", source: [], children: [Made] });
+`,
+  });
+  // A factory has parameters, so it fails where it is written, before any call to it.
+  expect(((await loadError(factory)) as Error).message).toBe(
+    `${factory}/nuhokai/index.ts:2:13: a function in a world file takes no parameters: it is never called, only read as an edge's list; write uses: () => [A.run], and each node out as data`,
+  );
+
+  // A parameterless helper fails at its call.
+  const helper = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const mk = () => node({ id: "a", purpose: "p", status: "planned", source: [] }).edges({});
+export const Made = mk();
+export default defineWorld({ id: "w", name: "w", source: [], children: [Made] });
+`,
+  });
+  expect(((await loadError(helper)) as Error).message).toBe(
+    `${helper}/nuhokai/index.ts:3:21: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not mk(...); write what it would make out as data`,
+  );
+
+  // A factory written but never called is still a load error: it can only be one.
+  const unused = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const A = node(${leaf("a")}).edges({});
+export const make = (id: string) => node({ id, purpose: "p", status: "planned", source: [] }).edges({});
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+  expect(((await loadError(unused)) as Error).message).toStartWith(
+    `${unused}/nuhokai/index.ts:3:22: a function in a world file takes no parameters`,
+  );
+
+  // Once a hang: the loader read the call by reading the function's body, which calls it again.
+  const recursive = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+const f = (): unknown => f();
+export const X = f();
+export default defineWorld({ id: "w", name: "w", source: [], children: [] });
+`,
+  });
+  expect(((await loadError(recursive)) as Error).message).toStartWith(
+    `${recursive}/nuhokai/index.ts:3:18: world files are declarative`,
+  );
+
+  const parameter = world({
+    "index.ts": `import { defineWorld, node } from "@nuhokai/world";
+const A = node(${leaf("a")}).edges({ uses: (x: unknown) => [] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
+`,
+  });
+  expect(((await loadError(parameter)) as Error).message).toBe(
+    `${parameter}/nuhokai/index.ts:2:108: a function in a world file takes no parameters: it is never called, only read as an edge's list; write uses: () => [A.run], and each node out as data`,
+  );
+});
+
+test("a uses arrow two nodes share makes its tbd once: one placeholder, both users", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld, node, tbd } from "@nuhokai/world";
+const shared = () => [tbd.call({ description: "shared hole" })];
+const S1 = node(${leaf("s1")}).edges({ uses: shared });
+const S2 = node(${leaf("s2")}).edges({ uses: shared });
+export default defineWorld({ id: "w", name: "w", source: [], children: [S1, S2] });
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.placeholders).toEqual([{ kind: "call", description: "shared hole", users: ["s1", "s2"] }]);
+});
+
 test("a barrel re-export keeps the node's name and its file's blame", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
@@ -339,7 +419,9 @@ export const Bad = node(${leaf("bad")}).edges({ uses: () => 1 } as never);
 `,
   });
 
-  expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/zbad.ts: Bad.uses does not return a list`);
+  expect(((await loadError(root)) as Error).message).toBe(
+    `${root}/nuhokai/zbad.ts:2:20: Bad.uses does not return a list; return one, e.g. uses: () => [A.run]`,
+  );
 });
 
 test("a world that only loads is not judged: an orphan and an out-of-scope edge load", async () => {
@@ -362,14 +444,28 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
   // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
   expect([loaded.file, loaded.name, loaded.source]).toEqual([`${root}/nuhokai/index.ts`, "Shop", ["src/**"]]);
   expect(loaded.listings).toEqual([
-    { node: "same-id", parent: null },
-    { node: "same-id", parent: "same-id" },
-    { node: "same-id", parent: null },
+    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3, column: 84 },
+    { node: "same-id", parent: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4, column: 100 },
+    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3, column: 91 },
   ]);
-  expect(loaded.orphans).toEqual([{ id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts` }]);
-  expect(places(loaded).map(({ id, file, line }) => ({ id, file, line }))).toEqual([
-    { id: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
-    { id: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 3 },
+  expect(loaded.orphans).toEqual([
+    { id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts`, line: 2, column: 23 },
+  ]);
+  expect(places(loaded).map(({ id, file, line, column, source }) => ({ id, file, line, column, source }))).toEqual([
+    {
+      id: "same-id",
+      file: `${root}/nuhokai/nodes.ts`,
+      line: 4,
+      column: 22,
+      source: { at: { line: 4, column: 77 }, entries: [] },
+    },
+    {
+      id: "same-id",
+      file: `${root}/nuhokai/nodes.ts`,
+      line: 3,
+      column: 22,
+      source: { at: { line: 3, column: 91 }, entries: [] },
+    },
   ]);
 });
 
@@ -386,7 +482,16 @@ export default defineWorld({ id: "w", children: [A] } as never);
   expect(loaded).not.toHaveProperty("name");
   expect(loaded).not.toHaveProperty("source");
   expect(places(loaded)).toEqual([
-    { id: "a", path: "a", parent: null, children: [], file: `${root}/nuhokai/index.ts`, line: 2 },
+    {
+      id: "a",
+      path: "a",
+      parent: null,
+      children: [],
+      file: `${root}/nuhokai/index.ts`,
+      line: 2,
+      column: 11,
+      source: { at: { line: 2, column: 68 }, entries: [] },
+    },
   ]);
 });
 
@@ -402,7 +507,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
     [{ "orders.ts": orders }, "nuhokai/index.ts: not found"],
     [
       { "index.ts": index, "orders.ts": `${orders}export const broken = ;\n` },
-      "nuhokai/orders.ts:3: Expression expected.",
+      "nuhokai/orders.ts:3:23: Expression expected.",
     ],
     [{ "index.ts": "export default { children: [] };\n", "orders.ts": orders }, "nuhokai/index.ts: the default export"],
     [
@@ -411,15 +516,15 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
     ],
     [
       { "index.ts": index, "orders.ts": edges('{ uses: () => { throw new Error("lazy"); } }') },
-      "nuhokai/orders.ts:2: a function here is an expression or one return",
+      "nuhokai/orders.ts:2:120: a function here is an expression or one return",
     ],
     [
       { "index.ts": index, "orders.ts": edges("{ uses: () => 1 }") },
-      "nuhokai/orders.ts: A.uses does not return a list",
+      "nuhokai/orders.ts:2:18: A.uses does not return a list",
     ],
     [
       { "index.ts": index, "orders.ts": edges("{ implements: () => ({}) }") },
-      "nuhokai/orders.ts: A.implements does not",
+      "nuhokai/orders.ts:2:18: A.implements does not",
     ],
     [
       {
@@ -427,43 +532,87 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
         "orders.ts": `export { A } from "./sub/a.ts";\n`,
         "sub/a.ts": `import { node } from "@nuhokai/world";\nimport { pad } from "nuhokai-no-such-package";\nexport const A = node({ ...${leaf("a")}, purpose: pad }).edges({});\n`,
       },
-      "nuhokai/sub/a.ts:3: 'pad' comes from 'nuhokai-no-such-package'; a world file reads only world files and @nuhokai/world",
+      "nuhokai/sub/a.ts:2:1: 'pad' comes from 'nuhokai-no-such-package'; a world file reads only world files and @nuhokai/world",
     ],
     [
       {
         "index.ts": index,
         "orders.ts": `import { node } from "@nuhokai/world";\nexport const A = node({ ...${leaf("a")}, purpose: String(1) }).edges({});\n`,
       },
-      "nuhokai/orders.ts:2: ",
+      "nuhokai/orders.ts:2:114: ",
     ],
     [
       {
         "index.ts": index,
         "orders.ts": `import { node } from "@nuhokai/world";\nimport { gone } from "./gone.ts";\nexport const A = node({ ...${leaf("a")}, purpose: gone }).edges({});\n`,
       },
-      "nuhokai/orders.ts:3: 'gone' refers to nothing",
+      "nuhokai/orders.ts:3:114: 'gone' is imported, but its file or export is missing",
+    ],
+    [
+      {
+        "index.ts": index
+          .replace("children: [A]", "children: [A, ...kids]")
+          .replace(
+            'import { A } from "./orders.ts";',
+            'import { A } from "./orders.ts";\nimport { kids } from "./kids.ts";',
+          ),
+        "orders.ts": orders,
+        "kids.ts": 'export const kids = ["notanode"];\n',
+      },
+      'nuhokai/index.ts:4:76: the world\'s children list a value that is not a node: item 2 is the string "notanode"',
+    ],
+    [
+      { "index.ts": index.replace("children: [A]", "children: A"), "orders.ts": orders },
+      "nuhokai/index.ts:3:62: the world's children is not a list of nodes: children: [A, B]",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node, tbd } from "@nuhokai/world";\nconst hole = tbd.call({ description: "d" });\nexport const A = node({ ...${leaf("a")}, requirements: [{ id: "R1", text: hole }] }).edges({});\n`,
+      },
+      "nuhokai/orders.ts:3:132: A.requirements[0].text holds a tbd placeholder where data belongs; write strings, numbers, booleans, lists and objects there",
+    ],
+    [
+      {
+        "index.ts": index,
+        "orders.ts": `import { node } from "@nuhokai/world";\nexport const A = node({ ...${leaf("a")}, purpose: nowhere }).edges({});\n`,
+      },
+      "nuhokai/orders.ts:2:114: 'nowhere' is declared nowhere; declare it in a world file, or import it from one",
     ],
     [
       { "index.ts": index, "orders.ts": `${orders}throw new Error("never runs");\n` },
-      "nuhokai/orders.ts:3: world files hold only imports, exports and declarations of data, not a ThrowStatement",
+      'nuhokai/orders.ts:3:1: world files hold only imports, exports and declarations of data, not a throw statement: `throw new Error("never runs");`',
+    ],
+    [
+      { "index.ts": index, "orders.ts": `${orders}export const pick = 1 > 0 ? "a" : "b";\n` },
+      'nuhokai/orders.ts:3:21: a world file holds data only, so this cannot be read without running it: a conditional expression: `1 > 0 ? "a" : "b"`',
+    ],
+    [
+      {
+        "index.ts": index
+          .replace("children: [A]", "children: [A, Draft]")
+          .replace('import { A } from "./orders.ts";', 'import { A, Draft } from "./orders.ts";'),
+        "orders.ts": `${orders}export const Draft = node(${leaf("draft")});\n`,
+      },
+      "nuhokai/index.ts:3:76: the world's children list a value that is not a node: item 2 is a draft: node(...) without .edges(...)",
     ],
     [
       { "index.ts": index, "orders.ts": `${orders}const unused = Date.now();\n` },
-      "nuhokai/orders.ts:3: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not Date.now(...)",
+      "nuhokai/orders.ts:3:16: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not Date.now(...)",
     ],
     [
       {
         "index.ts": index,
         "orders.ts": `${orders}export const Lost = node(${leaf("lost")}).edges({ uses: () => { const x = [A.x]; return x; } });\n`,
       },
-      "nuhokai/orders.ts:3: a function here is an expression or one return",
+      "nuhokai/orders.ts:3:129: a function here is an expression or one return",
     ],
     [
       {
         "index.ts": index,
         "orders.ts": `import { node as n } from "@nuhokai/world";\nexport const A = n(${leaf("a")}).edges({});\n`,
       },
-      "nuhokai/orders.ts:2: 'n': import node, defineWorld, inherited and tbd from @nuhokai/world under their own name",
+      "nuhokai/orders.ts:2:18: 'n': import node, defineWorld, inherited and tbd from @nuhokai/world under their own name",
     ],
   ];
 
@@ -537,7 +686,7 @@ export const Other = node(${leaf("other", '{ run: { kind: "call", purpose: "run"
 
   for (const [ports, message] of cases) {
     const root = world(files(dome(ports)));
-    expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/dome.ts:3: ${message}`);
+    expect(((await loadError(root)) as Error).message).toBe(`${root}/nuhokai/dome.ts:3:21: ${message}`);
   }
 
   // The same dome listed nowhere, an orphan: still read whole, still the same error.
@@ -549,7 +698,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Leaf] })
 `,
   });
   expect(((await loadError(orphaned)) as Error).message).toBe(
-    `${orphaned}/nuhokai/dome.ts:3: \`run\` exposes a port of a node that is not one of this dome's direct children`,
+    `${orphaned}/nuhokai/dome.ts:3:21: \`run\` exposes a port of a node that is not one of this dome's direct children`,
   );
 });
 
@@ -652,7 +801,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   const error = await loadError(recursive);
   expect(error).toBeInstanceOf(CliError);
   expect((error as Error).message).toBe(
-    `${recursive}/nuhokai/index.ts:3: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not f(...)`,
+    `${recursive}/nuhokai/index.ts:3:43: world files are declarative: they call only node, .edges, defineWorld, tbd.call, tbd.event and inherited, not f(...); write what it would make out as data`,
   );
 });
 
@@ -667,7 +816,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   expect((await loadWorld(root)).placeholders).toEqual([{ kind: "call", description: "", users: ["a"] }]);
 });
 
-test("a load error under a project directory with a space names its file and line once", async () => {
+test("a load error under a project directory with a space names its file, line and column once", async () => {
   const parent = tempDir();
   const root = join(parent, "sp ace");
   mkdirSync(join(root, "nuhokai"), { recursive: true });
@@ -680,7 +829,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   );
   writeCliFiles(root);
   const error = await loadError(root);
-  expect((error as Error).message).toStartWith(`${root}/nuhokai/index.ts:2: world files are declarative`);
+  expect((error as Error).message).toStartWith(`${root}/nuhokai/index.ts:2:121: world files are declarative`);
 });
 
 test("a symlink out of the project directory is a load error naming it; nothing outside is read", async () => {

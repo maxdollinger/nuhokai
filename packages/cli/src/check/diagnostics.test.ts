@@ -29,6 +29,12 @@ test("every part present: severity, file:line, node, rule and fix", () => {
   );
 });
 
+test("a column follows the line: file:line:column", () => {
+  expect(
+    formatFinding({ severity: "error", file: "nuhokai/x.ts", line: 3, column: 14, rule: "Cannot find name 'gone'." }),
+  ).toBe("error: nuhokai/x.ts:3:14: Cannot find name 'gone'.");
+});
+
 test("a missing line drops only its part", () => {
   expect(
     formatFinding({ severity: "error", file: "nuhokai/index.ts", rule: "the world has no name", fix: "add one" }),

@@ -19,7 +19,7 @@ export const Check = node({
   ],
   testCases: [
     {
-      text: "After init: check reports no line, ok. Two violations in different files → two result lines, failed. No world or a load failure → one failure line, failed.",
+      text: "After init: check reports no finding, only its summary, ok. Two violations in different files → two result lines and the summary, failed. A load failure → one error finding, failed; no world → one failure line, failed.",
       demonstrates: ["R1"],
     },
   ],

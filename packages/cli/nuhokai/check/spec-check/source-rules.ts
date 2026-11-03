@@ -23,6 +23,10 @@ export const SourceRules = node({
       id: "R3",
       text: "A missing source, or an entry that is no string, is an error at its node or the world file, never a crash.",
     },
+    {
+      id: "R4",
+      text: "A finding about one entry points at that entry, and one about a source that is no list at its source property, when written in the owner's file; an entry spread in from another file points at that `...spread`, else at its owner's node() or defineWorld call.",
+    },
   ],
   ports: {
     check: {

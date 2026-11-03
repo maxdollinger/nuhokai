@@ -10,10 +10,10 @@ import { Tree } from "./tree/tree.ts";
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch to per-command Cmds listed in main (help text, declared " +
-    "positionals, options each with the parse of its value, and a run holding the deferred call into the command " +
-    "node), print their reports; owns exit codes and is the only node that touches the terminal. Implements no " +
-    "command; Build makes and ships it.",
+    "Command surface: parse argv, print usage, dispatch to per-command Cmds listed in main (help text: their " +
+    "positionals and options explained and their output's shape; options each with the parse of its value, and a " +
+    "run holding the deferred call into the command node), print their reports; owns exit codes and is the only " +
+    "node that touches the terminal. Implements no command; Build makes and ships it.",
   status: "building",
   source: [
     "src/bin.ts",
@@ -45,7 +45,7 @@ export const Cli = node({
     },
     {
       id: "R3",
-      text: "No argument, help, --help or -h → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` (or -h) repeats that form, exit 0; after a command `help` is an ordinary argument. Unknown command → usage on stderr, exit 2.",
+      text: "No argument, help, --help or -h → usage, exit 0. Usage lists every command with its argument form and a one-line description; `nuhokai <command> --help` (or -h) repeats that form and explains each positional argument and option, exit 0; after a command `help` is an ordinary argument. Usage and every command's help state the contract a reader parses by: each command's help its stdout lines' shape (Output), both where failures go (stderr, 'nuhokai <command>: ', an argument error followed by the help, a node path naming no node by one line alone, an unknown command by usage) and what each exit code means, so an agent learns them from --help alone. Unknown command → usage on stderr, exit 2.",
     },
     {
       id: "R4",
@@ -77,6 +77,10 @@ export const Cli = node({
   testCases: [
     {
       text: "Usage lists every command with its argument form (`nuhokai tree [node] [-L <n>]` visible); --help, `nuhokai init --help`, `nuhokai tree --help` exit 0.",
+      demonstrates: ["R3"],
+    },
+    {
+      text: "Usage and every command's help end with 'Exit codes: 0 ok, 1 …, 2 …' after the Failures line; each help shows its Output line, check's the finding format, tree's its Arguments: node.",
       demonstrates: ["R3"],
     },
     {
@@ -193,7 +197,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, options each with its parse, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
       why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {

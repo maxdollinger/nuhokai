@@ -22,11 +22,22 @@ export interface Args {
   get<T>(option: Option<T>): T | undefined;
 }
 
+/** A positional argument as a command's help explains it. */
+export interface Argument {
+  /** As its usage shows it, without brackets: "node". */
+  readonly name: string;
+  readonly text: string;
+}
+
 /** One command: what usage and its help show, the arguments Cli lets through, and what it runs. */
 export interface Cmd {
   readonly description: string;
   /** Its positionals as usage shows them, e.g. ["[node]"]; their count is the most it takes. */
   readonly positionals: readonly string[];
+  /** Each positional, explained: what to pass and its default. */
+  readonly arguments: readonly Argument[];
+  /** What it prints on stdout, with the shape of each line, so a reader can parse it without a trial run. */
+  readonly output: string;
   /** The command's own options beside --path; Cli splits them off, judges their values and its help lists them. */
   readonly options: readonly Option[];
   /**

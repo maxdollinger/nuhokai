@@ -43,7 +43,7 @@ export const PrintTree = node({
   testCases: [
     { text: "No world, or a file at nuhokai → one failure line, failed, no result line.", demonstrates: ["R2"] },
     {
-      text: "A node file that does not parse → one failure line naming the file, failed; tree Shop/Stok → \"no node 'Shop/Stok'; did you mean 'Shop/Stock'?\", invalid, no result line.",
+      text: "A node file that does not parse → one failure line naming the file, failed; tree Shop/Stok → \"no node 'Shop/Stok'; did you mean `nuhokai tree Shop/Stock`?\", invalid, no result line.",
       demonstrates: ["R1", "R3"],
     },
   ],

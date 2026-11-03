@@ -30,7 +30,7 @@ export declare function defineWorld<const Name extends string, const Children ex
     readonly children: Children & NoInfer<WorldChildrenRules<Children>>;
 }): World;
 /** A literal name must not be blank; a widened `string` is left to check. */
-type NameRule<Name extends string> = Blank<Name> extends true ? Forbidden<"name must not be empty or whitespace"> : unknown;
+type NameRule<Name extends string> = Blank<Name> extends true ? Forbidden<"name must not be empty or whitespace: give the world a name, e.g. Shop"> : unknown;
 
 // ─── inherited.d.ts ───
 /**
@@ -575,7 +575,7 @@ type ExternalOf<N> = FlagsOf<N> extends {
     readonly external: infer E;
 } ? E : never;
 /** Why a child entry is not a node at all. */
-type NotANode<V> = V extends string ? Forbidden<"a child is a node reference, not a string"> : V extends {
+type NotANode<V> = V extends string ? Forbidden<"a child is a node reference, not a string: list the node's const, e.g. children: [Orders]"> : V extends {
     readonly $ref: "draft";
 } ? Forbidden<"a draft is not a node: call .edges(), also with {}"> : V extends PortRef ? Forbidden<"a child is a node, not a port"> : V extends {
     readonly $ref: "relation";

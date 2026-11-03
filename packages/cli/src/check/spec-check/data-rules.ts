@@ -1,13 +1,14 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
-import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import { childrenOf, isAncestor } from "../../shared/node-path.ts";
-import { at, type Finding, nodeError } from "../diagnostics.ts";
+import { at, atWorld, type Finding, nodeError, positionOf } from "../diagnostics.ts";
 import type { Ids } from "./ids.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
 interface Place {
   readonly file: string;
   readonly line?: number;
+  readonly column?: number;
   readonly name: string;
 }
 
@@ -15,11 +16,18 @@ interface Place {
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
  * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
  */
-export function checkDataRules(world: LoadedWorld, ids: Ids, typeErrors = false): Finding[] {
+export function checkDataRules(
+  world: LoadedWorld,
+  ids: Ids,
+  typeErrorFiles: ReadonlySet<string> = new Set(),
+): Finding[] {
+  const typeErrors = typeErrorFiles.size > 0;
   // SpecCheck R1 first: every other rule skips the nodes whose id is duplicated.
   const judged = world.nodes.filter((node) => !ids.duplicated.has(node.spec.id));
   return [
-    ...worldName(world),
+    // DataRules R4 re-checks what tsc checks of defineWorld's name: after a type error in the world file it would
+    // only repeat tsc; a name tsc cannot judge (a const typed string) still gets it after one elsewhere.
+    ...(typeErrorFiles.has(world.definedIn) ? [] : worldName(world)),
     ...duplicateIds(world, ids),
     ...repeatedListings(world, ids),
     ...orphans(world),
@@ -38,7 +46,7 @@ function worldName(world: LoadedWorld): Finding[] {
   return [
     {
       severity: "error",
-      file: world.file,
+      ...atWorld(world),
       rule: typeof world.name === "string" ? "the world's name is blank" : "the world has no name",
       fix: 'give defineWorld a name, e.g. name: "Shop"',
     },
@@ -47,7 +55,7 @@ function worldName(world: LoadedWorld): Finding[] {
 
 /** SpecCheck R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
 function duplicateIds(world: LoadedWorld, _ids: Ids): Finding[] {
-  const first = new Map<string, string>([[world.id, `the world (${world.file})`]]);
+  const first = new Map<string, string>([[world.id, `the world (${world.definedIn})`]]);
   const findings: Finding[] = [];
   for (const node of world.nodes) {
     const holder = first.get(node.spec.id);
@@ -62,20 +70,29 @@ function duplicateIds(world: LoadedWorld, _ids: Ids): Finding[] {
   return findings;
 }
 
-/** SpecCheck R1: a node listed in two places is one error at the repeated listing, naming both places. */
+/**
+ * SpecCheck R1: a node listed in two places is one error at the repeated listing, naming both places by the list and
+ * where in its file each listing is.
+ */
 function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
-  const place = (parent: string | null): Place => {
-    if (parent === null) return { file: world.file, name: `the world's children (${world.file})` };
-    const dome = ids.byId(parent) ?? world.nodes.find((node) => node.spec.id === parent);
-    if (!dome) return { file: world.file, name: `the children of ${parent}` };
-    return { ...at(dome), name: `${dome.path}'s children (${dome.file})` };
+  /** The list a listing is in, at the listing itself when the loader knows where it was written. */
+  const place = (listing: Listing): Place => {
+    const { parent } = listing;
+    const dome =
+      parent === null ? undefined : (ids.byId(parent) ?? world.nodes.find((node) => node.spec.id === parent));
+    const list =
+      parent === null ? "the world's children" : dome ? `${dome.path}'s children` : `the children of ${parent}`;
+    const owner = parent === null ? atWorld(world) : dome ? at(dome) : { file: listing.file };
+    const where = listing.line === undefined ? owner : { file: listing.file, ...positionOf(listing) };
+    const shown = where.line === undefined ? where.file : `${where.file}:${where.line}:${where.column}`;
+    return { ...where, name: `${list} (${shown})` };
   };
   const seen = new Map<string, Place>();
   const findings: Finding[] = [];
   for (const listing of world.listings) {
     // Distinct nodes sharing an id are SpecCheck R1's other half: each node is listed once, only a repeat is the same node.
     if (ids.duplicated.has(listing.node)) continue;
-    const here = place(listing.parent);
+    const here = place(listing);
     const before = seen.get(listing.node);
     if (!before) {
       seen.set(listing.node, here);
@@ -86,7 +103,8 @@ function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
       severity: "error",
       ...at(here),
       ...(node ? { node: node.path } : {}),
-      rule: `${node?.spec.name ?? listing.node} is listed twice: in ${before.name} and in ${here.name}`,
+      // The node part names a known node; an unknown one is named by its id in the rule.
+      rule: `${node ? "" : `${listing.node} is `}listed twice: in ${before.name} and in ${here.name}`,
       fix: "keep one of the two listings",
     });
   }
@@ -98,9 +116,10 @@ function orphans(world: LoadedWorld): Finding[] {
   return world.orphans.map((orphan) => ({
     severity: "warning",
     file: orphan.file,
+    ...positionOf(orphan),
     node: orphan.name,
-    rule: `${orphan.name} is exported but not reachable from the world`,
-    fix: `list it in a dome's children or in the world's (${world.file}), or delete it`,
+    rule: "exported but not reachable from the world",
+    fix: `list it in a dome's children or in the world's (${world.definedIn}), or delete it`,
   }));
 }
 
