@@ -1,7 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
-import type { LoadedWorld } from "../../load/load-world.ts";
+import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import type { Finding } from "../diagnostics.ts";
-import { at, nodeError, type TreeNode, type WorldTree } from "./world-tree.ts";
+import { at, nodeError, type WorldTree } from "./world-tree.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
 interface Place {
@@ -109,12 +109,12 @@ function orphanName(world: LoadedWorld, id: string): string {
 }
 
 /** How a message names a uses edge: `Orders uses Stock.reserve, Stock.release`. */
-function usesEdge(node: TreeNode, target: string, ports: readonly string[]): string {
+function usesEdge(node: LoadedNode, target: string, ports: readonly string[]): string {
   return `${node.spec.name} uses ${ports.map((port) => `${target}.${port}`).join(", ")}`;
 }
 
 /** SpecCheck R3: a uses edge targets a sibling or an ancestor's sibling, top level included; never a node inside one. */
-function scope(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
+function scope(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   for (const edge of node.spec.edges ?? []) {
@@ -147,8 +147,8 @@ function scope(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
 }
 
 /** Whether `target` is a sibling of `node` or of one of its ancestors, never the node or an ancestor itself. */
-function inScope(tree: WorldTree, node: TreeNode, target: TreeNode): boolean {
-  for (let at: TreeNode | undefined = node; at; at = at.parent === null ? undefined : tree.nodes[at.parent]) {
+function inScope(tree: WorldTree, node: LoadedNode, target: LoadedNode): boolean {
+  for (let at: LoadedNode | undefined = node; at; at = at.parent === null ? undefined : tree.nodes[at.parent]) {
     if (at === target) return false;
     if (target.parent === at.parent) return true;
   }
@@ -160,7 +160,7 @@ function siblingNames(tree: WorldTree): Finding[] {
   const findings: Finding[] = [];
   const parents = [null, ...tree.nodes.map((node) => node.index)];
   for (const parent of parents) {
-    const named = new Map<string, TreeNode>();
+    const named = new Map<string, LoadedNode>();
     for (const child of tree.childrenOf(parent)) {
       if (tree.duplicated.has(child.spec.id)) continue;
       const first = named.get(child.spec.name);
@@ -181,7 +181,7 @@ function siblingNames(tree: WorldTree): Finding[] {
 }
 
 /** SpecCheck R5: the node-spec rules tsc only checks on literal ids and flags, held against the loaded values. */
-function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Finding[] {
+function formatRules(world: LoadedWorld, tree: WorldTree, node: LoadedNode): Finding[] {
   const spec = node.spec;
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
@@ -248,7 +248,7 @@ function formatRules(world: LoadedWorld, tree: WorldTree, node: TreeNode): Findi
  * SpecCheck R11: every implements target is reachable. SpecCheck R5, unless TypeCheck found an error: implements lists
  * each contract once, each is abstract; no own port shares an inherited port's name, no two contracts a port name.
  */
-function contracts(world: LoadedWorld, tree: WorldTree, node: TreeNode, typeErrors: boolean): Finding[] {
+function contracts(world: LoadedWorld, tree: WorldTree, node: LoadedNode, typeErrors: boolean): Finding[] {
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));
   const targets = (node.spec.edges ?? []).filter((edge) => edge.kind === "implements").map((edge) => edge.to);
@@ -302,7 +302,7 @@ function portNames(spec: NodeSpec): string[] {
 }
 
 /** SpecCheck R9: a building or built node, not external or abstract, lists at least one source entry. */
-function builtWithoutSource(node: TreeNode): Finding[] {
+function builtWithoutSource(node: LoadedNode): Finding[] {
   const spec = node.spec;
   if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];
   if (!Array.isArray(spec.source) || spec.source.length > 0) return [];

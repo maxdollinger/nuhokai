@@ -1,6 +1,5 @@
 import { node } from "@nuhokai/world";
 import { BunRuntime, FileSystem } from "../../external.ts";
-import { Path } from "../../path/path.ts";
 
 /** The rules that read the filesystem: R6, R7, R10. */
 export const SourceRules = node({
@@ -31,4 +30,4 @@ export const SourceRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Path.nameNodes, FileSystem.read, BunRuntime.matchGlob] });
+}).edges({ uses: () => [FileSystem.read, BunRuntime.matchGlob] });

@@ -18,7 +18,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; nodes: NodeSpec[]; parents: (position in nodes | null)[]; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]; files: { node: node id, file, line? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, path, file, line? }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null }[]; orphans: { id, name, file }[]",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -63,11 +63,11 @@ export const LoadWorld = node({
     },
     {
       id: "R9",
-      text: "files: each reachable node's defining file as R2 picks it, cwd-relative, and the line of its node() call; in nodes order.",
+      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line of its node() call when that file holds it.",
     },
     {
       id: "R10",
-      text: "parents: each node's parent as its position in nodes, null at the top level; in nodes order; unambiguous under duplicate ids.",
+      text: "Each node's parent and children as positions in nodes, the top level as top, unambiguous under duplicate ids; its path named once by Path.nameNodes from those parents.",
     },
     {
       id: "R11",
@@ -111,11 +111,11 @@ export const LoadWorld = node({
       demonstrates: ["R8"],
     },
     {
-      text: "Barrel index.ts re-exporting Orders from orders.ts, node() on line 3 → files names nuhokai/orders.ts, line 3.",
+      text: "Barrel index.ts re-exporting Orders from orders.ts, node() on line 3 → Orders' file is nuhokai/orders.ts, line 3.",
       demonstrates: ["R9"],
     },
     {
-      text: "Dome P (id x) with children C1 (id x) and C2 → parents [null, 0, 0]: C2's parent is P, not C1.",
+      text: "Dome P (id x) with children C1 (id x) and C2, then T → parents null, 0, 0, null; P's children [1, 2]; top [0, 3]; C2 is P/C2, not under C1.",
       demonstrates: ["R10"],
     },
     {
@@ -162,11 +162,17 @@ export const LoadWorld = node({
       why: "Orphans are check's violation; only the loader sees every export.",
     },
     {
-      decision: "files gives each node's defining file and node() line.",
-      why: "Every check finding needs a location; the node() call has both.",
+      decision: "Each loaded node carries its NodeSpec, parent, children, path, defining file and node() line.",
+      why: "Every check finding needs a location and a path, and tree, check and the rules all walk the hierarchy; side-by-side arrays made each of them stitch it back together.",
+      rejected: [
+        {
+          option: "nodes: NodeSpec[] beside parents and files arrays aligned by position",
+          why: "Every consumer re-zipped them and re-derived children and paths; the map takes the NodeSpecs alone.",
+        },
+      ],
     },
     {
-      decision: "parents gives each node's parent by position, not by id.",
+      decision: "A node's parent and children are positions, not ids.",
       why: "Duplicate ids are check's to report, so a parent id cannot rebuild the tree; the walk knows each parent by reference.",
     },
     {
@@ -204,5 +210,13 @@ export const LoadWorld = node({
     },
   ],
 }).edges({
-  uses: () => [Inspect.requireWorld, Path.nameInWorld, Failure.format, FileSystem.read, FileSystem.write, Tsgo.read],
+  uses: () => [
+    Inspect.requireWorld,
+    Path.nameInWorld,
+    Path.nameNodes,
+    Failure.format,
+    FileSystem.read,
+    FileSystem.write,
+    Tsgo.read,
+  ],
 });

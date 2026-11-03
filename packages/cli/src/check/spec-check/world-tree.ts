@@ -1,50 +1,22 @@
-import type { NodeSpec } from "@nuhokai/world/node-spec";
-import type { LoadedWorld } from "../../load/load-world.ts";
-import { childrenOf, nameNodes } from "../../shared/node-path.ts";
+import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import type { Finding } from "../diagnostics.ts";
 
-/** One reachable node, by its position in the loaded world's `nodes`. */
-export interface TreeNode {
-  readonly index: number;
-  readonly spec: NodeSpec;
-  /** Its parent's position, or null at the top level. */
-  readonly parent: number | null;
-  /** Its path from the world, `Check/SpecCheck`: how diagnostics name it. */
-  readonly path: string;
-  /** Its defining file, named from the cwd, and its node() line when known. */
-  readonly file: string;
-  readonly line?: number;
-}
-
-/** The loaded world as a tree the rule groups share: nodes by position, ids and paths. */
+/** The loaded world as the rule groups share it: its nodes, and the lookups by id that duplicate ids complicate. */
 export interface WorldTree {
-  readonly nodes: readonly TreeNode[];
+  readonly nodes: readonly LoadedNode[];
   /** Ids held by more than one reachable node, or by the world and a node: SpecCheck R1's, every other rule skips them. */
   readonly duplicated: ReadonlySet<string>;
   /** The node holding a unique id; undefined for a duplicated or unknown one. */
-  byId(id: string): TreeNode | undefined;
+  byId(id: string): LoadedNode | undefined;
   /** Whether `ancestor` contains `node`, at any depth. */
-  isAncestor(ancestor: TreeNode, node: TreeNode): boolean;
+  isAncestor(ancestor: LoadedNode, node: LoadedNode): boolean;
   /** The direct children of a node, or the top level for null, in walk order. */
-  childrenOf(parent: number | null): readonly TreeNode[];
+  childrenOf(parent: number | null): readonly LoadedNode[];
 }
 
 /** The loaded world as a tree: each node under the parent LoadWorld placed it in, by position. */
 export function worldTree(world: LoadedWorld): WorldTree {
-  // Diagnostics name a node as every command does: NodePath's hierarchy path.
-  const paths = nameNodes(world);
-  const nodes: TreeNode[] = world.nodes.map((spec, index) => {
-    const file = world.files[index];
-    return {
-      index,
-      spec,
-      parent: world.parents[index] ?? null,
-      path: paths[index] ?? "",
-      file: file?.file ?? world.file,
-      ...(file?.line === undefined ? {} : { line: file.line }),
-    };
-  });
-  const children = childrenOf(world);
+  const nodes = world.nodes;
   const counts = new Map<string, number>([[world.id, 1]]);
   for (const node of nodes) counts.set(node.spec.id, (counts.get(node.spec.id) ?? 0) + 1);
   const duplicated = new Set([...counts].filter(([, count]) => count > 1).map(([id]) => id));
@@ -57,7 +29,8 @@ export function worldTree(world: LoadedWorld): WorldTree {
       for (let at = node.parent; at !== null; at = nodes[at]?.parent ?? null) if (at === ancestor.index) return true;
       return false;
     },
-    childrenOf: (parent) => (children.get(parent) ?? []).flatMap((index) => nodes[index] ?? []),
+    childrenOf: (parent) =>
+      (parent === null ? world.top : (nodes[parent]?.children ?? [])).flatMap((index) => nodes[index] ?? []),
   };
 }
 
@@ -70,6 +43,6 @@ export function at(place: { readonly file: string; readonly line?: number | unde
 }
 
 /** An error about a node: at its node() line, named by its path. */
-export function nodeError(node: TreeNode, rule: string, fix: string): Finding {
+export function nodeError(node: LoadedNode, rule: string, fix: string): Finding {
   return { severity: "error", ...at(node), node: node.path, rule, fix };
 }

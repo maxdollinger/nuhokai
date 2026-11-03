@@ -1,8 +1,8 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import type { LoadedWorld } from "../../load/load-world.ts";
+import type { LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import { compareText, type Finding } from "../diagnostics.ts";
-import { at, type TreeNode, type WorldTree } from "./world-tree.ts";
+import { at, type WorldTree } from "./world-tree.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */
 const GLOB_CHARS = /[*?[\]{}!\\]/;
@@ -97,7 +97,7 @@ function expand(project: ProjectFiles, entry: string): Expansion {
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
 interface Owner {
-  readonly node?: TreeNode;
+  readonly node?: LoadedNode;
   readonly file: string;
   readonly line?: number;
   readonly label: string;
@@ -166,7 +166,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, tree: WorldTr
   }
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
-  const owners = new Map<string, TreeNode[]>();
+  const owners = new Map<string, LoadedNode[]>();
   for (const node of tree.nodes) {
     if (tree.duplicated.has(node.spec.id)) continue;
     const owner: Owner = { node, ...at(node), label: node.spec.name };

@@ -1,13 +1,23 @@
 import { expect, test } from "bun:test";
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedWorld } from "../load/load-world.ts";
+import { nameNodes } from "../shared/node-path.ts";
 import { renderTree } from "./tree-lines.ts";
 
-/** A loaded world's tree part: each node's name, parent position, source and purpose. */
+/** A loaded world's tree part: each node's name, parent position, source and purpose, its path as NodePath names it. */
 function world(entries: readonly [name: string, parent: number | null, source: unknown, purpose: unknown][]) {
+  const paths = nameNodes(entries.map(([name, parent]) => ({ name, parent })));
+  const nodes = entries.map(([name, parent, source, purpose], index) => ({
+    index,
+    spec: { name, id: name, source, purpose } as unknown as NodeSpec,
+    parent,
+    children: entries.flatMap(([, above], child) => (above === index ? [child] : [])),
+    path: paths[index] ?? "",
+    file: "nuhokai/index.ts",
+  }));
   return {
-    nodes: entries.map(([name, , source, purpose]) => ({ name, id: name, source, purpose }) as unknown as NodeSpec),
-    parents: entries.map(([, parent]) => parent),
+    nodes,
+    top: nodes.filter((node) => node.parent === null).map((node) => node.index),
   } as unknown as LoadedWorld;
 }
 

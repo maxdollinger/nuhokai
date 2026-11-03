@@ -12,8 +12,8 @@ export const NodePath = node({
     nameNodes: {
       kind: "call",
       purpose: "Name every node of a loaded world",
-      input: "the loaded world, as LoadWorld.load answers it",
-      output: "each node's hierarchy path, in nodes order",
+      input: "each node's name and parent position, a parent before its children",
+      output: "each node's hierarchy path, in the order given",
       errors: [],
     },
     findNode: {
@@ -36,7 +36,7 @@ export const NodePath = node({
     },
     {
       id: "R2",
-      text: "Built from LoadWorld's parents by position, never by id, so duplicate ids cannot misplace a node.",
+      text: "Built from parents by position, never by id, so duplicate ids cannot misplace a node. LoadWorld names every node with it once; findNode reads those paths and children.",
     },
     {
       id: "R3",
@@ -89,12 +89,12 @@ export const NodePath = node({
     },
     {
       decision:
-        "NodePath is shared, under Path; check's world tree (src/check/spec-check/world-tree.ts) takes its paths from here.",
+        "NodePath is shared, under Path, and owns the rule; LoadWorld applies nameNodes once per load and holds each path on its node, which tree, check and the rules read.",
       why: "tree prints paths, review (MAX-33) and future commands take them, check's diagnostics print them: one rule, or the spellings drift.",
       rejected: [
         {
-          option: "A paths field on LoadWorld.load",
-          why: "Naming every node fits, but finding a node from typed input with suggestions is not loading; LoadWorld judges nothing.",
+          option: "findNode in LoadWorld beside the paths",
+          why: "Naming every node fits loading, but finding a node from typed input with suggestions is not; LoadWorld judges nothing.",
         },
       ],
     },

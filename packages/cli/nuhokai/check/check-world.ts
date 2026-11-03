@@ -1,7 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
-import { Path } from "../path/path.ts";
 import { CodeCheck } from "./code-check.ts";
 import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check/spec-check.ts";
@@ -75,13 +74,5 @@ export const CheckWorld = node({
     },
   ],
 }).edges({
-  uses: () => [
-    TypeCheck.run,
-    LoadWorld.load,
-    SpecCheck.run,
-    CodeCheck.run,
-    Diagnostics.format,
-    Failure.report,
-    Path.nameNodes,
-  ],
+  uses: () => [TypeCheck.run, LoadWorld.load, SpecCheck.run, CodeCheck.run, Diagnostics.format, Failure.report],
 });

@@ -1,34 +1,18 @@
 import type { LoadedWorld } from "../load/load-world.ts";
 import { CliError } from "./failure.ts";
 
-/** The world's shape NodePath reads: names and parents by position, as LoadWorld answers them. */
-export type Hierarchy = Pick<LoadedWorld, "nodes" | "parents">;
+/** The world's shape findNode reads: each node's name, path and children, and the top level, as LoadWorld answers them. */
+export type Hierarchy = Pick<LoadedWorld, "nodes" | "top">;
 
 /**
- * Each node's hierarchy path, in `nodes` order: the names from the top level down, joined with `/`
+ * Each node's hierarchy path, in the order given: the names from the top level down, joined with `/`
  * (`Check/SpecCheck`), a top-level node's path its name alone. Built from parents by position, never by id,
- * so duplicate ids cannot misplace a node.
+ * so duplicate ids cannot misplace a node; a parent comes before its children.
  */
-export function nameNodes(world: Hierarchy): string[] {
+export function nameNodes(nodes: readonly { readonly name: string; readonly parent: number | null }[]): string[] {
   const paths: string[] = [];
-  world.nodes.forEach((spec, index) => {
-    const parent = world.parents[index] ?? null;
-    // A parent comes before its children, so its path is already there.
-    paths.push(parent === null ? spec.name : `${paths[parent]}/${spec.name}`);
-  });
+  for (const { name, parent } of nodes) paths.push(parent === null ? name : `${paths[parent]}/${name}`);
   return paths;
-}
-
-/** Each node's direct children by position, the top level under null, in walk order. */
-export function childrenOf(world: Hierarchy): Map<number | null, number[]> {
-  const children = new Map<number | null, number[]>();
-  world.parents.forEach((parent, index) => {
-    const key = parent ?? null;
-    const list = children.get(key);
-    if (list) list.push(index);
-    else children.set(key, [index]);
-  });
-  return children;
 }
 
 /**
@@ -48,12 +32,12 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
-  const paths = nameNodes(world);
-  const children = childrenOf(world);
+  const childrenOf = (parent: number | null) => (parent === null ? world.top : (world.nodes[parent]?.children ?? []));
+  const nameOf = (index: number) => world.nodes[index]?.spec.name ?? "";
   let parent: number | null = null;
   for (const [depth, segment] of segments.entries()) {
-    const siblings: number[] = children.get(parent) ?? [];
-    const matches: number[] = siblings.filter((index) => world.nodes[index]?.name === segment);
+    const siblings = childrenOf(parent);
+    const matches = siblings.filter((index) => nameOf(index) === segment);
     if (matches.length > 1) {
       const here = segments.slice(0, depth + 1).join("/");
       throw new CliError(`'${here}' names ${matches.length} siblings; ${command("check")} reports the clash`);
@@ -63,11 +47,10 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
       parent = match;
       continue;
     }
-    if (paths.includes(path)) {
+    if (world.nodes.some((node) => node.path === path)) {
       throw new CliError(`no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`);
     }
-    const above = parent === null ? undefined : paths[parent];
-    const nameOf = (index: number) => world.nodes[index]?.name ?? "";
+    const above = parent === null ? undefined : world.nodes[parent]?.path;
     const closest = closestName(segment, siblings.map(nameOf));
     if (closest === undefined) {
       const list =
@@ -78,7 +61,7 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
     let corrected = above === undefined ? closest : `${above}/${closest}`;
     let at = siblings.find((index) => nameOf(index) === closest);
     for (const next of segments.slice(depth + 1)) {
-      const below = at === undefined ? [] : (children.get(at) ?? []);
+      const below = at === undefined ? [] : childrenOf(at);
       const names = below.map(nameOf);
       const name = names.includes(next) ? next : closestName(next, names);
       if (name === undefined) break;

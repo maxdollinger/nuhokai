@@ -111,9 +111,10 @@ test("the written world loads as exactly one node, Example", async () => {
 
   const world = await loadWorld(repo);
   expect(world.id).toBe(worldIdOf(repo));
-  expect(world.nodes.map((spec) => spec.name)).toEqual(["Example"]);
-  expect(world.nodes[0]?.ports?.map((port) => port.name)).toEqual(["greet"]);
-  expect(world.placeholders.map((hole) => hole.users)).toEqual([[world.nodes[0]?.id ?? ""]]);
+  const [example] = world.nodes.map((node) => node.spec);
+  expect(world.nodes.map((node) => node.path)).toEqual(["Example"]);
+  expect(example?.ports?.map((port) => port.name)).toEqual(["greet"]);
+  expect(world.placeholders.map((hole) => hole.users)).toEqual([[example?.id ?? ""]]);
 });
 
 test("an existing world stays untouched, ok with one result line", async () => {

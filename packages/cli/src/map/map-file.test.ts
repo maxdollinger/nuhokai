@@ -41,23 +41,29 @@ function oneNode(purpose: string): LoadedWorld {
     id: "w",
     nodes: [
       {
-        schema: "nuhokai/node@1",
-        id: "a",
-        name: "A",
+        index: 0,
+        spec: {
+          schema: "nuhokai/node@1",
+          id: "a",
+          name: "A",
+          parent: null,
+          external: false,
+          abstract: false,
+          purpose,
+          status: "planned",
+          source: [],
+        },
         parent: null,
-        external: false,
-        abstract: false,
-        purpose,
-        status: "planned",
-        source: [],
+        children: [],
+        path: "A",
+        file: "nuhokai/a.ts",
       },
     ],
+    top: [0],
     placeholders: [],
     file: "nuhokai/index.ts",
-    parents: [null],
     listings: [],
     orphans: [],
-    files: [],
   };
 }
 
@@ -73,9 +79,9 @@ test("the example world's data block parses back unchanged, and a second write g
   expect(writeMap(root, world)).toBe(`${root}/nuhokai/.generated/map.html`);
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
-  // Only what the map draws: never parents, listings, orphans or files, nor a path from the cwd.
+  // Only what the map draws: each node's NodeSpec, never its place, file or path, nor listings or orphans.
   const { id, name, source, nodes, placeholders } = world;
-  const drawn = { id, name, source, nodes, placeholders };
+  const drawn = { id, name, source, nodes: nodes.map((node) => node.spec), placeholders };
   expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(drawn)));
 
   writeMap(root, world);

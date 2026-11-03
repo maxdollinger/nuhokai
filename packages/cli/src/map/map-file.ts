@@ -3,17 +3,29 @@ import { dirname } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
 import { nameInWorld, WORLD_MAP } from "../shared/paths.ts";
 import { SCENE_JS, THREE_JS, VIEWER_HTML } from "../toolchain/map-assets.gen.ts";
+import type { MapWorld } from "./scene.js";
 
 /** The viewer's slots, each held exactly once: a comment in a script, the data block's placeholder string. */
 const SLOTS = /\/\*nuhokai:(three|scene)\*\/|"nuhokai:(world)"/g;
 
+/** What the map draws of a loaded world: id, name, source, each node's NodeSpec and the placeholders; never paths. */
+export function mapWorld(world: LoadedWorld): MapWorld {
+  const { id, name, source, nodes, placeholders } = world;
+  return {
+    id,
+    ...(name === undefined ? {} : { name }),
+    ...(source === undefined ? {} : { source }),
+    nodes: nodes.map((node) => node.spec),
+    placeholders,
+  };
+}
+
 /**
- * The world as the page's one data block: only what the map draws (id, name, source, nodes, placeholders), never
- * check's paths from the cwd, as JSON with every `<` escaped, so no text in it can close the script or open a comment.
+ * The world as the page's one data block, mapWorld's part of it as JSON with every `<` escaped, so no text in it can
+ * close the script or open a comment.
  */
 function dataBlock(world: LoadedWorld): string {
-  const { id, name, source, nodes, placeholders } = world;
-  return JSON.stringify({ id, name, source, nodes, placeholders }).replaceAll("<", "\\u003c");
+  return JSON.stringify(mapWorld(world)).replaceAll("<", "\\u003c");
 }
 
 /**

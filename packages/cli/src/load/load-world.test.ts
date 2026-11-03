@@ -15,7 +15,21 @@ import { writeCliFiles } from "../init/cli-files.ts";
 import { runInit } from "../init/scaffold.ts";
 import { CliError } from "../shared/failure.ts";
 import { NoWorldError } from "../shared/inspect.ts";
-import { loadWorld } from "./load-world.ts";
+import { type LoadedWorld, loadWorld } from "./load-world.ts";
+
+/** Each loaded node's NodeSpec, in nodes order. */
+const specs = (world: LoadedWorld) => world.nodes.map((node) => node.spec);
+
+/** Where each loaded node sits and is defined: its id, path, parent and children by position, file and line. */
+const places = (world: LoadedWorld) =>
+  world.nodes.map(({ spec, path, parent, children, file, line }) => ({
+    id: spec.id,
+    path,
+    parent,
+    children,
+    file,
+    line,
+  }));
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
 const BIN = join(import.meta.dir, "../bin.ts");
@@ -95,7 +109,7 @@ test("after init, without node_modules, loads Example named by its export plus i
   const loaded = await loadWorld(repo);
 
   expect(readFileSync(join(repo, "nuhokai/index.ts"), "utf8")).toContain(`id: "${loaded.id}"`);
-  expect(loaded.nodes).toEqual([
+  expect(specs(loaded)).toEqual([
     {
       schema: "nuhokai/node@1",
       id: EXAMPLE_ID,
@@ -116,10 +130,10 @@ test("after init, without node_modules, loads Example named by its export plus i
 
 test("the example world: depth-first, edges grouped per target, delegates kept, inherited ports to the implementor", async () => {
   const loaded = await loadWorld(exampleWorld());
-  const byName = Object.fromEntries(loaded.nodes.map((spec) => [spec.name, spec]));
+  const byName = Object.fromEntries(specs(loaded).map((spec) => [spec.name, spec]));
   const id = (name: string) => byName[name]?.id ?? "";
 
-  expect(loaded.nodes.map((spec) => [spec.name, spec.parent])).toEqual([
+  expect(specs(loaded).map((spec) => [spec.name, spec.parent])).toEqual([
     ["Postgres", null],
     ["AuditLog", null],
     ["Shop", null],
@@ -188,14 +202,14 @@ export const Box = node({
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => [spec.name, spec.parent])).toEqual([
+  expect(specs(loaded).map((spec) => [spec.name, spec.parent])).toEqual([
     ["Box", null],
     ["User", "box"],
     ["Target", "box"],
   ]);
-  expect(loaded.nodes[1]?.edges).toEqual([{ kind: "uses", to: "target", port: ["one", "two", "audit"] }]);
-  expect(loaded.nodes[2]?.edges).toEqual([{ kind: "implements", to: "contract" }]);
-  expect(loaded.nodes[0]?.ports).toEqual([
+  expect(loaded.nodes[1]?.spec.edges).toEqual([{ kind: "uses", to: "target", port: ["one", "two", "audit"] }]);
+  expect(loaded.nodes[2]?.spec.edges).toEqual([{ kind: "implements", to: "contract" }]);
+  expect(loaded.nodes[0]?.spec.ports).toEqual([
     { name: "run", kind: "call", purpose: "one", delegate: { to: "target", port: "one" } },
   ]);
   expect(loaded.placeholders).toEqual([]);
@@ -216,7 +230,7 @@ export const Box = node({ id: "box", purpose: "box", status: "planned", source: 
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => [spec.name, spec.parent])).toEqual([
+  expect(specs(loaded).map((spec) => [spec.name, spec.parent])).toEqual([
     ["Shared", null],
     ["Box", null],
     ["Inner", "box"],
@@ -239,8 +253,14 @@ export const P = node({ id: "x", purpose: "p", status: "planned", source: [], ch
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["P", "C1", "C2", "T"]);
-  expect(loaded.parents).toEqual([null, 0, 0, null]);
+  expect(specs(loaded).map((spec) => spec.name)).toEqual(["P", "C1", "C2", "T"]);
+  expect(places(loaded)).toMatchObject([
+    { path: "P", parent: null, children: [1, 2] },
+    { path: "P/C1", parent: 0, children: [] },
+    { path: "P/C2", parent: 0, children: [] },
+    { path: "T", parent: null, children: [] },
+  ]);
+  expect(loaded.top).toEqual([0, 3]);
 });
 
 test("a tbd used by two nodes is one placeholder with both ids and no edges", async () => {
@@ -259,7 +279,7 @@ export const B = node(${leaf("b")}).edges({ uses: () => [first] });
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => spec.edges)).toEqual([undefined, undefined]);
+  expect(specs(loaded).map((spec) => spec.edges)).toEqual([undefined, undefined]);
   expect(loaded.placeholders).toEqual([
     { kind: "event", description: "first hole", name: "first", users: ["b", "a"] },
     { kind: "call", description: "second hole", name: "second", users: ["a"] },
@@ -304,7 +324,7 @@ export const held = { Made: node(${leaf("made")}).edges({}) };
   const loaded = await loadWorld(root);
 
   // An alias re-export does not rename; a node its file does not export takes the first export.
-  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Late", "First", "hidden"]);
+  expect(specs(loaded).map((spec) => spec.name)).toEqual(["Late", "First", "hidden"]);
 });
 
 test("a barrel re-export keeps the node's name and its file's blame", async () => {
@@ -337,8 +357,8 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
 
   const loaded = await loadWorld(root);
 
-  expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Outer", "Inner"]);
-  expect(loaded.nodes[1]?.edges).toEqual([{ kind: "uses", to: "orphan", port: ["x"] }]);
+  expect(specs(loaded).map((spec) => spec.name)).toEqual(["Outer", "Inner"]);
+  expect(loaded.nodes[1]?.spec.edges).toEqual([{ kind: "uses", to: "orphan", port: ["x"] }]);
   // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
   expect([loaded.file, loaded.name, loaded.source]).toEqual([`${root}/nuhokai/index.ts`, "Shop", ["src/**"]]);
   expect(loaded.listings).toEqual([
@@ -347,9 +367,9 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
     { node: "same-id", parent: null },
   ]);
   expect(loaded.orphans).toEqual([{ id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts` }]);
-  expect(loaded.files).toEqual([
-    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
-    { node: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 3 },
+  expect(places(loaded).map(({ id, file, line }) => ({ id, file, line }))).toEqual([
+    { id: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
+    { id: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 3 },
   ]);
 });
 
@@ -365,7 +385,9 @@ export default defineWorld({ id: "w", children: [A] } as never);
 
   expect(loaded).not.toHaveProperty("name");
   expect(loaded).not.toHaveProperty("source");
-  expect(loaded.files).toEqual([{ node: "a", file: `${root}/nuhokai/index.ts`, line: 2 }]);
+  expect(places(loaded)).toEqual([
+    { id: "a", path: "a", parent: null, children: [], file: `${root}/nuhokai/index.ts`, line: 2 },
+  ]);
 });
 
 test("every load failure is one CliError naming the file, and its line where it points at code", async () => {
@@ -485,8 +507,8 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Cal
 
     const loaded = await loadWorld(root);
 
-    expect(loaded.nodes.map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
-    expect(loaded.nodes[0]?.ports).toEqual([
+    expect(specs(loaded).map((spec) => spec.name)).toEqual(["Cmd", "Leaf", "Caller"]);
+    expect(loaded.nodes[0]?.spec.ports).toEqual([
       { name: "run", kind: "call", purpose: "run", delegate: { to: "leaf", port: "run" } },
     ]);
   }
@@ -542,7 +564,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
     "a.test.ts": 'throw new Error("test");\n',
   });
 
-  expect((await loadWorld(root)).nodes.map((spec) => spec.id)).toEqual(["a"]);
+  expect(specs(await loadWorld(root)).map((spec) => spec.id)).toEqual(["a"]);
 });
 
 test("a symlinked node file is a node file: its export names the node", async () => {
@@ -559,7 +581,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Shared] 
   );
   symlinkSync("../shared/node.ts", join(root, "nuhokai/linked.ts"));
 
-  expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["Shared"]);
+  expect(specs(await loadWorld(root)).map((spec) => spec.name)).toEqual(["Shared"]);
 });
 
 test("a symlink loop in nuhokai/ is walked once; a link that cannot resolve is a load error naming it", async () => {
@@ -573,7 +595,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
   const root = world(files);
   symlinkSync(".", join(root, "nuhokai/loop"));
   symlinkSync("..", join(root, "nuhokai/sub/up"));
-  expect((await loadWorld(root)).nodes.map((spec) => spec.name)).toEqual(["A"]);
+  expect(specs(await loadWorld(root)).map((spec) => spec.name)).toEqual(["A"]);
 
   const selfLinked = world(files);
   symlinkSync("self", join(selfLinked, "nuhokai/self"));

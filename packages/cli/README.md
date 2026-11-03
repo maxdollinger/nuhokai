@@ -10,7 +10,7 @@ src/
   bin.ts        argv, exit codes, command dispatch to cli/commands, listed at the top of main
   cli/          Cmd: each command's help text, argument parser and deferred call into its node, one file per command
   init/         write the skeleton atomically: scaffold, publish, example world, CLI-owned files
-  load/         read nuhokai/ without running it and answer the world as NodeSpecs plus its tbd placeholders, listings, orphans and files
+  load/         read nuhokai/ without running it (the reader) and answer the world: each node with its NodeSpec, place, path and file, plus tbd placeholders, listings and orphans
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines

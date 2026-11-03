@@ -1,6 +1,5 @@
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { NoWorldError } from "../shared/inspect.ts";
-import { nameNodes } from "../shared/node-path.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
 import { type Finding, formatFinding } from "./diagnostics.ts";
@@ -24,10 +23,9 @@ async function settle<T>(check: () => Promise<T>): Promise<Settled<T>> {
  */
 function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | undefined): Finding[] {
   if (!world) return [...findings];
-  const paths = nameNodes(world);
   const defined = new Map<string, (string | undefined)[]>();
   const define = (file: string, path: string | undefined) => defined.set(file, [...(defined.get(file) ?? []), path]);
-  for (const [index, entry] of world.files.entries()) define(entry.file, paths[index]);
+  for (const node of world.nodes) define(node.file, node.path);
   for (const orphan of world.orphans) define(orphan.file, undefined);
   return findings.map((finding) => {
     const paths = defined.get(finding.file);
