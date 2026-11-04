@@ -1,6 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import { type Finding, locate, nodeError } from "../../shared/diagnostics.ts";
+import { inWords } from "../../shared/failure.ts";
 import { childrenOf, isAncestor } from "../../shared/node-path.ts";
 import type { Ids } from "./ids.ts";
 
@@ -27,6 +28,9 @@ export function checkDataRules(
     // DataRules R4 re-checks what tsc checks of defineWorld's name: after a type error in the world file it would
     // only repeat tsc; a name tsc cannot judge (a const typed string) still gets it after one elsewhere.
     ...(typeErrorFiles.has(world.definedIn) ? [] : worldName(world)),
+    // SpecCheck R12 holds whatever tsc found: tsc never checks it.
+    ...worldWhitespace(world),
+    ...judged.flatMap((node) => nodeWhitespace(node)),
     ...duplicateIds(world, ids),
     ...repeatedListings(world, ids),
     ...orphans(world),
@@ -50,6 +54,67 @@ function worldName(world: LoadedWorld): Finding[] {
       fix: 'give defineWorld a name, e.g. name: "Shop"',
     },
   ];
+}
+
+/** Any whitespace, Unicode's included: a space, a tab, a line break, a no-break space. */
+const WHITESPACE = /\s/u;
+
+/** A value with whitespace as a message names it, and the fix: the value without it. */
+function withoutWhitespace(what: string, value: string): { rule: string; fix: string } {
+  const bare = value.replace(/\s+/gu, "");
+  return {
+    rule: `${what} ${inWords(value)} holds whitespace`,
+    fix:
+      bare === "" ? "give it a name without whitespace" : `write it without whitespace, e.g. ${JSON.stringify(bare)}`,
+  };
+}
+
+/**
+ * SpecCheck R12: the world's id and its string source entries hold no whitespace, so review prints and takes them back
+ * as written.
+ */
+function worldWhitespace(world: LoadedWorld): Finding[] {
+  const values: [string, unknown][] = [
+    ["the world's id", world.id],
+    ...(Array.isArray(world.source) ? world.source : []).map((entry): [string, unknown] => [
+      "the world's source entry",
+      entry,
+    ]),
+  ];
+  return values.flatMap(([what, value]) =>
+    typeof value === "string" && WHITESPACE.test(value)
+      ? [
+          {
+            severity: "error" as const,
+            ...locate({ file: world.definedIn, line: world.line }),
+            ...withoutWhitespace(what, value),
+          },
+        ]
+      : [],
+  );
+}
+
+/**
+ * SpecCheck R12: a node's id, name, port names, requirement ids and string source entries hold no whitespace: each is
+ * part of a reference or a file name review prints and takes back as written.
+ */
+function nodeWhitespace(node: LoadedNode): Finding[] {
+  const spec = node.spec as unknown as { readonly [field: string]: unknown };
+  const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const field = (item: unknown, key: string): unknown =>
+    typeof item === "object" && item !== null ? (item as Record<string, unknown>)[key] : undefined;
+  const values: [string, unknown][] = [
+    ["id", spec.id],
+    ["name", spec.name],
+    ...listOf(spec.ports).map((port): [string, unknown] => ["port name", field(port, "name")]),
+    ...listOf(spec.requirements).map((requirement): [string, unknown] => ["requirement id", field(requirement, "id")]),
+    ...listOf(spec.source).map((entry): [string, unknown] => ["source entry", entry]),
+  ];
+  return values.flatMap(([what, value]) => {
+    if (typeof value !== "string" || !WHITESPACE.test(value)) return [];
+    const { rule, fix } = withoutWhitespace(what, value);
+    return [nodeError(node, rule, what === "source entry" ? `rename the files it names, and ${fix}` : fix)];
+  });
 }
 
 /** SpecCheck R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */

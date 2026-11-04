@@ -98,3 +98,8 @@ test("a missing line drops only its part; locate and nodeError place a finding a
     fix: "f",
   });
 });
+
+test("R4: the file part loses only control characters, so a path with spaces opens as printed", () => {
+  const finding: Finding = { severity: "warning", file: "my  app/src/a.ts\u001b[31m", line: 2, rule: "a  rule" };
+  expect(format([finding])).toEqual(["warning: my  app/src/a.ts [31m:2: a rule"]);
+});

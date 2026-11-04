@@ -128,6 +128,15 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const { text: entry, at: where } of entries ?? []) {
       const files = filesOf(owner, entry, where);
+      // SourceRules R7; an entry holding whitespace is DataRules' one error (SpecCheck R12), not one per file.
+      for (const file of /\s/u.test(entry) ? [] : files.filter((file) => /\s/u.test(file))) {
+        error(
+          owner,
+          `source entry "${entry}" matches ${inWords(file)}, whose name holds whitespace`,
+          "rename the file, or narrow the entry",
+          where,
+        );
+      }
       const uncovered = covered && files.find((file) => !covered.has(real(file)));
       if (uncovered !== undefined) {
         error(

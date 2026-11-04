@@ -1,5 +1,5 @@
 /** The finding check and review print: built at its place, ordered one way, merged and printed as lines, summed up. */
-import { oneLine } from "./failure.ts";
+import { oneLine, plainText } from "./failure.ts";
 import { compareText } from "./world-path.ts";
 
 /** One violation a check found: what Diagnostics.format turns into a line. */
@@ -54,10 +54,11 @@ export function order(a: Finding, b: Finding): number {
 
 /**
  * One finding as one line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`: no column, the line is where an editor
- * or agent jumps. A missing line, node or fix drops its part; every text field is flattened to one line.
+ * or agent jumps. A missing line, node or fix drops its part; the file loses only control characters (R4), so it opens
+ * as printed, and every other text field is flattened to one line.
  */
 function lineOf(finding: Finding): string {
-  const at = `${oneLine(finding.file)}${finding.line === undefined ? "" : `:${finding.line}`}`;
+  const at = `${plainText(finding.file)}${finding.line === undefined ? "" : `:${finding.line}`}`;
   const parts = [`${finding.severity}: ${at}`];
   if (finding.node !== undefined) parts.push(oneLine(finding.node));
   const rule = oneLine(finding.rule);

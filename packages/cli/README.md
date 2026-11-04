@@ -70,8 +70,9 @@ existing `nuhokai/` directory is left untouched: it prints one line and exits 0,
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
-the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
-`source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
+the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
+no whitespace in an id, name, port name, requirement id, source entry or source file's name, and every `source` entry
+against the project's files, a file being the same file under every name a symlink gives it); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
 line (three tsc errors on one line) print it once, ending in ` (×3)`, while the summary counts each. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
@@ -116,7 +117,7 @@ its reference and `file:line`, by these references only: `purpose`, `ports.run`,
 cases as `Store.requirements[R1]`. A port's input, output, errors, payload and transport and a decision's rejected
 options are listed below their item and cited by its reference; a requirement no test case demonstrates is marked
 untested, and a `uses` edge to a node the world never reaches is listed by its name, marked unreachable. Then the files
-its source matches (as `check` finds them, names printed as they are, spaces included), the nodes it may use, the
+its source matches (as `check` finds them), the nodes it may use, the
 `tbd` drafts not to review against, the three categories (`against-spec` an error, `possibly-against-spec` and
 `unspecified` warnings), the JSON to answer with and the command to submit it. Text from the world files sits between
 `<<<<< SPEC DATA` and `SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against,
@@ -125,8 +126,10 @@ validates the shape, the node, every cited spec item, file and line, and that ev
 then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
 <evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`
 finding or when the world does not load, and 2 for an invalid submission, every problem one stderr line and nothing
-on stdout. A path naming no node, a dome (`nuhokai tree <dome>` lists its leaves), a node without source (external, a
-contract, or not built yet), a source that is no list or one that matches no file exits 2 too, as do a node beside
+on stdout. Since `check` refuses whitespace in ids, names and
+source files, every reference and file name prints and is taken back as is. A path naming no node, a dome (`nuhokai
+tree <dome>` lists its leaves), a node without source (external, a contract, or not built yet), a source that is no
+list or one that matches no file, and a node whose references or files hold whitespace (naming `nuhokai check`) exit 2 too, as do a node beside
 `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal, empty, silent for a second (a pipe `exec`
 or `spawn` leaves open), still open a second after its input, or over 4 MB: only `review --submit` reads stdin, and
 it never waits. The CLI calls no model and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing

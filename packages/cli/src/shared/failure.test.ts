@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { CliError, errorLine, isExpected, oneLine, plainText } from "./failure.ts";
+import { CliError, errorLine, inWords, isExpected, oneLine, plainText } from "./failure.ts";
 
 test("one line, whatever the thrown value", () => {
   expect(errorLine(new Error("first\nsecond"))).toBe("first second");
@@ -47,4 +47,10 @@ test("text as one line: each run of whitespace or control characters is one spac
 test("plain text: each run of controls or bidi overrides is one space, the rest untouched", () => {
   expect(plainText("a\u202Eevil\u2066x  y\n")).toBe("a evil x  y ");
   expect(plainText("emoji \u{1F468}\u200D\u{1F469} stays")).toBe("emoji \u{1F468}\u200D\u{1F469} stays");
+});
+
+test("a value in words: a string quoted, its whitespace but a space escaped; a list, an object and null named", () => {
+  expect(inWords("a b\tc\u00a0d  e")).toBe('"a b\\tc\\u00a0d \\u0020e"');
+  expect(inWords(3)).toBe("3");
+  expect([inWords([1]), inWords({}), inWords(null)]).toEqual(["a list", "an object", "null"]);
 });

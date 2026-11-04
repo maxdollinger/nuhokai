@@ -16,7 +16,7 @@ export const Diagnostics = node({
       purpose: "Turn findings into their lines",
       input: "findings: { severity: error | warning, file, line?, node?, rule, fix? }[]",
       output:
-        "one line each, in order: '<severity>: <file>:<line>: <node>: <rule>; <fix>'; a missing line, node or fix drops its part; text fields flattened by Failure.format; identical lines merged into one ending in ' (×<n>)'",
+        "one line each, in order: '<severity>: <file>:<line>: <node>: <rule>; <fix>'; a missing line, node or fix drops its part; the file with control characters as spaces, other text fields flattened by Failure.format; identical lines merged into one ending in ' (×<n>)'",
       errors: [],
     },
     order: {
@@ -62,8 +62,16 @@ export const Diagnostics = node({
       id: "R3",
       text: "Findings whose lines would be identical (three tsc errors on one line) print as one line at the first's place, ending in ' (×3)'; the summary still counts each finding.",
     },
+    {
+      id: "R4",
+      text: "The file part loses only control characters (Failure.format's plain text), never whitespace, so a path with spaces (a project directory named so) opens as printed; check refuses whitespace in a source file's name (SpecCheck R12, SourceRules R7). The other parts are flattened to one line.",
+    },
   ],
   testCases: [
+    {
+      text: "A file 'my  app/src/a.ts' followed by an escape sequence → printed with both spaces, the escape as a space; the rule's run of spaces as one.",
+      demonstrates: ["R4"],
+    },
     {
       text: "A multi-line tsc error in a file defining no node → one line 'error: nuhokai/x.ts:3: <message>', no node or fix part.",
       demonstrates: ["R1"],

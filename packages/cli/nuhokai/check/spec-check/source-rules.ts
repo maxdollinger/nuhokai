@@ -4,7 +4,7 @@ import { Failure } from "../../failure.ts";
 import { Path } from "../../path/path.ts";
 import { ProjectFiles } from "../../project-files.ts";
 
-/** The rules that read the filesystem: R6, R7, R10. */
+/** The rules that read the filesystem: R6, R7, R10, and R12 on file names. */
 export const SourceRules = node({
   id: "01a188c9-4a10-737f-97f6-8dfc24bc08b6",
   purpose:
@@ -29,11 +29,19 @@ export const SourceRules = node({
       text: "Files compare by their real path (ProjectFiles.realPath), for R7 and R10 alike: a listing reaches each directory once, under the first name that gets there, so a file one source lists through a symlink is the same file another lists under its other name. A conflict over a file listed under two names names both.",
     },
     {
+      id: "R7",
+      text: "A file a node's entry matches whose project-relative name holds whitespace (SpecCheck R12) is an error at the entry, naming the node, the entry and the file: rename the file, or narrow the entry. An entry that itself holds whitespace is DataRules' one error, not one per file. The world's entries are left alone: review cites only node files.",
+    },
+    {
       id: "R4",
       text: "A finding about one entry points at that entry, and one about a source that is no list at its source property, when written in the owner's file; an entry spread in from another file points at that `...spread`, else at its owner's node() or defineWorld call.",
     },
   ],
   testCases: [
+    {
+      text: "A node entry src/*.ts over src/a b.ts and a file holding a tab → one error each, the tab escaped; an entry src/a b.ts → DataRules' error alone.",
+      demonstrates: ["R7"],
+    },
     {
       text: "Entries src//shared.ts and src/./map/*.ts → an error each, fixed as src/shared.ts and src/map/*.ts; ./src/shared.ts passes; a world entry . → an error naming the world.",
       demonstrates: ["R1"],

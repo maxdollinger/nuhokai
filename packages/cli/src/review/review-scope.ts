@@ -1,7 +1,7 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
 import { constants } from "node:os";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { CliError } from "../shared/failure.ts";
+import { CliError, inWords } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
 import { invalidFrom, type Report } from "../shared/report.ts";
@@ -85,8 +85,16 @@ export function scope(
   const expansions = entries.map((entry) => project.expand(entry));
   const unreadable = expansions.flatMap((expansion) => ("unreadable" in expansion ? expansion.unreadable : []))[0];
   if (unreadable !== undefined) throw unreadableError(path, nameInProject(root, unreadable.dir), unreadable.code);
-  // Named first, then deduplicated: `./src/a.ts` and `src/a.ts` are one file.
   const named = expansions.flatMap((expansion) => ("files" in expansion ? expansion.files : []));
+  // R8: check refuses whitespace in a reference or a file name, so every one prints and is taken back as is.
+  const items = list(world, position);
+  const spaced = [path, ...items.map((item) => item.ref), ...named].find((text) => /\s/u.test(text));
+  if (spaced !== undefined) {
+    throw new CliError(
+      `${path}'s review would cite ${inWords(spaced)}, which holds whitespace; ${check} names what to fix`,
+    );
+  }
+  // Each file once, however many entries name it.
   const files = [...new Set(named.map((file) => nameInProject(root, file)))].sort(compareText);
   if (files.length === 0) throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
   const uses = targets(world, position).map(({ name, ports, node: target, source, purpose }): Dependency => {
@@ -97,7 +105,6 @@ export function scope(
   const drafts = world.placeholders
     .filter((placeholder) => placeholder.users.includes(spec.id))
     .map(({ description, name }): Draft => (name === undefined ? { description } : { description, name }));
-  const items = list(world, position);
   return {
     node: path,
     specFile: node.file,

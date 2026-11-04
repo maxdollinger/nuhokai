@@ -32,13 +32,18 @@ export function oneLine(text: string): string {
   return plainText(text).replace(/\s+/g, " ").trim();
 }
 
-/** A JSON-like value as a message names it: `"x"`, `3`, `a list`, `an object`, `null`. */
+/**
+ * A JSON-like value as a message names it: `"x"`, `3`, `a list`, `an object`, `null`. A string's whitespace other than
+ * a lone space is escaped (`"a\u00a0b"`, `"a\tb"`, `"a \u0020b"`), so a message shows it even as one line.
+ */
 export function inWords(value: unknown): string {
   if (Array.isArray(value)) return "a list";
   if (value === null) return "null";
   if (typeof value === "object") return "an object";
   try {
-    return JSON.stringify(value) ?? String(value);
+    const json = JSON.stringify(value);
+    if (json === undefined) return String(value);
+    return json.replace(/[^\S ]|(?<= ) /gu, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
   } catch {
     return String(value);
   }

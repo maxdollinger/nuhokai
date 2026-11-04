@@ -151,15 +151,15 @@ test("R3: no world is one failure line, failed", async () => {
   expect(none.err[0]).toStartWith("no nuhokai/ in <root>");
 });
 
-test("R2: a file whose name holds two spaces is cited as the prompt prints it; lines count without a final newline", async () => {
-  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
+test("R2, R4: a file in a directory whose name holds two spaces is cited and printed as the prompt prints it; lines count without a final newline", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai  review-submission-"));
   temps.push(root);
   expect((await runInit(root)).outcome).toBe("ok");
   const spec = join(root, "nuhokai/example.ts");
   writeFileSync(spec, readFileSync(spec, "utf8").replace("source: [],", 'source: ["src/**"],'));
   mkdirSync(join(root, "src"));
-  writeFileSync(join(root, "src/a  b.ts"), "one\ntwo");
-  const file = `${root}/src/a  b.ts`;
+  writeFileSync(join(root, "src/a.ts"), "one\ntwo");
+  const file = `${root}/src/a.ts`;
   expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain(`- ${file}`);
   const cite = (line: number) =>
     JSON.stringify({
@@ -167,7 +167,9 @@ test("R2: a file whose name holds two spaces is cited as the prompt prints it; l
       reviewedFiles: [file],
       findings: [{ category: "unspecified", file, line, evidence: "x" }],
     });
-  expect(splitReport(await runReviewSubmission(root, cite(2))).outcome).toBe("ok");
+  expect(splitReport(await runReviewSubmission(root, cite(2))).out[0]).toBe(
+    `warning: ${file}:2: Example: unspecified; x`,
+  );
   expect(splitReport(await runReviewSubmission(root, cite(3))).err).toEqual([
     `findings[0].line 3 is past the end of ${file}, which has 2 lines; cite a line within it`,
   ]);
