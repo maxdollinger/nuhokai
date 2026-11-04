@@ -114,7 +114,8 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
     const id = textOf(requirement?.id);
     const constraint = requirement?.kind === "constraint";
     const kind = constraint ? "constraint" : "requirement";
-    const untested = !constraint && !demonstrated.has(id);
+    // Only the node's own: an implementor's test cases demonstrate its own ids, never its contracts' (R4).
+    const untested = own && !constraint && !demonstrated.has(id);
     add(`requirements[${id}]`, kind, textOf(requirement?.text), places?.requirements[index], { untested });
   }
   if (own) {

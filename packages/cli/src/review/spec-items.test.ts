@@ -119,12 +119,13 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
   expect(find(items, "Store.purpose")).toBeUndefined();
 });
 
-test("R4: a requirement of the node's own no test case demonstrates is marked untested; a constraint never is", () => {
+test("R4: a requirement of the node's own no test case demonstrates is marked untested; a constraint or a contract's never is", () => {
   const items = list(shop, at(shop, "Orders"));
   expect(find(items, "requirements[R1]")?.untested).toBeUndefined();
   expect(find(items, "requirements[R2]")?.untested).toBe(true);
   expect(find(items, "requirements[C1]")).toMatchObject({ kind: "constraint" });
   expect(find(items, "requirements[C1]")?.untested).toBeUndefined();
+  expect(find(items, "Store.requirements[R2]")?.untested).toBeUndefined();
 });
 
 test("R5: find is exact, case-sensitive, and takes a reference as the prompt prints it; the same node, the same items", () => {

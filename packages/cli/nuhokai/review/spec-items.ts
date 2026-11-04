@@ -48,7 +48,7 @@ export const SpecItems = node({
     },
     {
       id: "R4",
-      text: "A requirement no test case demonstrates (kind constraint aside) is marked untested: the format calls it a gap.",
+      text: "A requirement of the node's own that none of its test cases demonstrates (kind constraint aside) is marked untested: the format calls it a gap. A contract's never is: an implementor's test cases demonstrate only its own ids.",
     },
     {
       id: "R5",
@@ -66,7 +66,7 @@ export const SpecItems = node({
       demonstrates: ["R1", "R2", "R3", "R6"],
     },
     {
-      text: "R2 demonstrated by no test case → marked untested; a constraint C1 likewise → not marked.",
+      text: "R2 demonstrated by no test case → marked untested; a constraint C1, or the contract's R2 → not marked.",
       demonstrates: ["R4"],
     },
     {
