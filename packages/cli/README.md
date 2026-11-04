@@ -121,8 +121,9 @@ each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree:
 the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec` finding, and 2 for an
 invalid submission, every problem one stderr line and nothing on stdout. A path naming no node, a dome (`nuhokai tree
 <dome>` lists its leaves), a node without source (external, a contract, or not built yet) or one whose source matches
-no file exits 2 too, as do a node beside `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal or
-empty: only `review --submit` reads stdin, and never waits on a terminal. The CLI calls no model and needs no
+no file exits 2 too, as do a node beside `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal,
+empty, silent for a second (a pipe `exec` or `spawn` leaves open), still open a second after its input, or over 4 MB:
+only `review --submit` reads stdin, and it never waits. The CLI calls no model and needs no
 credentials; it is a dev-loop tool, not a CI gate, since nothing proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the

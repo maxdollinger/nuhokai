@@ -69,7 +69,7 @@ export const Cli = node({
     },
     {
       id: "R10",
-      text: "review takes a hierarchy path, or the flag --submit (an option without a value) and no path: then Cli reads stdin to its end and review's run hands Review.submit the directory and the text; with a path it hands Review.run the directory and the path. Both or neither → usage error (2). --submit with stdin a tty, or empty input → usage error (2) before anything runs, never a wait. `nuhokai review --help` explains the flow from review <node> to review --submit, the exit codes, and finding a node with tree.",
+      text: "review takes a hierarchy path, or its stdin flag --submit (an option without a value) and no path: then Cli reads stdin to its end and review's run hands Review.submit the directory and the text; with a path it hands Review.run the directory and the path. Both or neither → usage error (2). --submit with stdin a tty, empty input, no input within 1s (a pipe exec or spawn leaves open), a pipe still open 1s after its last input, or more than 4 MB → usage error (2) before anything runs, never a wait. `nuhokai review --help` explains the flow from review <node> to review --submit, the exit codes, and finding a node with tree.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
@@ -132,7 +132,7 @@ export const Cli = node({
       demonstrates: ["R9"],
     },
     {
-      text: "`review Tree/PrintTree` reaches Review.run with (directory, Tree/PrintTree); `echo '{…}' | review --submit` reaches Review.submit with the text; `review --submit Tree/PrintTree`, `review`, `review --submit` from a tty or with empty input → exit 2, nothing runs; `review --submit=x` → --submit takes no value, exit 2.",
+      text: "`review Tree/PrintTree` reaches Review.run with (directory, Tree/PrintTree); `echo '{…}' | review --submit` reaches Review.submit with the text; `review --submit Tree/PrintTree`, `review`, `review --submit` from a tty, with empty input, from a pipe never closed (empty, or after '{}') or with 4 MB and one byte → exit 2, nothing runs; `review --submit=x` → --submit takes no value, exit 2.",
       demonstrates: ["R6", "R10"],
     },
     {
@@ -201,7 +201,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, an optional stdin flag, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
       why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {
@@ -228,7 +228,7 @@ export const Cli = node({
     },
     {
       decision: "review's second step is the flag --submit, not a `submit` argument or command.",
-      why: "Cmd has positionals and options only; a flag is one more option (one without a value), and no node name is reserved.",
+      why: "Cmd has positionals and options only; a flag is one more option (one without a value), and no node name is reserved. Cmd's one stdinFlag says it all: Cli reads stdin when it is given, in place of the positionals, so a command needs no hook of its own.",
       rejected: [
         {
           option: "`review submit`",

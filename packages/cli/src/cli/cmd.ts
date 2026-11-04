@@ -23,17 +23,15 @@ export interface Flag {
 }
 
 /**
- * What Cli hands a command once its arguments passed: its positionals, its options' typed values and its flags, and
- * stdin's text when the command's input flag was given.
+ * What Cli hands a command once its arguments passed: its positionals, its options' typed values, and stdin's text
+ * when its stdin flag was given.
  */
 export interface Args {
   readonly positionals: readonly string[];
   /** An option's typed value, or undefined if it was not given. */
   get<T>(option: Option<T>): T | undefined;
-  /** Whether a flag was given. */
-  has(flag: Flag): boolean;
-  /** Stdin's text, read to its end by Cli: only when the command's `input` flag was given. */
-  readonly input?: string;
+  /** Stdin's text, read by Cli: present exactly when the command's stdin flag was given. */
+  readonly stdin?: string;
 }
 
 /** A positional argument as a command's help explains it. */
@@ -52,20 +50,14 @@ export interface Cmd {
   readonly arguments: readonly Argument[];
   /** What it prints on stdout, with the shape of each line, so a reader can parse it without a trial run. */
   readonly output: string;
-  /** The command's own options and flags beside --path; Cli splits them off, judges their values and its help lists them. */
-  readonly options: readonly (Option | Flag)[];
+  /** The command's own options beside --path; Cli splits them off, judges their values and its help lists them. */
+  readonly options: readonly Option[];
   /**
-   * The flag that makes Cli read stdin to its end and hand the text over as `input`, and what that text is ("the
-   * review JSON"): never from a terminal, never empty, so the command never waits. Only Cli reads stdin.
+   * The flag that makes Cli read stdin and hand its text over as `stdin`, in place of the positionals: one of the two
+   * is required, never both. Never from a terminal, never empty or left open, so the command never waits. Help lists
+   * it with the options; only Cli reads stdin.
    */
-  readonly input?: { readonly flag: Flag; readonly what: string };
-  /** More of its help, after Output: how the command is used, line by line. */
-  readonly notes?: readonly string[];
-  /**
-   * The command's own usage error once the count passed and the values are judged, such as two arguments that exclude
-   * each other: its message, or undefined when the arguments go together.
-   */
-  misuse?(args: Args): string | undefined;
+  readonly stdinFlag?: Flag;
   /**
    * Run the command in the project directory, once Cli passed its arguments. It holds the deferred import of the
    * node, so help and usage never load one.

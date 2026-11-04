@@ -12,7 +12,6 @@ async function ranWith(positionals: string[], level?: number): Promise<unknown[]
   const args: Args = {
     positionals,
     get: <T>(option: unknown) => (option === LEVEL_OPTION ? (level as T | undefined) : undefined),
-    has: () => false,
   };
   const run = spyOn(printTree, "runTree").mockResolvedValue(TREE_OK);
   try {

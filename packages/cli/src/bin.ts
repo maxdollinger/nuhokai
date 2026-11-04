@@ -34,12 +34,12 @@ const PATH_OPTION: Option<string> = {
 };
 
 /**
- * Stdin as Cli reads it, only for a command's input flag: whether it is a terminal, which Cli never waits on, and its
- * text to the end.
+ * Stdin as Cli reads it, only for a command's stdin flag: whether it is a terminal, which Cli never waits on, and its
+ * bytes as they arrive.
  */
 interface Stdin {
   readonly isTTY: boolean;
-  text(): Promise<string>;
+  stream(): ReadableStream<Uint8Array>;
 }
 
 /** The process's stdin. */
@@ -47,8 +47,51 @@ const PROCESS_STDIN: Stdin = {
   get isTTY() {
     return process.stdin.isTTY === true;
   },
-  text: () => Bun.stdin.text(),
+  stream: () => Bun.stdin.stream(),
 };
+
+/**
+ * How long Cli waits for the next chunk on stdin, the first included: a pipe the caller never closes (exec and spawn
+ * leave stdin open) ends in a usage error instead of a wait (Terminal R2).
+ */
+const STDIN_WAIT_MS = 1000;
+
+/** The most stdin may hold: a review is a few kilobytes; more is a mistake, not a review. */
+const STDIN_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Stdin's text, read until it closes: or why not, when nothing arrives in time (as empty input), the pipe stays open
+ * after its input, or it holds more than STDIN_MAX_BYTES.
+ */
+async function readStdin(stdin: Stdin): Promise<{ text: string } | { empty: true } | { error: string }> {
+  const reader = stdin.stream().getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      let timer: Timer | undefined;
+      const idle = new Promise<undefined>((done) => {
+        timer = setTimeout(done, STDIN_WAIT_MS);
+      });
+      const next = await Promise.race([reader.read(), idle]).finally(() => clearTimeout(timer));
+      if (next === undefined) {
+        if (size === 0) return { empty: true };
+        return {
+          error: `stdin was not closed: nothing more arrived for ${STDIN_WAIT_MS / 1000}s; close it after the input`,
+        };
+      }
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > STDIN_MAX_BYTES) return { error: `stdin holds more than ${STDIN_MAX_BYTES / 1024 / 1024} MB` };
+      chunks.push(next.value);
+    }
+  } finally {
+    // Stop reading: a pipe left open must not keep the process waiting.
+    reader.cancel().catch(() => {});
+  }
+  const text = new TextDecoder().decode(Buffer.concat(chunks));
+  return text.trim() === "" ? { empty: true } : { text };
+}
 
 /** An option's value as typed: the spelling that named it (for messages) and the raw value, not yet judged. */
 interface OptionValue {
@@ -70,9 +113,15 @@ function form(option: Option | Flag, spelled: string): string {
   return isFlag(option) ? spelled : `${spelled} ${option.value}`;
 }
 
+/** A command's own options, its stdin flag last. */
+function ownOptions(cmd: Cmd): (Option | Flag)[] {
+  return [...cmd.options, ...(cmd.stdinFlag ? [cmd.stdinFlag] : [])];
+}
+
 /** A command's argument form, from its positionals and its own options: "nuhokai tree [node] [-L <n>]". */
-function synopsis(name: string, { positionals, options }: Cmd): string {
-  const optional = options.map((option) => `[${form(option, spellings(option)[0] ?? "")}]`);
+function synopsis(name: string, cmd: Cmd): string {
+  const { positionals } = cmd;
+  const optional = ownOptions(cmd).map((option) => `[${form(option, spellings(option)[0] ?? "")}]`);
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
@@ -119,10 +168,10 @@ function columns(rows: readonly (readonly [string, string])[]): string[] {
  * --help, then what it prints and the contract every command shares.
  */
 function commandUsage(name: string, cmd: Cmd): string {
-  const { description, options, output } = cmd;
+  const { description, output } = cmd;
   const args = cmd.arguments;
   const flags: (readonly [string, string])[] = [
-    ...[...options, PATH_OPTION].map((option): [string, string] => [
+    ...[...ownOptions(cmd), PATH_OPTION].map((option): [string, string] => [
       form(option, spellings(option).join(", ")),
       option.text,
     ]),
@@ -138,7 +187,6 @@ function commandUsage(name: string, cmd: Cmd): string {
     ...columns(flags),
     "",
     `Output: ${output}.`,
-    ...(cmd.notes ?? []),
     ...contract(name),
   ].join("\n");
 }
@@ -224,7 +272,7 @@ function usageError(name: string, cmd: Cmd, error: string): number {
 
 /**
  * Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. `stdin` is read only
- * for a command's input flag.
+ * for a command's stdin flag.
  */
 export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN): Promise<number> {
   // The commands the CLI exposes, in usage's order.
@@ -245,7 +293,7 @@ export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN
     console.error(`nuhokai: unknown command '${plainText(first)}'\n\n${usage(commands)}`);
     return 2;
   }
-  const split = splitOptions(typed, [PATH_OPTION, ...cmd.options]);
+  const split = splitOptions(typed, [PATH_OPTION, ...ownOptions(cmd)]);
   if ("error" in split) return usageError(first, cmd, split.error);
   // Help wins over any value, a bad --path included: values are judged only after it.
   if (split.rest.length === 1 && isHelpFlag(split.rest[0] ?? "")) {
@@ -269,12 +317,22 @@ export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN
   }
   const args: Args = {
     positionals: split.rest,
-    // Closures, not methods, so a command may destructure them; each value is its own option's parse result.
+    // A closure, not a method, so a command may destructure it; each value is its own option's parse result.
     get: <T>(option: Option<T>) => values.get(option) as T | undefined,
-    has: (flag: Flag) => values.has(flag),
   };
-  const misuse = cmd.misuse?.(args);
-  if (misuse !== undefined) return usageError(first, cmd, misuse);
+  // The stdin flag stands in for the positionals: one of the two, never both.
+  const stdinFlag = cmd.stdinFlag && values.has(cmd.stdinFlag) ? cmd.stdinFlag.names[0] : undefined;
+  if (cmd.stdinFlag !== undefined) {
+    const [positional] = split.rest;
+    const flag = cmd.stdinFlag.names[0];
+    const name = cmd.arguments[0]?.name ?? "argument";
+    if (stdinFlag !== undefined && positional !== undefined) {
+      return usageError(first, cmd, `give a ${name} or ${flag}, not both: '${positional}' and ${flag}`);
+    }
+    if (stdinFlag === undefined && positional === undefined) {
+      return usageError(first, cmd, `give a ${name}, or ${flag} with its input piped to stdin`);
+    }
+  }
   // The project directory is --path against the cwd, else the cwd itself.
   const cwd = process.cwd();
   const named = args.get(PATH_OPTION) ?? ".";
@@ -282,17 +340,14 @@ export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN
   if (!isDirectory(dir)) return usageError(first, cmd, `not a directory: ${named}`);
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  if (cmd.input === undefined || !args.has(cmd.input.flag)) return finish(first, cmd, root, args);
-  // Only Cli reads stdin, and never waits on a terminal: what a command reads is piped in (Terminal R2).
-  const flag = cmd.input.flag.names[0];
-  const pipe = `pipe it in: nuhokai ${first} ${flag} < <file>`;
-  if (stdin.isTTY) {
-    return usageError(first, cmd, `${flag} reads ${cmd.input.what} from stdin, but stdin is a terminal; ${pipe}`);
-  }
-  const text = await stdin.text();
-  if (text.trim() === "")
-    return usageError(first, cmd, `${flag} got empty input on stdin, not ${cmd.input.what}; ${pipe}`);
-  return finish(first, cmd, root, { ...args, input: text });
+  if (stdinFlag === undefined) return finish(first, cmd, root, args);
+  // Only Cli reads stdin, and never waits: not on a terminal, nor on a pipe left open (Terminal R2).
+  const pipe = `pipe it in: nuhokai ${first} ${stdinFlag} < <file>`;
+  if (stdin.isTTY) return usageError(first, cmd, `${stdinFlag} reads stdin, but stdin is a terminal; ${pipe}`);
+  const read = await readStdin(stdin);
+  if ("empty" in read) return usageError(first, cmd, `${stdinFlag} got no input on stdin; ${pipe}`);
+  if ("error" in read) return usageError(first, cmd, `${stdinFlag}: ${read.error}; ${pipe}`);
+  return finish(first, cmd, root, { ...args, stdin: read.text });
 }
 
 /**

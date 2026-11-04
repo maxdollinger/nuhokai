@@ -21,14 +21,23 @@ const TREE_OK: Report = { outcome: "ok", lines: [] };
 /** What main printed: its exit code, or the error it threw, and each line it wrote to stdout and to stderr. */
 type Printed = { code: number; out: string[]; err: string[] } | { thrown: unknown; out: string[]; err: string[] };
 
-/** Stdin as main reads it: a terminal, or a pipe holding `text`; `reads` counts how often it was read. */
-function stdinOf(text: string | undefined) {
+/**
+ * Stdin as main reads it: a terminal (undefined), a pipe holding `text` and closed, or with `open` a pipe that sends
+ * `text` (when not empty) and is never closed; `reads` counts how often it was read.
+ */
+function stdinOf(text: string | Uint8Array | undefined, open = false) {
   const stdin = {
     isTTY: text === undefined,
     reads: 0,
-    text: async () => {
+    stream: () => {
       stdin.reads++;
-      return text ?? "";
+      return new ReadableStream<Uint8Array>({
+        start(controller) {
+          const bytes = typeof text === "string" ? new TextEncoder().encode(text) : text;
+          if (bytes !== undefined && bytes.byteLength > 0) controller.enqueue(bytes);
+          if (!open) controller.close();
+        },
+      });
     },
   };
   return stdin;
@@ -484,10 +493,11 @@ test("Cli R3, R10: review's help explains the flow to --submit, its exit codes a
   const text = await help("review");
   expect(text).toContain("Usage: nuhokai review [node] [--submit]");
   expect(text).toContain("  --submit      validate the review JSON piped to stdin");
-  expect(text).toContain("Flow: `nuhokai review <node>` prints a prompt;");
-  expect(text).toContain("`nuhokai review --submit`");
-  expect(text).toContain("Find a node with `nuhokai tree`");
-  expect(text).toContain("Exit codes of review: 0 the prompt was printed, or the review passes");
+  expect(text).toContain("pipes its findings as JSON to `nuhokai review --submit`");
+  expect(text).toContain("by its path as `nuhokai tree` prints it");
+  expect(text).toContain(
+    "exit 0 when the review passes (warnings allowed), 1 on an against-spec finding, 2 for an invalid submission",
+  );
   expect(text).toContain("<error|warning>: <file>:<line>: <node>: <spec item|unspecified>; <evidence>");
   expect(await printed(["review", "--submit", "--help"])).toEqual({ code: 0, out: [text], err: [] });
 });
@@ -524,23 +534,34 @@ test("Cli R6, R10: a node beside --submit, neither, a terminal or empty input, -
     expect(both.reads).toBe(0);
     expect(await failed(["review"])).toEqual([
       2,
-      ["nuhokai review: give the node to review, or --submit with the review piped to stdin"],
+      ["nuhokai review: give a node, or --submit with its input piped to stdin"],
     ]);
     const terminal = stdinOf(undefined);
     const fromTty = await printed(["review", "--submit"], terminal);
     expect(fromTty).toMatchObject({ code: 2, out: [] });
     expect((fromTty.err[0] ?? "").split("\n")[0]).toBe(
-      "nuhokai review: --submit reads the review JSON from stdin, but stdin is a terminal; pipe it in: nuhokai review --submit < <file>",
+      "nuhokai review: --submit reads stdin, but stdin is a terminal; pipe it in: nuhokai review --submit < <file>",
     );
     // A terminal is never read, so nothing waits.
     expect(terminal.reads).toBe(0);
-    for (const empty of ["", " \n"]) {
-      const result = await printed(["review", "--submit"], stdinOf(empty));
+    // Empty input, and a pipe left open with nothing in it (exec and spawn leave stdin open), never wait.
+    for (const empty of [stdinOf(""), stdinOf(" \n"), stdinOf("", true)]) {
+      const result = await printed(["review", "--submit"], empty);
       expect(result).toMatchObject({ code: 2, out: [] });
       expect((result.err[0] ?? "").split("\n")[0]).toBe(
-        "nuhokai review: --submit got empty input on stdin, not the review JSON; pipe it in: nuhokai review --submit < <file>",
+        "nuhokai review: --submit got no input on stdin; pipe it in: nuhokai review --submit < <file>",
       );
     }
+    const open = await printed(["review", "--submit"], stdinOf("{}", true));
+    expect(open).toMatchObject({ code: 2, out: [] });
+    expect((open.err[0] ?? "").split("\n")[0]).toBe(
+      "nuhokai review: --submit: stdin was not closed: nothing more arrived for 1s; close it after the input; pipe it in: nuhokai review --submit < <file>",
+    );
+    const huge = await printed(["review", "--submit"], stdinOf(new Uint8Array(4 * 1024 * 1024 + 1).fill(32)));
+    expect(huge).toMatchObject({ code: 2, out: [] });
+    expect((huge.err[0] ?? "").split("\n")[0]).toBe(
+      "nuhokai review: --submit: stdin holds more than 4 MB; pipe it in: nuhokai review --submit < <file>",
+    );
     expect(await failed(["review", "--submit=x"])).toEqual([2, ["nuhokai review: --submit takes no value"]]);
     expect(await failed(["review", "--submit", "--submit"])).toEqual([2, ["nuhokai review: --submit given twice"]]);
     expect(await failed(["review", "a", "b"])).toEqual([2, ["nuhokai review: unexpected argument 'b'"]]);
