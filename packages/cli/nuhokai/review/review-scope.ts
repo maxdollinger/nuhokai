@@ -9,8 +9,8 @@ export const ReviewScope = node({
   purpose:
     "Decide what a review of one node covers: its spec items, its files and what it may use, or why it is not " +
     "reviewable. The one source of both the prompt and the validation.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/review/review-scope.ts", "src/review/review-scope.test.ts"],
   ports: {
     scope: {
       kind: "call",

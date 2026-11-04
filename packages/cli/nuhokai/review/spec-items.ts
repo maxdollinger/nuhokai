@@ -6,8 +6,8 @@ export const SpecItems = node({
   purpose:
     "Own the reference of each spec item a review cites: list a node's items, its contracts' included, each with " +
     "where it is written, and find the item a reference names. Pure.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/review/spec-items.ts", "src/review/spec-items.test.ts"],
   ports: {
     list: {
       kind: "call",
@@ -46,7 +46,7 @@ export const SpecItems = node({
   ],
   testCases: [
     {
-      text: "PrintTree → purpose, ports.run, its input, output and five errors, requirements[R1]–[R3], five edges.uses items, two test cases; requirements[R1] at nuhokai/tree/print-tree.ts and its line.",
+      text: "PrintTree → purpose, ports.run, its input, output and five errors, requirements[R1]–[R3], four edges.uses items (one per target: Failure.format and Failure.report are one edge), two test cases; requirements[R1] at nuhokai/tree/print-tree.ts and its line.",
       demonstrates: ["R1", "R3"],
     },
     {

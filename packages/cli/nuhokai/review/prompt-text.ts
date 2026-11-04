@@ -7,8 +7,8 @@ export const PromptText = node({
   purpose:
     "Own the prompt's wording: turn a review's scope into the instructions a coding agent follows, ending with " +
     "the command that submits its findings. Pure: never loads or prints.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/review/prompt-text.ts", "src/review/prompt-text.test.ts"],
   ports: {
     render: {
       kind: "call",

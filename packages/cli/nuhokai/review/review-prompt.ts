@@ -9,8 +9,8 @@ import { ReviewScope } from "./review-scope.ts";
 export const ReviewPrompt = node({
   id: "01a1a638-318d-7110-a697-dc13cc8070fc",
   purpose: "The program behind `review <node>`: order and outcome only; never prints.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/review/review-prompt.ts", "src/review/review-prompt.test.ts"],
   ports: {
     run: {
       kind: "call",
