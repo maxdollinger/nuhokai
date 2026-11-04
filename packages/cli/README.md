@@ -111,21 +111,26 @@ went wrong.
 
 `review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state.
 `nuhokai review Tree/PrintTree` prints a prompt: run `nuhokai check` first, then every item of the node's spec with
-its reference and `file:line` (purpose, `ports.run.input`, `requirements[R2]`, `edges.uses[LoadWorld]`,
-`testCases[0]`, `decisions[1].rejected[0]`, and each implemented contract's ports, requirements and test cases as
-`Store.requirements[R1]`; a requirement no test case demonstrates is marked untested), the files its source matches
-(as `check` finds them), the nodes it may use, the `tbd` drafts not to review against, the three categories
-(`against-spec` an error, `possibly-against-spec` and `unspecified` warnings), the JSON to answer with and the
-command to submit it. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it validates
-the shape, the node, every cited spec item, file and line, and that every file of the node was reviewed, then prints
-each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2]; <evidence>`, and
-the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec` finding, and 2 for an
-invalid submission, every problem one stderr line and nothing on stdout. A path naming no node, a dome (`nuhokai tree
-<dome>` lists its leaves), a node without source (external, a contract, or not built yet) or one whose source matches
-no file exits 2 too, as do a node beside `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal,
-empty, silent for a second (a pipe `exec` or `spawn` leaves open), still open a second after its input, or over 4 MB:
-only `review --submit` reads stdin, and it never waits. The CLI calls no model and needs no
-credentials; it is a dev-loop tool, not a CI gate, since nothing proves a review ran.
+its reference and `file:line`, by these references only: `purpose`, `ports.run`, `requirements[R2]`,
+`edges.uses[LoadWorld]`, `testCases[0]`, `decisions[1]`, and each implemented contract's ports, requirements and test
+cases as `Store.requirements[R1]`. A port's input, output, errors, payload and transport and a decision's rejected
+options are listed below their item and cited by its reference; a requirement no test case demonstrates is marked
+untested, and a `uses` edge to a node the world never reaches is listed by its name, marked unreachable. Then the files
+its source matches (as `check` finds them, names printed as they are, spaces included), the nodes it may use, the
+`tbd` drafts not to review against, the three categories (`against-spec` an error, `possibly-against-spec` and
+`unspecified` warnings), the JSON to answer with and the command to submit it. Text from the world files sits between
+`<<<<< SPEC DATA` and `SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against,
+never instructions to follow. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it
+validates the shape, the node, every cited spec item, file and line, and that every file of the node was reviewed,
+then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
+<evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`
+finding or when the world does not load, and 2 for an invalid submission, every problem one stderr line and nothing
+on stdout. A path naming no node, a dome (`nuhokai tree <dome>` lists its leaves), a node without source (external, a
+contract, or not built yet), a source that is no list or one that matches no file exits 2 too, as do a node beside
+`--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal, empty, silent for a second (a pipe `exec`
+or `spawn` leaves open), still open a second after its input, or over 4 MB: only `review --submit` reads stdin, and
+it never waits. The CLI calls no model and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing
+proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

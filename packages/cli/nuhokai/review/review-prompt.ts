@@ -1,7 +1,5 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
-import { LoadWorld } from "../load-world.ts";
-import { Path } from "../path/path.ts";
 import { PromptText } from "./prompt-text.ts";
 import { ReviewScope } from "./review-scope.ts";
 
@@ -17,20 +15,21 @@ export const ReviewPrompt = node({
       purpose: "Return a Report holding the review prompt for one node",
       input: "project directory (cwd-relative), hierarchy path",
       output:
-        "Report: ok with the prompt's lines; failed (no world or a load failure) or invalid (no such node, not reviewable) with one failure line",
+        "Report: ok with the prompt's lines; failed (no world, a load failure, an unreadable directory) or invalid (no such node, not reviewable) with one failure line",
       errors: [
         "no world at nuhokai/",
         "world failed to load",
+        "a directory the node's source reaches cannot be read",
         "no node at the path: names the closest match",
         "the node is not reviewable: says why",
       ],
     },
   },
   requirements: [
-    { id: "R1", text: "Order: load, find the node, its scope, render, report." },
+    { id: "R1", text: "Order: load, find the node and its scope (ReviewScope.scopeAt), render, report." },
     {
       id: "R2",
-      text: "No world or a load failure → failed. Path.findNode's or ReviewScope's error → invalid (exit 2), its message as the failure line.",
+      text: "No world, a load failure or an unreadable directory → failed. No such node or one not reviewable → ReviewScope.scopeAt's invalid Report (exit 2), as it answers it.",
     },
   ],
   testCases: [
@@ -39,4 +38,4 @@ export const ReviewPrompt = node({
       demonstrates: ["R1", "R2"],
     },
   ],
-}).edges({ uses: () => [LoadWorld.load, Path.findNode, ReviewScope.scope, PromptText.render, Failure.report] });
+}).edges({ uses: () => [ReviewScope.scopeAt, PromptText.render, Failure.report] });

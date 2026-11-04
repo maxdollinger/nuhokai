@@ -24,11 +24,11 @@ export const Review = node({
     },
     {
       id: "R3",
-      text: "The code is held against the whole spec, inherited items included: requirements and constraints, ports (shapes, errors, transport), uses edges, test cases, decisions' rejected options and the purpose.",
+      text: "The code is held against the whole spec, inherited items included: requirements and constraints, ports (shapes, errors, transport), uses edges, test cases, decisions with their rejected options, and the purpose. The agent cites an item by its coarse reference (SpecItems R1): a port or a decision, never one of its fields.",
     },
     {
       id: "R4",
-      text: "Verdicts: against-spec → error, possibly-against-spec and unspecified → warning, no findings → pass. Exit: 0 valid without errors, 1 valid with an error, 2 an invalid submission or argument.",
+      text: "Verdicts: against-spec → error, possibly-against-spec and unspecified → warning, no findings → pass. Exit: 0 valid without errors, 1 valid with an error or when the world does not load (or a directory the node's source reaches cannot be read), 2 an invalid submission or argument.",
     },
     {
       id: "C1",
@@ -42,7 +42,7 @@ export const Review = node({
       demonstrates: ["R1", "R2", "R3"],
     },
     {
-      text: "Submitting one against-spec and one unspecified finding → an error and a warning line, 'failed: 1 error, 1 warning', exit 1; no findings → 'ok: 0 errors, 0 warnings', exit 0; a finding citing requirements[R9] → exit 2.",
+      text: "Submitting one against-spec and one unspecified finding → an error and a warning line, 'failed: 1 error, 1 warning', exit 1; no findings → 'ok: 0 errors, 0 warnings', exit 0; a finding citing requirements[R9] → exit 2; no world → one failure line, exit 1.",
       demonstrates: ["R1", "R4"],
     },
   ],
@@ -71,6 +71,15 @@ export const Review = node({
     {
       decision: "Leaves only; a dome's own files are the spec check's.",
       why: "A leaf owns every file its source matches (SpecCheck R7), so its review needs no ownership rule.",
+    },
+    {
+      decision:
+        "Port names are the functions' names (scope, scopeAt, list, targets, find, render); a program's run port is run<Program> in code (runReviewPrompt, runReviewSubmission), as every program's is (runTree, runCheck, runMap).",
+      why: "A reader of the spec finds the code and the reverse; programs keep the convention the other commands follow, so each command's entry point is distinct in Cmd's imports.",
+    },
+    {
+      decision: "World text in the prompt is data, fenced off from the instructions.",
+      why: "A spec or code file may hold text that reads like an instruction; the agent must hold the code against it, not follow it, and the markers say where it starts and ends.",
     },
     {
       decision: "A dev-loop tool, not a CI gate.",

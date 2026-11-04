@@ -1,8 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
+import { runReviewPrompt } from "./review-prompt.ts";
 import { runReviewSubmission } from "./review-submission.ts";
 
 /** The CLI's own world, named from the cwd as a command names it. */
@@ -147,4 +149,26 @@ test("R3: no world is one failure line, failed", async () => {
   expect(none.out).toEqual([]);
   expect(none.err).toHaveLength(1);
   expect(none.err[0]).toStartWith("no nuhokai/ in <root>");
+});
+
+test("R2: a file whose name holds two spaces is cited as the prompt prints it; lines count without a final newline", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
+  temps.push(root);
+  expect((await runInit(root)).outcome).toBe("ok");
+  const spec = join(root, "nuhokai/example.ts");
+  writeFileSync(spec, readFileSync(spec, "utf8").replace("source: [],", 'source: ["src/**"],'));
+  mkdirSync(join(root, "src"));
+  writeFileSync(join(root, "src/a  b.ts"), "one\ntwo");
+  const file = `${root}/src/a  b.ts`;
+  expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain(`- ${file}`);
+  const cite = (line: number) =>
+    JSON.stringify({
+      node: "Example",
+      reviewedFiles: [file],
+      findings: [{ category: "unspecified", file, line, evidence: "x" }],
+    });
+  expect(splitReport(await runReviewSubmission(root, cite(2))).outcome).toBe("ok");
+  expect(splitReport(await runReviewSubmission(root, cite(3))).err).toEqual([
+    `findings[0].line 3 is past the end of ${file}, which has 2 lines; cite a line within it`,
+  ]);
 });

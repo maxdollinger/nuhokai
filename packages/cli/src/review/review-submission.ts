@@ -1,11 +1,9 @@
-import { readFileSync } from "node:fs";
-import { loadWorld } from "../load/load-world.ts";
+import { closeSync, openSync, readSync } from "node:fs";
 import { type Finding, format, summarize } from "../shared/diagnostics.ts";
-import { CliError, errorLine } from "../shared/failure.ts";
-import { findNode } from "../shared/node-path.ts";
+import { inWords } from "../shared/failure.ts";
 import { failureLine, orFailed, type Report, resultLine } from "../shared/report.ts";
-import { reviewScope, type Scope } from "./review-scope.ts";
-import { findItem } from "./spec-items.ts";
+import { type Scope, scopeAt } from "./review-scope.ts";
+import { find } from "./spec-items.ts";
 
 /** A verdict on the code, as the prompt names it. */
 type Category = "against-spec" | "possibly-against-spec" | "unspecified";
@@ -31,14 +29,6 @@ interface Submission {
 const REVIEW_KEYS = ["node", "reviewedFiles", "findings"];
 const FINDING_KEYS = ["category", "specItem", "file", "line", "evidence"];
 const REVIEW_SHAPE = '{ "node": "<path>", "reviewedFiles": ["<file>", …], "findings": [ … ] }';
-
-/** A JSON value in words, for a message: `"x"`, `a list`, `an object`, `null`. */
-function inWords(value: unknown): string {
-  if (Array.isArray(value)) return "a list";
-  if (value === null) return "null";
-  if (typeof value === "object") return "an object";
-  return JSON.stringify(value) ?? String(value);
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -134,11 +124,30 @@ function judgeShape(value: unknown): Submission | string[] {
   return { node: node as string, reviewedFiles: reviewedFiles as string[], findings: judged };
 }
 
-/** How many lines a file has: a last line ending in a newline opens none. */
-function lineCount(file: string): number {
-  const text = readFileSync(file, "utf8");
-  if (text === "") return 0;
-  return text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
+/** The bytes lineCount reads at a time. */
+const CHUNK = 64 * 1024;
+
+/**
+ * How many lines a file has, counted up to `enough` (a last line ending in a newline opens none): read in chunks and
+ * never past the line that settles it, so a huge cited file is never loaded whole.
+ */
+function lineCount(file: string, enough: number): number {
+  const fd = openSync(file, "r");
+  try {
+    const buffer = Buffer.alloc(CHUNK);
+    let newlines = 0;
+    let last = -1;
+    for (let read = readSync(fd, buffer); read > 0; read = readSync(fd, buffer)) {
+      for (let index = buffer.indexOf(10); index !== -1 && index < read; index = buffer.indexOf(10, index + 1)) {
+        newlines++;
+      }
+      last = buffer[read - 1] ?? -1;
+      if (newlines >= enough) return newlines;
+    }
+    return last === -1 || last === 10 ? newlines : newlines + 1;
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /**
@@ -150,12 +159,14 @@ function judgeContent(submission: Submission, scope: Scope): string[] {
   const specFiles = [...new Set(scope.items.map((item) => item.file))];
   const citable = new Set([...scope.files, ...specFiles]);
   const lines = new Map<string, number>();
-  const example = scope.items.find((item) => item.kind === "requirement")?.ref ?? "purpose";
+  // The furthest line cited per file: counting stops there.
+  const furthest = new Map<string, number>();
+  for (const { file, line } of submission.findings) furthest.set(file, Math.max(line, furthest.get(file) ?? 0));
   for (const [index, finding] of submission.findings.entries()) {
     const where = `findings[${index}]`;
-    if (finding.specItem !== undefined && findItem(scope.items, finding.specItem) === undefined) {
+    if (finding.specItem !== undefined && find(scope.items, finding.specItem) === undefined) {
       problems.push(
-        `${where}.specItem ${JSON.stringify(finding.specItem)} is no item of ${scope.node}'s spec; cite a reference as the prompt lists it, e.g. ${JSON.stringify(example)}`,
+        `${where}.specItem ${JSON.stringify(finding.specItem)} is no item of ${scope.node}'s spec; cite a reference as the prompt lists it, e.g. ${JSON.stringify(scope.example)}`,
       );
     }
     if (!citable.has(finding.file)) {
@@ -166,7 +177,7 @@ function judgeContent(submission: Submission, scope: Scope): string[] {
     }
     let count = lines.get(finding.file);
     if (count === undefined) {
-      count = lineCount(finding.file);
+      count = lineCount(finding.file, furthest.get(finding.file) ?? finding.line);
       lines.set(finding.file, count);
     }
     if (finding.line > count) {
@@ -217,16 +228,8 @@ export function runReviewSubmission(root: string, text: string): Promise<Report>
     }
     const submission = judgeShape(parsed);
     if (Array.isArray(submission)) return invalid(submission);
-    const world = await loadWorld(root);
-    let scope: Scope;
-    try {
-      scope = reviewScope(root, world, findNode(world, submission.node, root));
-    } catch (error) {
-      // A path naming no node, or a node that is not reviewable: the submission is invalid. A file that cannot be
-      // read is a failure like a load failure.
-      if (error instanceof CliError) return invalid([errorLine(error)]);
-      throw error;
-    }
+    const scope = await scopeAt(root, submission.node);
+    if ("outcome" in scope) return scope;
     const problems = judgeContent(submission, scope);
     if (problems.length > 0) return invalid(problems);
     const findings = submission.findings.map((finding) => findingOf(scope, finding));

@@ -1,14 +1,16 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
 import { constants } from "node:os";
-import type { LoadedWorld } from "../load/load-world.ts";
+import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { CliError } from "../shared/failure.ts";
+import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
+import { invalidFrom, type Report } from "../shared/report.ts";
 import { compareText, nameInProject, suggestedCommand } from "../shared/world-path.ts";
-import { listItems, type SpecItem } from "./spec-items.ts";
+import { list, type SpecItem, targets } from "./spec-items.ts";
 
 /** A node the reviewed node may use: what the agent knows it by. */
 export interface Dependency {
-  /** Its hierarchy path. */
+  /** Its hierarchy path; an unreachable target's name, as its uses edge item cites it. */
   readonly path: string;
   /** The ports used there. */
   readonly ports: readonly string[];
@@ -17,6 +19,8 @@ export interface Dependency {
   readonly purpose: string;
   /** Not built by the project: the agent knows it by name and purpose alone. */
   readonly external: boolean;
+  /** A node the world never reaches (an orphan): known by its edge alone, and check reports it. */
+  readonly unreachable?: true;
 }
 
 /** A dependency not designed yet: a tbd placeholder the node uses, never reviewed against. */
@@ -33,15 +37,12 @@ export interface Scope {
   /** Its spec file, cwd-relative. */
   readonly specFile: string;
   readonly items: readonly SpecItem[];
+  /** The reference examples cite, in the prompt and in what submit answers: the first requirement's, else purpose. */
+  readonly example: string;
   /** Its files, cwd-relative, each once, sorted. */
   readonly files: readonly string[];
   readonly uses: readonly Dependency[];
   readonly drafts: readonly Draft[];
-}
-
-/** A value as a list of strings: an unchecked world's source may hold anything. */
-function entriesOf(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
 /**
@@ -56,10 +57,10 @@ function unreadableError(path: string, dir: string, code: string): Error {
 /**
  * The scope of a review of the node at `position` in the world loaded from the project directory `root` (named from
  * the cwd): its spec items, its files, the nodes it may use and the drafts it uses (R2–R4). A node that is not
- * reviewable is one CliError saying why, an invalid argument (R1): a dome, a node without source, or one whose source
- * matches no file. `project` shares its directory reads with the caller.
+ * reviewable is one CliError saying why, an invalid argument (R1): a dome, a source that is no list, a node without
+ * source, or one whose source matches no file. `project` shares its directory reads with the caller.
  */
-export function reviewScope(
+export function scope(
   root: string,
   world: LoadedWorld,
   position: number,
@@ -74,46 +75,52 @@ export function reviewScope(
     );
   }
   const check = suggestedCommand("check", [], root);
-  if (!Array.isArray(spec.source)) {
-    throw new CliError(`${path}'s source is not a list; ${check} names what to fix`);
-  }
-  const entries = entriesOf(spec.source);
+  if (!Array.isArray(spec.source)) throw new CliError(`${path}'s source is not a list; ${check} names what to fix`);
+  const entries = (spec.source as unknown[]).filter((entry) => typeof entry === "string");
   if (entries.length === 0) {
     const why = spec.external ? "it is external" : spec.abstract ? "it is a contract" : "it is not built yet";
     throw new CliError(`${path} has no source to review: ${why}; review a node whose source lists its code`);
   }
-  // Each entry as check expands it (SourceRules R1): a refused one matches nothing here either.
+  // Each entry as check expands it (ProjectFiles.expand): a refused one matches nothing here either.
   const expansions = entries.map((entry) => project.expand(entry));
   const unreadable = expansions.flatMap((expansion) => ("unreadable" in expansion ? expansion.unreadable : []))[0];
   if (unreadable !== undefined) throw unreadableError(path, nameInProject(root, unreadable.dir), unreadable.code);
   // Named first, then deduplicated: `./src/a.ts` and `src/a.ts` are one file.
   const named = expansions.flatMap((expansion) => ("files" in expansion ? expansion.files : []));
   const files = [...new Set(named.map((file) => nameInProject(root, file)))].sort(compareText);
-  if (files.length === 0) {
-    throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
-  }
-  const uses = node.uses.flatMap(({ to, port }): Dependency[] => {
-    const target = to === null ? undefined : world.nodes[to];
-    if (target === undefined) return [];
-    return [
-      {
-        path: target.path,
-        ports: port,
-        source: entriesOf(target.spec.source).map((entry) => nameInProject(root, entry)),
-        purpose: typeof target.spec.purpose === "string" ? target.spec.purpose : "",
-        external: target.spec.external === true,
-      },
-    ];
+  if (files.length === 0) throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
+  const uses = targets(world, position).map(({ name, ports, node: target, source, purpose }): Dependency => {
+    if (target === undefined) return { path: name, ports, source: [], purpose: "", external: false, unreachable: true };
+    const named = source.map((entry) => nameInProject(root, entry));
+    return { path: target.path, ports, source: named, purpose, external: target.spec.external === true };
   });
   const drafts = world.placeholders
     .filter((placeholder) => placeholder.users.includes(spec.id))
     .map(({ description, name }): Draft => (name === undefined ? { description } : { description, name }));
+  const items = list(world, position);
   return {
     node: path,
     specFile: node.file,
-    items: listItems(world, position),
+    items,
+    example: items.find((item) => item.kind === "requirement")?.ref ?? "purpose",
     files,
     uses,
     drafts,
   };
+}
+
+/**
+ * Both programs' first steps (R6): load the world from the project directory `root` (named from the cwd), find the
+ * node at hierarchy path `node`, its scope. A path naming no node or a node that is not reviewable is the invalid
+ * Report of its one line; no world, a load failure or an unreadable directory is thrown, for the program to report
+ * as failed.
+ */
+export async function scopeAt(root: string, node: string): Promise<Scope | Report> {
+  const world = await loadWorld(root);
+  try {
+    return scope(root, world, findNode(world, node, root));
+  } catch (error) {
+    if (error instanceof CliError) return invalidFrom(error);
+    throw error;
+  }
 }

@@ -13,7 +13,16 @@ export const SpecItems = node({
       kind: "call",
       purpose: "Every item of a node's spec, with its reference",
       input: "the loaded world, a node's position",
-      output: "items: { ref, kind, text, file, line?, contract?: path }[], in spec order, the node's own first",
+      output:
+        "items: { ref, kind, text, details?: lines below it, file, line?, contract?: path, untested?, unreachable? }[], in spec order, the node's own first",
+      errors: [],
+    },
+    targets: {
+      kind: "call",
+      purpose: "Each uses edge's target, with the name its item cites",
+      input: "the loaded world, a node's position",
+      output:
+        "{ name, ports, node? (none when the world never reaches it), its source entries as written and purpose, edge index }[], in the edges' order",
       errors: [],
     },
     find: {
@@ -27,7 +36,7 @@ export const SpecItems = node({
   requirements: [
     {
       id: "R1",
-      text: "References by id or name, never by a position a reorder shifts, where the format gives one: purpose, requirements[R2], ports.run, ports.run.input, ports.run.output, ports.run.errors[1], ports.run.transport, edges.uses[LoadWorld], testCases[0], decisions[1], decisions[1].rejected[0].",
+      text: "References by id or name, never by a position a reorder shifts, where the format gives one, and only these: purpose, ports.run, requirements[R2], edges.uses[LoadWorld], testCases[0], decisions[1]. A port's input, output, errors, payload and transport, and a decision's rejected options, are its details, one line each below it, cited by the item's own reference.",
     },
     {
       id: "R2",
@@ -42,20 +51,36 @@ export const SpecItems = node({
       text: "A requirement no test case demonstrates (kind constraint aside) is marked untested: the format calls it a gap.",
     },
     { id: "R5", text: "find matches exactly, case-sensitive; same world and node → the same items." },
+    {
+      id: "R6",
+      text: "A uses edge's item names its target (targets): by name, by path when two targets share one; a target the world never reaches (an orphan, LoadWorld R14) by its export name, else its id, marked unreachable, never dropped. ReviewScope lists the same names, so prompt and validation agree.",
+    },
     { id: "C1", kind: "constraint", text: "No filesystem access, load or printing." },
   ],
   testCases: [
     {
-      text: "PrintTree → purpose, ports.run, its input, output and five errors, requirements[R1]–[R3], four edges.uses items (one per target: Failure.format and Failure.report are one edge), two test cases; requirements[R1] at nuhokai/tree/print-tree.ts and its line.",
+      text: "PrintTree → purpose, ports.run (its input, output and five errors below it, no ports.run.input), requirements[R1]–[R3], four edges.uses items (one per target: Failure.format and Failure.report are one edge), two test cases; requirements[R1] at nuhokai/tree/print-tree.ts and its line.",
       demonstrates: ["R1", "R3"],
     },
     {
-      text: "Orders implements Store with requirement R1 and one test case → Store.requirements[R1] and Store.testCases[0] at Store's file; find('Store.requirements[R1]') → it; find('requirements[r1]') → none.",
-      demonstrates: ["R2", "R5"],
+      text: "Orders implements Store with requirement R1 and one test case, uses the orphan Lost and has a decision with one rejected option → Store.requirements[R1] and Store.testCases[0] at Store's file; edges.uses[Lost] unreachable; decisions[0] with the rejected option below it, no decisions[0].rejected[0]; find('Store.requirements[R1]') → it; find('requirements[r1]') → none.",
+      demonstrates: ["R1", "R2", "R5", "R6"],
     },
     {
       text: "R2 demonstrated by no test case → marked untested; a constraint C1 likewise → not marked.",
       demonstrates: ["R4"],
+    },
+  ],
+  decisions: [
+    {
+      decision: "Coarse references: one item per port and per decision, their fields and rejected options below them.",
+      why: "An agent cites the port or decision it found broken; a reference per error index or rejected option added items to choose from without changing what the finding says.",
+      rejected: [
+        {
+          option: "ports.run.errors[1], decisions[1].rejected[0]",
+          why: "Positions inside a field shift on any edit, and a finding against one error is a finding against the port.",
+        },
+      ],
     },
   ],
 }).edges({});
