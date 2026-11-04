@@ -4,7 +4,8 @@ import { render } from "./prompt-text.ts";
 import type { Scope } from "./review-scope.ts";
 
 /** A reachable uses edge target, cut to what the prompt shows of it. */
-const reached = (path: string, external: boolean) => ({ path, spec: { external } }) as unknown as LoadedNode;
+const reached = (path: string, spec: { external: boolean; source: string[]; purpose: string }) =>
+  ({ path, spec }) as unknown as LoadedNode;
 
 /** PrintTree's scope as ReviewScope gives it under the cwd, cut to what the prompt shows. */
 const PRINT_TREE: Scope = {
@@ -57,20 +58,14 @@ const PRINT_TREE: Scope = {
     {
       name: "LoadWorld",
       ports: ["load"],
-      node: reached("LoadWorld", false),
-      source: ["src/load/**"],
-      purpose: "Read nuhokai/.",
-      edge: 0,
+      node: reached("LoadWorld", { external: false, source: ["src/load/**"], purpose: "Read nuhokai/." }),
     },
     {
       name: "Terminal",
       ports: ["print"],
-      node: reached("Terminal", true),
-      source: [],
-      purpose: "Whoever runs nuhokai.",
-      edge: 1,
+      node: reached("Terminal", { external: true, source: [], purpose: "Whoever runs nuhokai." }),
     },
-    { name: "Lost", ports: ["run"], source: [], purpose: "", edge: 2 },
+    { name: "Lost", ports: ["run"] },
   ],
   drafts: [],
 };
@@ -111,6 +106,7 @@ test("R1, R3: check first, the node, each item at file:line, the files, the depe
   expect(lines).toContain("- Lost: run (unreachable: the world never reaches this node; `nuhokai check` reports it)");
 
   const under = render("packages/cli", PRINT_TREE);
+  expect(under).toContain("- LoadWorld: load (source packages/cli/src/load/**): Read nuhokai/.");
   expect(under.at(-1)).toContain("`nuhokai review --submit --path packages/cli`");
   expect(under).toContain(
     "Run `nuhokai check --path packages/cli`. If it fails, stop and report its output instead of reviewing: the spec is not valid yet.",
@@ -118,7 +114,10 @@ test("R1, R3: check first, the node, each item at file:line, the files, the depe
 });
 
 test("R2: a draft is listed with its description and marked not to review against", () => {
-  const lines = render(".", { ...PRINT_TREE, drafts: [{ description: "Describe it", name: "later" }] });
+  const lines = render(".", {
+    ...PRINT_TREE,
+    drafts: [{ kind: "call", description: "Describe it", name: "later", users: [] }],
+  });
   const drafts = lineOf(lines, "## 6. Drafts");
   expect(lines[drafts + 2]).toContain("may still change. Do not review against them");
   expect(lines[drafts + 4]).toBe("<<<<< SPEC DATA");
@@ -173,7 +172,10 @@ test("R6: world text sits inside data blocks the agent is told never to follow; 
 });
 
 test("R6: the node's path, its spec file, its files and the example JSON sit inside data blocks too; no project text outside", () => {
-  const scope: Scope = { ...PRINT_TREE, drafts: [{ description: "Describe it", name: "later" }] };
+  const scope: Scope = {
+    ...PRINT_TREE,
+    drafts: [{ kind: "call", description: "Describe it", name: "later", users: [] }],
+  };
   const lines = render(".", scope);
   const outside: string[] = [];
   let inside = false;

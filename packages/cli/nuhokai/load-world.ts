@@ -19,7 +19,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: { to: position | null, port }[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, edges } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: (position | null)[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, uses } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -86,11 +86,11 @@ export const LoadWorld = node({
     },
     {
       id: "R14",
-      text: "Each node's uses targets and implements contracts as positions in nodes, in its edges' order, read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null.",
+      text: "Each node's uses targets and implements contracts as positions in nodes, in its edges' order (uses edges first, so uses[i] is edges[i]'s target), read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null.",
     },
     {
       id: "R15",
-      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses and implements item; a spread-in item at its `...spread`. Review cites them.",
+      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses edge's first item; a spread-in item at its `...spread`. Review cites them.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
@@ -101,7 +101,7 @@ export const LoadWorld = node({
   ],
   testCases: [
     {
-      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [{ to: Stock's position, port: [reserve] }], contracts [null]; a second node with Stock's id leaves the target Stock's own position.",
+      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [Stock's position], contracts [null]; a second node with Stock's id leaves the target Stock's own position.",
       demonstrates: ["R14"],
     },
     {

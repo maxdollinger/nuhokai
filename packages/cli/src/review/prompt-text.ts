@@ -1,6 +1,6 @@
 /** The review prompt's wording: a review's scope as the instructions a coding agent follows. Pure. */
 import { oneLine, plainText } from "../shared/failure.ts";
-import { suggestedCommand } from "../shared/world-path.ts";
+import { nameInProject, suggestedCommand } from "../shared/world-path.ts";
 import type { Scope } from "./review-scope.ts";
 import type { SpecItem } from "./spec-items.ts";
 
@@ -83,16 +83,21 @@ export function render(root: string, scope: Scope): string[] {
           "The code may use these nodes' ports, and no other node of the world: using another is against the spec's uses edges.",
           "",
           ...data(
-            scope.uses.map(({ name, node: target, ports, source, purpose }) => {
+            scope.uses.map(({ name, node: target, ports }) => {
               const used = ports.map(oneLine).join(", ");
               if (target === undefined) {
                 return `- ${oneLine(name)}: ${used} (unreachable: the world never reaches this node; ${check} reports it)`;
               }
-              const where = target.spec.external
+              const { spec } = target;
+              // Source entries as written, named from the cwd, never expanded; an unchecked world may hold anything.
+              const source: unknown[] = Array.isArray(spec.source) ? spec.source : [];
+              const entries = source.filter((entry) => typeof entry === "string");
+              const where = spec.external
                 ? "external: known by name and purpose alone"
-                : source.length === 0
+                : entries.length === 0
                   ? "no source yet"
-                  : `source ${source.map(plainText).join(", ")}`;
+                  : `source ${entries.map((entry) => plainText(nameInProject(root, entry))).join(", ")}`;
+              const purpose = typeof spec.purpose === "string" ? spec.purpose : "";
               return `- ${oneLine(target.path)}: ${used} (${where}): ${oneLine(purpose)}`;
             }),
           ),

@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { writeCliFiles } from "../init/cli-files.ts";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { find, list, type SpecItem } from "./spec-items.ts";
+import { at } from "./test-world.ts";
 
-/** The CLI's own world, named from the cwd as a command names it. */
-const ROOT = relative(process.cwd(), join(import.meta.dir, "../..")) || ".";
-let own: LoadedWorld;
 let shop: LoadedWorld;
 let temp = "";
 
@@ -20,7 +18,7 @@ export const Store = node({
   source: [],
   abstract: true,
   ports: { keep: { kind: "call", purpose: "Keep one thing" } },
-  requirements: [{ id: "R1", text: "Keeps what it is given." }],
+  requirements: [{ id: "R1", text: "Keeps what it is given." }, { id: "R2", text: "Gives it back." }],
   testCases: [{ text: "Keep a box → it is kept.", demonstrates: ["R1"] }],
 }).edges({});
 export const Orders = node({
@@ -42,7 +40,14 @@ export const Orders = node({
       rejected: [{ option: "A shared id service", why: "One more hop." }],
     },
   ],
-}).edges({ implements: () => [Store], uses: () => [Lost.run] });
+}).edges({ implements: () => [Store], uses: () => [Stock.reserve, Lost.run, Stock.count] });
+export const Stock = node({
+  id: "stock",
+  purpose: "Counts stock.",
+  status: "planned",
+  source: [],
+  ports: { reserve: { kind: "call", purpose: "Reserve" }, count: { kind: "call", purpose: "Count" } },
+}).edges({});
 export const Lost = node({
   id: "lost",
   purpose: "Listed nowhere.",
@@ -53,14 +58,13 @@ export const Lost = node({
 `;
 
 beforeAll(async () => {
-  own = await loadWorld(ROOT);
   temp = mkdtempSync(join(tmpdir(), "nuhokai-spec-items-"));
   mkdirSync(join(temp, "nuhokai"));
   writeFileSync(
     join(temp, "nuhokai/index.ts"),
     `import { defineWorld } from "@nuhokai/world";
-import { Orders, Store } from "./shop.ts";
-export default defineWorld({ id: "w", name: "w", source: [], children: [Store, Orders] });
+import { Orders, Stock, Store } from "./shop.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Store, Stock, Orders] });
 `,
   );
   writeFileSync(join(temp, "nuhokai/shop.ts"), SHOP);
@@ -72,81 +76,50 @@ afterAll(() => {
   if (temp) rmSync(temp, { recursive: true, force: true });
 });
 
-/** The position of the node at a hierarchy path. */
-function at(world: LoadedWorld, path: string): number {
-  const node = world.nodes.find((candidate) => candidate.path === path);
-  if (!node) throw new Error(`no ${path}`);
-  return node.index;
+/** The line of `file` holding `text`, from 1. */
+function lineOf(file: string, text: string): number {
+  return (
+    readFileSync(file, "utf8")
+      .split("\n")
+      .findIndex((line) => line.includes(text)) + 1
+  );
 }
 
-test("R1, R3: PrintTree's items by reference, each at its line in its spec file, in spec order", () => {
-  const items = list(own, at(own, "Tree/PrintTree"));
-  expect(items.map((item) => item.ref)).toEqual([
-    "purpose",
-    "ports.run",
-    "requirements[R1]",
-    "requirements[R2]",
-    "requirements[R3]",
-    "edges.uses[LoadWorld]",
-    "edges.uses[Path]",
-    "edges.uses[TreeLines]",
-    "edges.uses[Failure]",
-    "testCases[0]",
-    "testCases[1]",
-  ]);
-  const file = `${ROOT === "." ? "" : `${ROOT}/`}nuhokai/tree/print-tree.ts`;
-  const r1 = find(items, "requirements[R1]");
-  expect(r1).toMatchObject({ kind: "requirement", file });
-  expect(r1?.text).toStartWith("Order: load, find the start");
-  expect(items.every((item) => item.file === file && typeof item.line === "number")).toBe(true);
-  // Each line is where the item was written: the requirement's object starts there, its id right below.
-  const lines = readFileSync(file, "utf8").split("\n");
-  expect(lines.slice((r1?.line ?? 0) - 1, r1?.line).join("\n")).toMatch(/\{\s*$/);
-  expect(lines[r1?.line ?? 0]).toContain('id: "R1"');
-  expect(find(items, "edges.uses[Failure]")?.text).toBe("uses Failure: format, report");
-  // A port's shapes and errors are listed below it, cited by the port's own reference.
-  const run = find(items, "ports.run");
-  expect(run?.details?.[0]).toStartWith("input: ");
-  expect(run?.details?.[1]).toStartWith("output: ");
-  expect(run?.details?.slice(2).every((detail) => detail.startsWith("error: "))).toBe(true);
-  expect(run?.details).toHaveLength(7);
-  expect(find(items, "ports.run.input")).toBeUndefined();
-});
-
-test("R1, R2, R5, R6: details below their item, a contract's items prefixed by its name, an orphan by its name; find is exact", () => {
+test("R1, R2, R3, R6: items by reference in spec order, each at its line; details below their item; a contract's items prefixed by its name", () => {
   const items = list(shop, at(shop, "Orders"));
-  const refs = items.map((item) => item.ref);
-  expect(refs).toEqual([
+  expect(items.map((item) => item.ref)).toEqual([
     "purpose",
     "ports.place",
     "requirements[R1]",
     "requirements[R2]",
     "requirements[C1]",
+    "edges.uses[Stock]",
     "edges.uses[Lost]",
     "testCases[0]",
     "decisions[0]",
     "Store.ports.keep",
     "Store.requirements[R1]",
+    "Store.requirements[R2]",
     "Store.testCases[0]",
   ]);
+  const file = join(temp, "nuhokai/shop.ts");
+  expect(find(items, "requirements[R1]")).toMatchObject({ kind: "requirement", file, line: lineOf(file, "Places") });
+  // One item per target, its ports merged, at the edge's first item; an orphan by its export name, never dropped.
+  expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 31 });
+  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 31 });
   expect(find(items, "ports.place")?.details).toEqual(["payload: the order"]);
+  expect(find(items, "ports.place.payload")).toBeUndefined();
   expect(find(items, "decisions[0]")).toMatchObject({
     text: "Orders own their ids. Why: One source of truth.",
     details: ["rejected: A shared id service Why not: One more hop."],
   });
   expect(find(items, "decisions[0].rejected[0]")).toBeUndefined();
-  // A uses edge to a node the world never reaches is cited by its export name, never dropped (R6).
-  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run" });
-  const inherited = find(items, "Store.requirements[R1]");
-  expect(inherited).toMatchObject({ file: join(temp, "nuhokai/shop.ts"), line: 9, contract: "Store" });
+  expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 9, contract: "Store" });
   expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 10, contract: "Store" });
-  expect(find(items, "requirements[r1]")).toBeUndefined();
   expect(find(items, "Store.purpose")).toBeUndefined();
-  // Same world and node, the same items.
-  expect(list(shop, at(shop, "Orders"))).toEqual(items);
 });
 
-test("R4: a requirement no test case demonstrates is marked untested; a constraint never is", () => {
+test("R4: a requirement of the node's own no test case demonstrates is marked untested; a constraint never is", () => {
   const items = list(shop, at(shop, "Orders"));
   expect(find(items, "requirements[R1]")?.untested).toBeUndefined();
   expect(find(items, "requirements[R2]")?.untested).toBe(true);
@@ -154,7 +127,11 @@ test("R4: a requirement no test case demonstrates is marked untested; a constrai
   expect(find(items, "requirements[C1]")?.untested).toBeUndefined();
 });
 
-test("R5: find takes a reference as the prompt prints it, each run of whitespace one space", () => {
+test("R5: find is exact, case-sensitive, and takes a reference as the prompt prints it; the same node, the same items", () => {
+  const listed = list(shop, at(shop, "Orders"));
+  expect(find(listed, "Store.requirements[R1]")?.contract).toBe("Store");
+  expect(find(listed, "requirements[r1]")).toBeUndefined();
+  expect(list(shop, at(shop, "Orders"))).toEqual(listed);
   const items: SpecItem[] = [{ ref: "requirements[R  1]", kind: "requirement", text: "t", file: "nuhokai/a.ts" }];
   expect(find(items, "requirements[R 1]")?.ref).toBe("requirements[R  1]");
   expect(find(items, "requirements[R  1]")).toBeUndefined();

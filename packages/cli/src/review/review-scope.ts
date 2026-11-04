@@ -1,18 +1,11 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
-import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
+import { type LoadedWorld, loadWorld, type Placeholder } from "../load/load-world.ts";
 import { CliError } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
 import { invalidFrom, type Report } from "../shared/report.ts";
 import { compareText, nameInProject, suggestedCommand } from "../shared/world-path.ts";
 import { list, type SpecItem, type Target, targets } from "./spec-items.ts";
-
-/** A dependency not designed yet: a tbd placeholder the node uses, never reviewed against. */
-export interface Draft {
-  readonly description: string;
-  /** Its export name, when a world file exports it. */
-  readonly name?: string;
-}
 
 /** What a review of one node covers. */
 export interface Scope {
@@ -25,9 +18,10 @@ export interface Scope {
   readonly example: string;
   /** Its files, cwd-relative, each once, sorted. */
   readonly files: readonly string[];
-  /** The uses edges' targets (SpecItems.targets), each one's source entries named from the cwd, never expanded. */
+  /** The uses edges' targets, as SpecItems.targets gives them. */
   readonly uses: readonly Target[];
-  readonly drafts: readonly Draft[];
+  /** The tbd placeholders the node uses: dependencies not designed yet, never reviewed against. */
+  readonly drafts: readonly Placeholder[];
 }
 
 /**
@@ -35,7 +29,7 @@ export interface Scope {
  * the cwd): its spec items, its files, the nodes it may use and the drafts it uses (R2–R4). A node that is not
  * reviewable is one CliError saying why (R1): a dome, a node without source, or one whose source matches no file.
  */
-export function scope(root: string, world: LoadedWorld, position: number): Scope {
+function scope(root: string, world: LoadedWorld, position: number): Scope {
   const node = world.nodes[position];
   if (node === undefined) throw new Error(`no node at position ${position}`);
   const { spec, path } = node;
@@ -60,21 +54,14 @@ export function scope(root: string, world: LoadedWorld, position: number): Scope
     throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
   }
   const items = list(world, position);
-  const uses = targets(world, position).map((target) => ({
-    ...target,
-    source: target.source.map((entry) => nameInProject(root, entry)),
-  }));
-  const drafts = world.placeholders
-    .filter((placeholder) => placeholder.users.includes(spec.id))
-    .map(({ description, name }): Draft => (name === undefined ? { description } : { description, name }));
   return {
     node: path,
     specFile: node.file,
     items,
     example: items.find((item) => item.kind === "requirement")?.ref ?? "purpose",
     files,
-    uses,
-    drafts,
+    uses: targets(world, position),
+    drafts: world.placeholders.filter((placeholder) => placeholder.users.includes(spec.id)),
   };
 }
 

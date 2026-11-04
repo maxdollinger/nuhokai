@@ -4,7 +4,7 @@ import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
 import { oneLine } from "../shared/failure.ts";
 
 /** What a spec item is, as the prompt names it. */
-export type SpecItemKind = "purpose" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
+type SpecItemKind = "purpose" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
 
 /** One item of a node's spec: its reference, what it says, and where it is written. */
 export interface SpecItem {
@@ -33,12 +33,6 @@ export interface Target {
   readonly ports: readonly string[];
   /** The target, undefined when the world never reaches it (an orphan, R6). */
   readonly node?: LoadedNode;
-  /** The target's source entries that are strings, as written; none for an unreachable one. */
-  readonly source: readonly string[];
-  /** The target's purpose, empty for an unreachable one. */
-  readonly purpose: string;
-  /** The edge's index in the node's spec edges, for its line. */
-  readonly edge: number;
 }
 
 /** A value as a list, empty when it is none: an unchecked world may hold anything. */
@@ -72,16 +66,13 @@ function portDetails(port: Port): string[] {
 export function targets(world: LoadedWorld, position: number): Target[] {
   const node = world.nodes[position];
   if (node === undefined) return [];
-  const edges = listOf<{ kind?: unknown; to?: unknown }>(node.spec.edges);
-  const usesEdges = edges.flatMap((edge, index) => (edge?.kind === "uses" ? [index] : []));
-  const found = node.uses.map((use, at) => {
-    const target = use.to === null ? undefined : world.nodes[use.to];
-    const edge = usesEdges[at] ?? -1;
-    const id = textOf(edges[edge]?.to);
+  // Uses edges come first in the spec's edges, so the i-th target is the i-th edge's.
+  const edges = listOf<{ to?: unknown; port?: unknown }>(node.spec.edges);
+  const found = node.uses.map((to, at): Target => {
+    const target = to === null ? undefined : world.nodes[to];
+    const id = textOf(edges[at]?.to);
     const name = target?.spec.name ?? world.orphans.find((orphan) => orphan.id === id)?.name ?? id;
-    const source = listOf<unknown>(target?.spec.source).filter((entry) => typeof entry === "string");
-    const purpose = textOf(target?.spec.purpose);
-    return { name, ports: use.port, edge, source, purpose, ...(target ? { node: target } : {}) };
+    return { name, ports: listOf<string>(edges[at]?.port), ...(target ? { node: target } : {}) };
   });
   // A name two targets share would cite either: those go by their path.
   return found.map((target) =>
@@ -127,8 +118,8 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
     add(`requirements[${id}]`, kind, textOf(requirement?.text), places?.requirements[index], { untested });
   }
   if (own) {
-    for (const { name, ports, edge } of targets(world, node.index)) {
-      add(`edges.uses[${name}]`, "uses edge", `uses ${name}: ${ports.join(", ")}`, places?.edges[edge]);
+    for (const [index, { name, ports }] of targets(world, node.index).entries()) {
+      add(`edges.uses[${name}]`, "uses edge", `uses ${name}: ${ports.join(", ")}`, places?.uses[index]);
     }
   }
   for (const [index, testCase] of testCases.entries()) {

@@ -239,13 +239,14 @@ export const Orders = node({ ...${leaf("orders")}, implements: () => [Store] }).
 
   expect(loaded.nodes.map((node) => node.path)).toEqual(["Twin", "Stock", "Orders"]);
   const orders = loaded.nodes[2];
-  expect(orders?.uses).toEqual([{ to: 1, port: ["reserve", "count"] }]);
+  expect(orders?.uses).toEqual([1]);
+  expect(orders?.spec.edges?.[0]).toMatchObject({ kind: "uses", port: ["reserve", "count"] });
   expect(orders?.contracts).toEqual([null]);
   expect(loaded.nodes[0]?.uses).toEqual([]);
   expect(loaded.nodes[0]?.contracts).toEqual([]);
 });
 
-test("R15: the line of the purpose and of each port, requirement, test case, decision and edge; a spread-in item at its spread", async () => {
+test("R15: the line of the purpose and of each port, requirement, test case, decision and uses edge; a spread-in item at its spread", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Box, Target } from "./box.ts";
@@ -282,7 +283,7 @@ export const Box = node({
     requirements: [11, 12],
     testCases: [14, 14],
     decisions: [15],
-    edges: [17],
+    uses: [17],
   });
 });
 

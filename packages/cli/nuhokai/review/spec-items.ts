@@ -22,8 +22,7 @@ export const SpecItems = node({
       kind: "call",
       purpose: "Each uses edge's target, with the name its item cites",
       input: "the loaded world, a node's position",
-      output:
-        "{ name, ports, node? (none when the world never reaches it), its source entries as written and purpose, edge index }[], in the edges' order",
+      output: "{ name, ports, node? (none when the world never reaches it) }[], in the edges' order",
       errors: [],
     },
     find: {
@@ -63,19 +62,15 @@ export const SpecItems = node({
   ],
   testCases: [
     {
-      text: "PrintTree → purpose, ports.run (its input, output and five errors below it, no ports.run.input), requirements[R1]–[R3], four edges.uses items (one per target: Failure.format and Failure.report are one edge), two test cases; requirements[R1] at nuhokai/tree/print-tree.ts and its line.",
-      demonstrates: ["R1", "R3"],
-    },
-    {
-      text: "Orders implements Store with requirement R1 and one test case, uses the orphan Lost and has a decision with one rejected option → Store.requirements[R1] and Store.testCases[0] at Store's file; edges.uses[Lost] listed; decisions[0] with the rejected option below it, no decisions[0].rejected[0]; find('Store.requirements[R1]') → it; find('requirements[r1]') → none.",
-      demonstrates: ["R1", "R2", "R5", "R6"],
+      text: "Orders implements Store, uses Stock.reserve, the orphan Lost and Stock.count, and has a decision with one rejected option → purpose, ports.place with its payload below it, its requirements, edges.uses[Stock] (reserve, count) and edges.uses[Lost], its test case, decisions[0] with the rejected option below it, then Store's ports, requirements and test case prefixed Store., at Store's lines; no ports.place.payload or decisions[0].rejected[0].",
+      demonstrates: ["R1", "R2", "R3", "R6"],
     },
     {
       text: "R2 demonstrated by no test case → marked untested; a constraint C1 likewise → not marked.",
       demonstrates: ["R4"],
     },
     {
-      text: "A requirement id 'R  1' → found as requirements[R 1], as printed; not as written.",
+      text: "find('Store.requirements[R1]') → it; find('requirements[r1]') → none; listing twice → the same items. A requirement id 'R  1' → found as requirements[R 1], as printed; not as written.",
       demonstrates: ["R5"],
     },
   ],

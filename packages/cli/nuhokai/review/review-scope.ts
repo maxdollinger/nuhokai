@@ -14,24 +14,19 @@ export const ReviewScope = node({
   status: "building",
   source: ["src/review/review-scope.ts", "src/review/review-scope.test.ts"],
   ports: {
-    scope: {
+    scopeAt: {
       kind: "call",
-      purpose: "The review's scope",
-      input: "project directory (cwd-relative), the loaded world, a node's position",
+      purpose: "Both programs' first steps: load the world, find the node, its review's scope",
+      input: "project directory (cwd-relative), hierarchy path",
       output:
-        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets with source entries cwd-relative, drafts: { description, name? }[] }",
+        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets, drafts: the tbd placeholders it uses }; or an invalid Report of one failure line",
       errors: [
+        "no node at the path: names the closest match",
         "a dome: names `nuhokai tree <path>` to list its children",
         "no source (none, or not a list): external, abstract or not built yet",
         "its source matches no file: names `nuhokai check`",
+        "no world at nuhokai/, or the world failed to load: thrown",
       ],
-    },
-    scopeAt: {
-      kind: "call",
-      purpose: "Both programs' first steps: load the world, find the node, its scope",
-      input: "project directory (cwd-relative), hierarchy path",
-      output: "the scope; or an invalid Report of one failure line for no such node or one that is not reviewable",
-      errors: ["no world at nuhokai/, or the world failed to load"],
     },
   },
   requirements: [
@@ -45,16 +40,16 @@ export const ReviewScope = node({
     },
     {
       id: "R3",
-      text: "uses: each uses edge's target as SpecItems.targets gives it, its source entries named from the cwd, not expanded; a target the world never reaches has no node, and is known by its name alone.",
+      text: "uses: the uses edges' targets as SpecItems.targets gives them.",
     },
     {
       id: "R4",
-      text: "drafts: the description and export name, when there is one, of each tbd placeholder the node uses: a dependency not designed yet, never reviewed against.",
+      text: "drafts: each tbd placeholder the node uses, as LoadWorld gives it: a dependency not designed yet, never reviewed against.",
     },
     { id: "R5", text: "Same world, files and node → the same scope." },
     {
       id: "R6",
-      text: "scopeAt: load (LoadWorld.load), find the node (Path.findNode), its scope; a CliError from either → the invalid Report of its message (exit 2); no world or a load failure is thrown, for the program to report as failed (exit 1).",
+      text: "Order: load (LoadWorld.load), find the node (Path.findNode), its scope; a CliError from either → the invalid Report of its message (exit 2); no world or a load failure is thrown, for the program to report as failed (exit 1).",
     },
     {
       id: "R7",
@@ -63,7 +58,7 @@ export const ReviewScope = node({
   ],
   testCases: [
     {
-      text: "PrintTree → files src/tree/print-tree.ts and its test; uses LoadWorld, Path, TreeLines and Failure with their ports; no drafts; example requirements[R1]. LoadWorld → every file under src/load/, sorted.",
+      text: "PrintTree → files src/tree/print-tree.ts and its test; uses LoadWorld.load first; no drafts; example requirements[R1]. LoadWorld → every file under src/load/, sorted.",
       demonstrates: ["R2", "R3", "R7"],
     },
     {
@@ -71,7 +66,7 @@ export const ReviewScope = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example purpose. A uses edge to the orphan Lost → uses Lost without a node, and edges.uses[Lost] among the items.",
+      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example purpose. A uses edge to the orphan Lost → uses Lost without a node.",
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {
