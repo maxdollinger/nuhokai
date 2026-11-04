@@ -22,19 +22,20 @@ const TREE_OK: Report = { outcome: "ok", lines: [] };
 type Printed = { code: number; out: string[]; err: string[] } | { thrown: unknown; out: string[]; err: string[] };
 
 /**
- * Stdin as main reads it: a terminal (undefined), a pipe holding `text` and closed, or with `open` a pipe that sends
- * `text` (when not empty) and is never closed; `reads` counts how often it was read.
+ * Stdin as main reads it: a terminal (undefined), or a pipe that sends `text` (when not empty) after `delayMs` and
+ * then closes, unless `open`; main waits 50ms for its first chunk. `reads` counts how often it was read.
  */
-function stdinOf(text: string | Uint8Array | undefined, open = false) {
+function stdinOf(text: string | undefined, { open = false, delayMs = 0 } = {}) {
   const stdin = {
     isTTY: text === undefined,
+    waitMs: 50,
     reads: 0,
     stream: () => {
       stdin.reads++;
       return new ReadableStream<Uint8Array>({
-        start(controller) {
-          const bytes = typeof text === "string" ? new TextEncoder().encode(text) : text;
-          if (bytes !== undefined && bytes.byteLength > 0) controller.enqueue(bytes);
+        async start(controller) {
+          if (delayMs > 0) await Bun.sleep(delayMs);
+          if (text) controller.enqueue(new TextEncoder().encode(text));
           if (!open) controller.close();
         },
       });
@@ -44,7 +45,7 @@ function stdinOf(text: string | Uint8Array | undefined, open = false) {
 }
 
 /** Run main with console.log and console.error captured, the one way these tests read what Cli prints. */
-async function printed(argv: string[], stdin = stdinOf("")): Promise<Printed> {
+async function printed(argv: string[], stdin: Parameters<typeof main>[1] = stdinOf("")): Promise<Printed> {
   const out: string[] = [];
   const err: string[] = [];
   const log = console.log;
@@ -515,6 +516,24 @@ test("Cli R6, R10: review hands Review.run the directory and the path, Review.su
     expect(await printed(["review", "--submit"], piped)).toEqual({ code: 0, out: [], err: [] });
     expect(submit.mock.calls).toEqual([[".", '{"node":"Tree/PrintTree"}\n']]);
     expect(piped.reads).toBe(1);
+    // A slow producer: input starts within the wait, then pauses longer than it; Cli reads on to the end.
+    const encode = (text: string) => new TextEncoder().encode(text);
+    const slow = {
+      isTTY: false,
+      waitMs: 50,
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            await Bun.sleep(20);
+            controller.enqueue(encode('{"node":'));
+            await Bun.sleep(200);
+            controller.enqueue(encode('"Tree/PrintTree"}'));
+            controller.close();
+          },
+        }),
+    };
+    expect(await printed(["review", "--submit"], slow)).toEqual({ code: 0, out: [], err: [] });
+    expect(submit.mock.calls[1]).toEqual([".", '{"node":"Tree/PrintTree"}']);
   } finally {
     run.mockRestore();
     submit.mockRestore();
@@ -544,24 +563,14 @@ test("Cli R6, R10: a node beside --submit, neither, a terminal or empty input, -
     );
     // A terminal is never read, so nothing waits.
     expect(terminal.reads).toBe(0);
-    // Empty input, and a pipe left open with nothing in it (exec and spawn leave stdin open), never wait.
-    for (const empty of [stdinOf(""), stdinOf(" \n"), stdinOf("", true)]) {
+    // Empty input, and a pipe left open with nothing in it (exec and spawn leave stdin open), end in a usage error.
+    for (const empty of [stdinOf(""), stdinOf(" \n"), stdinOf("", { open: true }), stdinOf("{}", { delayMs: 200 })]) {
       const result = await printed(["review", "--submit"], empty);
       expect(result).toMatchObject({ code: 2, out: [] });
       expect((result.err[0] ?? "").split("\n")[0]).toBe(
         "nuhokai review: --submit got no input on stdin; pipe it in: nuhokai review --submit < <file>",
       );
     }
-    const open = await printed(["review", "--submit"], stdinOf("{}", true));
-    expect(open).toMatchObject({ code: 2, out: [] });
-    expect((open.err[0] ?? "").split("\n")[0]).toBe(
-      "nuhokai review: --submit: stdin was not closed: nothing more arrived for 1s; close it after the input; pipe it in: nuhokai review --submit < <file>",
-    );
-    const huge = await printed(["review", "--submit"], stdinOf(new Uint8Array(4 * 1024 * 1024 + 1).fill(32)));
-    expect(huge).toMatchObject({ code: 2, out: [] });
-    expect((huge.err[0] ?? "").split("\n")[0]).toBe(
-      "nuhokai review: --submit: stdin holds more than 4 MB; pipe it in: nuhokai review --submit < <file>",
-    );
     expect(await failed(["review", "--submit=x"])).toEqual([2, ["nuhokai review: --submit takes no value"]]);
     expect(await failed(["review", "--submit", "--submit"])).toEqual([2, ["nuhokai review: --submit given twice"]]);
     expect(await failed(["review", "a", "b"])).toEqual([2, ["nuhokai review: unexpected argument 'b'"]]);

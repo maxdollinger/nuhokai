@@ -34,63 +34,47 @@ const PATH_OPTION: Option<string> = {
 };
 
 /**
- * Stdin as Cli reads it, only for a command's stdin flag: whether it is a terminal, which Cli never waits on, and its
- * bytes as they arrive.
+ * Stdin as Cli reads it, only for a command's stdin flag: whether it is a terminal, which Cli never waits on, its bytes
+ * as they arrive, and how long Cli waits for the first of them.
  */
 interface Stdin {
   readonly isTTY: boolean;
+  readonly waitMs: number;
   stream(): ReadableStream<Uint8Array>;
 }
+
+/**
+ * How long Cli waits for stdin's first chunk: a pipe the caller never writes to and never closes (exec and spawn leave
+ * stdin open) ends in a usage error instead of a wait (Terminal R2). Once input starts, Cli reads it to its end.
+ */
+const STDIN_WAIT_MS = 10_000;
 
 /** The process's stdin. */
 const PROCESS_STDIN: Stdin = {
   get isTTY() {
     return process.stdin.isTTY === true;
   },
+  waitMs: STDIN_WAIT_MS,
   stream: () => Bun.stdin.stream(),
 };
 
-/**
- * How long Cli waits for the next chunk on stdin, the first included: a pipe the caller never closes (exec and spawn
- * leave stdin open) ends in a usage error instead of a wait (Terminal R2).
- */
-const STDIN_WAIT_MS = 1000;
-
-/** The most stdin may hold: a review is a few kilobytes; more is a mistake, not a review. */
-const STDIN_MAX_BYTES = 4 * 1024 * 1024;
-
-/**
- * Stdin's text, read until it closes: or why not, when nothing arrives in time (as empty input), the pipe stays open
- * after its input, or it holds more than STDIN_MAX_BYTES.
- */
-async function readStdin(stdin: Stdin): Promise<{ text: string } | { empty: true } | { error: string }> {
+/** Stdin's text, read to its end once its first chunk arrives; undefined when it closes or stays silent first. */
+async function readStdin(stdin: Stdin): Promise<string | undefined> {
   const reader = stdin.stream().getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
+  let timer: Timer | undefined;
+  const silent = new Promise<undefined>((done) => {
+    timer = setTimeout(done, stdin.waitMs);
+  });
   try {
-    for (;;) {
-      let timer: Timer | undefined;
-      const idle = new Promise<undefined>((done) => {
-        timer = setTimeout(done, STDIN_WAIT_MS);
-      });
-      const next = await Promise.race([reader.read(), idle]).finally(() => clearTimeout(timer));
-      if (next === undefined) {
-        if (size === 0) return { empty: true };
-        return {
-          error: `stdin was not closed: nothing more arrived for ${STDIN_WAIT_MS / 1000}s; close it after the input`,
-        };
-      }
-      if (next.done) break;
-      size += next.value.byteLength;
-      if (size > STDIN_MAX_BYTES) return { error: `stdin holds more than ${STDIN_MAX_BYTES / 1024 / 1024} MB` };
-      chunks.push(next.value);
-    }
+    const first = await Promise.race([reader.read(), silent]).finally(() => clearTimeout(timer));
+    if (first === undefined || first.done) return undefined;
+    const chunks = [first.value];
+    for (let next = await reader.read(); !next.done; next = await reader.read()) chunks.push(next.value);
+    return new TextDecoder().decode(Buffer.concat(chunks));
   } finally {
     // Stop reading: a pipe left open must not keep the process waiting.
     reader.cancel().catch(() => {});
   }
-  const text = new TextDecoder().decode(Buffer.concat(chunks));
-  return text.trim() === "" ? { empty: true } : { text };
 }
 
 /** An option's value as typed: the spelling that named it (for messages) and the raw value, not yet judged. */
@@ -341,13 +325,12 @@ export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
   if (stdinFlag === undefined) return finish(first, cmd, root, args);
-  // Only Cli reads stdin, and never waits: not on a terminal, nor on a pipe left open (Terminal R2).
+  // Only Cli reads stdin: never a terminal, and a silent pipe only until STDIN_WAIT_MS (Terminal R2).
   const pipe = `pipe it in: nuhokai ${first} ${stdinFlag} < <file>`;
   if (stdin.isTTY) return usageError(first, cmd, `${stdinFlag} reads stdin, but stdin is a terminal; ${pipe}`);
-  const read = await readStdin(stdin);
-  if ("empty" in read) return usageError(first, cmd, `${stdinFlag} got no input on stdin; ${pipe}`);
-  if ("error" in read) return usageError(first, cmd, `${stdinFlag}: ${read.error}; ${pipe}`);
-  return finish(first, cmd, root, { ...args, stdin: read.text });
+  const text = await readStdin(stdin);
+  if (!text?.trim()) return usageError(first, cmd, `${stdinFlag} got no input on stdin; ${pipe}`);
+  return finish(first, cmd, root, { ...args, stdin: text });
 }
 
 /**

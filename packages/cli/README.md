@@ -131,9 +131,8 @@ on stdout. Since `check` refuses whitespace in ids, names and
 source files, every reference and file name prints and is taken back as is. A path naming no node, a dome (`nuhokai
 tree <dome>` lists its leaves), a node without source (external, a contract, or not built yet), a source that is no
 list or one that matches no file, and a node whose references or files hold whitespace (naming `nuhokai check`) exit 2 too, as do a node beside
-`--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal, empty, silent for a second (a pipe `exec`
-or `spawn` leaves open), still open a second after its input, or over 4 MB: only `review --submit` reads stdin, and
-it never waits. The CLI calls no model and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing
+`--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal, empty, or silent for 10 seconds (a pipe
+`exec` or `spawn` leaves open): only `review --submit` reads stdin, and once input starts it reads to its end. The CLI calls no model and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing
 proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
