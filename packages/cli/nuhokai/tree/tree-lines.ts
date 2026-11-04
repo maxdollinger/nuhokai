@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
 
 /** The tree's text: which nodes, and one line each. Pure. */
@@ -71,4 +72,4 @@ export const TreeLines = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameInProject, Path.childrenOf] });
+}).edges({ uses: () => [Path.nameInProject, Path.childrenOf, Failure.format] });
