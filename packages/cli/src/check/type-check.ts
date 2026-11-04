@@ -3,9 +3,9 @@ import { dirname, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
 import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import { compareFindings, type Finding, positionOf } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/world-path.ts";
-import { compareFindings, type Finding, positionOf } from "./diagnostics.ts";
 
 /** The literals whose text the comment scan skips: a scanner without the parser cannot tell where templates end. */
 const LITERALS = new Set([

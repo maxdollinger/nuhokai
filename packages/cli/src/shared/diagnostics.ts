@@ -1,4 +1,4 @@
-import { oneLine } from "../shared/failure.ts";
+import { oneLine } from "./failure.ts";
 
 /** One violation a check found: what Diagnostics.format turns into a line. */
 export interface Finding {

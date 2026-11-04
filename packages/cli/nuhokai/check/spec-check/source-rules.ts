@@ -1,23 +1,19 @@
 import { node } from "@nuhokai/world";
-import { BunRuntime, FileSystem } from "../../external.ts";
+import { Diagnostics } from "../../diagnostics.ts";
 import { Path } from "../../path/path.ts";
-import { Diagnostics } from "../diagnostics.ts";
+import { ProjectFiles } from "../../project-files.ts";
 
 /** The rules that read the filesystem: R6, R7, R10. */
 export const SourceRules = node({
   id: "01a188c9-4a10-737f-97f6-8dfc24bc08b6",
   purpose:
     "Hold every source entry against the project's files: each exists, lies under the world's source, and each file has one owner.",
-  status: "built",
+  status: "building",
   source: ["src/check/spec-check/source-rules.ts"],
   requirements: [
     {
       id: "R1",
-      text: "A plain path is checked directly. A glob is expanded only below its static prefix (src/map/** → src/map/), each directory read at most once; R6, R7 and R10 share the expansions.",
-    },
-    {
-      id: "R2",
-      text: "One matcher for every pattern: Bun's glob syntax on /-separated paths relative to the project directory, never following a symlink out of it.",
+      text: "An entry's files: a plain path if ProjectFiles has a file there; a glob, ProjectFiles' files below its static prefix that it matches (Path). One ProjectFiles per run, so R6, R7 and R10 share every directory read, and check and review agree on a node's files.",
     },
     {
       id: "R3",
@@ -40,9 +36,12 @@ export const SourceRules = node({
   uses: () => [
     Path.isInside,
     Path.isAncestor,
+    Path.isGlob,
+    Path.staticPrefix,
+    Path.matches,
+    ProjectFiles.list,
+    ProjectFiles.isFile,
     Diagnostics.locate,
     Diagnostics.order,
-    FileSystem.read,
-    BunRuntime.matchGlob,
   ],
 });

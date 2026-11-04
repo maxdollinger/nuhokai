@@ -1,5 +1,5 @@
 import type { LoadedWorld } from "../../load/load-world.ts";
-import { compareFindings, type Finding } from "../diagnostics.ts";
+import { compareFindings, type Finding } from "../../shared/diagnostics.ts";
 import { checkDataRules } from "./data-rules.ts";
 import { idsOf } from "./ids.ts";
 import { checkSourceRules } from "./source-rules.ts";

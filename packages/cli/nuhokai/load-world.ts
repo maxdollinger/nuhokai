@@ -9,8 +9,8 @@ import { Path } from "./path/path.ts";
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose:
-    "Read nuhokai/ without running it → the world's id, name and source, NodeSpecs, tbd placeholders, and where each " +
-    "node is listed and defined. Shared; checks no rule, writes nothing in the project.",
+    "Read nuhokai/ without running it into plain data: the world, each node as its NodeSpec placed in the hierarchy " +
+    "and its edges, tbd placeholders, and where everything is written. Checks no rule; writes nothing in the project.",
   status: "building",
   source: ["src/load/**"],
   ports: {
@@ -19,7 +19,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? and column? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, path, file, line?, column?, source?: { at?, entries } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line?, column? }[]; orphans: { id, name, file, line?, column? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? and column? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: { to: position | null, port }[], contracts: (position | null)[], path, file, line?, column?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, edges } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line?, column? }[]; orphans: { id, name, file, line?, column? }[]",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -84,6 +84,14 @@ export const LoadWorld = node({
       id: "R13",
       text: "A dome's ports are copied from the child ports they reference, each with delegate { to: child id, port }; a port of a non-child, or one its node lacks, is a load error at the dome's node() line.",
     },
+    {
+      id: "R14",
+      text: "Each node's uses targets and implements contracts as positions in nodes, in its edges' order, read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null.",
+    },
+    {
+      id: "R15",
+      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses and implements item; a spread-in item at its `...spread`. Review cites them.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
       id: "C2",
@@ -92,6 +100,14 @@ export const LoadWorld = node({
     },
   ],
   testCases: [
+    {
+      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [{ to: Stock's position, port: [reserve] }], contracts [null]; a second node with Stock's id leaves the target Stock's own position.",
+      demonstrates: ["R14"],
+    },
+    {
+      text: "A node with purpose on line 4, requirements R1 on 9 and R2 on 10, a spread-in test case → places give 4, 9, 10 and the spread's line.",
+      demonstrates: ["R15"],
+    },
     {
       text: "No nuhokai/, or a file there → one NoWorldError (naming init when absent), nothing read; a missing index.ts → a CliError that is no NoWorldError.",
       demonstrates: ["R11"],
@@ -163,7 +179,7 @@ export const LoadWorld = node({
     },
     {
       decision:
-        "Top-level shared loader for map, check and tree; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
+        "Top-level shared loader for map, check, tree and review; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
       why: "map and check need the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
     },
     {

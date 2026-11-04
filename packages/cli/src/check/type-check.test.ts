@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import { formatFinding } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
-import { formatFinding } from "./diagnostics.ts";
 import { runTypeCheck } from "./type-check.ts";
 
 const roots: string[] = [];

@@ -12,7 +12,7 @@ export const SpecCheck = node({
   requirements: [
     {
       id: "R1",
-      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation at the second listing, naming both places with their file:line:column, the node in the node part only. Every other rule skips nodes whose id is duplicated.",
+      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation at the second listing, naming both places with their file:line, the node in the node part only. Every other rule skips nodes whose id is duplicated.",
     },
     {
       id: "R2",
@@ -58,7 +58,7 @@ export const SpecCheck = node({
       demonstrates: ["R1"],
     },
     {
-      text: "An exported node missing from index.ts → one warning at its file, line and column, exit 0; its own broken edges go unreported.",
+      text: "An exported node missing from index.ts → one warning at its file and line, exit 0; its own broken edges go unreported.",
       demonstrates: ["R2"],
     },
     {

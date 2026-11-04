@@ -9,8 +9,9 @@ export const Terminal = node({
   external: true,
   externalType: "caller",
   purpose:
-    "Whoever runs nuhokai: a person at a shell (a tty), a script or a CI step. Starts the process with argv in a " +
-    "working directory, reads its stdout and stderr lines and branches on the exit code. Never asked anything.",
+    "Whoever runs nuhokai: a person at a shell (a tty), a script, a coding agent or a CI step. Starts the process " +
+    "with argv in a working directory, may pipe in a review, reads stdout and stderr and branches on the exit code. " +
+    "Never asked anything.",
   status: "built",
   source: [],
   ports: {
@@ -24,6 +25,11 @@ export const Terminal = node({
       purpose: "Take one line about a failure or a wrong invocation, prefixed 'nuhokai <command>: '",
       input: "one line of text, or the usage after a usage error",
     },
+    read: {
+      kind: "call",
+      purpose: "Hand over what was piped in: the review JSON `review --submit` validates",
+      output: "stdin's text to its end",
+    },
   },
   requirements: [
     {
@@ -32,7 +38,7 @@ export const Terminal = node({
     },
     {
       id: "R2",
-      text: "Never prompted: nothing reads stdin, so every command runs unattended (Cli: project directory = the cwd or --path).",
+      text: "Never prompted: only `review --submit` reads stdin, and only when it is piped, never from a tty, so every command runs unattended (Cli: project directory = the cwd or --path).",
     },
     { id: "R3", text: "Paths it reads are named from its working directory, so they open as printed." },
   ],

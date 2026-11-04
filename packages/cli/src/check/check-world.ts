@@ -1,8 +1,8 @@
 import { LoadError, type LoadedWorld, loadWorld } from "../load/load-world.ts";
+import { compareFindings, type Finding, formatFinding, positionOf } from "../shared/diagnostics.ts";
 import { NoWorldError } from "../shared/inspect.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
-import { compareFindings, type Finding, formatFinding, positionOf } from "./diagnostics.ts";
 import { applyRules } from "./spec-check/apply-rules.ts";
 import { runTypeCheck } from "./type-check.ts";
 

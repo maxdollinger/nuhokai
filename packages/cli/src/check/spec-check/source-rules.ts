@@ -1,9 +1,9 @@
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
+import { at, atWorld, compareText, type Finding, positionOf } from "../../shared/diagnostics.ts";
 import { isAncestor } from "../../shared/node-path.ts";
 import { isInside } from "../../shared/world-path.ts";
-import { at, atWorld, compareText, type Finding, positionOf } from "../diagnostics.ts";
 import type { Ids } from "./ids.ts";
 
 /** Bun's glob syntax: an entry with none of these characters is a plain path. */

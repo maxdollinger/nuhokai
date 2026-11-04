@@ -1,9 +1,9 @@
 import { node } from "@nuhokai/world";
 import { CheckerClient } from "../checker-client.ts";
+import { Diagnostics } from "../diagnostics.ts";
 import { FileSystem } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
-import { Diagnostics } from "./diagnostics.ts";
 
 /** The world's type check, beside SpecCheck. */
 export const TypeCheck = node({
@@ -16,7 +16,7 @@ export const TypeCheck = node({
       kind: "call",
       purpose: "Type-check the project directory's world",
       input: "project directory, cwd-relative",
-      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line:column",
+      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file and line",
       errors: ["no nuhokai/tsconfig.json: says how to restore it"],
     },
   },

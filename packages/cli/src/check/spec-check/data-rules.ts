@@ -1,7 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import { at, atWorld, type Finding, nodeError, positionOf } from "../../shared/diagnostics.ts";
 import { childrenOf, isAncestor } from "../../shared/node-path.ts";
-import { at, atWorld, type Finding, nodeError, positionOf } from "../diagnostics.ts";
 import type { Ids } from "./ids.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */

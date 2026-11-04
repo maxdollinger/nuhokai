@@ -1,6 +1,6 @@
 import { node } from "@nuhokai/world";
+import { Diagnostics } from "../../diagnostics.ts";
 import { Path } from "../../path/path.ts";
-import { Diagnostics } from "../diagnostics.ts";
 
 /** The rules on the loaded world alone: R1–R5, R9, R11. */
 export const DataRules = node({
@@ -17,7 +17,7 @@ export const DataRules = node({
     },
     {
       id: "R3",
-      text: "A finding about the world itself points at its defineWorld call, line and column, in the file holding it (LoadWorld's definedIn: index.ts, or a world file it re-exports the world from).",
+      text: "A finding about the world itself points at its defineWorld call's line in the file holding it (LoadWorld's definedIn: index.ts, or a world file it re-exports the world from).",
     },
     {
       id: "R4",

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loadWorld } from "../../load/load-world.ts";
-import { formatFinding } from "../diagnostics.ts";
+import { formatFinding } from "../../shared/diagnostics.ts";
 import { applyRules } from "./apply-rules.ts";
 
 const roots: string[] = [];

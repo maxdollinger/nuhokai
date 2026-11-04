@@ -1,8 +1,8 @@
 import { node } from "@nuhokai/world";
+import { Diagnostics } from "../diagnostics.ts";
 import { Failure } from "../failure.ts";
 import { LoadWorld } from "../load-world.ts";
 import { CodeCheck } from "./code-check.ts";
-import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check/spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
@@ -10,7 +10,7 @@ import { TypeCheck } from "./type-check.ts";
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
   purpose: "Load the world once, run TypeCheck, then SpecCheck on it, then CodeCheck.",
-  status: "built",
+  status: "building",
   source: ["src/check/check-world.ts"],
   ports: {
     run: {
@@ -46,7 +46,7 @@ export const CheckWorld = node({
     },
     {
       id: "R7",
-      text: "Once a world is there, the last line is a result line summing up: '<ok|failed>: <n> error(s), <n> warning(s)', its prefix never a finding's severity. A clean check prints just that line, so an empty stdout never leaves a reader guessing whether anything was checked; a failure without findings still ends in 'failed: 0 errors, …' after its failure line. Without a world nothing was checked, so there is no summary.",
+      text: "Once a world is there, the last line is a result line summing up (Diagnostics.summarize), its prefix never a finding's severity. A clean check prints just that line, so an empty stdout never leaves a reader guessing whether anything was checked; a failure without findings still ends in 'failed: 0 errors, …' after its failure line. Without a world nothing was checked, so there is no summary.",
     },
     {
       id: "R5",
@@ -59,7 +59,7 @@ export const CheckWorld = node({
       demonstrates: ["R1", "R6"],
     },
     {
-      text: "A tsc error in a.ts and an if statement in b.ts → the tsc error, then 'error: nuhokai/b.ts:3:1: … not an if statement: `if (n) {}`', both on stdout, failed; the same two in one file → both; children: Example → only the loader's 'the world's children is not a list of nodes'.",
+      text: "A tsc error in a.ts and an if statement in b.ts → the tsc error, then 'error: nuhokai/b.ts:3: … not an if statement: `if (n) {}`', both on stdout, failed; the same two in one file → both; children: Example → only the loader's 'the world's children is not a list of nodes'.",
       demonstrates: ["R6"],
     },
     {
@@ -94,5 +94,13 @@ export const CheckWorld = node({
     },
   ],
 }).edges({
-  uses: () => [TypeCheck.run, LoadWorld.load, SpecCheck.run, CodeCheck.run, Diagnostics.format, Failure.report],
+  uses: () => [
+    TypeCheck.run,
+    LoadWorld.load,
+    SpecCheck.run,
+    CodeCheck.run,
+    Diagnostics.format,
+    Diagnostics.summarize,
+    Failure.report,
+  ],
 });
