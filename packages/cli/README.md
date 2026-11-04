@@ -69,8 +69,8 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
 `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
-yet. Every finding is one stdout line, `<severity>: <file>:<line>:<column>: <node>: <rule>; <fix>`, naming a node by its path
-from the world. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
+yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
+from the world; there is no column, the line is where an editor or agent jumps. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
 (`Forbidden<"…">`) is that message alone (`a draft is not a node: call .edges(), also with {}`), any other names
 types without their arguments (`'NodeShape'`) and a long object literal as `'{ … }'`, and tsc's advice to change the library or install types gives way to
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
@@ -78,9 +78,9 @@ format's functions among it), and the type check allows imports only from `@nuho
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
 exits 1 on any error and 0 otherwise; orphans are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
 or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
-load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file, line and column (where a type-check finding
+load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file and line (where a type-check finding
 sits at that very position, one of the two: that finding when it says what to do, else the loader's)
-(``error: nuhokai/b.ts:3:1: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}` ``),
+(``error: nuhokai/b.ts:3: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}` ``),
 so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is

@@ -248,7 +248,7 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
     expect(await printed(["check"])).toEqual({
       code: 0,
       out: [
-        "warning: nuhokai/orphan.ts:3:23: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+        "warning: nuhokai/orphan.ts:3: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
         "ok: 0 errors, 1 warning",
       ],
       err: [],
@@ -277,7 +277,7 @@ test("Cli R3: usage and each command's help state the output, where failures go 
     expect(await help(name)).toEndWith(exitCodes);
   }
   expect(await help("check")).toContain(
-    "Output: one line per finding, `<error|warning>: <file>:<line>:<column>: <node>: <rule>; <fix>`",
+    "Output: one line per finding, `<error|warning>: <file>:<line>: <node>: <rule>; <fix>`",
   );
   expect(await help("tree")).toContain(
     "Arguments:\n  node  the node to start from, by its path as tree prints it, e.g. Check/SpecCheck (default: the top level)\n",
@@ -448,7 +448,7 @@ test("Cli R9: a bug in a command still crashes with it, after Cli prints the lin
     process.chdir(project);
     expect(await printed(["check"])).toEqual({
       thrown: bug,
-      out: ["error: nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'."],
+      out: ["error: nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'."],
       err: [],
     });
   } finally {

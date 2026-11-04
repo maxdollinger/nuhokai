@@ -84,7 +84,7 @@ function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
       parent === null ? "the world's children" : dome ? `${dome.path}'s children` : `the children of ${parent}`;
     const owner = parent === null ? atWorld(world) : dome ? at(dome) : { file: listing.file };
     const where = listing.line === undefined ? owner : { file: listing.file, ...positionOf(listing) };
-    const shown = where.line === undefined ? where.file : `${where.file}:${where.line}:${where.column}`;
+    const shown = where.line === undefined ? where.file : `${where.file}:${where.line}`;
     return { ...where, name: `${list} (${shown})` };
   };
   const seen = new Map<string, Place>();

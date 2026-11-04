@@ -6,7 +6,7 @@ export interface Finding {
   /** Named from the cwd, as the loader names world files. */
   readonly file: string;
   readonly line?: number;
-  /** 1-based, only beside a line. */
+  /** 1-based, only beside a line: where the break is, to tell two findings on one line apart; never printed. */
   readonly column?: number;
   /** The node's path from the world, `Check/SpecCheck`; absent when the file defines no node to name. */
   readonly node?: string;
@@ -55,13 +55,11 @@ export function nodeError(
 }
 
 /**
- * One finding as one line, `<severity>: <file>:<line>:<column>: <node>: <rule>; <fix>`.
- * A missing line, column, node or fix drops its part; every text field is flattened to one line.
+ * One finding as one line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`: no column, the line is where an editor
+ * or agent jumps. A missing line, node or fix drops its part; every text field is flattened to one line.
  */
 export function formatFinding(finding: Finding): string {
-  const position =
-    finding.line === undefined ? "" : `:${finding.line}${finding.column === undefined ? "" : `:${finding.column}`}`;
-  const at = `${oneLine(finding.file)}${position}`;
+  const at = `${oneLine(finding.file)}${finding.line === undefined ? "" : `:${finding.line}`}`;
   const parts = [`${finding.severity}: ${at}`];
   if (finding.node !== undefined) parts.push(oneLine(finding.node));
   const rule = oneLine(finding.rule);
@@ -75,15 +73,28 @@ export function compareText(a: string, b: string): number {
 }
 
 /**
- * The one order of findings: file, then line and column (a finding without one first), then rule, then node;
- * code-unit order.
+ * The one order of findings: file, then line (a finding without one first), then rule, then node; code-unit order.
  */
 export function compareFindings(a: Finding, b: Finding): number {
   return (
     compareText(a.file, b.file) ||
     (a.line ?? 0) - (b.line ?? 0) ||
-    (a.column ?? 0) - (b.column ?? 0) ||
     compareText(a.rule, b.rule) ||
     compareText(a.node ?? "", b.node ?? "")
   );
+}
+
+/** A count with its noun: "1 error", "2 warnings". */
+function counted(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * The line that ends a list of findings, `<ok|failed>: <n> error(s), <n> warning(s)`: failed when any is an error, or
+ * when `failed` says the run failed without one. Its prefix is never a finding's severity.
+ */
+export function summarize(findings: readonly Finding[], failed = false): string {
+  const errors = findings.filter((finding) => finding.severity === "error").length;
+  const outcome = failed || errors > 0 ? "failed" : "ok";
+  return `${outcome}: ${counted(errors, "error")}, ${counted(findings.length - errors, "warning")}`;
 }

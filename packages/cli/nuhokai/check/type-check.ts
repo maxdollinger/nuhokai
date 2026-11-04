@@ -9,7 +9,7 @@ import { Path } from "../path/path.ts";
 export const TypeCheck = node({
   id: "01a186f7-93a5-7791-86db-5d2a7e555555",
   purpose: "Type-check the world files with the CLI's pinned checker and nuhokai/tsconfig.json.",
-  status: "built",
+  status: "building",
   source: ["src/check/type-check.ts"],
   ports: {
     run: {
