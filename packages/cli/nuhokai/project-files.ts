@@ -8,8 +8,8 @@ export const ProjectFiles = node({
   purpose:
     "Answer which files exist in the project directory: below a directory, or at a path. The one walk of the " +
     "project's files; knows nothing of nodes or globs.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/shared/project-files.ts", "src/shared/project-files.test.ts"],
   ports: {
     list: {
       kind: "call",

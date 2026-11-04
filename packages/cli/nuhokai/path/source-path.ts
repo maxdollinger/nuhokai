@@ -7,8 +7,8 @@ export const SourcePath = node({
   purpose:
     "Own what a source entry means as a pattern: whether it is a glob, where its files can lie, and which paths it " +
     "matches. Pure: compares paths, never looks at the files behind them.",
-  status: "planned",
-  source: [],
+  status: "building",
+  source: ["src/shared/source-path.ts", "src/shared/source-path.test.ts"],
   ports: {
     isGlob: {
       kind: "call",

@@ -1,79 +1,10 @@
-import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute } from "node:path";
 import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
-import { at, atWorld, compareText, type Finding, positionOf } from "../../shared/diagnostics.ts";
+import { at, atWorld, type Finding, positionOf } from "../../shared/diagnostics.ts";
 import { isAncestor } from "../../shared/node-path.ts";
-import { isInside } from "../../shared/world-path.ts";
+import { ProjectFiles } from "../../shared/project-files.ts";
+import { isGlob, matches, staticPrefix } from "../../shared/source-path.ts";
 import type { Ids } from "./ids.ts";
-
-/** Bun's glob syntax: an entry with none of these characters is a plain path. */
-const GLOB_CHARS = /[*?[\]{}!\\]/;
-
-/**
- * The project's files, read lazily and at most once per directory: every path is `/`-separated and relative to the
- * project directory, and no symlink is followed out of it (SourceRules R1, R2).
- */
-class ProjectFiles {
-  readonly #root: string;
-  readonly #realRoot: string;
-  /** Each directory read, by its relative path ("" for the root): the files below it, at any depth. */
-  readonly #below = new Map<string, readonly string[]>();
-
-  constructor(root: string) {
-    this.#root = resolve(root);
-    this.#realRoot = realpathSync(this.#root);
-  }
-
-  /** Whether a real path lies inside the project directory. */
-  #inside(real: string): boolean {
-    return isInside(real, this.#realRoot);
-  }
-
-  /** The real path behind a relative path, if it exists and stays inside the project directory. */
-  #real(path: string): string | undefined {
-    try {
-      const real = realpathSync(join(this.#root, path));
-      return this.#inside(real) ? real : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  /** Whether `path` names a file inside the project directory, through symlinks that stay inside. */
-  isFile(path: string): boolean {
-    const real = this.#real(path);
-    return real !== undefined && (statSync(real, { throwIfNoEntry: false })?.isFile() ?? false);
-  }
-
-  /** Every file below the directory `dir` ("" for the project directory), each directory read once. */
-  filesBelow(dir: string, visiting: ReadonlySet<string> = new Set()): readonly string[] {
-    const cached = this.#below.get(dir);
-    if (cached) return cached;
-    const real = this.#real(dir);
-    if (real === undefined || visiting.has(real) || !statSync(real, { throwIfNoEntry: false })?.isDirectory()) {
-      return [];
-    }
-    const inner = new Set([...visiting, real]);
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(join(this.#root, dir), { withFileTypes: true });
-    } catch {
-      entries = [];
-    }
-    const files: string[] = [];
-    for (const entry of entries.sort((a, b) => compareText(a.name, b.name))) {
-      const path = dir ? `${dir}/${entry.name}` : entry.name;
-      if (entry.isFile()) files.push(path);
-      else if (entry.isDirectory()) files.push(...this.filesBelow(path, inner));
-      else if (entry.isSymbolicLink()) {
-        if (this.isFile(path)) files.push(path);
-        else files.push(...this.filesBelow(path, inner));
-      }
-    }
-    this.#below.set(dir, files);
-    return files;
-  }
-}
 
 /**
  * An entry, checked: the files it matches, or why it is refused: it names a place outside the project directory
@@ -82,19 +13,17 @@ class ProjectFiles {
 type Expansion = { readonly files: readonly string[] } | { readonly refused: "outside" | "climbs" };
 
 /**
- * One source entry's matches; plain paths are checked directly, globs expanded below their static prefix. Never
- * normalized: a pattern is matched as written, so an entry with a `..` segment, or an absolute one, is refused.
+ * One source entry's files (SourceRules R1): a plain path if ProjectFiles has a file there, a glob the files below
+ * its static prefix it matches. Never normalized: a pattern is matched as written, so an entry with a `..` segment, or
+ * an absolute one, is refused.
  */
 function expand(project: ProjectFiles, entry: string): Expansion {
   const path = entry.replace(/^(\.\/)+/, "");
   const segments = path.split("/");
   if (isAbsolute(entry) || segments[0] === "..") return { refused: "outside" };
   if (segments.includes("..")) return { refused: "climbs" };
-  if (!GLOB_CHARS.test(path)) return { files: project.isFile(path) ? [path] : [] };
-  const firstGlob = segments.findIndex((segment) => GLOB_CHARS.test(segment));
-  const prefix = segments.slice(0, firstGlob).join("/");
-  const glob = new Bun.Glob(path);
-  return { files: project.filesBelow(prefix).filter((file) => glob.match(file)) };
+  if (!isGlob(path)) return { files: project.isFile(path) ? [path] : [] };
+  return { files: project.list(staticPrefix(path)).filter((file) => matches(path, file)) };
 }
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */

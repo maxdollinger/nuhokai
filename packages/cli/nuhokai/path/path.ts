@@ -15,6 +15,8 @@ export const Path = node({
     "src/shared/world-path.test.ts",
     "src/shared/node-path.ts",
     "src/shared/node-path.test.ts",
+    "src/shared/source-path.ts",
+    "src/shared/source-path.test.ts",
   ],
   requirements: [
     {
