@@ -1,16 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
 import { runReviewPrompt } from "./review-prompt.ts";
 import { runReviewSubmission } from "./review-submission.ts";
+import { named, ROOT } from "./test-world.ts";
 
-/** The CLI's own world, named from the cwd as a command names it. */
-const ROOT = relative(process.cwd(), join(import.meta.dir, "../..")) || ".";
-/** A path in the package, named from the cwd. */
-const named = (path: string) => (ROOT === "." ? path : `${ROOT}/${path}`);
 const CODE = named("src/tree/print-tree.ts");
 const TEST = named("src/tree/print-tree.test.ts");
 const SPEC = named("nuhokai/tree/print-tree.ts");
@@ -20,9 +17,9 @@ afterEach(() => {
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** PrintTree's review with these findings, every file reviewed unless given. */
-function review(findings: unknown[], reviewedFiles: unknown = [CODE, TEST]): string {
-  return JSON.stringify({ node: "Tree/PrintTree", reviewedFiles, findings });
+/** PrintTree's review with these findings. */
+function review(findings: unknown[]): string {
+  return JSON.stringify({ node: "Tree/PrintTree", findings });
 }
 
 /** The Report of submitting `text` for the CLI's own world, as Cli would print it. */
@@ -54,18 +51,13 @@ test("R1, R3: not JSON, a finding without evidence, an unspecified finding citin
   });
 });
 
-test("R1, R3: every shape problem is its own line: stray keys, a bad category, line and missing fields", async () => {
+test("R1, R3: every shape problem is its own line: a bad node, category, file, line and evidence", async () => {
   const text = JSON.stringify({
     node: 3,
-    extra: true,
-    reviewedFiles: "all",
-    findings: [{ category: "bug", file: "", line: 1.5, evidence: " ", note: "x" }, "x"],
+    findings: [{ category: "bug", file: "", line: 1.5, evidence: " " }, "x"],
   });
   expect((await submitted(text)).err).toEqual([
-    'the review has the key "extra", which a review does not take; send only node, reviewedFiles and findings',
     "node is 3; send the reviewed node's path, as the prompt names it",
-    'reviewedFiles is "all"; send a list of every file you read, as the prompt lists them',
-    'findings[0] has the key "note", which a review does not take; send only category, specItem, file, line and evidence',
     'findings[0].category is "bug"; send against-spec, possibly-against-spec or unspecified',
     'findings[0].file is ""; send the file the finding is in, as the prompt lists it',
     "findings[0].line is 1.5; send the line as a whole number from 1",
@@ -73,19 +65,26 @@ test("R1, R3: every shape problem is its own line: stray keys, a bad category, l
     'findings[1] is "x", not an object; send { "category": …, "file": …, "line": …, "evidence": … }',
   ]);
   expect((await submitted("[]")).err).toEqual([
-    'the review is a list, not a JSON object; send { "node": "<path>", "reviewedFiles": ["<file>", …], "findings": [ … ] }',
+    'the review is a list, not a JSON object; send { "node": "<path>", "findings": [ … ] }',
   ]);
 });
 
-test("R2, R3: an item the spec lacks, a line past the file's end and an unreviewed file → three lines, invalid", async () => {
+test("R1: keys a review does not take are ignored, an old reviewedFiles among them", async () => {
+  const finding = { category: "unspecified", file: CODE, line: 1, evidence: "x", severity: "low", confidence: 1 };
+  const text = JSON.stringify({ node: "Tree/PrintTree", reviewedFiles: [CODE], confidence: 1, findings: [finding] });
+  expect(await submitted(text)).toEqual({
+    outcome: "ok",
+    out: [`warning: ${CODE}:1: Tree/PrintTree: unspecified; x`, "ok: 0 errors, 1 warning"],
+    err: [],
+  });
+});
+
+test("R2, R3: an item the spec lacks and a line past the file's end → two lines, invalid", async () => {
   const result = await submitted(
-    review(
-      [
-        { category: "against-spec", specItem: "requirements[R9]", file: CODE, line: 3, evidence: "x" },
-        { category: "possibly-against-spec", specItem: "requirements[R1]", file: CODE, line: 999, evidence: "x" },
-      ],
-      [CODE],
-    ),
+    review([
+      { category: "against-spec", specItem: "requirements[R9]", file: CODE, line: 3, evidence: "x" },
+      { category: "possibly-against-spec", specItem: "requirements[R1]", file: CODE, line: 999, evidence: "x" },
+    ]),
   );
   const lines = readFileSync(CODE, "utf8").trimEnd().split("\n").length;
   expect(result).toEqual({
@@ -94,7 +93,6 @@ test("R2, R3: an item the spec lacks, a line past the file's end and an unreview
     err: [
       `findings[0].specItem "requirements[R9]" is no item of Tree/PrintTree's spec; cite a reference as the prompt lists it, e.g. "requirements[R1]"`,
       `findings[1].line 999 is past the end of ${CODE}, which has ${lines} lines; cite a line within it`,
-      `reviewedFiles leaves out ${TEST}, a file of Tree/PrintTree; read it, then list it as printed`,
     ],
   });
   const elsewhere = await submitted(review([{ category: "unspecified", file: "src/bin.ts", line: 1, evidence: "x" }]));
@@ -104,11 +102,11 @@ test("R2, R3: an item the spec lacks, a line past the file's end and an unreview
 });
 
 test("R2: the node must be one, and reviewable: a typo or a dome is one line, invalid", async () => {
-  const typo = await submitted(JSON.stringify({ node: "Tree/PrintTre", reviewedFiles: [], findings: [] }));
+  const typo = await submitted(JSON.stringify({ node: "Tree/PrintTre", findings: [] }));
   expect(typo.outcome).toBe("invalid");
   expect(typo.err).toHaveLength(1);
   expect(typo.err[0]).toContain("did you mean `nuhokai tree Tree/PrintTree");
-  const dome = await submitted(JSON.stringify({ node: "Check", reviewedFiles: [], findings: [] }));
+  const dome = await submitted(JSON.stringify({ node: "Check", findings: [] }));
   expect(dome.outcome).toBe("invalid");
   expect(dome.err[0]).toStartWith("Check is a dome");
 });
@@ -137,8 +135,6 @@ test("R2, R4: valid findings print as check prints them, in its order, then the 
     err: [],
   });
   expect(await submitted(review([]))).toEqual({ outcome: "ok", out: ["ok: 0 errors, 0 warnings"], err: [] });
-  // Reviewing more files than the scope's is fine.
-  expect((await submitted(review([], [CODE, TEST, named("src/bin.ts")]))).outcome).toBe("ok");
 });
 
 test("R3: no world is one failure line, failed", async () => {
@@ -164,7 +160,6 @@ test("R2, R4: a file whose name holds spaces is cited and printed as the prompt 
   const cite = (line: number) =>
     JSON.stringify({
       node: "Example",
-      reviewedFiles: [file],
       findings: [{ category: "unspecified", file, line, evidence: "x" }],
     });
   expect(splitReport(await runReviewSubmission(root, cite(2))).out[0]).toBe(

@@ -24,7 +24,6 @@ export const ReviewSubmission = node({
         "not JSON, or not the review's shape: names the field",
         "no node at the path, or not reviewable",
         "a spec item, file or line the scope does not hold",
-        "a file of the node missing from reviewedFiles",
         "no world at nuhokai/, the world failed to load, or a cited file cannot be read",
       ],
     },
@@ -32,11 +31,11 @@ export const ReviewSubmission = node({
   requirements: [
     {
       id: "R1",
-      text: "Shape: { node: string, reviewedFiles: string[], findings: { category, specItem?, file, line, evidence }[] }, no other keys. category is against-spec, possibly-against-spec or unspecified; specItem required for the first two, absent for unspecified; line a whole number ≥ 1; evidence not blank.",
+      text: "Shape: { node: string, findings: { category, specItem?, file, line, evidence }[] }; other keys are ignored. category is against-spec, possibly-against-spec or unspecified; specItem required for the first two, absent for unspecified; line a whole number ≥ 1; evidence not blank.",
     },
     {
       id: "R2",
-      text: "Order: parse, judge the shape, load, find node and its scope (ReviewScope.scopeAt), judge the content. Content: each specItem found by SpecItems.find; each file one of the scope's files or an item's spec file, and its line within that file; reviewedFiles holding every file of the scope (more are allowed), as printed.",
+      text: "Order: parse, judge the shape, load, find node and its scope (ReviewScope.scopeAt), judge the content. Content: each specItem found by SpecItems.find; each file one of the scope's files or an item's spec file, and its line within that file, as printed.",
     },
     {
       id: "R3",
@@ -53,11 +52,11 @@ export const ReviewSubmission = node({
       demonstrates: ["R2", "R4"],
     },
     {
-      text: "'{' → not JSON; a finding without evidence, or unspecified with a specItem → one line each naming the field, invalid, no summary.",
+      text: "'{' → not JSON; a finding without evidence, or unspecified with a specItem → one line each naming the field, invalid, no summary; extra keys such as reviewedFiles or confidence → ignored, valid.",
       demonstrates: ["R1", "R3"],
     },
     {
-      text: "PrintTree: specItem requirements[R9], line 999 of print-tree.ts, reviewedFiles without the test file → three failure lines, invalid.",
+      text: "PrintTree: specItem requirements[R9], line 999 of print-tree.ts → two failure lines, invalid.",
       demonstrates: ["R2", "R3"],
     },
     {

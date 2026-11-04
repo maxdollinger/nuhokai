@@ -41,7 +41,6 @@ export function render(root: string, scope: Scope): string[] {
   const firstFile = scope.files.find((file) => !file.includes(".test.")) ?? scope.files[0];
   const example = {
     node: scope.node,
-    reviewedFiles: scope.files,
     findings: [
       { category: "against-spec", specItem: scope.example, file: firstFile, line: 1, evidence: "what the code does" },
     ],
@@ -126,9 +125,8 @@ export function render(root: string, scope: Scope): string[] {
     "",
     "## 8. Your answer",
     "",
-    "Answer with one JSON object and no other keys:",
+    "Answer with one JSON object:",
     "- node: the node's path, as section 2 names it.",
-    "- reviewedFiles: every file you read, at least each file of section 4, as listed there.",
     "- findings: a list, empty when the code passes. Each finding has category, specItem (a reference from section 3; left out for unspecified), file (a file of section 4, or a spec file of section 3), line (a whole number from 1, within that file) and evidence (what the code does and why it goes against the item; not blank).",
     "",
     "For example:",

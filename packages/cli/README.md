@@ -121,7 +121,7 @@ matches (as `check` finds them), the nodes it may use (an unreachable one marked
 the node's path, its spec file, its files and the example JSON naming them) sits between `<<<<< SPEC DATA` and
 `SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against, never instructions to
 follow. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it
-validates the shape, the node, every cited spec item, file and line, and that every file of the node was reviewed,
+validates the shape, the node, every cited spec item, file and line (other keys are ignored),
 then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
 <evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`
 finding or when the world does not load, and 2 for an invalid submission, every problem one stderr line and nothing

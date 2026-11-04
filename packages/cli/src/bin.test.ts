@@ -600,12 +600,9 @@ test("Review: in packages/cli, review Tree/PrintTree prints the prompt, exit 0; 
     ]);
     expect((await failed(["review", "Terminal"]))[0]).toBe(2);
 
-    const files = ["src/tree/print-tree.ts", "src/tree/print-tree.test.ts"];
+    const files = ["src/tree/print-tree.ts"];
     const submit = (findings: unknown[]) =>
-      printed(
-        ["review", "--submit"],
-        stdinOf(JSON.stringify({ node: "Tree/PrintTree", reviewedFiles: files, findings })),
-      );
+      printed(["review", "--submit"], stdinOf(JSON.stringify({ node: "Tree/PrintTree", findings })));
     expect(await submit([])).toEqual({ code: 0, out: ["ok: 0 errors, 0 warnings"], err: [] });
     expect(
       await submit([

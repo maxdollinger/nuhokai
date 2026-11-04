@@ -1,12 +1,11 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { splitReport } from "../shared/split-report.ts";
 import { runReviewPrompt } from "./review-prompt.ts";
+import { ROOT } from "./test-world.ts";
 
-/** The CLI's own world, named from the cwd as a command names it. */
-const ROOT = relative(process.cwd(), join(import.meta.dir, "../..")) || ".";
 const temps: string[] = [];
 
 afterEach(() => {

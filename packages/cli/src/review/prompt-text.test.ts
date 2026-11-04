@@ -89,7 +89,7 @@ test("R1, R3: check first, the node, each item at file:line, the files, the depe
     lineOf(lines, "- LoadWorld: load (source src/load/**): Read nuhokai/."),
     lineOf(lines, "## 6. Drafts"),
     lineOf(lines, "- against-spec:"),
-    lineOf(lines, '{"node":"Tree/PrintTree","reviewedFiles":'),
+    lineOf(lines, '{"node":"Tree/PrintTree","findings":'),
     lineOf(lines, "`nuhokai review --submit`"),
   ];
   expect(order).toEqual([...order].sort((a, b) => a - b));
