@@ -70,6 +70,27 @@ export interface Orphan {
   readonly column?: number;
 }
 
+/** A uses edge's target by position (R14): null when the walk never reaches it (an orphan). */
+export interface UsesTarget {
+  readonly to: number | null;
+  /** The ports used there, as the edge in the NodeSpec lists them. */
+  readonly port: readonly string[];
+}
+
+/**
+ * Where each spec item was written in the node's file (R15), by line: the purpose, and one entry per port,
+ * requirement, test case, decision and edge, in the NodeSpec's order (an edge at its first item); a spread-in item at
+ * its `...spread`. An entry is undefined where the item was written in another file.
+ */
+export interface SpecPlaces {
+  readonly purpose?: number;
+  readonly ports: readonly (number | undefined)[];
+  readonly requirements: readonly (number | undefined)[];
+  readonly testCases: readonly (number | undefined)[];
+  readonly decisions: readonly (number | undefined)[];
+  readonly edges: readonly (number | undefined)[];
+}
+
 /** A reachable node as loaded: its NodeSpec, where it sits in the hierarchy, and where it is defined. */
 export interface LoadedNode {
   /** Its position in the world's `nodes`. */
@@ -79,6 +100,10 @@ export interface LoadedNode {
   readonly parent: number | null;
   /** Its direct children's positions in `nodes`, in list order. */
   readonly children: readonly number[];
+  /** Its uses edges' targets by position, in its edges' order (R14). */
+  readonly uses: readonly UsesTarget[];
+  /** Its implements edges' contracts by position, in its edges' order; null for one the walk never reaches (R14). */
+  readonly contracts: readonly (number | null)[];
   /** Its hierarchy path from the world, `Check/SpecCheck`, as NodePath names it: how every command names a node. */
   readonly path: string;
   /** Its defining file (R2), named from the cwd. */
@@ -88,6 +113,8 @@ export interface LoadedNode {
   readonly column?: number;
   /** Where its source and each entry were written in `file`, when it holds the call. */
   readonly source?: SourcePlaces;
+  /** Where each spec item was written in `file`, when it holds the call (R15). */
+  readonly places?: SpecPlaces;
 }
 
 /** The world as data: what `map` draws, `check` judges and `tree` prints. */
@@ -378,14 +405,24 @@ async function edgeList(context: Context, node: NodeV, edge: "uses" | "implement
   return list;
 }
 
+/** A node's edges of one kind as read: each with its target and the list item that first named it. */
+interface ReadEdges<E extends Edge> {
+  readonly edges: E[];
+  readonly targets: NodeV[];
+  /** The list the edges were read from, and each edge's first item in it. */
+  readonly list: readonly Val[];
+  readonly items: number[];
+}
+
 /** A node's uses edges, one per target with its ports in first-use order; a tbd it uses joins its placeholder (R4). */
 async function usesOf(
   context: Context,
   node: NodeV,
   placeholders: Map<PlaceholderV, Placeholder>,
-): Promise<UsesEdge[]> {
-  const ports = new Map<NodeV, string[]>();
-  for (const ref of await edgeList(context, node, "uses")) {
+): Promise<ReadEdges<UsesEdge>> {
+  const ports = new Map<NodeV, { port: string[]; item: number }>();
+  const list = await edgeList(context, node, "uses");
+  for (const [item, ref] of list.entries()) {
     if (ref instanceof PlaceholderV) {
       let placeholder = placeholders.get(ref);
       if (!placeholder) {
@@ -412,16 +449,22 @@ async function usesOf(
         ".uses lists a value that is not a port reference; list other nodes' ports, e.g. uses: () => [A.run]",
       );
     }
-    const used = ports.get(target) ?? [];
-    if (!used.includes(port.name)) used.push(port.name);
+    const used = ports.get(target) ?? { port: [], item };
+    if (!used.port.includes(port.name)) used.port.push(port.name);
     ports.set(target, used);
   }
-  return [...ports].map(([target, port]) => ({ kind: "uses", to: target.id, port }));
+  return {
+    edges: [...ports].map(([target, { port }]) => ({ kind: "uses", to: target.id, port })),
+    targets: [...ports.keys()],
+    list,
+    items: [...ports.values()].map(({ item }) => item),
+  };
 }
 
 /** A node's implements edges, one per contract listed. */
-async function implementsOf(context: Context, node: NodeV): Promise<Edge[]> {
-  return (await edgeList(context, node, "implements")).map((contract) => {
+async function implementsOf(context: Context, node: NodeV): Promise<ReadEdges<Edge>> {
+  const list = await edgeList(context, node, "implements");
+  const targets = list.map((contract) => {
     if (!(contract instanceof NodeV)) {
       throw failAt(
         context,
@@ -429,8 +472,21 @@ async function implementsOf(context: Context, node: NodeV): Promise<Edge[]> {
         ".implements lists a value that is not a node; list abstract nodes, e.g. implements: () => [Contract]",
       );
     }
-    return { kind: "implements", to: contract.id };
+    return contract;
   });
+  return {
+    edges: targets.map((contract) => ({ kind: "implements", to: contract.id })),
+    targets,
+    list,
+    items: targets.map((_contract, item) => item),
+  };
+}
+
+/** A node's NodeSpec with its edges as read: their targets and where each was written. */
+interface ReadNode {
+  readonly spec: NodeSpec;
+  readonly uses: ReadEdges<UsesEdge>;
+  readonly implements: ReadEdges<Edge>;
 }
 
 /** A placed node's NodeSpec (R2): its fields as plain data, its ports resolved, then its uses and implements edges. */
@@ -438,7 +494,7 @@ async function specOf(
   context: Context,
   { node, parent }: Placed,
   placeholders: Map<PlaceholderV, Placeholder>,
-): Promise<NodeSpec> {
+): Promise<ReadNode> {
   const {
     id,
     external,
@@ -469,9 +525,40 @@ async function specOf(
         }) as Port,
     );
   }
-  const edges = [...(await usesOf(context, node, placeholders)), ...(await implementsOf(context, node))];
+  const uses = await usesOf(context, node, placeholders);
+  const contracts = await implementsOf(context, node);
+  const edges = [...uses.edges, ...contracts.edges];
   if (edges.length) spec.edges = edges;
-  return spec;
+  return { spec, uses, implements: contracts };
+}
+
+/** R15: where each of a node's spec items was written in `file`, by line, in the NodeSpec's order. */
+function specPlaces(
+  reader: Reader,
+  { spec, uses, implements: contracts }: ReadNode,
+  def: Rec,
+  file: string,
+): SpecPlaces {
+  const line = (at: At | undefined) => (at?.file === file ? at.line : undefined);
+  const items = (key: string) => {
+    const list = def[key];
+    return Array.isArray(list) ? list.map((_item, index) => line(reader.itemIn(list, index, file))) : [];
+  };
+  const ports = def.ports;
+  const purpose = line(reader.propertyAt(def, "purpose"));
+  const edgeLines = (read: ReadEdges<Edge>) => read.items.map((item) => line(reader.itemIn(read.list, item, file)));
+  return {
+    ...(purpose === undefined ? {} : { purpose }),
+    ports: (spec.ports ?? []).map((port) =>
+      ports !== null && typeof ports === "object" && !Array.isArray(ports)
+        ? line(reader.propertyAt(ports as Rec, port.name))
+        : undefined,
+    ),
+    requirements: items("requirements"),
+    testCases: items("testCases"),
+    decisions: items("decisions"),
+    edges: [...edgeLines(uses), ...edgeLines(contracts)],
+  };
 }
 
 /** R8: exported but never reached, in sorted file order, each once. */
@@ -525,14 +612,22 @@ async function worldOf(
 
   const placeholders = new Map<PlaceholderV, Placeholder>();
   const nodes: LoadedNode[] = [];
+  // R14: edge targets by reference, as parents are, so a duplicate id never points elsewhere.
+  const positionOf = (target: NodeV) => position.get(target) ?? null;
   for (const [at, entry] of placed.entries()) {
     // R9: the defining file, and the node() call's place and where its source was written, when that file holds it.
     const file = fileOf(context, entry.node);
+    const read = await specOf(context, entry, placeholders);
     nodes.push({
       index: at,
-      spec: await specOf(context, entry, placeholders),
+      spec: read.spec,
       parent: parents[at] ?? null,
       children: children[at] ?? [],
+      uses: read.uses.edges.map((edge, item) => ({
+        to: positionOf(read.uses.targets[item] as NodeV),
+        port: edge.port,
+      })),
+      contracts: read.implements.targets.map(positionOf),
       path: paths[at] ?? "",
       file,
       ...(entry.node.at.file === file
@@ -540,6 +635,7 @@ async function worldOf(
             line: entry.node.at.line,
             column: entry.node.at.column,
             source: reader.sourcePlaces(entry.node.def, "source", file),
+            places: specPlaces(reader, read, entry.node.def, file),
           }
         : {}),
     });

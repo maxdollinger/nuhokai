@@ -13,6 +13,8 @@ function hierarchy(entries: readonly [name: string, parent: number | null, id?: 
       spec: { name, id: id ?? name } as unknown as NodeSpec,
       parent,
       children: entries.flatMap(([, above], child) => (above === index ? [child] : [])),
+      uses: [],
+      contracts: [],
       path: paths[index] ?? "",
       file: "nuhokai/index.ts",
     }),

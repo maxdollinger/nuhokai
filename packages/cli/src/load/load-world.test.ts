@@ -220,6 +220,73 @@ export const Box = node({
   expect(loaded.placeholders).toEqual([]);
 });
 
+test("R14: uses targets and contracts by position, in the edges' order; an orphan target is null; a duplicate id points nowhere else", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Orders, Stock, Twin } from "./shop.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Twin, Stock, Orders] });
+`,
+    "shop.ts": `import { node } from "@nuhokai/world";
+export const Store = node({ ...${leaf("store", '{ keep: { kind: "call", purpose: "keep" } }')}, abstract: true }).edges({});
+export const Stock = node(${leaf("stock", '{ reserve: { kind: "call", purpose: "reserve" }, count: { kind: "call", purpose: "count" } }')}).edges({});
+export const Twin = node(${leaf("stock")}).edges({});
+export const Orders = node({ ...${leaf("orders")}, implements: () => [Store] }).edges({
+  uses: () => [Stock.reserve, Stock.count],
+});
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(loaded.nodes.map((node) => node.path)).toEqual(["Twin", "Stock", "Orders"]);
+  const orders = loaded.nodes[2];
+  expect(orders?.uses).toEqual([{ to: 1, port: ["reserve", "count"] }]);
+  expect(orders?.contracts).toEqual([null]);
+  expect(loaded.nodes[0]?.uses).toEqual([]);
+  expect(loaded.nodes[0]?.contracts).toEqual([]);
+});
+
+test("R15: the line of the purpose and of each port, requirement, test case, decision and edge; a spread-in item at its spread", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Box, Target } from "./box.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Target, Box] });
+`,
+    "shared.ts": `export const cases = [{ text: "shared" }];
+`,
+    "box.ts": `import { node } from "@nuhokai/world";
+import { cases } from "./shared.ts";
+export const Target = node(${leaf("target", '{ run: { kind: "call", purpose: "run" } }')}).edges({});
+export const Box = node({
+  id: "box",
+  purpose: "box",
+  status: "planned",
+  source: [],
+  ports: { go: { kind: "call", purpose: "go" } },
+  requirements: [
+    { id: "R1", text: "one" },
+    { id: "R2", text: "two" },
+  ],
+  testCases: [{ text: "own", demonstrates: ["R1"] }, ...cases],
+  decisions: [{ decision: "d", why: "w" }],
+}).edges({
+  uses: () => [Target.run],
+});
+`,
+  });
+
+  const loaded = await loadWorld(root);
+  const box = loaded.nodes.find((node) => node.path === "Box");
+  expect(box?.places).toEqual({
+    purpose: 6,
+    ports: [9],
+    requirements: [11, 12],
+    testCases: [14, 14],
+    decisions: [15],
+    edges: [17],
+  });
+});
+
 test("a node listed at the top level and then inside a dome stays at its first listing", async () => {
   const root = world({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
