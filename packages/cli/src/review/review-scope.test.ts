@@ -139,18 +139,6 @@ export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "plan
   expect(example1.items.find((item) => item.ref === "edges.uses[Lost]")).toMatchObject({ unreachable: true });
 });
 
-test("R8: a reference or a file holding whitespace, which check refuses, is refused naming check", async () => {
-  const spacedFile = await example('["src/**"]');
-  writeFileSync(join(spacedFile, "src/a b.ts"), "");
-  expect(refusal(spacedFile, await loadWorld(spacedFile), "Example")).toBe(
-    `Example's review would cite "src/a b.ts", which holds whitespace; \`nuhokai check --path ${spacedFile}\` names what to fix`,
-  );
-  const spacedId = await example('["src/**"], requirements: [{ id: "R\\t1", text: "t" }]');
-  expect(refusal(spacedId, await loadWorld(spacedId), "Example")).toStartWith(
-    'Example\'s review would cite "requirements[R\\t1]", which holds whitespace;',
-  );
-});
-
 test.skipIf(process.getuid?.() === 0)(
   "R2, R6: a directory the source reaches that cannot be read is thrown, for the program to report as failed",
   async () => {

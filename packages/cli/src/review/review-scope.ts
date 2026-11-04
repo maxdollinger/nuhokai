@@ -1,6 +1,6 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { CliError, inWords } from "../shared/failure.ts";
+import { CliError } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
 import { invalidFrom, type Report } from "../shared/report.ts";
@@ -70,17 +70,10 @@ export function scope(
     throw new CliError(`${path}'s source reaches ${dir}, which cannot be read (${unreadable.code}); make it readable`);
   }
   const named = expansions.flatMap((expansion) => ("files" in expansion ? expansion.files : []));
-  // R8: check refuses whitespace in a reference or a file name, so every one prints and is taken back as is.
-  const items = list(world, position);
-  const spaced = [path, ...items.map((item) => item.ref), ...named].find((text) => /\s/u.test(text));
-  if (spaced !== undefined) {
-    throw new NotReviewable(
-      `${path}'s review would cite ${inWords(spaced)}, which holds whitespace; ${check} names what to fix`,
-    );
-  }
   // Each file once, however many entries name it.
   const files = [...new Set(named.map((file) => nameInProject(root, file)))].sort(compareText);
   if (files.length === 0) throw new NotReviewable(`${path}'s source matches no file; ${check} names the entry to fix`);
+  const items = list(world, position);
   const uses = targets(world, position).map((target) => ({
     ...target,
     source: target.source.map((entry) => nameInProject(root, entry)),

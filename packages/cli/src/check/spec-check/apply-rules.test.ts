@@ -417,33 +417,14 @@ test.skipIf(process.getuid?.() === 0)(
   },
 );
 
-test("R12: ids, port names and source entries holding whitespace are errors naming the node or the world and the value", async () => {
-  const root = project({
-    "nuhokai/index.ts": `import { defineWorld } from "@nuhokai/world";
-import { A, B } from "./a.ts";
-export default defineWorld({ id: "world\\tid", name: "Test", source: ["src/**", "src/a b.ts"], children: [A, B] });
-`,
-    "nuhokai/a.ts": `${HEADER}${leaf("A", "a 1", 'requirements: [{ id: "R  1", text: "t" }, { id: "R2", text: "t" }]')}${leaf("B", "b", 'ports: { "run\\u00a0it": { kind: "call", purpose: "r" } }, source: ["src/a b.ts"]')}`,
-    "src/a b.ts": "",
-  });
-  expect(await check(root)).toEqual([
-    'error: nuhokai/a.ts:2: A: id "a 1" holds whitespace; write it without whitespace, e.g. "a1"',
-    'error: nuhokai/a.ts:2: A: requirement id "R \\u00201" holds whitespace; write it without whitespace, e.g. "R1"',
-    'error: nuhokai/a.ts:3: B: port name "run\\u00a0it" holds whitespace; write it without whitespace, e.g. "runit"',
-    'error: nuhokai/a.ts:3: B: source entry "src/a b.ts" holds whitespace; rename the files it names, and write it without whitespace, e.g. "src/ab.ts"',
-    'error: nuhokai/index.ts:3: the world\'s id "world\\tid" holds whitespace; write it without whitespace, e.g. "worldid"',
-    'error: nuhokai/index.ts:3: the world\'s source entry "src/a b.ts" holds whitespace; write it without whitespace, e.g. "src/ab.ts"',
-  ]);
-});
-
-test("SourceRules R7: a file a node's entry matches whose name holds whitespace is an error naming the entry and the file", async () => {
+test("R6: a file whose name holds a space is a file like any other", async () => {
   const root = project(
-    SOURCES({ A: `["src/*.ts"]`, B: `["src/map/*.ts"]` }, { "src/a b.ts": "", "src/tab\there.ts": "" }),
+    SOURCES(
+      { A: `["src/assets/**"]`, B: `["src/map/My Map.ts"]` },
+      { "src/assets/Screen Shot.png": "", "src/map/My Map.ts": "" },
+    ),
   );
-  expect(await check(root)).toEqual([
-    'error: nuhokai/a.ts:3: A: source entry "src/*.ts" matches "src/a b.ts", whose name holds whitespace; rename the file, or narrow the entry',
-    'error: nuhokai/a.ts:3: A: source entry "src/*.ts" matches "src/tab\\there.ts", whose name holds whitespace; rename the file, or narrow the entry',
-  ]);
+  expect(await check(root)).toEqual([]);
 });
 
 test("R9: a built leaf with source [] is an error naming the node; the same planned, or an external, passes", async () => {

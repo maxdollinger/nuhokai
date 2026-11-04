@@ -143,8 +143,7 @@ A compile-time check fails if the two drift apart.
 - The loader reports what it cannot read as data, at its file and line, and judges nothing else. Global rules are
   `check`'s, each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; every node's `source` under the world's; display names unique among siblings, the top level included; no whitespace in an id, a name, a port name, a
-  requirement id, a `source` entry or the name of a file a node's source matches. A node's name
+  an ancestor) against the world tree; every node's `source` under the world's; display names unique among siblings, the top level included. A node's name
   in diagnostics is its path from the world (`Check/SpecCheck`), so a name only has to be unique next to its siblings.
   `check` type-checks the world and keeps world files declarative (calls only to the format's functions, imports only
   `@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive), so

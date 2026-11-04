@@ -141,9 +141,9 @@ test("R4, R5: text from world files is one line, control characters as spaces; t
   expect(render(".", scope)).toEqual(lines);
 });
 
-test("R4: a file name keeps a directory's whitespace, so it round-trips into the answer; only control characters go", () => {
-  const lines = render(".", { ...PRINT_TREE, files: ["my  app/src/a.ts", "src/c\u001b.ts"] });
-  expect(lines).toContain("- my  app/src/a.ts");
+test("R4: a file name keeps its whitespace, so it round-trips into the answer; only control characters go", () => {
+  const lines = render(".", { ...PRINT_TREE, files: ["src/a  b.ts", "src/c\u001b.ts"] });
+  expect(lines).toContain("- src/a  b.ts");
   expect(lines).toContain("- src/c .ts");
 });
 

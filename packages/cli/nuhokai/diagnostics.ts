@@ -64,7 +64,7 @@ export const Diagnostics = node({
     },
     {
       id: "R4",
-      text: "The file part loses only control characters (Failure.format's plain text), never whitespace, so a path with spaces (a project directory named so) opens as printed; check refuses whitespace in a source file's name (SpecCheck R12, SourceRules R7). The other parts are flattened to one line.",
+      text: "The file part loses only control characters (Failure.format's plain text), never whitespace, so a path with spaces (a project directory named so) opens as printed. The other parts are flattened to one line.",
     },
   ],
   testCases: [

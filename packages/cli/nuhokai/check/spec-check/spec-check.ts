@@ -51,10 +51,6 @@ export const SpecCheck = node({
       id: "R11",
       text: "Every implements target is reachable; else an error naming the edge. That it is abstract is tsc's, re-checked by R5.",
     },
-    {
-      id: "R12",
-      text: "The world's id and a node's id, name, port names, requirement ids and source entries hold no whitespace (a space, tab, line break or any other Unicode whitespace), nor does the name of a file a node's source matches; each is an error naming the node or the world and the value, with the fix. A rule tsc leaves to check, but not a re-check of tsc's (R5): it holds after a type error too. Review cites these as written, so with check clean every reference and file name prints and round-trips as is; test case and decision references are indices, and other names are identifiers.",
-    },
   ],
   testCases: [
     {
@@ -102,25 +98,11 @@ export const SpecCheck = node({
       demonstrates: ["R11"],
     },
     {
-      text: 'A requirement id "R  1", a node id "a 1", a port named with a no-break space, a world id holding a tab and a source entry "src/a b.ts" → one error each, naming the value with its whitespace escaped; a node entry src/*.ts matching src/a b.ts → an error naming the entry and the file.',
-      demonstrates: ["R12"],
-    },
-    {
       text: "A child copy-pasted with its parent's id → one R1 error; no scope, name or ownership findings for that id.",
       demonstrates: ["R1"],
     },
   ],
   decisions: [
-    {
-      decision: "Whitespace in an id, a name, a source entry or a source file's name is always an error (R12).",
-      why: "Review cites references and files as written and prints them on one line; with no whitespace in them, printing, quoting and taking them back need no rules of their own.",
-      rejected: [
-        {
-          option: "Review quotes or escapes whitespace in what it cites",
-          why: "Every reader of a reference or a finding line would need the same unquoting; a spec has no need for whitespace there.",
-        },
-      ],
-    },
     {
       decision: "One owner per file, nesting aside.",
       why: "CodeCheck attributes code to one node; shared code is its own node.",

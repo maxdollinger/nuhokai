@@ -20,8 +20,7 @@ export const Failure = node({
       kind: "call",
       purpose: "Flatten a thrown value or a text to one line, and name a JSON value in words for a message",
       input: "any thrown value, a text, or a JSON value",
-      output:
-        'one non-empty line, no newlines; a value as `"x"` (its whitespace but a lone space escaped, `"a\\tb"`), `3`, `a list`, `an object` or `null`',
+      output: 'one non-empty line, no newlines; a value as `"x"`, `3`, `a list`, `an object` or `null`',
       errors: [],
     },
     isExpected: {

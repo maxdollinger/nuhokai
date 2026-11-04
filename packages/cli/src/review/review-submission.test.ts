@@ -151,15 +151,15 @@ test("R3: no world is one failure line, failed", async () => {
   expect(none.err[0]).toStartWith("no nuhokai/ in <root>");
 });
 
-test("R2, R4: a file in a directory whose name holds two spaces is cited and printed as the prompt prints it; lines count without a final newline", async () => {
-  const root = mkdtempSync(join(tmpdir(), "nuhokai  review-submission-"));
+test("R2, R4: a file whose name holds spaces is cited and printed as the prompt prints it; lines count without a final newline", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
   temps.push(root);
   expect((await runInit(root)).outcome).toBe("ok");
   const spec = join(root, "nuhokai/example.ts");
   writeFileSync(spec, readFileSync(spec, "utf8").replace("source: [],", 'source: ["src/**"],'));
-  mkdirSync(join(root, "src"));
-  writeFileSync(join(root, "src/a.ts"), "one\ntwo");
-  const file = `${root}/src/a.ts`;
+  mkdirSync(join(root, "src/assets"), { recursive: true });
+  writeFileSync(join(root, "src/assets/Screen Shot.png"), "one\ntwo");
+  const file = `${root}/src/assets/Screen Shot.png`;
   expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain(`- ${file}`);
   const cite = (line: number) =>
     JSON.stringify({

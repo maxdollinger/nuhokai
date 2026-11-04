@@ -25,7 +25,6 @@ export const ReviewScope = node({
         "a source that is not a list: names `nuhokai check`",
         "no source: external, abstract or not built yet",
         "its source matches no file: names `nuhokai check`",
-        "a reference or a file of its review holds whitespace, which check refuses: names `nuhokai check`",
         "a directory its source reaches cannot be read: a failure naming it",
       ],
     },
@@ -63,10 +62,6 @@ export const ReviewScope = node({
       id: "R7",
       text: "example: the first requirement's reference, else purpose: the one example the prompt's JSON and submit's messages cite.",
     },
-    {
-      id: "R8",
-      text: "Check refuses whitespace in ids, names and source files (SpecCheck R12), so review relies on it: when check was skipped, a node whose path, spec item references or files (project-relative) hold whitespace is not reviewable, one CliError naming the first such value and `nuhokai check`. Nothing else handles whitespace.",
-    },
   ],
   testCases: [
     {
@@ -84,10 +79,6 @@ export const ReviewScope = node({
     {
       text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed; a source reaching an unreadable directory → thrown, naming it and its errno code.",
       demonstrates: ["R6"],
-    },
-    {
-      text: 'A leaf over src/a b.ts, or with a requirement id "R\\t1" → not reviewable, naming the value and `nuhokai check`.',
-      demonstrates: ["R8"],
     },
   ],
 }).edges({

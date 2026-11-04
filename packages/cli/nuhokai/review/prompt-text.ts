@@ -34,7 +34,7 @@ export const PromptText = node({
     },
     {
       id: "R4",
-      text: "Text from world files on one line each, control characters as one space (TreeLines R3, Failure.format): nothing in a spec reaches the terminal as a control code. A file name loses only control characters, so it round-trips into the answer as printed: check refuses whitespace in a source file's name (SpecCheck R12), but the project directory's own name may hold some.",
+      text: "Text from world files on one line each, control characters as one space (TreeLines R3, Failure.format): nothing in a spec reaches the terminal as a control code. A file name loses only control characters, so one with spaces round-trips into the answer as printed.",
     },
     { id: "R5", text: "Same scope and directory → the same lines." },
     {
@@ -53,7 +53,7 @@ export const PromptText = node({
       demonstrates: ["R2"],
     },
     {
-      text: "A purpose holding ESC and a newline → one line with spaces; rendering twice → identical lines; a file in a directory named 'my  app' printed with both spaces.",
+      text: "A purpose holding ESC and a newline → one line with spaces; rendering twice → identical lines; src/a  b.ts printed with both spaces.",
       demonstrates: ["R4", "R5"],
     },
     {

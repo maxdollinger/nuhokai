@@ -1,6 +1,7 @@
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 import type { Decision, Port, Requirement, TestCase } from "@nuhokai/world/node-spec";
 import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
+import { oneLine } from "../shared/failure.ts";
 
 /** What a spec item is, as the prompt names it. */
 export type SpecItemKind = "purpose" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
@@ -169,7 +170,10 @@ export function list(world: LoadedWorld, position: number): SpecItem[] {
   return items;
 }
 
-/** The item a reference names, exactly and case-sensitive (R5); undefined when none does. */
+/**
+ * The item a reference names as the prompt prints it (Failure's oneLine), exactly and case-sensitive (R5); undefined
+ * when none does.
+ */
 export function find(items: readonly SpecItem[], ref: string): SpecItem | undefined {
-  return items.find((item) => item.ref === ref);
+  return items.find((item) => oneLine(item.ref) === ref);
 }

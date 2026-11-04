@@ -1,9 +1,8 @@
 import { node } from "@nuhokai/world";
 import { Diagnostics } from "../../diagnostics.ts";
-import { Failure } from "../../failure.ts";
 import { Path } from "../../path/path.ts";
 
-/** The rules on the loaded world alone: R1–R5, R9, R11, R12. */
+/** The rules on the loaded world alone: R1–R5, R9, R11. */
 export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
   purpose:
@@ -12,10 +11,6 @@ export const DataRules = node({
   source: ["src/check/spec-check/data-rules.ts"],
   requirements: [
     { id: "R1", text: "Pure: reads only the loaded world, no filesystem." },
-    {
-      id: "R5",
-      text: "SpecCheck R12 on the loaded values: the world's id and string source entries, and each judged node's id, name, port names, requirement ids and string source entries; one error per value, at the node or the world, naming the value as Failure.format names a JSON value (whitespace but a lone space escaped) and the fix: the value without its whitespace. Runs after a type error too.",
-    },
     {
       id: "R2",
       text: "A finding's location is the offending node's entry in LoadWorld's files; one about a listing points at the file of the list it is in.",
@@ -37,4 +32,4 @@ export const DataRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor, Failure.format] });
+}).edges({ uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor] });

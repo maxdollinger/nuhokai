@@ -54,7 +54,7 @@ export const ReviewSubmission = node({
   ],
   testCases: [
     {
-      text: "A project directory whose name holds two spaces, its src/a.ts holding 'one', a newline and 'two', no final newline → line 2 valid and printed with both spaces, line 3 past its end, which has 2 lines.",
+      text: "Source src/** over src/assets/Screen Shot.png holding 'one', a newline and 'two', no final newline → line 2 valid and printed as named, line 3 past its end, which has 2 lines.",
       demonstrates: ["R2", "R4", "C1"],
     },
     {

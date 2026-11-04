@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { writeCliFiles } from "../init/cli-files.ts";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { find, list } from "./spec-items.ts";
+import { find, list, type SpecItem } from "./spec-items.ts";
 
 /** The CLI's own world, named from the cwd as a command names it. */
 const ROOT = relative(process.cwd(), join(import.meta.dir, "../..")) || ".";
@@ -152,4 +152,10 @@ test("R4: a requirement no test case demonstrates is marked untested; a constrai
   expect(find(items, "requirements[R2]")?.untested).toBe(true);
   expect(find(items, "requirements[C1]")).toMatchObject({ kind: "constraint" });
   expect(find(items, "requirements[C1]")?.untested).toBeUndefined();
+});
+
+test("R5: find takes a reference as the prompt prints it, each run of whitespace one space", () => {
+  const items: SpecItem[] = [{ ref: "requirements[R  1]", kind: "requirement", text: "t", file: "nuhokai/a.ts" }];
+  expect(find(items, "requirements[R 1]")?.ref).toBe("requirements[R  1]");
+  expect(find(items, "requirements[R  1]")).toBeUndefined();
 });

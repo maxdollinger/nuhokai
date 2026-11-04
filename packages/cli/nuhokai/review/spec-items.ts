@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Failure } from "../failure.ts";
 
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 export const SpecItems = node({
@@ -50,7 +51,10 @@ export const SpecItems = node({
       id: "R4",
       text: "A requirement no test case demonstrates (kind constraint aside) is marked untested: the format calls it a gap.",
     },
-    { id: "R5", text: "find matches exactly, case-sensitive; same world and node → the same items." },
+    {
+      id: "R5",
+      text: "find matches a reference as the prompt prints it (Failure.format's one line), exactly, case-sensitive; same world and node → the same items.",
+    },
     {
       id: "R6",
       text: "A uses edge's item names its target (targets): by name, by path when two targets share one; a target the world never reaches (an orphan, LoadWorld R14) by its export name, else its id, marked unreachable, never dropped. ReviewScope lists the same names, so prompt and validation agree.",
@@ -70,6 +74,10 @@ export const SpecItems = node({
       text: "R2 demonstrated by no test case → marked untested; a constraint C1 likewise → not marked.",
       demonstrates: ["R4"],
     },
+    {
+      text: "A requirement id 'R  1' → found as requirements[R 1], as printed; not as written.",
+      demonstrates: ["R5"],
+    },
   ],
   decisions: [
     {
@@ -83,4 +91,4 @@ export const SpecItems = node({
       ],
     },
   ],
-}).edges({});
+}).edges({ uses: () => [Failure.format] });

@@ -71,8 +71,7 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
-no whitespace in an id, name, port name, requirement id, source entry or source file's name, and every `source` entry
-against the project's files, a file being the same file under every name a symlink gives it); the code check runs only when neither found an error, and finds nothing
+and every `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
 line (three tsc errors on one line) print it once, ending in ` (×3)`, while the summary counts each. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
@@ -127,10 +126,8 @@ validates the shape, the node, every cited spec item, file and line, and that ev
 then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
 <evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`
 finding or when the world does not load, and 2 for an invalid submission, every problem one stderr line and nothing
-on stdout. Since `check` refuses whitespace in ids, names and
-source files, every reference and file name prints and is taken back as is. A path naming no node, a dome (`nuhokai
-tree <dome>` lists its leaves), a node without source (external, a contract, or not built yet), a source that is no
-list or one that matches no file, and a node whose references or files hold whitespace (naming `nuhokai check`) exit 2 too, as do a node beside
+on stdout. A path naming no node, a dome (`nuhokai tree <dome>` lists its leaves), a node without source (external,
+a contract, or not built yet), a source that is no list or one that matches no file exits 2 too, as do a node beside
 `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal, empty, or silent for 10 seconds (a pipe
 `exec` or `spawn` leaves open): only `review --submit` reads stdin, and once input starts it reads to its end. The CLI calls no model and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing
 proves a review ran.
