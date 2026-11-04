@@ -1,4 +1,4 @@
-import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
+import type { Line, LoadedNode, LoadedWorld, SourcePlaces } from "../../load/load-world.ts";
 import { type Finding, locate } from "../../shared/diagnostics.ts";
 import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
@@ -18,7 +18,7 @@ interface Owner {
 /** One string entry of a source, with where it was written when known. */
 interface Entry {
   readonly text: string;
-  readonly at?: Position;
+  readonly at?: Line;
 }
 
 /**
@@ -29,7 +29,7 @@ interface Entry {
 export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
-  const error = (owner: Owner, rule: string, fix: string, where?: Position) =>
+  const error = (owner: Owner, rule: string, fix: string, where?: Line) =>
     findings.push({
       severity: "error",
       ...locate({ file: owner.file, line: (where ?? owner).line }),
@@ -58,7 +58,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   };
 
   /** SourceRules R5: each directory an entry's walk could not read is an error at the entry; the rest still count. */
-  const unreadable = (owner: Owner, entry: string, expansion: Expansion, where?: Position) => {
+  const unreadable = (owner: Owner, entry: string, expansion: Expansion, where?: Line) => {
     for (const { dir, code } of "unreadable" in expansion ? expansion.unreadable : []) {
       error(
         owner,

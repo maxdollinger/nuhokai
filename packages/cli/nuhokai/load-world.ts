@@ -19,7 +19,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? and column? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: { to: position | null, port }[], contracts: (position | null)[], path, file, line?, column?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, edges } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line?, column? }[]; orphans: { id, name, file, line?, column? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: { to: position | null, port }[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, edges } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -58,15 +58,15 @@ export const LoadWorld = node({
     },
     {
       id: "R7",
-      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children; with the file the list is written in and the line and column of the item there (or the ...spread that brought it in), when there.",
+      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children; with the file the list is written in and the line of the item there (or the ...spread that brought it in), when there.",
     },
     {
       id: "R8",
-      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2, with its node() call's line and column.",
+      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2, with its node() call's line.",
     },
     {
       id: "R9",
-      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line and column of its node() call when that file holds it; and where its source property and each entry were written, when in that file, so check points at the entry.",
+      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line of its node() call when that file holds it; and where its source property and each entry were written, when in that file, so check points at the entry.",
     },
     {
       id: "R10",
@@ -198,6 +198,16 @@ export const LoadWorld = node({
         {
           option: "nodes: NodeSpec[] beside parents and files arrays aligned by position",
           why: "Every consumer re-zipped them and re-derived children and paths; the map takes the NodeSpecs alone.",
+        },
+      ],
+    },
+    {
+      decision: "The loaded world records lines, never columns; only a LoadError keeps its column.",
+      why: "Every place the world names is printed as file:line (Diagnostics), so a column there is data no reader uses. A LoadError's column stays: CheckWorld R6 tells a load error and tsc's finding at the very same token apart by it.",
+      rejected: [
+        {
+          option: "Keep line and column everywhere",
+          why: "Fields every consumer carries and none reads, and a hint that something prints them.",
         },
       ],
     },

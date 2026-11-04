@@ -21,18 +21,17 @@ import { type LoadedWorld, loadWorld } from "./load-world.ts";
 const specs = (world: LoadedWorld) => world.nodes.map((node) => node.spec);
 
 /**
- * Where each loaded node sits and is defined: its id, path, parent and children by position, file, line and column,
+ * Where each loaded node sits and is defined: its id, path, parent and children by position, file and line,
  * and where its source was written.
  */
 const places = (world: LoadedWorld) =>
-  world.nodes.map(({ spec, path, parent, children, file, line, column, source }) => ({
+  world.nodes.map(({ spec, path, parent, children, file, line, source }) => ({
     id: spec.id,
     path,
     parent,
     children,
     file,
     line,
-    column,
     source,
   }));
 
@@ -511,27 +510,23 @@ export const Outer = node({ id: "same-id", purpose: "o", status: "planned", sour
   // What check judges: the world's name and source, every listing, the orphan, each node's file and line.
   expect([loaded.file, loaded.name, loaded.source]).toEqual([`${root}/nuhokai/index.ts`, "Shop", ["src/**"]]);
   expect(loaded.listings).toEqual([
-    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3, column: 84 },
-    { node: "same-id", parent: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4, column: 100 },
-    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3, column: 91 },
+    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3 },
+    { node: "same-id", parent: "same-id", file: `${root}/nuhokai/nodes.ts`, line: 4 },
+    { node: "same-id", parent: null, file: `${root}/nuhokai/index.ts`, line: 3 },
   ]);
-  expect(loaded.orphans).toEqual([
-    { id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts`, line: 2, column: 23 },
-  ]);
-  expect(places(loaded).map(({ id, file, line, column, source }) => ({ id, file, line, column, source }))).toEqual([
+  expect(loaded.orphans).toEqual([{ id: "orphan", name: "Orphan", file: `${root}/nuhokai/nodes.ts`, line: 2 }]);
+  expect(places(loaded).map(({ id, file, line, source }) => ({ id, file, line, source }))).toEqual([
     {
       id: "same-id",
       file: `${root}/nuhokai/nodes.ts`,
       line: 4,
-      column: 22,
-      source: { at: { line: 4, column: 77 }, entries: [] },
+      source: { at: { line: 4 }, entries: [] },
     },
     {
       id: "same-id",
       file: `${root}/nuhokai/nodes.ts`,
       line: 3,
-      column: 22,
-      source: { at: { line: 3, column: 91 }, entries: [] },
+      source: { at: { line: 3 }, entries: [] },
     },
   ]);
 });
@@ -556,8 +551,7 @@ export default defineWorld({ id: "w", children: [A] } as never);
       children: [],
       file: `${root}/nuhokai/index.ts`,
       line: 2,
-      column: 11,
-      source: { at: { line: 2, column: 68 }, entries: [] },
+      source: { at: { line: 2 }, entries: [] },
     },
   ]);
 });

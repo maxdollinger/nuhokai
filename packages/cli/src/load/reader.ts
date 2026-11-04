@@ -89,8 +89,13 @@ export class LoadError extends CliError {
  * position is absent where the value was written in another file than its owner's (a shared const imported).
  */
 export interface SourcePlaces {
-  readonly at?: Position;
-  readonly entries: readonly (Position | undefined)[];
+  readonly at?: Line;
+  readonly entries: readonly (Line | undefined)[];
+}
+
+/** A 1-based line in a world file: where the loaded world says something was written. */
+export interface Line {
+  readonly line: number;
 }
 
 /** A name that resolves to no declaration in the world: as a callee, it is a call the format does not allow. */
@@ -325,8 +330,7 @@ export class Reader {
    * another file is left out.
    */
   sourcePlaces(record: Rec, key: string, file: string): SourcePlaces {
-    const inFile = (at: At | undefined): Position | undefined =>
-      at?.file === file ? { line: at.line, column: at.column } : undefined;
+    const inFile = (at: At | undefined): Line | undefined => (at?.file === file ? { line: at.line } : undefined);
     const value = record[key];
     const at = inFile(this.propertyPlaces.get(record)?.get(key));
     const entries = Array.isArray(value) ? value.map((_item, index) => inFile(this.itemIn(value, index, file))) : [];

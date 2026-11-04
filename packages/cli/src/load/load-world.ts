@@ -21,11 +21,11 @@ import {
   type At,
   Fn,
   InheritedV,
+  type Line,
   LoadError,
   NodeV,
   PlaceholderV,
   PortV,
-  type Position,
   plain,
   positionIn,
   Reader,
@@ -36,7 +36,7 @@ import {
   WorldV,
 } from "./reader.ts";
 
-export { LoadError, type Position, type SourcePlaces };
+export { type Line, LoadError, type SourcePlaces };
 
 /** A `tbd` placeholder: no edge, because it has no target; one per tbd object, with every node that uses it. */
 export interface Placeholder {
@@ -54,9 +54,8 @@ export interface Listing {
   readonly parent: string | null;
   /** The file the list was written in: its owner's node() or defineWorld call's. */
   readonly file: string;
-  /** Where the item was written in `file` (or the `...spread` that brought it in), when it is there. */
+  /** The line the item was written on in `file` (or the `...spread` that brought it in), when it is there. */
   readonly line?: number;
-  readonly column?: number;
 }
 
 /** An exported node the walk from the world never reaches. */
@@ -65,9 +64,8 @@ export interface Orphan {
   readonly name: string;
   /** The defining file, else the first that exports it, named from the cwd. */
   readonly file: string;
-  /** Its node() call's line and column, when that call is in `file`. */
+  /** Its node() call's line, when that call is in `file`. */
   readonly line?: number;
-  readonly column?: number;
 }
 
 /** A uses edge's target by position (R14): null when the walk never reaches it (an orphan). */
@@ -108,9 +106,8 @@ export interface LoadedNode {
   readonly path: string;
   /** Its defining file (R2), named from the cwd. */
   readonly file: string;
-  /** The line and column of its node() call; absent when the defining file is not the one holding the call. */
+  /** The line of its node() call; absent when the defining file is not the one holding the call. */
   readonly line?: number;
-  readonly column?: number;
   /** Where its source and each entry were written in `file`, when it holds the call. */
   readonly source?: SourcePlaces;
   /** Where each spec item was written in `file`, when it holds the call (R15). */
@@ -125,12 +122,11 @@ export interface LoadedWorld {
   readonly file: string;
   /**
    * The file holding the defineWorld call, named from the cwd: `file` itself, or a world file it re-exports the
-   * world from. Findings about the world's own fields point here, at `line` and `column`.
+   * world from. Findings about the world's own fields point here, at `line`.
    */
   readonly definedIn: string;
-  /** The defineWorld call's line and column in `definedIn`. */
+  /** The defineWorld call's line in `definedIn`. */
   readonly line?: number;
-  readonly column?: number;
   /** Where the world's source was written in `definedIn`. */
   readonly sourcePlaces?: SourcePlaces;
   /** The world's name, as given; absent if it is no string. */
@@ -370,7 +366,7 @@ async function walk(
         node: child.id,
         parent: parent ? parent.id : null,
         file: listedAt.file,
-        ...(at ? { line: at.line, column: at.column } : {}),
+        ...(at ? { line: at.line } : {}),
       });
       if (seen.has(child)) continue;
       seen.add(child);
@@ -574,7 +570,7 @@ function orphansOf(context: Context, modules: Modules, reached: ReadonlySet<Node
         id: value.id,
         name: nodeName(context, value),
         file,
-        ...(value.at.file === file ? { line: value.at.line, column: value.at.column } : {}),
+        ...(value.at.file === file ? { line: value.at.line } : {}),
       });
     }
   }
@@ -633,7 +629,6 @@ async function worldOf(
       ...(entry.node.at.file === file
         ? {
             line: entry.node.at.line,
-            column: entry.node.at.column,
             source: reader.sourcePlaces(entry.node.def, "source", file),
             places: specPlaces(reader, read, entry.node.def, file),
           }
@@ -660,7 +655,6 @@ async function worldOf(
     file: worldFile,
     definedIn: world.at.file,
     line: world.at.line,
-    column: world.at.column,
     sourcePlaces: reader.sourcePlaces(world.def, "source", world.at.file),
     nodes,
     top,
