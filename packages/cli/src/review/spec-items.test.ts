@@ -135,8 +135,8 @@ test("R1, R2, R5, R6: details below their item, a contract's items prefixed by i
     details: ["rejected: A shared id service Why not: One more hop."],
   });
   expect(find(items, "decisions[0].rejected[0]")).toBeUndefined();
-  // A uses edge to a node the world never reaches is cited by its export name, marked unreachable (R6).
-  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", unreachable: true });
+  // A uses edge to a node the world never reaches is cited by its export name, never dropped (R6).
+  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run" });
   const inherited = find(items, "Store.requirements[R1]");
   expect(inherited).toMatchObject({ file: join(temp, "nuhokai/shop.ts"), line: 9, contract: "Store" });
   expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 10, contract: "Store" });

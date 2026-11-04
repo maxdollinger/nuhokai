@@ -15,7 +15,7 @@ export const SpecItems = node({
       purpose: "Every item of a node's spec, with its reference",
       input: "the loaded world, a node's position",
       output:
-        "items: { ref, kind, text, details?: lines below it, file, line?, contract?: path, untested?, unreachable? }[], in spec order, the node's own first",
+        "items: { ref, kind, text, details?: lines below it, file, line?, contract?: path, untested? }[], in spec order, the node's own first",
       errors: [],
     },
     targets: {
@@ -57,7 +57,7 @@ export const SpecItems = node({
     },
     {
       id: "R6",
-      text: "A uses edge's item names its target (targets): by name, by path when two targets share one; a target the world never reaches (an orphan, LoadWorld R14) by its export name, else its id, marked unreachable, never dropped. ReviewScope lists the same names, so prompt and validation agree.",
+      text: "A uses edge's item names its target (targets): by name, by path when two targets share one; a target the world never reaches (an orphan, LoadWorld R14) by its export name, else its id, never dropped. ReviewScope lists the same names, so prompt and validation agree.",
     },
     { id: "C1", kind: "constraint", text: "No filesystem access, load or printing." },
   ],
@@ -67,7 +67,7 @@ export const SpecItems = node({
       demonstrates: ["R1", "R3"],
     },
     {
-      text: "Orders implements Store with requirement R1 and one test case, uses the orphan Lost and has a decision with one rejected option → Store.requirements[R1] and Store.testCases[0] at Store's file; edges.uses[Lost] unreachable; decisions[0] with the rejected option below it, no decisions[0].rejected[0]; find('Store.requirements[R1]') → it; find('requirements[r1]') → none.",
+      text: "Orders implements Store with requirement R1 and one test case, uses the orphan Lost and has a decision with one rejected option → Store.requirements[R1] and Store.testCases[0] at Store's file; edges.uses[Lost] listed; decisions[0] with the rejected option below it, no decisions[0].rejected[0]; find('Store.requirements[R1]') → it; find('requirements[r1]') → none.",
       demonstrates: ["R1", "R2", "R5", "R6"],
     },
     {

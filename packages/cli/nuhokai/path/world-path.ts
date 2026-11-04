@@ -69,7 +69,7 @@ export const WorldPath = node({
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
     {
       id: "R7",
-      text: "compareText: plain code-unit order, never the locale's, so names sort byte-identically on every machine; ProjectFiles, ReviewScope and Diagnostics sort by it.",
+      text: "compareText: plain code-unit order, never the locale's, so names sort byte-identically on every machine.",
     },
     {
       id: "R6",

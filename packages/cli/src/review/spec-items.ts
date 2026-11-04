@@ -23,8 +23,6 @@ export interface SpecItem {
   readonly contract?: string;
   /** A requirement no test case demonstrates: the format calls it a gap (R4). */
   readonly untested?: true;
-  /** A uses edge to a node the world never reaches (an orphan): check reports it (R6). */
-  readonly unreachable?: true;
 }
 
 /** One uses edge's target as a review names it: the node, or none when the world never reaches it. */
@@ -100,7 +98,7 @@ export function targets(world: LoadedWorld, position: number): Target[] {
 function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: string): SpecItem[] {
   const { spec, places } = node;
   const items: SpecItem[] = [];
-  type Extra = { details?: readonly string[]; untested?: boolean; unreachable?: boolean };
+  type Extra = { details?: readonly string[]; untested?: boolean };
   const add = (ref: string, kind: SpecItemKind, text: string, line: number | undefined, extra: Extra = {}) => {
     const at = line ?? node.line;
     items.push({
@@ -112,7 +110,6 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
       ...(at === undefined ? {} : { line: at }),
       ...(prefix ? { contract: node.path } : {}),
       ...(extra.untested ? { untested: true as const } : {}),
-      ...(extra.unreachable ? { unreachable: true as const } : {}),
     });
   };
   if (own) add("purpose", "purpose", textOf(spec.purpose), places?.purpose);
@@ -130,9 +127,8 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
     add(`requirements[${id}]`, kind, textOf(requirement?.text), places?.requirements[index], { untested });
   }
   if (own) {
-    for (const { name, ports, node: target, edge } of targets(world, node.index)) {
-      const text = `uses ${name}: ${ports.join(", ")}`;
-      add(`edges.uses[${name}]`, "uses edge", text, places?.edges[edge], { unreachable: target === undefined });
+    for (const { name, ports, edge } of targets(world, node.index)) {
+      add(`edges.uses[${name}]`, "uses edge", `uses ${name}: ${ports.join(", ")}`, places?.edges[edge]);
     }
   }
   for (const [index, testCase] of testCases.entries()) {
@@ -157,7 +153,7 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
  * shapes, errors and transport below each), requirements, uses edges, test cases and decisions (their rejected
  * options below each) (R1). Then each contract's ports, requirements and test cases, prefixed by the contract's name
  * (R2); a contract the walk never reached adds nothing. Each carries its spec file and line (R3); a requirement no
- * test case demonstrates is marked untested (R4), a uses edge to an orphan unreachable (R6).
+ * test case demonstrates is marked untested (R4), a uses edge to an orphan cited by its name (R6).
  */
 export function list(world: LoadedWorld, position: number): SpecItem[] {
   const node = world.nodes[position];

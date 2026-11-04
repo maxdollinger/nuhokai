@@ -117,7 +117,7 @@ test("R4, R5: the example node's tbd is one draft with its description, never am
   expect(scope(root, world, at(world, "Example"))).toEqual(example1);
 });
 
-test("R3: a uses edge to an orphan is listed by its name, marked unreachable, as its spec item cites it", async () => {
+test("R3: a uses edge to an orphan is listed by its name, as its spec item cites it", async () => {
   const root = await example('["src/**"]');
   const file = join(root, "nuhokai/example.ts");
   writeFileSync(
@@ -130,5 +130,5 @@ export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "plan
   const example1 = scope(root, world, at(world, "Example"));
   expect(example1.uses).toMatchObject([{ name: "Lost", ports: ["run"], source: [], purpose: "" }]);
   expect(example1.uses[0]?.node).toBeUndefined();
-  expect(example1.items.find((item) => item.ref === "edges.uses[Lost]")).toMatchObject({ unreachable: true });
+  expect(example1.items.find((item) => item.ref === "edges.uses[Lost]")).toBeDefined();
 });

@@ -71,7 +71,7 @@ export const ReviewScope = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example purpose. A uses edge to the orphan Lost → uses Lost, unreachable, and edges.uses[Lost] among the items.",
+      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example purpose. A uses edge to the orphan Lost → uses Lost without a node, and edges.uses[Lost] among the items.",
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {

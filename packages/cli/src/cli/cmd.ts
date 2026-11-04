@@ -54,8 +54,8 @@ export interface Cmd {
   readonly options: readonly Option[];
   /**
    * The flag that makes Cli read stdin and hand its text over as `stdin`, in place of the positionals: one of the two
-   * is required, never both. Never from a terminal, never empty or left open, so the command never waits. Help lists
-   * it with the options; only Cli reads stdin.
+   * is required, never both. Never from a terminal, nor empty or silent past Cli's wait, so an unattended run ends.
+   * Help lists it with the options; only Cli reads stdin.
    */
   readonly stdinFlag?: Flag;
   /**

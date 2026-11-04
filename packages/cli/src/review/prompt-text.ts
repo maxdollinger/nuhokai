@@ -17,13 +17,12 @@ function data(lines: readonly string[]): string[] {
  * A spec item as prompt lines: reference, where it is written, kind and text, then each detail below it, each on one
  * line (R4). File names are plainText alone, so one with spaces round-trips into the answer as printed.
  */
-function itemLines(item: SpecItem, check: string): string[] {
+function itemLines(item: SpecItem): string[] {
   const at = item.line === undefined ? plainText(item.file) : `${plainText(item.file)}:${item.line}`;
   const from = item.contract === undefined ? "" : `, inherited from ${oneLine(item.contract)}`;
   const gap = item.untested ? " [untested: no test case demonstrates it]" : "";
-  const lost = item.unreachable ? ` [unreachable: the world never reaches this node; ${check} reports it]` : "";
   return [
-    `- ${oneLine(item.ref)} (${at}; ${item.kind}${from}): ${oneLine(item.text)}${gap}${lost}`,
+    `- ${oneLine(item.ref)} (${at}; ${item.kind}${from}): ${oneLine(item.text)}${gap}`,
     ...(item.details ?? []).map((detail) => `  - ${oneLine(detail)}`),
   ];
 }
@@ -39,7 +38,7 @@ function itemLines(item: SpecItem, check: string): string[] {
 export function render(root: string, scope: Scope): string[] {
   const check = suggestedCommand("check", [], root);
   const submit = suggestedCommand("review", ["--submit"], root);
-  const firstFile = scope.files.find((file) => !file.includes(".test.")) ?? scope.files[0] ?? "src/x.ts";
+  const firstFile = scope.files.find((file) => !file.includes(".test.")) ?? scope.files[0];
   const example = {
     node: scope.node,
     reviewedFiles: scope.files,
@@ -68,7 +67,7 @@ export function render(root: string, scope: Scope): string[] {
     "",
     "Hold the code against every item, and against what is listed below an item: a port's shapes, errors and transport, a decision's rejected options. Cite an item by its reference, exactly as written before the parenthesis. An item marked untested is a requirement no test case demonstrates: check the code all the more carefully.",
     "",
-    ...data(scope.items.flatMap((item) => itemLines(item, check))),
+    ...data(scope.items.flatMap(itemLines)),
     "",
     "## 4. The files to read",
     "",

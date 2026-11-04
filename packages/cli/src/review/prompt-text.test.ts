@@ -41,7 +41,6 @@ const PRINT_TREE: Scope = {
       text: "uses Lost: run",
       file: "nuhokai/tree/print-tree.ts",
       line: 50,
-      unreachable: true,
     },
     {
       ref: "Store.requirements[R1]",
@@ -105,12 +104,10 @@ test("R1, R3: check first, the node, each item at file:line, the files, the depe
     "- requirements[R4] (nuhokai/tree/print-tree.ts:40; requirement): Untested. [untested: no test case demonstrates it]",
   );
   expect(lines).toContain("- Store.requirements[R1] (nuhokai/store.ts:7; requirement, inherited from Store): Keeps.");
-  // A port's shapes and errors sit below it; an unreachable edge says so, in the items and the dependencies.
+  // A port's shapes and errors sit below it; an unreachable edge says so among the dependencies.
   const port = lines.indexOf("- ports.run (nuhokai/tree/print-tree.ts:20; port): call port: Print the tree");
   expect(lines.slice(port + 1, port + 3)).toEqual(["  - input: project directory", "  - error: no world"]);
-  expect(lines).toContain(
-    "- edges.uses[Lost] (nuhokai/tree/print-tree.ts:50; uses edge): uses Lost: run [unreachable: the world never reaches this node; `nuhokai check` reports it]",
-  );
+  expect(lines).toContain("- edges.uses[Lost] (nuhokai/tree/print-tree.ts:50; uses edge): uses Lost: run");
   expect(lines).toContain("- Lost: run (unreachable: the world never reaches this node; `nuhokai check` reports it)");
 
   const under = render("packages/cli", PRINT_TREE);

@@ -22,7 +22,7 @@ export const PromptText = node({
   requirements: [
     {
       id: "R1",
-      text: "In order: run `nuhokai check` first and stop if it fails; the node's path and its spec file; every spec item with its reference and file:line, its details below it; the files to read; the allowed dependencies, an unreachable one marked so; the drafts; the categories and their verdicts; the JSON to answer with, citing the scope's example; the submit command.",
+      text: "Sections in one order, from running `nuhokai check` first (stop if it fails) to the submit command: the node, its spec items with reference and file:line, the files, the allowed dependencies (an unreachable one marked so), the drafts, the categories, and the JSON to answer with, citing the scope's example.",
     },
     {
       id: "R2",
