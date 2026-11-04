@@ -1,91 +1,158 @@
-/** The files that exist in the project directory: the one walk of them, shared by check and review. */
+/** The files that exist in the project directory and which a source entry names: the one walk, shared by check and review. */
 import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { compareText } from "./diagnostics.ts";
-import { isInside } from "./world-path.ts";
+import { isAbsolute, join, resolve } from "node:path";
+import { isGlob, matches, staticPrefix } from "./source-path.ts";
+import { compareText, isInside } from "./world-path.ts";
 
 /** Errno codes that mean nothing is there: a missing entry, a path through a file, or a symlink cycle (R1). */
 const NOTHING_THERE = new Set(["ENOENT", "ENOTDIR", "ELOOP"]);
 
-/** Whether a thrown value says nothing is at the path, rather than that reading it failed. */
-function nothingThere(error: unknown): boolean {
-  return NOTHING_THERE.has(String((error as { code?: unknown } | null)?.code));
+/** A thrown errno code: what failed reading a path. */
+function codeOf(error: unknown): string {
+  return String((error as { code?: unknown } | null)?.code ?? "unknown error");
+}
+
+/** A directory a listing could not read (R3), by its `/`-separated path and the errno code saying why: EACCES. */
+export interface Unreadable {
+  readonly dir: string;
+  readonly code: string;
+}
+
+/** The files below a directory, sorted by code unit, and the directories below it that could not be read. */
+export interface Listing {
+  readonly files: readonly string[];
+  readonly unreadable: readonly Unreadable[];
 }
 
 /**
- * The files in the project directory `root` (named from the cwd), read lazily and each directory at most once per
- * instance (R2). Every path is `/`-separated and relative to the project directory, and no symlink is followed out of
- * it (R1). Reads only: knows nothing of nodes or globs (C1).
+ * A source entry's files (R4), or why it is refused: it names a place outside the project directory (absolute, or
+ * starting with `..`), or it climbs back with a `..` segment inside it.
+ */
+export type Expansion = Listing | { readonly refused: "outside" | "climbs" };
+
+/** What is at a path: a file or a directory, by its real path, or a failure to read it; undefined when nothing is. */
+type Found = { readonly kind: "file" | "dir"; readonly real: string } | { readonly code: string } | undefined;
+
+/**
+ * The files in the project directory `root` (named from the cwd), read lazily. Every path is `/`-separated and
+ * relative to the project directory, and no symlink is followed out of it (R1). Each real directory is read at most
+ * once per instance, and a listing is cached whole: the same question gets the same answer whatever was asked before
+ * (R2). Reads only, and knows nothing of nodes (C1).
  */
 export class ProjectFiles {
   readonly #root: string;
   readonly #realRoot: string;
-  /** Each directory read, by its relative path ("" for the root): the files below it, at any depth. */
-  readonly #below = new Map<string, readonly string[]>();
+  /** What is at each path looked at, by its relative path. */
+  readonly #found = new Map<string, Found>();
+  /** Each real directory read: its entries in code-unit order, or the errno code reading it failed with. */
+  readonly #reads = new Map<string, readonly Dirent[] | string>();
+  /** Each listing answered, by its directory's relative path ("" for the root). */
+  readonly #listings = new Map<string, Listing>();
 
   constructor(root: string) {
     this.#root = resolve(root);
     this.#realRoot = realpathSync(this.#root);
   }
 
-  /** The real path behind a relative path, if something is there inside the project directory; else undefined. */
-  #real(path: string): string | undefined {
-    let real: string;
+  /** What is at a relative path, inside the project directory, through symlinks that stay inside. */
+  #at(path: string): Found {
+    if (this.#found.has(path)) return this.#found.get(path);
+    let found: Found;
     try {
-      real = realpathSync(join(this.#root, path));
+      const real = realpathSync(join(this.#root, path));
+      const stat = isInside(real, this.#realRoot) ? statSync(real, { throwIfNoEntry: false }) : undefined;
+      found = stat?.isFile() ? { kind: "file", real } : stat?.isDirectory() ? { kind: "dir", real } : undefined;
     } catch (error) {
-      if (nothingThere(error)) return undefined;
-      throw error;
+      found = NOTHING_THERE.has(codeOf(error)) ? undefined : { code: codeOf(error) };
     }
-    return isInside(real, this.#realRoot) ? real : undefined;
+    this.#found.set(path, found);
+    return found;
+  }
+
+  /** A real directory's entries, in code-unit order, read once; the errno code when reading it failed. */
+  #read(real: string): readonly Dirent[] | string {
+    let entries = this.#reads.get(real);
+    if (entries === undefined) {
+      try {
+        entries = readdirSync(real, { withFileTypes: true }).sort((a, b) => compareText(a.name, b.name));
+      } catch (error) {
+        entries = NOTHING_THERE.has(codeOf(error)) ? [] : codeOf(error);
+      }
+      this.#reads.set(real, entries);
+    }
+    return entries;
   }
 
   /** Whether a file exists at the `/`-separated `path`, inside the project directory, through symlinks that stay inside. */
   isFile(path: string): boolean {
-    try {
-      const real = this.#real(path);
-      return real !== undefined && (statSync(real, { throwIfNoEntry: false })?.isFile() ?? false);
-    } catch {
-      return false;
-    }
+    const found = this.#at(path);
+    return found !== undefined && "kind" in found && found.kind === "file";
   }
 
   /**
    * The files below the `/`-separated directory `dir` ('' for the project directory), at any depth, sorted by code
-   * unit; none for a missing directory. An errno failure other than a missing entry is thrown.
+   * unit; none for a missing directory. Breadth-first, in code-unit order, each real directory walked once: a symlink
+   * to a directory the walk already reached adds nothing, so cycles and meshes of links end (R1). A directory that
+   * cannot be read is listed as unreadable, never thrown (R3).
    */
-  list(dir: string): readonly string[] {
-    return this.#list(dir, new Set());
-  }
-
-  #list(dir: string, visiting: ReadonlySet<string>): readonly string[] {
-    const cached = this.#below.get(dir);
+  list(dir: string): Listing {
+    const cached = this.#listings.get(dir);
     if (cached) return cached;
-    const real = this.#real(dir);
-    if (real === undefined || visiting.has(real) || !statSync(real, { throwIfNoEntry: false })?.isDirectory()) {
-      return [];
-    }
-    const inner = new Set([...visiting, real]);
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(join(this.#root, dir), { withFileTypes: true });
-    } catch (error) {
-      if (!nothingThere(error)) throw error;
-      entries = [];
-    }
     const files: string[] = [];
-    for (const entry of entries.sort((a, b) => compareText(a.name, b.name))) {
-      const path = dir ? `${dir}/${entry.name}` : entry.name;
-      if (entry.isFile()) files.push(path);
-      else if (entry.isDirectory()) files.push(...this.#list(path, inner));
-      else if (entry.isSymbolicLink()) {
-        if (this.isFile(path)) files.push(path);
-        else files.push(...this.#list(path, inner));
+    const unreadable: Unreadable[] = [];
+    const start = this.#at(dir);
+    const queue: [path: string, real: string][] = [];
+    const walked = new Set<string>();
+    if (start !== undefined && "code" in start) unreadable.push({ dir, code: start.code });
+    else if (start?.kind === "dir") {
+      queue.push([dir, start.real]);
+      walked.add(start.real);
+    }
+    for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+      const [path, real] = next;
+      const entries = this.#read(real);
+      if (typeof entries === "string") {
+        unreadable.push({ dir: path, code: entries });
+        continue;
+      }
+      for (const entry of entries) {
+        const child = path ? `${path}/${entry.name}` : entry.name;
+        if (entry.isFile()) {
+          files.push(child);
+          continue;
+        }
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+        const found = this.#at(child);
+        if (found === undefined) continue;
+        if ("code" in found) unreadable.push({ dir: child, code: found.code });
+        else if (found.kind === "file") files.push(child);
+        else if (!walked.has(found.real)) {
+          walked.add(found.real);
+          queue.push([child, found.real]);
+        }
       }
     }
     // Sorted whole: a directory's files beside a sibling file sharing its prefix (`a/x` and `a.ts`) by code unit.
-    files.sort(compareText);
-    this.#below.set(dir, files);
-    return files;
+    const listing = {
+      files: files.sort(compareText),
+      unreadable: unreadable.sort((a, b) => compareText(a.dir, b.dir)),
+    };
+    this.#listings.set(dir, listing);
+    return listing;
+  }
+
+  /**
+   * One source entry's files (R4): a plain path if a file is there, a glob the files below its static prefix it
+   * matches (Path), with the directories that walk could not read. Never normalized beyond a leading `./`: a pattern is
+   * matched as written, so an entry with a `..` segment, or an absolute one, is refused and matches nothing.
+   */
+  expand(entry: string): Expansion {
+    const path = entry.replace(/^(\.\/)+/, "");
+    const segments = path.split("/");
+    if (isAbsolute(entry) || segments[0] === "..") return { refused: "outside" };
+    if (segments.includes("..")) return { refused: "climbs" };
+    if (!isGlob(path)) return { files: this.isFile(path) ? [path] : [], unreadable: [] };
+    const { files, unreadable } = this.list(staticPrefix(path));
+    return { files: files.filter((file) => matches(path, file)), unreadable };
   }
 }

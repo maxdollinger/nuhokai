@@ -32,6 +32,18 @@ export function oneLine(text: string): string {
   return plainText(text).replace(/\s+/g, " ").trim();
 }
 
+/** A JSON-like value as a message names it: `"x"`, `3`, `a list`, `an object`, `null`. */
+export function inWords(value: unknown): string {
+  if (Array.isArray(value)) return "a list";
+  if (value === null) return "null";
+  if (typeof value === "object") return "an object";
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /** One line, whatever the thrown value: stderr gets exactly one line per failure. */
 export function errorLine(error: unknown): string {
   return oneLine(error instanceof Error ? error.message : String(error)) || "unknown error";

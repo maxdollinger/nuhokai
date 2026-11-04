@@ -20,8 +20,10 @@ export const ReviewScope = node({
         "{ node: path, specFile, items: SpecItems.list, files: cwd-relative, uses: { path, ports, source, purpose, external }[], drafts: tbd descriptions }",
       errors: [
         "a dome: names `nuhokai tree <path>` to list its children",
+        "a source that is not a list: names `nuhokai check`",
         "no source: external, abstract or not built yet",
         "its source matches no file: names `nuhokai check`",
+        "a directory its source reaches cannot be read: a failure naming it",
       ],
     },
   },
@@ -32,7 +34,7 @@ export const ReviewScope = node({
     },
     {
       id: "R2",
-      text: "files: each entry's files, as SourceRules R1 finds them (ProjectFiles, Path), each once, sorted, named cwd-relative (Path.nameInProject) so they open as printed.",
+      text: "files: each entry's files as check finds them (ProjectFiles.expand: a refused entry matches nothing), named cwd-relative (Path.nameInProject) so they open as printed, then each once, sorted (Path.compareText). A directory they reach that cannot be read is a failure naming it, not an invalid argument.",
     },
     {
       id: "R3",
@@ -50,7 +52,7 @@ export const ReviewScope = node({
       demonstrates: ["R2", "R3"],
     },
     {
-      text: "Check → a dome, naming `nuhokai tree Check`; Terminal → no source; a leaf whose only entry matches nothing → naming `nuhokai check`.",
+      text: "Check → a dome, naming `nuhokai tree Check`; Terminal → no source; a leaf whose only entry matches nothing, or whose source is no list → naming `nuhokai check`; source ['src/../src/a.ts', 'src/a.ts'] → src/a.ts once, as check refuses the first.",
       demonstrates: ["R1"],
     },
     {
@@ -59,14 +61,5 @@ export const ReviewScope = node({
     },
   ],
 }).edges({
-  uses: () => [
-    SpecItems.list,
-    ProjectFiles.list,
-    ProjectFiles.isFile,
-    Path.isGlob,
-    Path.staticPrefix,
-    Path.matches,
-    Path.nameInProject,
-    Path.suggestedCommand,
-  ],
+  uses: () => [SpecItems.list, ProjectFiles.expand, Path.compareText, Path.nameInProject, Path.suggestedCommand],
 });

@@ -1,30 +1,9 @@
-import { isAbsolute } from "node:path";
 import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
 import { at, atWorld, type Finding, positionOf } from "../../shared/diagnostics.ts";
+import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
-import { ProjectFiles } from "../../shared/project-files.ts";
-import { isGlob, matches, staticPrefix } from "../../shared/source-path.ts";
+import { type Expansion, ProjectFiles } from "../../shared/project-files.ts";
 import type { Ids } from "./ids.ts";
-
-/**
- * An entry, checked: the files it matches, or why it is refused: it names a place outside the project directory
- * (absolute, or starting with `..`), or it climbs back with a `..` segment inside it.
- */
-type Expansion = { readonly files: readonly string[] } | { readonly refused: "outside" | "climbs" };
-
-/**
- * One source entry's files (SourceRules R1): a plain path if ProjectFiles has a file there, a glob the files below
- * its static prefix it matches. Never normalized: a pattern is matched as written, so an entry with a `..` segment, or
- * an absolute one, is refused.
- */
-function expand(project: ProjectFiles, entry: string): Expansion {
-  const path = entry.replace(/^(\.\/)+/, "");
-  const segments = path.split("/");
-  if (isAbsolute(entry) || segments[0] === "..") return { refused: "outside" };
-  if (segments.includes("..")) return { refused: "climbs" };
-  if (!isGlob(path)) return { files: project.isFile(path) ? [path] : [] };
-  return { files: project.list(staticPrefix(path)).filter((file) => matches(path, file)) };
-}
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
 interface Owner {
@@ -73,11 +52,23 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
       const at = owner.source?.entries[index];
       if (typeof entry === "string") entries.push(at ? { text: entry, at } : { text: entry });
       else {
-        const rule = `${owner.label}'s source lists ${describe(entry)}, which is not a string`;
+        const rule = `${owner.label}'s source lists ${inWords(entry)}, which is not a string`;
         error(owner, rule, "list paths or globs", at);
       }
     }
     return entries;
+  };
+
+  /** SourceRules R5: each directory an entry's walk could not read is an error at the entry; the rest still count. */
+  const unreadable = (owner: Owner, entry: string, expansion: Expansion, where?: Position) => {
+    for (const { dir, code } of "unreadable" in expansion ? expansion.unreadable : []) {
+      error(
+        owner,
+        `${owner.node ? "" : "the world's "}source entry "${entry}" cannot read the directory ${dir} (${code})`,
+        "make the directory readable, or narrow the entry so its files lie elsewhere",
+        where,
+      );
+    }
   };
 
   // The world's source: inside the project directory, every entry matching a file (SpecCheck R10, R6).
@@ -91,7 +82,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   if (worldEntries) {
     covered = new Set();
     for (const { text: entry, at: where } of worldEntries) {
-      const expansion = expand(project, entry);
+      const expansion = project.expand(entry);
       if ("refused" in expansion) {
         error(
           worldOwner,
@@ -103,7 +94,8 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         );
         continue;
       }
-      if (!expansion.files.length) {
+      unreadable(worldOwner, entry, expansion, where);
+      if (!expansion.files.length && !expansion.unreadable.length) {
         error(
           worldOwner,
           `the world's source entry "${entry}" matches no file`,
@@ -122,7 +114,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     const owner: Owner = { node, ...at(node), label: node.spec.name, ...(node.source ? { source: node.source } : {}) };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const { text: entry, at: where } of entries ?? []) {
-      const expansion = expand(project, entry);
+      const expansion = project.expand(entry);
       if ("refused" in expansion) {
         error(
           owner,
@@ -134,8 +126,11 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         );
         continue;
       }
+      unreadable(owner, entry, expansion, where);
       if (!expansion.files.length) {
-        error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry", where);
+        if (!expansion.unreadable.length) {
+          error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry", where);
+        }
         continue;
       }
       const uncovered = covered && expansion.files.find((file) => !covered.has(file));
@@ -170,12 +165,4 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     }
   }
   return findings;
-}
-
-function describe(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
 }

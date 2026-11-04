@@ -92,6 +92,18 @@ test("R1: a dome names tree, a node without source says why, a source matching n
   expect(refusal(root, await loadWorld(root), "Example")).toBe(
     `Example's source matches no file; \`nuhokai check --path ${root}\` names the entry to fix`,
   );
+  const notList = await example('"src/example.ts"');
+  expect(refusal(notList, await loadWorld(notList), "Example")).toBe(
+    `Example's source is not a list; \`nuhokai check --path ${notList}\` names what to fix`,
+  );
+});
+
+test("R2: files as check finds them: a .. entry refused, a file named twice listed once", async () => {
+  const root = await example('["src/../src/example.ts", "src/example.ts", "./src/example.ts"]');
+  const world = await loadWorld(root);
+  expect(reviewScope(root, world, at(world, "Example")).files).toEqual([`${root}/src/example.ts`]);
+  const climbing = await example('["src/../src/example.ts"]');
+  expect(refusal(climbing, await loadWorld(climbing), "Example")).toStartWith("Example's source matches no file");
 });
 
 test("R4, R5: the example node's tbd is one draft with its description, never among the uses; same input, same scope", async () => {

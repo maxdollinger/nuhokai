@@ -51,6 +51,7 @@ export const Path = node({
     nameInProject: WorldPath.nameInProject,
     suggestedCommand: WorldPath.suggestedCommand,
     isInside: WorldPath.isInside,
+    compareText: WorldPath.compareText,
     nameNodes: NodePath.nameNodes,
     findNode: NodePath.findNode,
     childrenOf: NodePath.childrenOf,

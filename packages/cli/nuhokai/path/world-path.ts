@@ -5,7 +5,7 @@ export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
   purpose:
     "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
-    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O. Also the spelling of a suggested command and the inside-test a symlink is held to.",
+    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O. Also the spelling of a suggested command, the inside-test a symlink is held to and the one order of names.",
   status: "built",
   source: ["src/shared/world-path.ts"],
   ports: {
@@ -28,6 +28,13 @@ export const WorldPath = node({
       purpose: "Spell a command a message suggests, so it runs as printed",
       input: "command name, its arguments, project directory (cwd-relative)",
       output: "`nuhokai <name> <args> [--path <dir>]`, each word shell-quoted unless plain",
+      errors: [],
+    },
+    compareText: {
+      kind: "call",
+      purpose: "Order the names commands print",
+      input: "two texts",
+      output: "plain code-unit order, the same on every machine and locale",
       errors: [],
     },
     isInside: {
@@ -61,6 +68,10 @@ export const WorldPath = node({
     },
     { id: "C1", kind: "constraint", text: "No filesystem access: no existence check, read, write or mkdir." },
     {
+      id: "R7",
+      text: "compareText: plain code-unit order, never the locale's, so names sort byte-identically on every machine; ProjectFiles, ReviewScope and Diagnostics sort by it.",
+    },
+    {
       id: "R6",
       text: "suggestedCommand: --path <dir> only for another directory than the cwd; a word with anything but letters, digits and @%+=:,./- is single-quoted, so `a;touch x` or a space never splits or runs.",
     },
@@ -81,6 +92,10 @@ export const WorldPath = node({
     {
       text: "nameInProject('packages/cli', 'src/bin.ts') → packages/cli/src/bin.ts; nameInProject('.', 'src/**') → src/**, never ./src/**; nameInProject('packages/cli', '/etc/x') → /etc/x.",
       demonstrates: ["R5"],
+    },
+    {
+      text: "compareText: 'B' before 'a', 'a.ts' before 'a/x' ('.' before '/'), equal texts → 0, whatever the locale.",
+      demonstrates: ["R7"],
     },
   ],
   decisions: [

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  compareText,
   isInside,
   nameInProject,
   nameInWorld,
@@ -53,4 +54,9 @@ test("inside: the directory itself or below it, never a sibling sharing its pref
   expect(isInside("/a/b/c", "/a/b")).toBe(true);
   expect(isInside("/a/bc", "/a/b")).toBe(false);
   expect(isInside("/x", "/")).toBe(true);
+});
+
+test("WorldPath R7: compareText is code-unit order, never the locale's", () => {
+  expect(["a/x", "a.ts", "a", "B"].sort(compareText)).toEqual(["B", "a", "a.ts", "a/x"]);
+  expect(compareText("x", "x")).toBe(0);
 });

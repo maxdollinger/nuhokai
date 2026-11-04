@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Diagnostics } from "../../diagnostics.ts";
+import { Failure } from "../../failure.ts";
 import { Path } from "../../path/path.ts";
 import { ProjectFiles } from "../../project-files.ts";
 
@@ -13,11 +14,15 @@ export const SourceRules = node({
   requirements: [
     {
       id: "R1",
-      text: "An entry's files: a plain path if ProjectFiles has a file there; a glob, ProjectFiles' files below its static prefix that it matches (Path). One ProjectFiles per run, so R6, R7 and R10 share every directory read, and check and review agree on a node's files.",
+      text: "An entry's files are ProjectFiles.expand's: refused when absolute, leading or climbing back with .., else what it matches. One ProjectFiles per run, so R6, R7 and R10 share every directory read, and check and review agree on a node's files.",
     },
     {
       id: "R3",
       text: "A missing source, or an entry that is no string, is an error at its node or the world file, never a crash.",
+    },
+    {
+      id: "R5",
+      text: "A directory an entry's walk cannot read (ProjectFiles R3) is one error at that entry, naming the directory and its errno code, with the fix: make it readable or narrow the entry. Every other finding still counts, so one unreadable directory never hides the rest.",
     },
     {
       id: "R4",
@@ -33,15 +38,5 @@ export const SourceRules = node({
     },
   },
 }).edges({
-  uses: () => [
-    Path.isInside,
-    Path.isAncestor,
-    Path.isGlob,
-    Path.staticPrefix,
-    Path.matches,
-    ProjectFiles.list,
-    ProjectFiles.isFile,
-    Diagnostics.locate,
-    Diagnostics.order,
-  ],
+  uses: () => [Path.isAncestor, ProjectFiles.expand, Diagnostics.locate, Failure.format],
 });

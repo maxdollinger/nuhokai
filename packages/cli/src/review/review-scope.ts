@@ -1,10 +1,9 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
+import { constants } from "node:os";
 import type { LoadedWorld } from "../load/load-world.ts";
-import { compareText } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
-import { isGlob, matches, staticPrefix } from "../shared/source-path.ts";
-import { nameInProject, suggestedCommand } from "../shared/world-path.ts";
+import { compareText, nameInProject, suggestedCommand } from "../shared/world-path.ts";
 import { listItems, type SpecItem } from "./spec-items.ts";
 
 /** A node the reviewed node may use: what the agent knows it by. */
@@ -46,13 +45,12 @@ function entriesOf(value: unknown): string[] {
 }
 
 /**
- * One source entry's files as SourceRules finds them: a plain path if ProjectFiles has a file there, a glob the files
- * below its static prefix it matches. An entry leading out of the project directory finds nothing there.
+ * A directory the node's source reaches that cannot be read: a filesystem failure (Failure R1), so the review fails
+ * with one line naming it, never an invalid argument.
  */
-function entryFiles(project: ProjectFiles, entry: string): readonly string[] {
-  const path = entry.replace(/^(\.\/)+/, "");
-  if (!isGlob(path)) return project.isFile(path) ? [path] : [];
-  return project.list(staticPrefix(path)).filter((file) => matches(path, file));
+function unreadableError(path: string, dir: string, code: string): Error {
+  const error = new Error(`${path}'s source reaches ${dir}, which cannot be read (${code}); make it readable`);
+  return Object.assign(error, { code, errno: (constants.errno as Record<string, number>)[code] ?? -1 });
 }
 
 /**
@@ -75,16 +73,24 @@ export function reviewScope(
       `${path} is a dome, and a review covers one leaf; ${suggestedCommand("tree", [path], root)} lists its children`,
     );
   }
+  const check = suggestedCommand("check", [], root);
+  if (!Array.isArray(spec.source)) {
+    throw new CliError(`${path}'s source is not a list; ${check} names what to fix`);
+  }
   const entries = entriesOf(spec.source);
   if (entries.length === 0) {
     const why = spec.external ? "it is external" : spec.abstract ? "it is a contract" : "it is not built yet";
     throw new CliError(`${path} has no source to review: ${why}; review a node whose source lists its code`);
   }
-  const files = [...new Set(entries.flatMap((entry) => entryFiles(project, entry)))].sort(compareText);
+  // Each entry as check expands it (SourceRules R1): a refused one matches nothing here either.
+  const expansions = entries.map((entry) => project.expand(entry));
+  const unreadable = expansions.flatMap((expansion) => ("unreadable" in expansion ? expansion.unreadable : []))[0];
+  if (unreadable !== undefined) throw unreadableError(path, nameInProject(root, unreadable.dir), unreadable.code);
+  // Named first, then deduplicated: `./src/a.ts` and `src/a.ts` are one file.
+  const named = expansions.flatMap((expansion) => ("files" in expansion ? expansion.files : []));
+  const files = [...new Set(named.map((file) => nameInProject(root, file)))].sort(compareText);
   if (files.length === 0) {
-    throw new CliError(
-      `${path}'s source matches no file; ${suggestedCommand("check", [], root)} names the entry to fix`,
-    );
+    throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
   }
   const uses = node.uses.flatMap(({ to, port }): Dependency[] => {
     const target = to === null ? undefined : world.nodes[to];
@@ -106,7 +112,7 @@ export function reviewScope(
     node: path,
     specFile: node.file,
     items: listItems(world, position),
-    files: files.map((file) => nameInProject(root, file)),
+    files,
     uses,
     drafts,
   };

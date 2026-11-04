@@ -360,6 +360,24 @@ test("SourceRules R2: a symlink out of the project directory is never followed",
   ]);
 });
 
+test.skipIf(process.getuid?.() === 0)(
+  "SourceRules R5: an unreadable directory is one error per entry reaching it; every other finding still counts",
+  async () => {
+    const root = project(SOURCES({ A: `["src/**/*.ts"]`, B: `["src/gone.ts"]` }, { "src/secret/x.ts": "" }));
+    const { chmodSync } = await import("node:fs");
+    chmodSync(join(root, "src/secret"), 0o000);
+    try {
+      expect(await check(root)).toEqual([
+        'error: nuhokai/a.ts:3: A: source entry "src/**/*.ts" cannot read the directory src/secret (EACCES); make the directory readable, or narrow the entry so its files lie elsewhere',
+        'error: nuhokai/a.ts:4: B: source entry "src/gone.ts" matches no file; fix the path or glob, or drop the entry',
+        `error: nuhokai/index.ts:3: the world's source entry "src/**" cannot read the directory src/secret (EACCES); make the directory readable, or narrow the entry so its files lie elsewhere`,
+      ]);
+    } finally {
+      chmodSync(join(root, "src/secret"), 0o755);
+    }
+  },
+);
+
 test("R9: a built leaf with source [] is an error naming the node; the same planned, or an external, passes", async () => {
   const root = project({
     "nuhokai/index.ts": index("Built, Planned, Ext", `import { Built, Ext, Planned } from "./a.ts";`),
