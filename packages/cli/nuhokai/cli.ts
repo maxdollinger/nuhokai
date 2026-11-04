@@ -22,6 +22,7 @@ export const Cli = node({
     "src/cli/commands/check.ts",
     "src/cli/commands/init.ts",
     "src/cli/commands/map.ts",
+    "src/cli/commands/review.ts",
     "src/cli/commands/tree.ts",
     "src/cli/commands/tree.test.ts",
   ],

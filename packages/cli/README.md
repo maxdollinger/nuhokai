@@ -14,8 +14,10 @@ src/
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
-  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), what sits at nuhokai/,
-                the error types and plain text, and the one client of the pinned type checker
+  review/       a node's review by the user's coding agent: its spec items and scope, the prompt, and the submission's check
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), source patterns,
+                the project's files, what sits at nuhokai/, the finding line, the error types and plain text, and the one
+                client of the pinned type checker
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format
@@ -30,12 +32,13 @@ stale. A test also type-checks a consumer world against the bundled declarations
 
 ## Commands
 
-| Command | Purpose                                                                                |
-| ------- | -------------------------------------------------------------------------------------- |
-| `check` | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
-| `init`  | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `map`   | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `tree`  | print the node hierarchy, one line per node: `path \| source \| purpose`               |
+| Command  | Purpose                                                                                      |
+| -------- | -------------------------------------------------------------------------------------------- |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)            |
+| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types       |
+| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map                   |
+| `review` | print a prompt for a coding agent to review a leaf against its spec; `--submit` its findings |
+| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`                     |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -56,7 +59,7 @@ directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` pri
 starts from a node named `help`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
 exit 2 and run nothing. `--help` is enough to drive the CLI without this README: the usage states where failures go and
 what each exit code means, and each command's help adds what its arguments are and the shape of every line it prints. Without a `nuhokai/`
-there, `check`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
+there, `check`, `map`, `tree` and `review` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
 `packages/cli/nuhokai/<file>:<line>:<column>`.
@@ -104,6 +107,23 @@ everything; a dome cut off by the level shows `/ (<n>)` and its child count. Sou
 like every other path, and the whole purpose stays on the line. Like `map`, `tree` does not run `check`. A path that
 names no node exits 2 with the closest match (``did you mean `nuhokai tree Check/SpecCheck`?``, a command to run as printed) or the `tree` command listing where it
 went wrong.
+
+`review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state.
+`nuhokai review Tree/PrintTree` prints a prompt: run `nuhokai check` first, then every item of the node's spec with
+its reference and `file:line` (purpose, `ports.run.input`, `requirements[R2]`, `edges.uses[LoadWorld]`,
+`testCases[0]`, `decisions[1].rejected[0]`, and each implemented contract's ports, requirements and test cases as
+`Store.requirements[R1]`; a requirement no test case demonstrates is marked untested), the files its source matches
+(as `check` finds them), the nodes it may use, the `tbd` drafts not to review against, the three categories
+(`against-spec` an error, `possibly-against-spec` and `unspecified` warnings), the JSON to answer with and the
+command to submit it. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it validates
+the shape, the node, every cited spec item, file and line, and that every file of the node was reviewed, then prints
+each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2]; <evidence>`, and
+the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec` finding, and 2 for an
+invalid submission, every problem one stderr line and nothing on stdout. A path naming no node, a dome (`nuhokai tree
+<dome>` lists its leaves), a node without source (external, a contract, or not built yet) or one whose source matches
+no file exits 2 too, as do a node beside `--submit` or neither, `--submit=x`, and `--submit` with stdin a terminal or
+empty: only `review --submit` reads stdin, and never waits on a terminal. The CLI calls no model and needs no
+credentials; it is a dev-loop tool, not a CI gate, since nothing proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.
