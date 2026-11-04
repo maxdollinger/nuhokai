@@ -119,9 +119,10 @@ options are listed below their item and cited by its reference; a requirement no
 untested, and a `uses` edge to a node the world never reaches is listed by its name, marked unreachable. Then the files
 its source matches (as `check` finds them), the nodes it may use, the
 `tbd` drafts not to review against, the three categories (`against-spec` an error, `possibly-against-spec` and
-`unspecified` warnings), the JSON to answer with and the command to submit it. Text from the world files sits between
-`<<<<< SPEC DATA` and `SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against,
-never instructions to follow. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it
+`unspecified` warnings), the JSON to answer with and the command to submit it. All text from the project (world text,
+the node's path, its spec file, its files and the example JSON naming them) sits between `<<<<< SPEC DATA` and
+`SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against, never instructions to
+follow. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it
 validates the shape, the node, every cited spec item, file and line, and that every file of the node was reviewed,
 then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
 <evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`

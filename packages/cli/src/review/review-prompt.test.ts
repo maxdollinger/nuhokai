@@ -20,7 +20,8 @@ test("R1, R2: a reviewable leaf → the prompt, ok; a typo or a dome → one lin
   const prompt = splitReport(await runReviewPrompt(ROOT, "Tree/PrintTree"));
   expect(prompt.outcome).toBe("ok");
   expect(prompt.err).toEqual([]);
-  expect(prompt.out[0]).toBe("# Review Tree/PrintTree against its spec");
+  expect(prompt.out[0]).toBe("# Review a node against its spec");
+  expect(prompt.out).toContain("- node: Tree/PrintTree");
   expect(prompt.out.at(-1)).toContain(`\`nuhokai review --submit${pathArgs}\``);
 
   expect(splitReport(await runReviewPrompt(ROOT, "Tree/PrintTre"))).toEqual({
