@@ -26,9 +26,10 @@ export interface Listing {
 
 /**
  * A source entry's files (R4), or why it is refused: it names a place outside the project directory (absolute, or
- * starting with `..`), or it climbs back with a `..` segment inside it.
+ * starting with `..`), it climbs back with a `..` segment inside it, or it holds an empty or `.` segment (`lib//a.ts`,
+ * `lib/./a.ts`), which would name a file other than as every listing does.
  */
-export type Expansion = Listing | { readonly refused: "outside" | "climbs" };
+export type Expansion = Listing | { readonly refused: "outside" | "climbs" | "redundant" };
 
 /** What is at a path: a file or a directory, by its real path, or a failure to read it; undefined when nothing is. */
 type Found = { readonly kind: "file" | "dir"; readonly real: string } | { readonly code: string } | undefined;
@@ -152,13 +153,15 @@ export class ProjectFiles {
   /**
    * One source entry's files (R4): a plain path if a file is there, a glob the files below its static prefix it
    * matches (Path), with the directories that walk could not read. Never normalized beyond a leading `./`: a pattern is
-   * matched as written, so an entry with a `..` segment, or an absolute one, is refused and matches nothing.
+   * matched as written, so an absolute entry, one with a `..` segment, or one with an empty or `.` segment is refused
+   * and matches nothing.
    */
   expand(entry: string): Expansion {
     const path = entry.replace(/^(\.\/)+/, "");
     const segments = path.split("/");
     if (isAbsolute(entry) || segments[0] === "..") return { refused: "outside" };
     if (segments.includes("..")) return { refused: "climbs" };
+    if (segments.some((segment) => segment === "" || segment === ".")) return { refused: "redundant" };
     if (!isGlob(path)) return { files: this.isFile(path) ? [path] : [], unreadable: [] };
     const { files, unreadable } = this.list(staticPrefix(path));
     return { files: files.filter((file) => matches(path, file)), unreadable };

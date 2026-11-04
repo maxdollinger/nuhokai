@@ -100,7 +100,7 @@ test.skipIf(process.getuid?.() === 0)(
   },
 );
 
-test("R4: an entry's files: a plain path if a file is there, a glob what it matches; .. and absolute entries refused", () => {
+test("R4: an entry's files: a plain path if a file is there, a glob what it matches; .., absolute, empty and . segments refused", () => {
   const root = project({ "src/a.ts": "", "src/b/c.ts": "", "src/b/d.md": "" });
   const files = new ProjectFiles(root);
   expect(files.expand("src/a.ts")).toEqual({ files: ["src/a.ts"], unreadable: [] });
@@ -110,6 +110,9 @@ test("R4: an entry's files: a plain path if a file is there, a glob what it matc
   expect(files.expand("src/../src/a.ts")).toEqual({ refused: "climbs" });
   expect(files.expand("../x/a.ts")).toEqual({ refused: "outside" });
   expect(files.expand(join(root, "src/a.ts"))).toEqual({ refused: "outside" });
+  for (const entry of ["src//a.ts", "src/./a.ts", "src/b/", "src//**", "", ".", "./"]) {
+    expect(files.expand(entry)).toEqual({ refused: "redundant" });
+  }
 });
 
 test("R5: two names of one file through a symlink share its real path; a directory or a missing file has none", () => {

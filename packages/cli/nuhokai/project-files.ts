@@ -39,7 +39,7 @@ export const ProjectFiles = node({
       purpose: "A source entry's files",
       input: "project directory (cwd-relative), a source entry as written",
       output:
-        "{ files, unreadable } as list gives them; or refused: outside (absolute, or a leading ..) or climbs (a .. inside)",
+        "{ files, unreadable } as list gives them; or refused: outside (absolute, or a leading ..), climbs (a .. inside) or redundant (an empty or . segment)",
       errors: [],
     },
   },
@@ -58,7 +58,7 @@ export const ProjectFiles = node({
     },
     {
       id: "R4",
-      text: "An entry's files: a plain path if a file is there; a glob, the files below its static prefix that it matches (Path), with the directories that walk could not read. A leading ./ is dropped; nothing else is normalized: an absolute entry or a leading .. is refused as outside, a .. segment inside as climbing back, and a refused entry matches nothing.",
+      text: "An entry's files: a plain path if a file is there; a glob, the files below its static prefix that it matches (Path), with the directories that walk could not read. A leading ./ is dropped; nothing else is normalized: an absolute entry or a leading .. is refused as outside, a .. segment inside as climbing back, an empty or . segment (lib//a.ts, lib/./a.ts, '') as redundant, since it would name a file other than as every listing does; a refused entry matches nothing.",
     },
     {
       id: "R5",
@@ -84,7 +84,7 @@ export const ProjectFiles = node({
       demonstrates: ["R3"],
     },
     {
-      text: "src/a.ts and ./src/a.ts → [src/a.ts]; src/**/*.ts → every .ts below src; src/../src/a.ts → climbs; ../x and an absolute path → outside.",
+      text: "src/a.ts and ./src/a.ts → [src/a.ts]; src/**/*.ts → every .ts below src; src/../src/a.ts → climbs; ../x and an absolute path → outside; src//a.ts, src/./a.ts, src/b/ and '' → redundant.",
       demonstrates: ["R4"],
     },
     {

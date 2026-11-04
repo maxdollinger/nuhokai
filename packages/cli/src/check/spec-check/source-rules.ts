@@ -5,6 +5,15 @@ import { isAncestor } from "../../shared/node-path.ts";
 import { ProjectFiles } from "../../shared/project-files.ts";
 import type { Ids } from "./ids.ts";
 
+/** The fix for an entry with an empty or `.` segment: the entry without them, when that names anything. */
+function canonical(entry: string): string {
+  const path = entry
+    .split("/")
+    .filter((segment) => segment !== "" && segment !== ".")
+    .join("/");
+  return path === "" ? "name a file or a glob below the project directory" : `write it as "${path}"`;
+}
+
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
 interface Owner {
   readonly node?: LoadedNode;
@@ -66,17 +75,16 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     const named = `${owner.node ? "" : "the world's "}source entry "${entry}"`;
     const expansion = project.expand(entry);
     if ("refused" in expansion) {
-      const outside = owner.node
-        ? "lies outside the project directory, so outside the world's source"
-        : "lies outside the project directory";
-      error(
-        owner,
-        `${named} ${expansion.refused === "outside" ? outside : "has a .. segment"}`,
-        owner.node
-          ? "list only paths inside the world's source, without .."
-          : "list only paths inside the project directory, without .., or run check with --path at the directory holding the code",
-        where,
-      );
+      const inside = owner.node
+        ? "list only paths inside the world's source, without .."
+        : "list only paths inside the project directory, without .., or run check with --path at the directory holding the code";
+      const refusals: Record<typeof expansion.refused, readonly [why: string, fix: string]> = {
+        outside: [`lies outside the project directory${owner.node ? ", so outside the world's source" : ""}`, inside],
+        climbs: ["has a .. segment", inside],
+        redundant: ["has an empty or . segment", canonical(entry)],
+      };
+      const [why, fix] = refusals[expansion.refused];
+      error(owner, `${named} ${why}`, fix, where);
       return [];
     }
     for (const { dir, code } of expansion.unreadable) {

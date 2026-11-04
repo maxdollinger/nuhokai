@@ -69,7 +69,7 @@ export const ReviewScope = node({
       demonstrates: ["R2", "R3", "R7"],
     },
     {
-      text: "Check → a dome, naming `nuhokai tree Check`; Terminal → no source; a leaf whose only entry matches nothing, or whose source is no list → naming `nuhokai check`; source ['src/../src/a.ts', 'src/a.ts', './src/a.ts'] → src/a.ts once, as check refuses the first.",
+      text: "Check → a dome, naming `nuhokai tree Check`; Terminal → no source; a leaf whose only entry matches nothing, or whose source is no list → naming `nuhokai check`; source ['src/../src/a.ts', 'src//a.ts', 'src/./a.ts', 'src/a.ts', './src/a.ts'] → src/a.ts once, as check refuses the first three; ['src//a.ts'] alone → matches no file.",
       demonstrates: ["R1", "R2"],
     },
     {

@@ -14,7 +14,7 @@ export const SourceRules = node({
   requirements: [
     {
       id: "R1",
-      text: "An entry's files are ProjectFiles.expand's: refused when absolute, leading or climbing back with .., else what it matches. One ProjectFiles per run, so R6, R7 and R10 share every directory read, and check and review agree on a node's files.",
+      text: "An entry's files are ProjectFiles.expand's: refused when absolute, leading or climbing back with .., or holding an empty or . segment (lib//a.ts, lib/./a.ts), else what it matches. A refused entry is an error at it, the redundant one's fix the entry without those segments. One ProjectFiles per run, so R6, R7 and R10 share every directory read, and check and review agree on a node's files.",
     },
     {
       id: "R3",
@@ -34,6 +34,10 @@ export const SourceRules = node({
     },
   ],
   testCases: [
+    {
+      text: "Entries src//shared.ts and src/./map/*.ts → an error each, fixed as src/shared.ts and src/map/*.ts; ./src/shared.ts passes; a world entry . → an error naming the world.",
+      demonstrates: ["R1"],
+    },
     {
       text: "World source ['**/*.ts'], lib/a.ts, a symlink src/lib → ../lib, a node claiming src/lib/*.ts → no finding; world src/**, a sibling link src/a → z, a node claiming src/z/** → no finding.",
       demonstrates: ["R6"],

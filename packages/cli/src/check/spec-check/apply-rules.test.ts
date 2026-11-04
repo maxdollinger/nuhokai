@@ -327,6 +327,19 @@ test("R10: absolute entries and entries with a .. segment are refused as written
   ]);
 });
 
+test("SourceRules R1: an entry with an empty or . segment is refused, its fix the entry without them", async () => {
+  const root = project(SOURCES({ A: `["src//shared.ts", "src/./map/*.ts"]`, B: `["./src/shared.ts"]` }));
+  writeFileSync(
+    join(root, "nuhokai/index.ts"),
+    index("A, B, Dome", `import { A, B, Dome } from "./a.ts";`, `["src/**", "."]`),
+  );
+  expect(await check(root)).toEqual([
+    'error: nuhokai/a.ts:3: A: source entry "src/./map/*.ts" has an empty or . segment; write it as "src/map/*.ts"',
+    'error: nuhokai/a.ts:3: A: source entry "src//shared.ts" has an empty or . segment; write it as "src/shared.ts"',
+    'error: nuhokai/index.ts:3: the world\'s source entry "." has an empty or . segment; name a file or a glob below the project directory',
+  ]);
+});
+
 test("R10: world source ['../shared/**'] is an error naming the world", async () => {
   const root = project(SOURCES({}));
   writeFileSync(
