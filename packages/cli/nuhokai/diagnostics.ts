@@ -114,9 +114,5 @@ export const Diagnostics = node({
         },
       ],
     },
-    {
-      decision: "Port names are the functions' names: format, order, locate, nodeError, summarize.",
-      why: "As in Path: a reader of the spec finds the code, and the reverse.",
-    },
   ],
 }).edges({ uses: () => [Failure.format, Path.compareText] });

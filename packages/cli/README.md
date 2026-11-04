@@ -15,8 +15,8 @@ src/
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
   review/       a node's review by the user's coding agent: its spec items and scope, the prompt, and the submission's check
-  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), source patterns,
-                the project's files, what sits at nuhokai/, the finding line, the error types and plain text, and the one
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), the files a
+                source entry names, what sits at nuhokai/, the finding line, the error types and plain text, and the one
                 client of the pinned type checker
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
@@ -24,7 +24,9 @@ nuhokai/        this package described as nodes in its own format
 ```
 
 Unit tests sit next to what they test (`*.test.ts`); there is no `test/` directory and no export exists solely for a
-test. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and `src/toolchain/map-assets.gen.ts` from
+test. A leaf's port names are its functions' names (`findNode`, `summarize`), so a reader of the spec finds the code
+and the reverse; a program's `run` port is `run<Program>` in code (`runTree`, `runReviewSubmission`), so each
+command's entry point is distinct. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and `src/toolchain/map-assets.gen.ts` from
 the exactly pinned `three` dev dependency plus `src/map/viewer.html` and `src/map/scene.js`; both are checked in.
 `bun run embed` regenerates them, `bun run build` embeds before bundling, and `bun test` fails if a committed asset is
 stale. A test also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
@@ -109,27 +111,13 @@ like every other path, and the whole purpose stays on the line. Like `map`, `tre
 names no node exits 2 with the closest match (``did you mean `nuhokai tree Check/SpecCheck`?``, a command to run as printed) or the `tree` command listing where it
 went wrong.
 
-`review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state.
-`nuhokai review Tree/PrintTree` prints a prompt: run `nuhokai check` first, then every item of the node's spec with
-its reference and `file:line`, by these references only: `purpose`, `ports.run`, `requirements[R2]`,
-`edges.uses[LoadWorld]`, `testCases[0]`, `decisions[1]`, and each implemented contract's ports, requirements and test
-cases as `Store.requirements[R1]`. A port's input, output, errors, payload and transport and a decision's rejected
-options are listed below their item and cited by its reference; a requirement no test case demonstrates is marked
-untested, and a `uses` edge to a node the world never reaches is listed by its name. Then the files its source
-matches (as `check` finds them), the nodes it may use (an unreachable one marked so), the `tbd` drafts not to review against, the three categories (`against-spec` an error, `possibly-against-spec` and
-`unspecified` warnings), the JSON to answer with and the command to submit it. All text from the project (world text,
-the node's path, its spec file, its files and the example JSON naming them) sits between `<<<<< SPEC DATA` and
-`SPEC DATA >>>>>` lines, and the prompt tells the agent it is data to hold the code against, never instructions to
-follow. The agent pipes that JSON to `nuhokai review --submit` (a flag without a value): it
-validates the shape, the node, every cited spec item, file and line (other keys are ignored),
-then prints each finding as `check` does, `error: src/tree/print-tree.ts:12: Tree/PrintTree: requirements[R2];
-<evidence>`, and the summary line. It exits 0 when the review passes (warnings allowed), 1 on an `against-spec`
-finding or when the world does not load, and 2 for an invalid submission, every problem one stderr line and nothing
-on stdout. A path naming no node, a dome (`nuhokai tree <dome>` lists its leaves), a node without source (external,
-a contract, or not built yet) or one whose source matches no file exits 2 too, as do a node beside `--submit` or
-neither, `--submit=x`, and `--submit` with stdin a terminal, empty, or silent for 10 seconds (a pipe `exec` or `spawn`
-leaves open): only `review --submit` reads stdin, and once input starts it reads to its end. The CLI calls no model
-and needs no credentials; it is a dev-loop tool, not a CI gate, since nothing proves a review ran.
+`review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state
+and call no model. `nuhokai review Tree/PrintTree` prints a prompt for the agent: the node's spec items, its files,
+what it may use, and the JSON to answer with. The agent pipes that JSON to `nuhokai review --submit`, which validates
+it and prints each finding as `check` does, then the summary. It exits 0 when the review passes (warnings allowed), 1
+on an `against-spec` finding or when the world does not load, and 2 for an invalid submission, a node that cannot be
+reviewed or a misused flag; `nuhokai review --help` has the details. It is a dev-loop tool, not a CI gate, since
+nothing proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

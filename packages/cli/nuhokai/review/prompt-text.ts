@@ -71,4 +71,4 @@ export const PromptText = node({
       why: "It changes most while evals tune it (false errors, missed violations); the scope and the validation stay put.",
     },
   ],
-}).edges({ uses: () => [Path.suggestedCommand, Failure.format] });
+}).edges({ uses: () => [Path.suggestedCommand, Path.nameInProject, Failure.format] });

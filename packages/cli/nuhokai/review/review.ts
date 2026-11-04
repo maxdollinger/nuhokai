@@ -19,18 +19,6 @@ export const Review = node({
       text: "Two steps: `review <node>` prints the prompt; `review --submit` validates the agent's findings from stdin and prints them as check prints findings. Neither keeps state: both derive the review from the world and the files (ReviewScope).",
     },
     {
-      id: "R2",
-      text: "A node is reviewable when it has no children and its source matches at least one file. Externals, abstract and planned nodes have no source; domes are never reviewed.",
-    },
-    {
-      id: "R3",
-      text: "The code is held against the whole spec, inherited items included: requirements and constraints, ports (shapes, errors, transport), uses edges, test cases, decisions with their rejected options, and the purpose. The agent cites an item by its coarse reference (SpecItems R1): a port or a decision, never one of its fields.",
-    },
-    {
-      id: "R4",
-      text: "Verdicts: against-spec → error, possibly-against-spec and unspecified → warning, no findings → pass.",
-    },
-    {
       id: "C1",
       kind: "constraint",
       text: "No model client, credentials or provider config: the agent that runs the prompt is the reviewer.",
@@ -38,12 +26,8 @@ export const Review = node({
   ],
   testCases: [
     {
-      text: "In packages/cli, `review Tree/PrintTree` → the prompt naming print-tree.ts and its test, R1–R3, LoadWorld.load among the allowed dependencies, exit 0; `review Check` → not reviewable, a dome, exit 2; `review Terminal` → no source, exit 2.",
-      demonstrates: ["R1", "R2", "R3"],
-    },
-    {
-      text: "Submitting one against-spec and one unspecified finding → an error and a warning line, 'failed: 1 error, 1 warning', exit 1; no findings → 'ok: 0 errors, 0 warnings', exit 0; a finding citing requirements[R9] → exit 2; no world → one failure line, exit 1.",
-      demonstrates: ["R1", "R4"],
+      text: "In packages/cli: `review Tree/PrintTree` → the prompt, exit 0; `review Check` → exit 2; piping no findings to `review --submit` → 'ok: 0 errors, 0 warnings', exit 0; an against-spec finding → its error line, exit 1.",
+      demonstrates: ["R1"],
     },
   ],
   decisions: [
@@ -71,15 +55,6 @@ export const Review = node({
     {
       decision: "Leaves only; a dome's own files are the spec check's.",
       why: "A leaf owns every file its source matches (SpecCheck R7), so its review needs no ownership rule.",
-    },
-    {
-      decision:
-        "Port names are the functions' names (scope, scopeAt, list, targets, find, render); a program's run port is run<Program> in code (runReviewPrompt, runReviewSubmission), as every program's is (runTree, runCheck, runMap).",
-      why: "A reader of the spec finds the code and the reverse; programs keep the convention the other commands follow, so each command's entry point is distinct in Cmd's imports.",
-    },
-    {
-      decision: "World text in the prompt is data, fenced off from the instructions.",
-      why: "A spec or code file may hold text that reads like an instruction; the agent must hold the code against it, not follow it, and the markers say where it starts and ends.",
     },
     {
       decision: "A dev-loop tool, not a CI gate.",

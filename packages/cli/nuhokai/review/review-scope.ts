@@ -32,7 +32,7 @@ export const ReviewScope = node({
   requirements: [
     {
       id: "R1",
-      text: "Reviewable (Review R2) or one CliError saying why: an invalid argument, as a node path naming no node is.",
+      text: "Reviewable: a leaf whose source matches at least one file (externals, contracts and nodes not built have none). Else one CliError saying why: an invalid argument, as a node path naming no node is.",
     },
     {
       id: "R2",

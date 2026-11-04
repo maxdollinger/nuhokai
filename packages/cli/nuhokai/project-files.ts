@@ -14,7 +14,7 @@ export const ProjectFiles = node({
     expand: {
       kind: "call",
       purpose: "A source entry's files",
-      input: "project directory (cwd-relative), a source entry as written",
+      input: "a source entry as written, on a ProjectFiles made for one project directory (cwd-relative)",
       output:
         "/-separated paths relative to the project directory, sorted by code unit; undefined for an entry outside it",
       errors: [],
@@ -42,10 +42,6 @@ export const ProjectFiles = node({
     },
   ],
   decisions: [
-    {
-      decision: "Expanding a source entry is ProjectFiles' port, used by SourceRules and ReviewScope alike.",
-      why: "Check and review must agree on a node's files; one expansion cannot drift.",
-    },
     {
       decision: "A symlink to a directory is not listed through.",
       why: "No cycles, meshes or second names of one file to handle; a glob reaching code only through such a link matches no file, and check says so.",
