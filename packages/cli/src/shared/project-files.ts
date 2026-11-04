@@ -85,8 +85,16 @@ export class ProjectFiles {
 
   /** Whether a file exists at the `/`-separated `path`, inside the project directory, through symlinks that stay inside. */
   isFile(path: string): boolean {
+    return this.realPath(path) !== undefined;
+  }
+
+  /**
+   * The real path of the file at the `/`-separated `path`, through symlinks that stay inside; undefined when no file is
+   * there. Two names of one file through a symlink share it (R5).
+   */
+  realPath(path: string): string | undefined {
     const found = this.#at(path);
-    return found !== undefined && "kind" in found && found.kind === "file";
+    return found !== undefined && "kind" in found && found.kind === "file" ? found.real : undefined;
   }
 
   /**

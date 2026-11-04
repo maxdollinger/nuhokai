@@ -36,7 +36,7 @@ export const SpecCheck = node({
     },
     {
       id: "R7",
-      text: "A file matched by the source of two nodes is a violation naming both and the file, unless one is the other's ancestor.",
+      text: "A file matched by the source of two nodes, under any name a symlink gives it, is a violation naming both and the file, unless one is the other's ancestor.",
     },
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
     {
@@ -45,7 +45,7 @@ export const SpecCheck = node({
     },
     {
       id: "R10",
-      text: "Every file a node's source matches is matched by the world's source; the world's entries stay inside the project directory and follow R6. Else an error naming the node or the world, and the entry.",
+      text: "Every file a node's source matches is matched by the world's source, under any name a symlink gives it; the world's entries stay inside the project directory and follow R6. Else an error naming the node or the world, and the entry.",
     },
     {
       id: "R11",

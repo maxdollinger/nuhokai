@@ -25,8 +25,22 @@ export const SourceRules = node({
       text: "A directory an entry's walk cannot read (ProjectFiles R3) is one error at that entry, naming the directory and its errno code, with the fix: make it readable or narrow the entry. Every other finding still counts, so one unreadable directory never hides the rest.",
     },
     {
+      id: "R6",
+      text: "Files compare by their real path (ProjectFiles.realPath), for R7 and R10 alike: a listing reaches each directory once, under the first name that gets there, so a file one source lists through a symlink is the same file another lists under its other name. A conflict over a file listed under two names names both.",
+    },
+    {
       id: "R4",
       text: "A finding about one entry points at that entry, and one about a source that is no list at its source property, when written in the owner's file; an entry spread in from another file points at that `...spread`, else at its owner's node() or defineWorld call.",
+    },
+  ],
+  testCases: [
+    {
+      text: "World source ['**/*.ts'], lib/a.ts, a symlink src/lib → ../lib, a node claiming src/lib/*.ts → no finding; world src/**, a sibling link src/a → z, a node claiming src/z/** → no finding.",
+      demonstrates: ["R6"],
+    },
+    {
+      text: "Siblings claiming src/** and src/z/** with src/a → z → one error at the second naming src/z/f.ts, also listed as src/a/f.ts.",
+      demonstrates: ["R6"],
     },
   ],
   ports: {
@@ -38,5 +52,5 @@ export const SourceRules = node({
     },
   },
 }).edges({
-  uses: () => [Path.isAncestor, ProjectFiles.expand, Diagnostics.locate, Failure.format],
+  uses: () => [Path.isAncestor, ProjectFiles.expand, ProjectFiles.realPath, Diagnostics.locate, Failure.format],
 });

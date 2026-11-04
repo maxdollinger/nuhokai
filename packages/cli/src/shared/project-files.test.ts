@@ -111,3 +111,14 @@ test("R4: an entry's files: a plain path if a file is there, a glob what it matc
   expect(files.expand("../x/a.ts")).toEqual({ refused: "outside" });
   expect(files.expand(join(root, "src/a.ts"))).toEqual({ refused: "outside" });
 });
+
+test("R5: two names of one file through a symlink share its real path; a directory or a missing file has none", () => {
+  const root = project({ "lib/a.ts": "" });
+  mkdirSync(join(root, "src"));
+  symlinkSync("../lib", join(root, "src/lib"));
+  const files = new ProjectFiles(root);
+  expect(files.realPath("src/lib/a.ts")).toBe(files.realPath("lib/a.ts"));
+  expect(files.realPath("lib/a.ts")).toBeString();
+  expect(files.realPath("src/lib")).toBeUndefined();
+  expect(files.realPath("src/gone.ts")).toBeUndefined();
+});

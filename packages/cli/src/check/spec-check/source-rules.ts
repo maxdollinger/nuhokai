@@ -76,6 +76,9 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     ...(world.sourcePlaces ? { source: world.sourcePlaces } : {}),
   };
   const worldEntries = entriesOf(worldOwner, world.source);
+  // Files compare by their real path (SourceRules R6): a listing walks each directory once, under the first name that
+  // reaches it, so a file the world lists as lib/a.ts is the src/lib/a.ts a node lists through a symlink.
+  const real = (file: string) => project.realPath(file) ?? file;
   let covered: Set<string> | undefined;
   if (worldEntries) {
     covered = new Set();
@@ -101,12 +104,13 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
           where,
         );
       }
-      for (const file of expansion.files) covered.add(file);
+      for (const file of expansion.files) covered.add(real(file));
     }
   }
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
-  const owners = new Map<string, LoadedNode[]>();
+  /** Each file's claims by real path: the node, and the name it lists the file by. */
+  const owners = new Map<string, { node: LoadedNode; file: string }[]>();
   for (const node of world.nodes) {
     if (ids.duplicated.has(node.spec.id)) continue;
     const owner: Owner = {
@@ -136,7 +140,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         }
         continue;
       }
-      const uncovered = covered && expansion.files.find((file) => !covered.has(file));
+      const uncovered = covered && expansion.files.find((file) => !covered.has(real(file)));
       if (uncovered !== undefined) {
         error(
           owner,
@@ -146,22 +150,26 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         );
       }
       for (const file of expansion.files) {
-        const claimed = owners.get(file) ?? [];
-        if (!claimed.includes(node)) claimed.push(node);
-        owners.set(file, claimed);
+        const claimed = owners.get(real(file)) ?? [];
+        if (!claimed.some((claim) => claim.node === node)) claimed.push({ node, file });
+        owners.set(real(file), claimed);
       }
     }
   }
 
-  // SpecCheck R7: one owner per file, unless one owner is the other's ancestor.
-  for (const [file, claimed] of owners) {
-    for (const [index, node] of claimed.entries()) {
-      for (const other of claimed.slice(0, index)) {
+  // SpecCheck R7: one owner per file, unless one owner is the other's ancestor; a file listed under two names (through
+  // a symlink) names both.
+  for (const claimed of owners.values()) {
+    for (const [index, claim] of claimed.entries()) {
+      for (const otherClaim of claimed.slice(0, index)) {
+        const { node } = claim;
+        const other = otherClaim.node;
         if (isAncestor(world, other, node) || isAncestor(world, node, other)) continue;
-        const [first, second] = other.index < node.index ? [other, node] : [node, other];
+        const [first, second] = other.index < node.index ? [otherClaim, claim] : [claim, otherClaim];
+        const as = first.file === second.file ? "" : `, as ${first.file}`;
         error(
-          { node: second, ...locate(second), label: second.spec.name },
-          `${file} is in the source of both ${first.path} (${first.file}) and ${second.path}`,
+          { node: second.node, ...locate(second.node), label: second.node.spec.name },
+          `${second.file} is in the source of both ${first.node.path} (${first.node.file}${as}) and ${second.node.path}`,
           "keep the file in one node's source, or move the shared code into a node of its own",
         );
       }

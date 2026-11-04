@@ -350,13 +350,39 @@ test("SourceRules R3: a source that is no list, or an entry that is no string, i
   ]);
 });
 
-test("SourceRules R2: a symlink out of the project directory is never followed", async () => {
+test("SourceRules R1: a symlink out of the project directory is never followed", async () => {
   const outside = project({ "secret.ts": "" });
   const root = project(SOURCES({ A: `["src/link/**"]` }));
   const { symlinkSync } = await import("node:fs");
   symlinkSync(outside, join(root, "src/link"));
   expect(await check(root)).toEqual([
     'error: nuhokai/a.ts:3: A: source entry "src/link/**" matches no file; fix the path or glob, or drop the entry',
+  ]);
+});
+
+test("SourceRules R6: a file the world lists under another name, through a symlink, is under the world's source", async () => {
+  const { symlinkSync } = await import("node:fs");
+  // The world's walk reaches lib first as lib/a.ts; the node lists it as src/lib/a.ts.
+  const linked = project({
+    "nuhokai/index.ts": index("A", `import { A } from "./a.ts";`, `["**/*.ts"]`),
+    "nuhokai/a.ts": `${HEADER}export const A = node({ id: "a", purpose: "p", status: "planned", source: ["src/lib/*.ts"] }).edges({});\n`,
+    "lib/a.ts": "",
+  });
+  mkdirSync(join(linked, "src"));
+  symlinkSync("../lib", join(linked, "src/lib"));
+  expect(await check(linked)).toEqual([]);
+  // A sibling link reached first: the world lists src/a/f.ts, the node src/z/f.ts.
+  const sibling = project(SOURCES({ A: `["src/z/**"]` }, { "src/z/f.ts": "" }));
+  symlinkSync("z", join(sibling, "src/a"));
+  expect(await check(sibling)).toEqual([]);
+});
+
+test("SourceRules R6, R7: one file under two names, through a symlink, in two siblings' sources is an error naming both", async () => {
+  const root = project(SOURCES({ A: `["src/**"]`, B: `["src/z/**"]` }, { "src/z/f.ts": "" }));
+  const { symlinkSync } = await import("node:fs");
+  symlinkSync("z", join(root, "src/a"));
+  expect(await check(root)).toEqual([
+    "error: nuhokai/a.ts:4: B: src/z/f.ts is in the source of both A (nuhokai/a.ts, as src/a/f.ts) and B; keep the file in one node's source, or move the shared code into a node of its own",
   ]);
 });
 

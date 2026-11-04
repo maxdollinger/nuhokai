@@ -27,6 +27,13 @@ export const ProjectFiles = node({
       output: "whether a file is there, inside the project directory",
       errors: [],
     },
+    realPath: {
+      kind: "call",
+      purpose: "The file behind a path, whatever name reaches it",
+      input: "project directory (cwd-relative), a /-separated path relative to it",
+      output: "the file's real path, through symlinks that stay inside; undefined when no file is there",
+      errors: [],
+    },
     expand: {
       kind: "call",
       purpose: "A source entry's files",
@@ -53,6 +60,10 @@ export const ProjectFiles = node({
       id: "R4",
       text: "An entry's files: a plain path if a file is there; a glob, the files below its static prefix that it matches (Path), with the directories that walk could not read. A leading ./ is dropped; nothing else is normalized: an absolute entry or a leading .. is refused as outside, a .. segment inside as climbing back, and a refused entry matches nothing.",
     },
+    {
+      id: "R5",
+      text: "realPath names the file behind a path, so two names of one file through a symlink compare equal; it answers as isFile does: nothing for a missing file, a directory or a link leading out.",
+    },
     { id: "C1", kind: "constraint", text: "Reads only; never writes or prints." },
   ],
   testCases: [
@@ -75,6 +86,10 @@ export const ProjectFiles = node({
     {
       text: "src/a.ts and ./src/a.ts → [src/a.ts]; src/**/*.ts → every .ts below src; src/../src/a.ts → climbs; ../x and an absolute path → outside.",
       demonstrates: ["R4"],
+    },
+    {
+      text: "lib/a.ts and a symlink src/lib → lib: realPath of src/lib/a.ts equals realPath of lib/a.ts; of src/lib and src/gone.ts → undefined.",
+      demonstrates: ["R5"],
     },
   ],
   decisions: [
