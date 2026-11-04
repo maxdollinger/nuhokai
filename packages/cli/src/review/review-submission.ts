@@ -34,6 +34,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** What a problem says of a field's value: `is missing`, or `is` and the value in words. */
+function described(value: unknown): string {
+  return value === undefined ? "is missing" : `is ${inWords(value)}`;
+}
+
 /** The keys of `record` that are not `allowed`, each a problem naming where it is. */
 function strayKeys(record: Record<string, unknown>, allowed: readonly string[], where: string, send: string): string[] {
   return Object.keys(record)
@@ -52,32 +57,27 @@ function judgeFinding(value: unknown, where: string): SubmittedFinding | string[
   const { category, specItem, file, line, evidence } = value;
   const known = CATEGORIES.find((name) => name === category);
   if (known === undefined) {
-    const got = category === undefined ? "is missing" : `is ${inWords(category)}`;
-    problems.push(`${where}.category ${got}; send against-spec, possibly-against-spec or unspecified`);
+    problems.push(`${where}.category ${described(category)}; send against-spec, possibly-against-spec or unspecified`);
   }
   if (known === "unspecified" && specItem !== undefined) {
     problems.push(
       `${where}.specItem is given, but an unspecified finding cites no spec item; drop specItem, or make the category against-spec or possibly-against-spec`,
     );
   } else if (known !== undefined && known !== "unspecified" && typeof specItem !== "string") {
-    const got = specItem === undefined ? "is missing" : `is ${inWords(specItem)}`;
     problems.push(
-      `${where}.specItem ${got}; a ${known} finding cites the spec item it goes against by its reference, e.g. "requirements[R1]"`,
+      `${where}.specItem ${described(specItem)}; a ${known} finding cites the spec item it goes against by its reference, e.g. "requirements[R1]"`,
     );
   } else if (known === undefined && specItem !== undefined && typeof specItem !== "string") {
     problems.push(`${where}.specItem is ${inWords(specItem)}; send a spec item's reference, e.g. "requirements[R1]"`);
   }
   if (typeof file !== "string" || file === "") {
-    const got = file === undefined ? "is missing" : `is ${inWords(file)}`;
-    problems.push(`${where}.file ${got}; send the file the finding is in, as the prompt lists it`);
+    problems.push(`${where}.file ${described(file)}; send the file the finding is in, as the prompt lists it`);
   }
   if (typeof line !== "number" || !Number.isInteger(line) || line < 1) {
-    const got = line === undefined ? "is missing" : `is ${inWords(line)}`;
-    problems.push(`${where}.line ${got}; send the line as a whole number from 1`);
+    problems.push(`${where}.line ${described(line)}; send the line as a whole number from 1`);
   }
   if (typeof evidence !== "string" || evidence.trim() === "") {
-    const got =
-      evidence === undefined ? "is missing" : typeof evidence === "string" ? "is blank" : `is ${inWords(evidence)}`;
+    const got = typeof evidence === "string" ? "is blank" : described(evidence);
     problems.push(`${where}.evidence ${got}; say what the code does and why it goes against the spec`);
   }
   if (problems.length > 0) return problems;
@@ -96,12 +96,12 @@ function judgeShape(value: unknown): Submission | string[] {
   const problems = strayKeys(value, REVIEW_KEYS, "the review", "node, reviewedFiles and findings");
   const { node, reviewedFiles, findings } = value;
   if (typeof node !== "string" || node === "") {
-    const got = node === undefined ? "is missing" : `is ${inWords(node)}`;
-    problems.push(`node ${got}; send the reviewed node's path, as the prompt names it`);
+    problems.push(`node ${described(node)}; send the reviewed node's path, as the prompt names it`);
   }
   if (!Array.isArray(reviewedFiles)) {
-    const got = reviewedFiles === undefined ? "is missing" : `is ${inWords(reviewedFiles)}`;
-    problems.push(`reviewedFiles ${got}; send a list of every file you read, as the prompt lists them`);
+    problems.push(
+      `reviewedFiles ${described(reviewedFiles)}; send a list of every file you read, as the prompt lists them`,
+    );
   } else {
     for (const [index, file] of reviewedFiles.entries()) {
       if (typeof file !== "string") {
@@ -111,8 +111,7 @@ function judgeShape(value: unknown): Submission | string[] {
   }
   const judged: SubmittedFinding[] = [];
   if (!Array.isArray(findings)) {
-    const got = findings === undefined ? "is missing" : `is ${inWords(findings)}`;
-    problems.push(`findings ${got}; send a list of findings, [] when the code passes`);
+    problems.push(`findings ${described(findings)}; send a list of findings, [] when the code passes`);
   } else {
     for (const [index, finding] of findings.entries()) {
       const result = judgeFinding(finding, `findings[${index}]`);

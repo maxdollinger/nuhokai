@@ -25,7 +25,7 @@ export const ReviewSubmission = node({
         "no node at the path, or not reviewable",
         "a spec item, file or line the scope does not hold",
         "a file of the node missing from reviewedFiles",
-        "no world at nuhokai/, the world failed to load, or a cited or source directory cannot be read",
+        "no world at nuhokai/, the world failed to load, a cited file cannot be read, or a directory the node's source reaches cannot be read",
       ],
     },
   },
