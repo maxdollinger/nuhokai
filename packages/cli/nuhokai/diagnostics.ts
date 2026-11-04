@@ -1,34 +1,43 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "./failure.ts";
+import { Path } from "./path/path.ts";
 
 /** The finding line check and review print. */
 export const Diagnostics = node({
   id: "01a18319-8a0c-755d-855a-72794bb4cdf1",
   purpose:
-    "Own the finding: built at its place, ordered one way, printed as one line a person or agent can act on alone, " +
+    "Own the finding: built at its place, ordered one way, printed as lines a person or agent can act on alone, " +
     "and the summary under them. Shared by check and review.",
   status: "building",
   source: ["src/shared/diagnostics.ts", "src/shared/diagnostics.test.ts"],
   ports: {
     format: {
       kind: "call",
-      purpose: "Turn one finding into its line",
-      input: "finding: { severity: error | warning, file, line?, node?, rule, fix? }",
+      purpose: "Turn findings into their lines",
+      input: "findings: { severity: error | warning, file, line?, node?, rule, fix? }[]",
       output:
-        "one line, '<severity>: <file>:<line>: <node>: <rule>; <fix>'; a missing line, node or fix drops its part; text fields flattened by Failure.format",
+        "one line each, in order: '<severity>: <file>:<line>: <node>: <rule>; <fix>'; a missing line, node or fix drops its part; text fields flattened by Failure.format; identical lines merged into one ending in ' (×<n>)'",
       errors: [],
     },
     order: {
       kind: "call",
-      purpose: "The one order of findings, and of the names they sort by",
-      input: "two findings, or two texts",
-      output: "file, then line, rule and node; plain code-unit order, the same on every machine and locale",
+      purpose: "The one order of findings",
+      input: "two findings",
+      output:
+        "file, then line, rule and node; plain code-unit order (Path.compareText), the same on every machine and locale",
       errors: [],
     },
     locate: {
       kind: "call",
-      purpose: "Build a finding at a place: an error about a node at its node() line, named by its path",
-      input: "a node (file, line?, path), or a file and line; the rule and fix",
+      purpose: "A finding's place",
+      input: "a place: a file and its line when known (a node, a listing, the world's defineWorld call)",
+      output: "{ file, line? }",
+      errors: [],
+    },
+    nodeError: {
+      kind: "call",
+      purpose: "Build an error about a node: at its node() line, named by its path",
+      input: "a node (file, line?, path); the rule and fix",
       output: "the finding",
       errors: [],
     },
@@ -36,7 +45,7 @@ export const Diagnostics = node({
       kind: "call",
       purpose: "The line that ends a list of findings",
       input: "the findings",
-      output: "'<ok|failed>: <n> error(s), <n> warning(s)'; failed when any is an error",
+      output: "'<ok|failed>: <n> error(s), <n> warning(s)', counting every finding; failed when any is an error",
       errors: [],
     },
   },
@@ -48,6 +57,10 @@ export const Diagnostics = node({
     {
       id: "R2",
       text: "Each line points at a line of a file: a finding about a node or the world at its node() or defineWorld call, one about a source entry or a children item at that entry or item (when written in the same file), a tsc or load error at its token's line. Only a finding about a whole file (a missing index.ts, a tsconfig that does not parse) has none. No column: a line is enough for an editor or agent to jump to.",
+    },
+    {
+      id: "R3",
+      text: "Findings whose lines would be identical (three tsc errors on one line) print as one line at the first's place, ending in ' (×3)'; the summary still counts each finding.",
     },
   ],
   testCases: [
@@ -63,6 +76,10 @@ export const Diagnostics = node({
       text: "No findings → 'ok: 0 errors, 0 warnings'; one warning → 'ok: 0 errors, 1 warning'; two errors → 'failed: 2 errors, 0 warnings'.",
       demonstrates: ["R1"],
     },
+    {
+      text: "Three findings with one rule on nuhokai/a.ts:2 at columns 10, 20 and 30, and another rule there → the other's line, then '…: <rule> (×3)'; summary 'failed: 4 errors, 0 warnings'.",
+      demonstrates: ["R3"],
+    },
   ],
   decisions: [
     {
@@ -76,14 +93,22 @@ export const Diagnostics = node({
       ],
     },
     {
-      decision: "Lines carry no column.",
-      why: "Review findings have none, and one format for both commands beats a column check alone prints; the line is where an editor or agent jumps.",
+      decision: "Lines carry no column; findings that would print the same line are merged and counted.",
+      why: "Review findings have none, and one format for both commands beats a column check alone prints; the line is where an editor or agent jumps. Without the column, several tsc errors on one line would repeat one line word for word, so the line says how many it stands for.",
       rejected: [
         {
           option: "Keep the column for check",
-          why: "Two line formats; two findings on one line still differ in rule and node.",
+          why: "Two line formats, for a detail an agent does not need to find the line.",
+        },
+        {
+          option: "Print each finding, identical lines included",
+          why: "Repeated lines read as a bug in the output and hide that the summary counts them all.",
         },
       ],
     },
+    {
+      decision: "Port names are the functions' names: format, order, locate, nodeError, summarize.",
+      why: "As in Path: a reader of the spec finds the code, and the reverse.",
+    },
   ],
-}).edges({ uses: () => [Failure.format] });
+}).edges({ uses: () => [Failure.format, Path.compareText] });

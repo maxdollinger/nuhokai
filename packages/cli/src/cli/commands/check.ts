@@ -6,7 +6,7 @@ export const checkCmd: Cmd = {
   positionals: [],
   arguments: [],
   output:
-    "one line per finding, `<error|warning>: <file>:<line>: <node>: <rule>; <fix>` (a part it lacks is left out), then the summary `<ok|failed>: <n> errors, <n> warnings`",
+    "one line per finding, `<error|warning>: <file>:<line>: <node>: <rule>; <fix>` (a part it lacks is left out; identical lines once, ending in ` (×<n>)`), then the summary `<ok|failed>: <n> errors, <n> warnings`",
   options: [],
   async run(root) {
     // The checker's client is only check's to load.

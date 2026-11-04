@@ -1,6 +1,6 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
-import { at, atWorld, type Finding, nodeError, positionOf } from "../../shared/diagnostics.ts";
+import { type Finding, locate, nodeError } from "../../shared/diagnostics.ts";
 import { childrenOf, isAncestor } from "../../shared/node-path.ts";
 import type { Ids } from "./ids.ts";
 
@@ -8,7 +8,6 @@ import type { Ids } from "./ids.ts";
 interface Place {
   readonly file: string;
   readonly line?: number;
-  readonly column?: number;
   readonly name: string;
 }
 
@@ -46,7 +45,7 @@ function worldName(world: LoadedWorld): Finding[] {
   return [
     {
       severity: "error",
-      ...atWorld(world),
+      ...locate({ file: world.definedIn, line: world.line }),
       rule: typeof world.name === "string" ? "the world's name is blank" : "the world has no name",
       fix: 'give defineWorld a name, e.g. name: "Shop"',
     },
@@ -82,8 +81,8 @@ function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
       parent === null ? undefined : (ids.byId(parent) ?? world.nodes.find((node) => node.spec.id === parent));
     const list =
       parent === null ? "the world's children" : dome ? `${dome.path}'s children` : `the children of ${parent}`;
-    const owner = parent === null ? atWorld(world) : dome ? at(dome) : { file: listing.file };
-    const where = listing.line === undefined ? owner : { file: listing.file, ...positionOf(listing) };
+    const owner = locate(parent === null ? { file: world.definedIn, line: world.line } : (dome ?? listing));
+    const where = listing.line === undefined ? owner : locate(listing);
     const shown = where.line === undefined ? where.file : `${where.file}:${where.line}`;
     return { ...where, name: `${list} (${shown})` };
   };
@@ -101,7 +100,7 @@ function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
     const node = ids.byId(listing.node);
     findings.push({
       severity: "error",
-      ...at(here),
+      ...locate(here),
       ...(node ? { node: node.path } : {}),
       // The node part names a known node; an unknown one is named by its id in the rule.
       rule: `${node ? "" : `${listing.node} is `}listed twice: in ${before.name} and in ${here.name}`,
@@ -115,8 +114,7 @@ function repeatedListings(world: LoadedWorld, ids: Ids): Finding[] {
 function orphans(world: LoadedWorld): Finding[] {
   return world.orphans.map((orphan) => ({
     severity: "warning",
-    file: orphan.file,
-    ...positionOf(orphan),
+    ...locate(orphan),
     node: orphan.name,
     rule: "exported but not reachable from the world",
     fix: `list it in a dome's children or in the world's (${world.definedIn}), or delete it`,

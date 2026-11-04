@@ -100,6 +100,7 @@ export const CheckWorld = node({
     SpecCheck.run,
     CodeCheck.run,
     Diagnostics.format,
+    Diagnostics.order,
     Diagnostics.summarize,
     Failure.report,
   ],

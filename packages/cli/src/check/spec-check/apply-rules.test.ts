@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loadWorld } from "../../load/load-world.ts";
-import { formatFinding } from "../../shared/diagnostics.ts";
+import { format } from "../../shared/diagnostics.ts";
 import { applyRules } from "./apply-rules.ts";
 
 const roots: string[] = [];
@@ -41,7 +41,7 @@ function leaf(name: string, id: string, rest = "", edges = "{}"): string {
 /** Spec findings of the project as diagnostics lines, the files named relative to the project. */
 async function check(root: string): Promise<string[]> {
   const world = await loadWorld(root);
-  return applyRules(root, world).map((finding) => formatFinding(finding).replaceAll(`${root}/`, ""));
+  return applyRules(root, world).map((finding) => format([finding]).join("").replaceAll(`${root}/`, ""));
 }
 
 test("a clean world has no findings", async () => {
@@ -278,7 +278,7 @@ test("R6: under --path app the source resolves in app/, not the cwd", async () =
   const cwd = process.cwd();
   process.chdir(parent);
   try {
-    expect((await applyRules("app", await loadWorld("app"))).map(formatFinding)).toEqual([
+    expect((await applyRules("app", await loadWorld("app"))).map((finding) => format([finding]).join(""))).toEqual([
       'error: app/nuhokai/a.ts:4: B: source entry "src/only-in-cwd.ts" matches no file; fix the path or glob, or drop the entry',
     ]);
   } finally {
@@ -432,7 +432,7 @@ test("ApplyRules R1: findings sort by file, line, rule, node; the same world giv
   ]);
   expect(
     applyRules(root, await loadWorld(root))
-      .map(formatFinding)
+      .map((finding) => format([finding]).join(""))
       .join("\n"),
   ).toBe(first.map((line) => line.replaceAll("nuhokai/", `${root}/nuhokai/`)).join("\n"));
 });

@@ -1,5 +1,5 @@
 import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
-import { at, atWorld, type Finding, positionOf } from "../../shared/diagnostics.ts";
+import { type Finding, locate } from "../../shared/diagnostics.ts";
 import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
 import { type Expansion, ProjectFiles } from "../../shared/project-files.ts";
@@ -10,7 +10,6 @@ interface Owner {
   readonly node?: LoadedNode;
   readonly file: string;
   readonly line?: number;
-  readonly column?: number;
   readonly label: string;
   /** Where its source and each entry were written: a finding about one points there, else at the owner. */
   readonly source?: SourcePlaces;
@@ -33,8 +32,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   const error = (owner: Owner, rule: string, fix: string, where?: Position) =>
     findings.push({
       severity: "error",
-      file: owner.file,
-      ...positionOf(where ?? owner),
+      ...locate({ file: owner.file, line: (where ?? owner).line }),
       ...(owner.node ? { node: owner.node.path } : {}),
       rule,
       fix,
@@ -73,7 +71,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
 
   // The world's source: inside the project directory, every entry matching a file (SpecCheck R10, R6).
   const worldOwner: Owner = {
-    ...atWorld(world),
+    ...locate({ file: world.definedIn, line: world.line }),
     label: "the world",
     ...(world.sourcePlaces ? { source: world.sourcePlaces } : {}),
   };
@@ -111,7 +109,12 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   const owners = new Map<string, LoadedNode[]>();
   for (const node of world.nodes) {
     if (ids.duplicated.has(node.spec.id)) continue;
-    const owner: Owner = { node, ...at(node), label: node.spec.name, ...(node.source ? { source: node.source } : {}) };
+    const owner: Owner = {
+      node,
+      ...locate(node),
+      label: node.spec.name,
+      ...(node.source ? { source: node.source } : {}),
+    };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const { text: entry, at: where } of entries ?? []) {
       const expansion = project.expand(entry);
@@ -157,7 +160,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         if (isAncestor(world, other, node) || isAncestor(world, node, other)) continue;
         const [first, second] = other.index < node.index ? [other, node] : [node, other];
         error(
-          { node: second, ...at(second), label: second.spec.name },
+          { node: second, ...locate(second), label: second.spec.name },
           `${file} is in the source of both ${first.path} (${first.file}) and ${second.path}`,
           "keep the file in one node's source, or move the shared code into a node of its own",
         );

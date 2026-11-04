@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { loadWorld } from "../load/load-world.ts";
-import { compareFindings, type Finding, formatFinding, summarize } from "../shared/diagnostics.ts";
+import { type Finding, format, summarize } from "../shared/diagnostics.ts";
 import { CliError, errorLine } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { failureLine, orFailed, type Report, resultLine } from "../shared/report.ts";
@@ -229,8 +229,8 @@ export function runReviewSubmission(root: string, text: string): Promise<Report>
     }
     const problems = judgeContent(submission, scope);
     if (problems.length > 0) return invalid(problems);
-    const findings = submission.findings.map((finding) => findingOf(scope, finding)).sort(compareFindings);
+    const findings = submission.findings.map((finding) => findingOf(scope, finding));
     const outcome = findings.some((finding) => finding.severity === "error") ? "failed" : "ok";
-    return { outcome, lines: [...findings.map(formatFinding), summarize(findings)].map(resultLine) };
+    return { outcome, lines: [...format(findings), summarize(findings)].map(resultLine) };
   });
 }

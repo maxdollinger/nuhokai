@@ -59,8 +59,9 @@ export interface Position {
 
 /**
  * A world that cannot be read, at a world file and, when known, its line and column: the message is
- * `<file>:<line>:<column>: <rule>` (or `<file>: <rule>`), so a command that prints it as a failure line needs nothing
- * else; check reports it as a finding of its own. Typed apart instead of recognised by its text: a project directory
+ * `<file>:<line>: <rule>` (or `<file>: <rule>`), no column, as every finding line, so a command that prints it as a
+ * failure line needs nothing else; check reports it as a finding of its own, the column telling its very position
+ * (CheckWorld R6). Typed apart instead of recognised by its text: a project directory
  * may hold spaces or colons.
  */
 export class LoadError extends CliError {
@@ -74,7 +75,7 @@ export class LoadError extends CliError {
     /** Other places in `file` where tsc reports the same break (a bad children item: at the `children:` property). */
     readonly alsoAt: readonly Position[] = [],
   ) {
-    super(at === undefined ? `${file}: ${rule}` : `${file}:${at.line}:${at.column}: ${rule}`);
+    super(at === undefined ? `${file}: ${rule}` : `${file}:${at.line}: ${rule}`);
     this.name = "LoadError";
     if (at !== undefined) {
       this.line = at.line;
@@ -101,9 +102,9 @@ export function positionIn(file: SourceFile, position: number): Position {
   return { line: line + 1, column: character + 1 };
 }
 
-/** A place in a world file as a message names it: `nuhokai/a.ts:3:14`. */
+/** A place in a world file as a message names it: `nuhokai/a.ts:3`. */
 function placeText(at: At): string {
-  return `${at.file}:${at.line}:${at.column}`;
+  return `${at.file}:${at.line}`;
 }
 
 /** A syntax kind in words, with its article: SyntaxKind.ExpressionStatement → "an expression statement". */

@@ -70,4 +70,13 @@ export const TypeCheck = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Failure.format, CheckerClient.session, Diagnostics.order, FileSystem.read] });
+}).edges({
+  uses: () => [
+    Path.nameInWorld,
+    Failure.format,
+    CheckerClient.session,
+    Diagnostics.order,
+    Diagnostics.locate,
+    FileSystem.read,
+  ],
+});

@@ -62,7 +62,7 @@ what each exit code means, and each command's help adds what its arguments are a
 there, `check`, `map`, `tree` and `review` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
-`packages/cli/nuhokai/<file>:<line>:<column>`.
+`packages/cli/nuhokai/<file>:<line>`, without a column, as every finding line.
 
 `init` writes those four files and nothing else. `index.ts` carries a fresh world id, generated per run, so two
 projects never share per-world state such as the map's saved layout; everything else is the same per CLI version. An
@@ -73,7 +73,8 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
 `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
-from the world; there is no column, the line is where an editor or agent jumps. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
+from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
+line (three tsc errors on one line) print it once, ending in ` (×3)`, while the summary counts each. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
 (`Forbidden<"…">`) is that message alone (`a draft is not a node: call .edges(), also with {}`), any other names
 types without their arguments (`'NodeShape'`) and a long object literal as `'{ … }'`, and tsc's advice to change the library or install types gives way to
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the

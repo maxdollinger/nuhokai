@@ -3,7 +3,7 @@ import { dirname, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
 import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
-import { compareFindings, type Finding, positionOf } from "../shared/diagnostics.ts";
+import { type Finding, locate, order } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 import { nameInWorld, WORLD_GENERATED_DIR, WORLD_TSCONFIG } from "../shared/world-path.ts";
 
@@ -313,11 +313,10 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string, r
   return findings;
 }
 
-/** The 1-based line and column of a position in a file the checker did not parse, such as the tsconfig. */
-function lineInText(path: string, position: number): { line: number; column: number } | undefined {
+/** The 1-based line of a position in a file the checker did not parse, such as the tsconfig. */
+function lineInText(path: string, position: number): number | undefined {
   try {
-    const before = readFileSync(path, "utf8").slice(0, position).split("\n");
-    return { line: before.length, column: (before.at(-1)?.length ?? 0) + 1 };
+    return readFileSync(path, "utf8").slice(0, position).split("\n").length;
   } catch {
     return undefined;
   }
@@ -383,8 +382,8 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     seen.add(key);
     const path = diagnostic.fileName === undefined ? undefined : resolve(diagnostic.fileName);
     if (path === undefined || path === resolve(tsconfig)) {
-      const at = path === undefined ? undefined : lineInText(path, diagnostic.pos);
-      findings.push({ severity: "error", file: tsconfig, ...positionOf(at ?? {}), ...ruleOf(diagnostic) });
+      const line = path === undefined ? undefined : lineInText(path, diagnostic.pos);
+      findings.push({ severity: "error", ...locate({ file: tsconfig, line }), ...ruleOf(diagnostic) });
       continue;
     }
     if (!inWorldFiles(path)) continue;
@@ -405,5 +404,5 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   }
   // An import R2 refuses already says what to do with it: tsc's "cannot find module" at its specifier says it again.
   findings.push(...unresolved.filter((finding) => !refused.has(`${finding.file}:${finding.line}:${finding.column}`)));
-  return findings.sort(compareFindings);
+  return findings.sort(order);
 }

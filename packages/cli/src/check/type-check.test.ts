@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
-import { formatFinding } from "../shared/diagnostics.ts";
+import { format } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
 import { runTypeCheck } from "./type-check.ts";
 
@@ -27,7 +27,7 @@ async function world(files: Record<string, string> = {}): Promise<string> {
 }
 
 async function typeCheck(root: string): Promise<string[]> {
-  return (await runTypeCheck(root)).map((finding) => formatFinding(finding).replaceAll(`${root}/`, ""));
+  return (await runTypeCheck(root)).map((finding) => format([finding]).join("").replaceAll(`${root}/`, ""));
 }
 
 test("a world fresh from init type-checks clean", async () => {

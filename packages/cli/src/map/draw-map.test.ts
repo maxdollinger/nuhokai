@@ -139,7 +139,7 @@ test("a node file that does not parse: one failure line naming the file, failed,
 
   expect(output.outcome).toBe("failed");
   expect(output.out).toEqual([]);
-  expect(output.err).toEqual([`${repo}/nuhokai/orders.ts:1:23: Expression expected.`]);
+  expect(output.err).toEqual([`${repo}/nuhokai/orders.ts:1: Expression expected.`]);
   expect(readFileSync(join(repo, MAP), "utf8")).toBe(previous);
 });
 

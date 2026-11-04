@@ -1,5 +1,5 @@
 import { LoadError, type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { compareFindings, type Finding, formatFinding, positionOf, summarize } from "../shared/diagnostics.ts";
+import { type Finding, format, order, summarize } from "../shared/diagnostics.ts";
 import { NoWorldError } from "../shared/inspect.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
@@ -54,7 +54,7 @@ function withLoadFinding(
     places.some((place) => place.line === finding.line && place.column === finding.column);
   const actionable = (finding: Finding) => finding.formatMessage === true || finding.fix !== undefined;
   if (typeFindings.some((finding) => samePlace(finding) && actionable(finding))) return [...typeFindings];
-  return [...typeFindings.filter((finding) => !samePlace(finding)), load].sort(compareFindings);
+  return [...typeFindings.filter((finding) => !samePlace(finding)), load].sort(order);
 }
 
 /**
@@ -70,10 +70,8 @@ export async function runCheck(root: string): Promise<Report> {
   return collecting(async (lines) => {
     const reported: Finding[] = [];
     const addFindings = (findings: readonly Finding[]) => {
-      for (const finding of findings) {
-        reported.push(finding);
-        lines.push(resultLine(formatFinding(finding)));
-      }
+      reported.push(...findings);
+      lines.push(...format(findings).map(resultLine));
     };
     // An expected failure becomes one failure line; a bug is rethrown.
     const addFailure = (thrown: unknown) => {
@@ -114,7 +112,8 @@ export async function runCheck(root: string): Promise<Report> {
       const loadFinding: Finding = {
         severity: "error",
         file: unread.file,
-        ...positionOf(unread),
+        ...(unread.line === undefined ? {} : { line: unread.line }),
+        ...(unread.line === undefined || unread.column === undefined ? {} : { column: unread.column }),
         rule: unread.rule,
       };
       addFindings(withLoadFinding("value" in typed ? typed.value : [], loadFinding, unread.alsoAt));

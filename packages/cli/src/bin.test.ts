@@ -166,7 +166,7 @@ test("--path names the project directory, against the cwd; without it the cwd is
     expect(await printed(["map", "--path", "packages/app"])).toEqual({
       code: 1,
       out: [],
-      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1:21: Expression expected."],
+      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected."],
     });
     expect(await printed(["map", "--path", "packages"])).toEqual({
       code: 1,

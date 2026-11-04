@@ -1,5 +1,5 @@
 import type { LoadedWorld } from "../../load/load-world.ts";
-import { compareFindings, type Finding } from "../../shared/diagnostics.ts";
+import { type Finding, order } from "../../shared/diagnostics.ts";
 import { checkDataRules } from "./data-rules.ts";
 import { idsOf } from "./ids.ts";
 import { checkSourceRules } from "./source-rules.ts";
@@ -13,5 +13,5 @@ import { checkSourceRules } from "./source-rules.ts";
  */
 export function applyRules(root: string, world: LoadedWorld, typeErrors: ReadonlySet<string> = new Set()): Finding[] {
   const ids = idsOf(world);
-  return [...checkDataRules(world, ids, typeErrors), ...checkSourceRules(root, world, ids)].sort(compareFindings);
+  return [...checkDataRules(world, ids, typeErrors), ...checkSourceRules(root, world, ids)].sort(order);
 }

@@ -46,7 +46,7 @@ export const ReviewSubmission = node({
     },
     {
       id: "R4",
-      text: "Valid → one finding per submitted finding: against-spec an error, the others warnings; node its path, rule the spec item or 'unspecified', fix the evidence; in Diagnostics.order, then Diagnostics.summarize. ok without errors, else failed.",
+      text: "Valid → one finding per submitted finding: against-spec an error, the others warnings; node its path, rule the spec item or 'unspecified', fix the evidence; their lines as Diagnostics.format gives them (in its order, identical ones merged), then Diagnostics.summarize. ok without errors, else failed.",
     },
   ],
   testCases: [
@@ -70,7 +70,6 @@ export const ReviewSubmission = node({
     ReviewScope.scope,
     SpecItems.find,
     Diagnostics.format,
-    Diagnostics.order,
     Diagnostics.summarize,
     FileSystem.read,
     Failure.report,

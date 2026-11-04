@@ -50,7 +50,7 @@ export const LoadWorld = node({
     },
     {
       id: "R5",
-      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3:14: <rule>', under --path app 'app/nuhokai/orders.ts:3:14: <rule>'. An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
+      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3: <rule>', under --path app 'app/nuhokai/orders.ts:3: <rule>': no column, as every finding line; the column only tells check its very position (CheckWorld R6). An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
     },
     {
       id: "R6",
@@ -142,7 +142,7 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R5", "R6", "R12"],
     },
     {
-      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>:<column>' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
+      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>: …' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
       demonstrates: ["R1", "R2", "R5"],
     },
     {
