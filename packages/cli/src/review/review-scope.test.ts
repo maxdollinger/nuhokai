@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { CliError } from "../shared/failure.ts";
-import { scope } from "./review-scope.ts";
+import { scope, scopeAt } from "./review-scope.ts";
 
 /** The CLI's own world, named from the cwd as a command names it. */
 const PACKAGE = join(import.meta.dir, "../..");
@@ -59,13 +59,14 @@ test("R2, R3: PrintTree's files and what it may use; LoadWorld's files are every
   expect(printTree.specFile).toBe(named("nuhokai/tree/print-tree.ts"));
   expect(printTree.files).toEqual([named("src/tree/print-tree.test.ts"), named("src/tree/print-tree.ts")]);
   expect(printTree.example).toBe("requirements[R1]");
-  expect(printTree.uses.map((use) => [use.path, use.ports])).toEqual([
+  expect(printTree.uses.map((use) => [use.node?.path, use.ports])).toEqual([
     ["LoadWorld", ["load"]],
     ["Path", ["findNode"]],
     ["Tree/TreeLines", ["render"]],
     ["Failure", ["format", "report"]],
   ]);
-  expect(printTree.uses[0]).toMatchObject({ source: [named("src/load/**")], external: false });
+  expect(printTree.uses[0]?.source).toEqual([named("src/load/**")]);
+  expect(printTree.uses[0]?.node?.spec.external).toBeFalsy();
   expect(printTree.uses[0]?.purpose).toStartWith("Read nuhokai/ without running it");
   expect(printTree.drafts).toEqual([]);
   expect(printTree.items.length).toBeGreaterThan(0);
@@ -79,7 +80,7 @@ test("R2, R3: PrintTree's files and what it may use; LoadWorld's files are every
 
 test("R3: an external dependency says so", () => {
   const cli = scope(ROOT, own, at(own, "Cli"));
-  expect(cli.uses.find((use) => use.path === "Terminal")).toMatchObject({ external: true, ports: expect.any(Array) });
+  expect(cli.uses.find((use) => use.name === "Terminal")?.node?.spec.external).toBe(true);
 });
 
 test("R1: a dome names tree, a node without source says why, a source matching nothing names check", async () => {
@@ -133,9 +134,8 @@ export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "plan
   );
   const world = await loadWorld(root);
   const example1 = scope(root, world, at(world, "Example"));
-  expect(example1.uses).toEqual([
-    { path: "Lost", ports: ["run"], source: [], purpose: "", external: false, unreachable: true },
-  ]);
+  expect(example1.uses).toMatchObject([{ name: "Lost", ports: ["run"], source: [], purpose: "" }]);
+  expect(example1.uses[0]?.node).toBeUndefined();
   expect(example1.items.find((item) => item.ref === "edges.uses[Lost]")).toMatchObject({ unreachable: true });
 });
 
@@ -150,3 +150,19 @@ test("R8: a reference or a file holding whitespace, which check refuses, is refu
     'Example\'s review would cite "requirements[R\\t1]", which holds whitespace;',
   );
 });
+
+test.skipIf(process.getuid?.() === 0)(
+  "R2, R6: a directory the source reaches that cannot be read is thrown, for the program to report as failed",
+  async () => {
+    const root = await example('["src/**"]');
+    mkdirSync(join(root, "src/secret"));
+    chmodSync(join(root, "src/secret"), 0o000);
+    try {
+      expect(scopeAt(root, "Example")).rejects.toThrow(
+        `Example's source reaches ${root}/src/secret, which cannot be read (EACCES); make it readable`,
+      );
+    } finally {
+      chmodSync(join(root, "src/secret"), 0o755);
+    }
+  },
+);

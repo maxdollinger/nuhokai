@@ -19,7 +19,7 @@ export const ReviewScope = node({
       purpose: "The review's scope",
       input: "project directory (cwd-relative), the loaded world, a node's position",
       output:
-        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: { path, ports, source, purpose, external, unreachable? }[], drafts: { description, name? }[] }",
+        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets with source entries cwd-relative, drafts: { description, name? }[] }",
       errors: [
         "a dome: names `nuhokai tree <path>` to list its children",
         "a source that is not a list: names `nuhokai check`",
@@ -40,7 +40,7 @@ export const ReviewScope = node({
   requirements: [
     {
       id: "R1",
-      text: "Reviewable (Review R2) or one CliError saying why; an invalid argument, as a node path naming no node is.",
+      text: "Reviewable (Review R2) or one NotReviewable (a CliError) saying why; an invalid argument, as a node path naming no node is. Any other error, an unreadable directory's CliError included, is not one, so scopeAt never mistakes a failure for an invalid argument.",
     },
     {
       id: "R2",
@@ -48,7 +48,7 @@ export const ReviewScope = node({
     },
     {
       id: "R3",
-      text: "uses: each uses edge's target as SpecItems.targets names it, with its path, the ports used, its source entries as written (not expanded) and its purpose; an external says so, as the agent knows it by name and purpose alone; a target the world never reaches is listed by its name, marked unreachable.",
+      text: "uses: each uses edge's target as SpecItems.targets gives it, the one shape of a target: its name, the ports used, the node (its path, whether it is external), its source entries as written, named from the cwd (not expanded), and its purpose; a target the world never reaches has no node, and is known by its name alone.",
     },
     {
       id: "R4",
@@ -57,7 +57,7 @@ export const ReviewScope = node({
     { id: "R5", text: "Same world, files and node → the same scope." },
     {
       id: "R6",
-      text: "scopeAt: load (LoadWorld.load), find the node (Path.findNode), its scope. Path.findNode's or scope's CliError → the invalid Report of its message (exit 2); no world, a load failure or an unreadable directory is thrown, for the program to report as failed (exit 1).",
+      text: "scopeAt: load (LoadWorld.load), find the node (Path.findNode), its scope. Path.findNode's CliError or scope's NotReviewable → the invalid Report of its message (exit 2); no world, a load failure or an unreadable directory is thrown, for the program to report as failed (exit 1).",
     },
     {
       id: "R7",
@@ -82,7 +82,7 @@ export const ReviewScope = node({
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {
-      text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed.",
+      text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed; a source reaching an unreadable directory → thrown, naming it and its errno code.",
       demonstrates: ["R6"],
     },
     {

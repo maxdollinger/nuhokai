@@ -84,17 +84,17 @@ export function render(root: string, scope: Scope): string[] {
           "The code may use these nodes' ports, and no other node of the world: using another is against the spec's uses edges.",
           "",
           ...data(
-            scope.uses.map((use) => {
-              const ports = use.ports.map(oneLine).join(", ");
-              if (use.unreachable) {
-                return `- ${oneLine(use.path)}: ${ports} (unreachable: the world never reaches this node; ${check} reports it)`;
+            scope.uses.map(({ name, node: target, ports, source, purpose }) => {
+              const used = ports.map(oneLine).join(", ");
+              if (target === undefined) {
+                return `- ${oneLine(name)}: ${used} (unreachable: the world never reaches this node; ${check} reports it)`;
               }
-              const source = use.external
+              const where = target.spec.external
                 ? "external: known by name and purpose alone"
-                : use.source.length === 0
+                : source.length === 0
                   ? "no source yet"
-                  : `source ${use.source.map(plainText).join(", ")}`;
-              return `- ${oneLine(use.path)}: ${ports} (${source}): ${oneLine(use.purpose)}`;
+                  : `source ${source.map(plainText).join(", ")}`;
+              return `- ${oneLine(target.path)}: ${used} (${where}): ${oneLine(purpose)}`;
             }),
           ),
         ]),

@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
+import type { LoadedNode } from "../load/load-world.ts";
 import { render } from "./prompt-text.ts";
 import type { Scope } from "./review-scope.ts";
+
+/** A reachable uses edge target, cut to what the prompt shows of it. */
+const reached = (path: string, external: boolean) => ({ path, spec: { external } }) as unknown as LoadedNode;
 
 /** PrintTree's scope as ReviewScope gives it under the cwd, cut to what the prompt shows. */
 const PRINT_TREE: Scope = {
@@ -51,9 +55,23 @@ const PRINT_TREE: Scope = {
   example: "requirements[R1]",
   files: ["src/tree/print-tree.test.ts", "src/tree/print-tree.ts"],
   uses: [
-    { path: "LoadWorld", ports: ["load"], source: ["src/load/**"], purpose: "Read nuhokai/.", external: false },
-    { path: "Terminal", ports: ["print"], source: [], purpose: "Whoever runs nuhokai.", external: true },
-    { path: "Lost", ports: ["run"], source: [], purpose: "", external: false, unreachable: true },
+    {
+      name: "LoadWorld",
+      ports: ["load"],
+      node: reached("LoadWorld", false),
+      source: ["src/load/**"],
+      purpose: "Read nuhokai/.",
+      edge: 0,
+    },
+    {
+      name: "Terminal",
+      ports: ["print"],
+      node: reached("Terminal", true),
+      source: [],
+      purpose: "Whoever runs nuhokai.",
+      edge: 1,
+    },
+    { name: "Lost", ports: ["run"], source: [], purpose: "", edge: 2 },
   ],
   drafts: [],
 };
@@ -173,7 +191,7 @@ test("R6: the node's path, its spec file, its files and the example JSON sit ins
     "print-tree",
     ...scope.files,
     ...scope.items.flatMap((item) => [item.ref, item.text]),
-    ...scope.uses.map((use) => use.path),
+    ...scope.uses.map((use) => use.name),
     "later",
   ];
   for (const text of projectText) expect(outside.filter((line) => line.includes(text))).toEqual([]);
