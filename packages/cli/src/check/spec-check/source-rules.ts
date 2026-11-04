@@ -2,7 +2,7 @@ import type { Line, LoadedNode, LoadedWorld, SourcePlaces } from "../../load/loa
 import { type Finding, locate } from "../../shared/diagnostics.ts";
 import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
-import { type Expansion, ProjectFiles } from "../../shared/project-files.ts";
+import { ProjectFiles } from "../../shared/project-files.ts";
 import type { Ids } from "./ids.ts";
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
@@ -57,19 +57,43 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     return entries;
   };
 
-  /** SourceRules R5: each directory an entry's walk could not read is an error at the entry; the rest still count. */
-  const unreadable = (owner: Owner, entry: string, expansion: Expansion, where?: Line) => {
-    for (const { dir, code } of "unreadable" in expansion ? expansion.unreadable : []) {
+  /**
+   * One entry's files, as ProjectFiles.expand finds them (SourceRules R1), for the world and a node alike: a refused
+   * entry is an error and matches nothing (SpecCheck R10), each directory its walk could not read an error at the entry
+   * (SourceRules R5), and one matching no file, every directory read, an error (SpecCheck R6).
+   */
+  const filesOf = (owner: Owner, entry: string, where?: Line): readonly string[] => {
+    const named = `${owner.node ? "" : "the world's "}source entry "${entry}"`;
+    const expansion = project.expand(entry);
+    if ("refused" in expansion) {
+      const outside = owner.node
+        ? "lies outside the project directory, so outside the world's source"
+        : "lies outside the project directory";
       error(
         owner,
-        `${owner.node ? "" : "the world's "}source entry "${entry}" cannot read the directory ${dir} (${code})`,
+        `${named} ${expansion.refused === "outside" ? outside : "has a .. segment"}`,
+        owner.node
+          ? "list only paths inside the world's source, without .."
+          : "list only paths inside the project directory, without .., or run check with --path at the directory holding the code",
+        where,
+      );
+      return [];
+    }
+    for (const { dir, code } of expansion.unreadable) {
+      error(
+        owner,
+        `${named} cannot read the directory ${dir} (${code})`,
         "make the directory readable, or narrow the entry so its files lie elsewhere",
         where,
       );
     }
+    if (!expansion.files.length && !expansion.unreadable.length) {
+      error(owner, `${named} matches no file`, "fix the path or glob, or drop the entry", where);
+    }
+    return expansion.files;
   };
 
-  // The world's source: inside the project directory, every entry matching a file (SpecCheck R10, R6).
+  // The world's source (SpecCheck R10, R6).
   const worldOwner: Owner = {
     ...locate({ file: world.definedIn, line: world.line }),
     label: "the world",
@@ -79,34 +103,8 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
   // Files compare by their real path (SourceRules R6): a listing walks each directory once, under the first name that
   // reaches it, so a file the world lists as lib/a.ts is the src/lib/a.ts a node lists through a symlink.
   const real = (file: string) => project.realPath(file) ?? file;
-  let covered: Set<string> | undefined;
-  if (worldEntries) {
-    covered = new Set();
-    for (const { text: entry, at: where } of worldEntries) {
-      const expansion = project.expand(entry);
-      if ("refused" in expansion) {
-        error(
-          worldOwner,
-          expansion.refused === "outside"
-            ? `the world's source entry "${entry}" lies outside the project directory`
-            : `the world's source entry "${entry}" has a .. segment`,
-          "list only paths inside the project directory, without .., or run check with --path at the directory holding the code",
-          where,
-        );
-        continue;
-      }
-      unreadable(worldOwner, entry, expansion, where);
-      if (!expansion.files.length && !expansion.unreadable.length) {
-        error(
-          worldOwner,
-          `the world's source entry "${entry}" matches no file`,
-          "fix the path or glob, or drop the entry",
-          where,
-        );
-      }
-      for (const file of expansion.files) covered.add(real(file));
-    }
-  }
+  const covered =
+    worldEntries && new Set(worldEntries.flatMap(({ text, at }) => filesOf(worldOwner, text, at)).map(real));
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
   /** Each file's claims by real path: the node, and the name it lists the file by. */
@@ -121,26 +119,8 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const { text: entry, at: where } of entries ?? []) {
-      const expansion = project.expand(entry);
-      if ("refused" in expansion) {
-        error(
-          owner,
-          expansion.refused === "outside"
-            ? `source entry "${entry}" lies outside the project directory, so outside the world's source`
-            : `source entry "${entry}" has a .. segment`,
-          "list only paths inside the world's source, without ..",
-          where,
-        );
-        continue;
-      }
-      unreadable(owner, entry, expansion, where);
-      if (!expansion.files.length) {
-        if (!expansion.unreadable.length) {
-          error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry", where);
-        }
-        continue;
-      }
-      const uncovered = covered && expansion.files.find((file) => !covered.has(real(file)));
+      const files = filesOf(owner, entry, where);
+      const uncovered = covered && files.find((file) => !covered.has(real(file)));
       if (uncovered !== undefined) {
         error(
           owner,
@@ -149,7 +129,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
           where,
         );
       }
-      for (const file of expansion.files) {
+      for (const file of files) {
         const claimed = owners.get(real(file)) ?? [];
         if (!claimed.some((claim) => claim.node === node)) claimed.push({ node, file });
         owners.set(real(file), claimed);
