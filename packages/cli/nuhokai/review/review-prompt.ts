@@ -15,11 +15,10 @@ export const ReviewPrompt = node({
       purpose: "Return a Report holding the review prompt for one node",
       input: "project directory (cwd-relative), hierarchy path",
       output:
-        "Report: ok with the prompt's lines; failed (no world, a load failure, an unreadable directory) or invalid (no such node, not reviewable) with one failure line",
+        "Report: ok with the prompt's lines; failed (no world, a load failure) or invalid (no such node, not reviewable) with one failure line",
       errors: [
         "no world at nuhokai/",
         "world failed to load",
-        "a directory the node's source reaches cannot be read",
         "no node at the path: names the closest match",
         "the node is not reviewable: says why",
       ],
@@ -29,7 +28,7 @@ export const ReviewPrompt = node({
     { id: "R1", text: "Order: load, find the node and its scope (ReviewScope.scopeAt), render, report." },
     {
       id: "R2",
-      text: "No world, a load failure or an unreadable directory → failed. No such node or one not reviewable → ReviewScope.scopeAt's invalid Report (exit 2), as it answers it.",
+      text: "No world or a load failure → failed. No such node or one not reviewable → ReviewScope.scopeAt's invalid Report (exit 2), as it answers it.",
     },
   ],
   testCases: [

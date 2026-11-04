@@ -22,10 +22,8 @@ export const ReviewScope = node({
         "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets with source entries cwd-relative, drafts: { description, name? }[] }",
       errors: [
         "a dome: names `nuhokai tree <path>` to list its children",
-        "a source that is not a list: names `nuhokai check`",
-        "no source: external, abstract or not built yet",
+        "no source (none, or not a list): external, abstract or not built yet",
         "its source matches no file: names `nuhokai check`",
-        "a directory its source reaches cannot be read: a failure naming it",
       ],
     },
     scopeAt: {
@@ -33,21 +31,21 @@ export const ReviewScope = node({
       purpose: "Both programs' first steps: load the world, find the node, its scope",
       input: "project directory (cwd-relative), hierarchy path",
       output: "the scope; or an invalid Report of one failure line for no such node or one that is not reviewable",
-      errors: ["no world at nuhokai/, or the world failed to load", "a directory the source reaches cannot be read"],
+      errors: ["no world at nuhokai/, or the world failed to load"],
     },
   },
   requirements: [
     {
       id: "R1",
-      text: "Reviewable (Review R2) or one NotReviewable (a CliError) saying why; an invalid argument, as a node path naming no node is. Any other error, an unreadable directory's CliError included, is not one, so scopeAt never mistakes a failure for an invalid argument.",
+      text: "Reviewable (Review R2) or one CliError saying why: an invalid argument, as a node path naming no node is.",
     },
     {
       id: "R2",
-      text: "files: each entry's files as check finds them (ProjectFiles.expand: a refused entry matches nothing), named cwd-relative (Path.nameInProject) so they open as printed, then each once, sorted (Path.compareText). A directory they reach that cannot be read is a failure naming it, not an invalid argument.",
+      text: "files: each entry's files as check finds them (ProjectFiles.expand), named cwd-relative (Path.nameInProject) so they open as printed, then each once, sorted (Path.compareText).",
     },
     {
       id: "R3",
-      text: "uses: each uses edge's target as SpecItems.targets gives it, the one shape of a target: its name, the ports used, the node (its path, whether it is external), its source entries as written, named from the cwd (not expanded), and its purpose; a target the world never reaches has no node, and is known by its name alone.",
+      text: "uses: each uses edge's target as SpecItems.targets gives it, its source entries named from the cwd, not expanded; a target the world never reaches has no node, and is known by its name alone.",
     },
     {
       id: "R4",
@@ -56,7 +54,7 @@ export const ReviewScope = node({
     { id: "R5", text: "Same world, files and node → the same scope." },
     {
       id: "R6",
-      text: "scopeAt: load (LoadWorld.load), find the node (Path.findNode), its scope. Path.findNode's CliError or scope's NotReviewable → the invalid Report of its message (exit 2); no world, a load failure or an unreadable directory is thrown, for the program to report as failed (exit 1).",
+      text: "scopeAt: load (LoadWorld.load), find the node (Path.findNode), its scope; a CliError from either → the invalid Report of its message (exit 2); no world or a load failure is thrown, for the program to report as failed (exit 1).",
     },
     {
       id: "R7",
@@ -69,7 +67,7 @@ export const ReviewScope = node({
       demonstrates: ["R2", "R3", "R7"],
     },
     {
-      text: "Check → a dome, naming `nuhokai tree Check`; Terminal → no source; a leaf whose only entry matches nothing, or whose source is no list → naming `nuhokai check`; source ['src/../src/a.ts', 'src//a.ts', 'src/./a.ts', 'src/a.ts', './src/a.ts'] → src/a.ts once, as check refuses the first three; ['src//a.ts'] alone → matches no file.",
+      text: "Check → a dome, naming `nuhokai tree Check`; Terminal, or a source that is no list → no source; a leaf whose only entry matches nothing → naming `nuhokai check`; source ['src//a.ts', 'src/a.ts', './src/a.ts'] → src/a.ts once.",
       demonstrates: ["R1", "R2"],
     },
     {
@@ -77,7 +75,7 @@ export const ReviewScope = node({
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {
-      text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed; a source reaching an unreadable directory → thrown, naming it and its errno code.",
+      text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed.",
       demonstrates: ["R6"],
     },
   ],

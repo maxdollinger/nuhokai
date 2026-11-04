@@ -1,22 +1,19 @@
 import { node } from "@nuhokai/world";
 import { NodePath } from "./node-path.ts";
-import { SourcePath } from "./source-path.ts";
 import { WorldPath } from "./world-path.ts";
 
-/** Paths as pointers: the name of a file (WorldPath) and of a node (NodePath), and source patterns (SourcePath). Pure. */
+/** Shared naming: the one name of a file (WorldPath) and of a node (NodePath). Pure. */
 export const Path = node({
   id: "01a19cc8-5d9a-7657-a859-a70d644aa394",
   purpose:
-    "Own paths as pointers: the names commands print and take back for files (WorldPath) and nodes (NodePath), and " +
-    "the source patterns paths match (SourcePath). Pure: never touches the files behind them.",
+    "Own the names the CLI prints and takes back: a file's, cwd-relative (WorldPath), and a node's, its hierarchy " +
+    "path (NodePath). Shared by every command; pure, no I/O.",
   status: "building",
   source: [
     "src/shared/world-path.ts",
     "src/shared/world-path.test.ts",
     "src/shared/node-path.ts",
     "src/shared/node-path.test.ts",
-    "src/shared/source-path.ts",
-    "src/shared/source-path.test.ts",
   ],
   requirements: [
     {
@@ -27,25 +24,21 @@ export const Path = node({
   ],
   decisions: [
     {
-      decision: "Port names are the functions' names: nameInWorld, nameInProject, nameNodes, findNode, matches.",
+      decision: "Port names are the functions' names: nameInWorld, nameInProject, nameNodes, findNode.",
       why: "One name per operation, in specs, code and tests alike; a reader of either finds the other.",
     },
     {
-      decision: "One Path dome holds WorldPath, NodePath and SourcePath.",
-      why: "All three work on a path alone, never on what it points at, and are shared by several commands; one shared island instead of three on the map.",
+      decision: "One Path dome holds WorldPath and NodePath.",
+      why: "Both own 'the one name that is printed and read back', shared by every command; one shared island instead of two on the map.",
       rejected: [
         {
-          option: "Each as one more top-level node",
-          why: "The shared top level grows by a node per path rule, with nothing saying they belong together.",
-        },
-        {
-          option: "Path also expands a source entry into the files that exist",
-          why: "Listing files reads the disk; that is ProjectFiles' unit of work, and Path stays pure.",
+          option: "NodePath as one more top-level node beside WorldPath",
+          why: "The shared top level grows by a node per naming rule, with nothing saying they belong together.",
         },
       ],
     },
   ],
-  children: [WorldPath, NodePath, SourcePath],
+  children: [WorldPath, NodePath],
   ports: {
     nameInWorld: WorldPath.nameInWorld,
     nameInProject: WorldPath.nameInProject,
@@ -56,8 +49,5 @@ export const Path = node({
     findNode: NodePath.findNode,
     childrenOf: NodePath.childrenOf,
     isAncestor: NodePath.isAncestor,
-    isGlob: SourcePath.isGlob,
-    staticPrefix: SourcePath.staticPrefix,
-    matches: SourcePath.matches,
   },
 }).edges({});

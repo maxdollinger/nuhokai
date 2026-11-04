@@ -71,7 +71,7 @@ the format rejects an empty world, and it shows a port, a `tbd` port and a `uses
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
 the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
-and every `source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
+and every `source` entry against the project's files, a glob never listing through a symlink to a directory, as git does); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
 line (three tsc errors on one line) print it once, ending in ` (×3)`, while the summary counts each. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out

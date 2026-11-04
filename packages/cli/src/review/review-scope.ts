@@ -30,49 +30,35 @@ export interface Scope {
   readonly drafts: readonly Draft[];
 }
 
-/** Why a node is not reviewable (R1): an invalid argument, as a path naming no node is. */
-class NotReviewable extends CliError {}
-
 /**
  * The scope of a review of the node at `position` in the world loaded from the project directory `root` (named from
  * the cwd): its spec items, its files, the nodes it may use and the drafts it uses (R2–R4). A node that is not
- * reviewable is one NotReviewable (a CliError) saying why, an invalid argument (R1): a dome, a source that is no list, a node without
- * source, or one whose source matches no file. `project` shares its directory reads with the caller.
+ * reviewable is one CliError saying why (R1): a dome, a node without source, or one whose source matches no file.
  */
-export function scope(
-  root: string,
-  world: LoadedWorld,
-  position: number,
-  project: ProjectFiles = new ProjectFiles(root),
-): Scope {
+export function scope(root: string, world: LoadedWorld, position: number): Scope {
   const node = world.nodes[position];
-  if (node === undefined) throw new CliError(`no node at position ${position}`);
+  if (node === undefined) throw new Error(`no node at position ${position}`);
   const { spec, path } = node;
   if (node.children.length > 0) {
-    throw new NotReviewable(
+    throw new CliError(
       `${path} is a dome, and a review covers one leaf; ${suggestedCommand("tree", [path], root)} lists its children`,
     );
   }
-  const check = suggestedCommand("check", [], root);
-  if (!Array.isArray(spec.source))
-    throw new NotReviewable(`${path}'s source is not a list; ${check} names what to fix`);
-  const entries = (spec.source as unknown[]).filter((entry) => typeof entry === "string");
+  // A source that is not a list, check's to report, is no source here.
+  const source: unknown[] = Array.isArray(spec.source) ? spec.source : [];
+  const entries = source.filter((entry) => typeof entry === "string");
   if (entries.length === 0) {
     const why = spec.external ? "it is external" : spec.abstract ? "it is a contract" : "it is not built yet";
-    throw new NotReviewable(`${path} has no source to review: ${why}; review a node whose source lists its code`);
+    throw new CliError(`${path} has no source to review: ${why}; review a node whose source lists its code`);
   }
-  // Each entry as check expands it (ProjectFiles.expand): a refused one matches nothing here either.
-  const expansions = entries.map((entry) => project.expand(entry));
-  const unreadable = expansions.flatMap((expansion) => ("unreadable" in expansion ? expansion.unreadable : []))[0];
-  if (unreadable !== undefined) {
-    // A failure, not an invalid argument (R2): a plain CliError, which scopeAt lets through for the program to report.
-    const dir = nameInProject(root, unreadable.dir);
-    throw new CliError(`${path}'s source reaches ${dir}, which cannot be read (${unreadable.code}); make it readable`);
-  }
-  const named = expansions.flatMap((expansion) => ("files" in expansion ? expansion.files : []));
-  // Each file once, however many entries name it.
+  // Each entry as check expands it (ProjectFiles.expand), each file once, however many entries name it.
+  const project = new ProjectFiles(root);
+  const named = entries.flatMap((entry) => project.expand(entry) ?? []);
   const files = [...new Set(named.map((file) => nameInProject(root, file)))].sort(compareText);
-  if (files.length === 0) throw new NotReviewable(`${path}'s source matches no file; ${check} names the entry to fix`);
+  if (files.length === 0) {
+    const check = suggestedCommand("check", [], root);
+    throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
+  }
   const items = list(world, position);
   const uses = targets(world, position).map((target) => ({
     ...target,
@@ -95,22 +81,14 @@ export function scope(
 /**
  * Both programs' first steps (R6): load the world from the project directory `root` (named from the cwd), find the
  * node at hierarchy path `node`, its scope. A path naming no node or a node that is not reviewable is the invalid
- * Report of its one line; no world, a load failure or an unreadable directory is thrown, for the program to report
- * as failed.
+ * Report of its one line; no world or a load failure is thrown, for the program to report as failed.
  */
 export async function scopeAt(root: string, node: string): Promise<Scope | Report> {
   const world = await loadWorld(root);
-  let position: number;
   try {
-    position = findNode(world, node, root);
+    return scope(root, world, findNode(world, node, root));
   } catch (error) {
     if (error instanceof CliError) return invalidFrom(error);
-    throw error;
-  }
-  try {
-    return scope(root, world, position);
-  } catch (error) {
-    if (error instanceof NotReviewable) return invalidFrom(error);
     throw error;
   }
 }

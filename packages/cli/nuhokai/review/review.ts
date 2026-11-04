@@ -28,7 +28,7 @@ export const Review = node({
     },
     {
       id: "R4",
-      text: "Verdicts: against-spec → error, possibly-against-spec and unspecified → warning, no findings → pass. Exit: 0 valid without errors, 1 valid with an error or when the world does not load (or a directory the node's source reaches cannot be read), 2 an invalid submission or argument.",
+      text: "Verdicts: against-spec → error, possibly-against-spec and unspecified → warning, no findings → pass. Exit: 0 valid without errors, 1 valid with an error or when the world does not load, 2 an invalid submission or argument.",
     },
     {
       id: "C1",

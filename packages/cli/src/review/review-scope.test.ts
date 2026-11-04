@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
 import { CliError } from "../shared/failure.ts";
-import { scope, scopeAt } from "./review-scope.ts";
+import { scope } from "./review-scope.ts";
 
 /** The CLI's own world, named from the cwd as a command names it. */
 const PACKAGE = join(import.meta.dir, "../..");
@@ -83,7 +83,7 @@ test("R3: an external dependency says so", () => {
   expect(cli.uses.find((use) => use.name === "Terminal")?.node?.spec.external).toBe(true);
 });
 
-test("R1: a dome names tree, a node without source says why, a source matching nothing names check", async () => {
+test("R1: a dome names tree, a node without source or with one that is no list says why, a source matching nothing names check", async () => {
   expect(refusal(ROOT, own, "Check")).toBe(
     `Check is a dome, and a review covers one leaf; \`nuhokai tree Check${ROOT === "." ? "" : ` --path ${ROOT}`}\` lists its children`,
   );
@@ -96,20 +96,14 @@ test("R1: a dome names tree, a node without source says why, a source matching n
   );
   const notList = await example('"src/example.ts"');
   expect(refusal(notList, await loadWorld(notList), "Example")).toBe(
-    `Example's source is not a list; \`nuhokai check --path ${notList}\` names what to fix`,
+    "Example has no source to review: it is not built yet; review a node whose source lists its code",
   );
 });
 
-test("R2: files as check finds them: a .., empty or . segment refused, a file named twice listed once", async () => {
-  const root = await example(
-    '["src/../src/example.ts", "src//example.ts", "src/./example.ts", "src/example.ts", "./src/example.ts"]',
-  );
+test("R2: files as check finds them, each entry normalized, a file named twice listed once", async () => {
+  const root = await example('["src//example.ts", "src/example.ts", "./src/example.ts"]');
   const world = await loadWorld(root);
   expect(scope(root, world, at(world, "Example")).files).toEqual([`${root}/src/example.ts`]);
-  const climbing = await example('["src/../src/example.ts"]');
-  expect(refusal(climbing, await loadWorld(climbing), "Example")).toStartWith("Example's source matches no file");
-  const doubled = await example('["src//example.ts"]');
-  expect(refusal(doubled, await loadWorld(doubled), "Example")).toStartWith("Example's source matches no file");
 });
 
 test("R4, R5: the example node's tbd is one draft with its description, never among the uses; same input, same scope", async () => {
@@ -138,19 +132,3 @@ export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "plan
   expect(example1.uses[0]?.node).toBeUndefined();
   expect(example1.items.find((item) => item.ref === "edges.uses[Lost]")).toMatchObject({ unreachable: true });
 });
-
-test.skipIf(process.getuid?.() === 0)(
-  "R2, R6: a directory the source reaches that cannot be read is thrown, for the program to report as failed",
-  async () => {
-    const root = await example('["src/**"]');
-    mkdirSync(join(root, "src/secret"));
-    chmodSync(join(root, "src/secret"), 0o000);
-    try {
-      expect(scopeAt(root, "Example")).rejects.toThrow(
-        `Example's source reaches ${root}/src/secret, which cannot be read (EACCES); make it readable`,
-      );
-    } finally {
-      chmodSync(join(root, "src/secret"), 0o755);
-    }
-  },
-);

@@ -316,27 +316,11 @@ test("R6: an entry spread in from another file points at the spread; one written
   ]);
 });
 
-test("R10: absolute entries and entries with a .. segment are refused as written, plain paths and globs alike", async () => {
-  const root = project(SOURCES({ A: `["src/../src/shared.ts", "/etc/passwd"]`, B: `["src/**/../*.ts", "../x/**"]` }));
+test("R10: absolute entries and ones leading out with .. are refused; others are normalized", async () => {
+  const root = project(SOURCES({ A: `["src/../src/shared.ts", "/etc/passwd"]`, B: `["../x/**", "src//map/*.ts"]` }));
   expect(await check(root)).toEqual([
-    // Each finding points at its entry, so the order is the entries' own.
-    "error: nuhokai/a.ts:3: A: source entry \"/etc/passwd\" lies outside the project directory, so outside the world's source; list only paths inside the world's source, without ..",
-    'error: nuhokai/a.ts:3: A: source entry "src/../src/shared.ts" has a .. segment; list only paths inside the world\'s source, without ..',
-    "error: nuhokai/a.ts:4: B: source entry \"../x/**\" lies outside the project directory, so outside the world's source; list only paths inside the world's source, without ..",
-    'error: nuhokai/a.ts:4: B: source entry "src/**/../*.ts" has a .. segment; list only paths inside the world\'s source, without ..',
-  ]);
-});
-
-test("SourceRules R1: an entry with an empty or . segment is refused, its fix the entry without them", async () => {
-  const root = project(SOURCES({ A: `["src//shared.ts", "src/./map/*.ts"]`, B: `["./src/shared.ts"]` }));
-  writeFileSync(
-    join(root, "nuhokai/index.ts"),
-    index("A, B, Dome", `import { A, B, Dome } from "./a.ts";`, `["src/**", "."]`),
-  );
-  expect(await check(root)).toEqual([
-    'error: nuhokai/a.ts:3: A: source entry "src/./map/*.ts" has an empty or . segment; write it as "src/map/*.ts"',
-    'error: nuhokai/a.ts:3: A: source entry "src//shared.ts" has an empty or . segment; write it as "src/shared.ts"',
-    'error: nuhokai/index.ts:3: the world\'s source entry "." has an empty or . segment; name a file or a glob below the project directory',
+    "error: nuhokai/a.ts:3: A: source entry \"/etc/passwd\" lies outside the project directory, so outside the world's source; list only paths inside the world's source",
+    "error: nuhokai/a.ts:4: B: source entry \"../x/**\" lies outside the project directory, so outside the world's source; list only paths inside the world's source",
   ]);
 });
 
@@ -347,7 +331,7 @@ test("R10: world source ['../shared/**'] is an error naming the world", async ()
     index("A, B, Dome", `import { A, B, Dome } from "./a.ts";`, `["../shared/**"]`),
   );
   expect(await check(root)).toEqual([
-    'error: nuhokai/index.ts:3: the world\'s source entry "../shared/**" lies outside the project directory; list only paths inside the project directory, without .., or run check with --path at the directory holding the code',
+    'error: nuhokai/index.ts:3: the world\'s source entry "../shared/**" lies outside the project directory; list only paths inside the project directory, or run check with --path at the directory holding the code',
   ]);
 });
 
@@ -372,50 +356,6 @@ test("SourceRules R1: a symlink out of the project directory is never followed",
     'error: nuhokai/a.ts:3: A: source entry "src/link/**" matches no file; fix the path or glob, or drop the entry',
   ]);
 });
-
-test("SourceRules R6: a file the world lists under another name, through a symlink, is under the world's source", async () => {
-  const { symlinkSync } = await import("node:fs");
-  // The world's walk reaches lib first as lib/a.ts; the node lists it as src/lib/a.ts.
-  const linked = project({
-    "nuhokai/index.ts": index("A", `import { A } from "./a.ts";`, `["**/*.ts"]`),
-    "nuhokai/a.ts": `${HEADER}export const A = node({ id: "a", purpose: "p", status: "planned", source: ["src/lib/*.ts"] }).edges({});\n`,
-    "lib/a.ts": "",
-  });
-  mkdirSync(join(linked, "src"));
-  symlinkSync("../lib", join(linked, "src/lib"));
-  expect(await check(linked)).toEqual([]);
-  // A sibling link reached first: the world lists src/a/f.ts, the node src/z/f.ts.
-  const sibling = project(SOURCES({ A: `["src/z/**"]` }, { "src/z/f.ts": "" }));
-  symlinkSync("z", join(sibling, "src/a"));
-  expect(await check(sibling)).toEqual([]);
-});
-
-test("SourceRules R6, R7: one file under two names, through a symlink, in two siblings' sources is an error naming both", async () => {
-  const root = project(SOURCES({ A: `["src/**"]`, B: `["src/z/**"]` }, { "src/z/f.ts": "" }));
-  const { symlinkSync } = await import("node:fs");
-  symlinkSync("z", join(root, "src/a"));
-  expect(await check(root)).toEqual([
-    "error: nuhokai/a.ts:4: B: src/z/f.ts is in the source of both A (nuhokai/a.ts, as src/a/f.ts) and B; keep the file in one node's source, or move the shared code into a node of its own",
-  ]);
-});
-
-test.skipIf(process.getuid?.() === 0)(
-  "SourceRules R5: an unreadable directory is one error per entry reaching it; every other finding still counts",
-  async () => {
-    const root = project(SOURCES({ A: `["src/**/*.ts"]`, B: `["src/gone.ts"]` }, { "src/secret/x.ts": "" }));
-    const { chmodSync } = await import("node:fs");
-    chmodSync(join(root, "src/secret"), 0o000);
-    try {
-      expect(await check(root)).toEqual([
-        'error: nuhokai/a.ts:3: A: source entry "src/**/*.ts" cannot read the directory src/secret (EACCES); make the directory readable, or narrow the entry so its files lie elsewhere',
-        'error: nuhokai/a.ts:4: B: source entry "src/gone.ts" matches no file; fix the path or glob, or drop the entry',
-        `error: nuhokai/index.ts:3: the world's source entry "src/**" cannot read the directory src/secret (EACCES); make the directory readable, or narrow the entry so its files lie elsewhere`,
-      ]);
-    } finally {
-      chmodSync(join(root, "src/secret"), 0o755);
-    }
-  },
-);
 
 test("R6: a file whose name holds a space is a file like any other", async () => {
   const root = project(
