@@ -49,7 +49,7 @@ test("R1, R3: not JSON, a finding without evidence, an unspecified finding citin
     out: [],
     err: [
       "findings[0].evidence is missing; say what the code does and why it goes against the spec",
-      "findings[1].specItem is given, but an unspecified finding cites no spec item; drop specItem, or make the category against-spec or possibly-against-spec",
+      'findings[1].specItem is "requirements[R1]"; an against-spec or possibly-against-spec finding cites the spec item it goes against by its reference, e.g. "requirements[R1]", an unspecified one none',
     ],
   });
 });

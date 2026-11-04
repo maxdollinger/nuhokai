@@ -46,16 +46,11 @@ export const ReviewSubmission = node({
       id: "R4",
       text: "Valid → one finding per submitted finding: against-spec an error, the others warnings; node its path, rule the spec item or 'unspecified', fix the evidence; their lines as Diagnostics.format gives them (in its order, identical ones merged), then Diagnostics.summarize. ok without errors, else failed.",
     },
-    {
-      id: "C1",
-      kind: "constraint",
-      text: "A cited file's lines are counted in chunks, only up to the furthest line cited in it, so a huge file is never loaded whole.",
-    },
   ],
   testCases: [
     {
       text: "Source src/** over src/assets/Screen Shot.png holding 'one', a newline and 'two', no final newline → line 2 valid and printed as named, line 3 past its end, which has 2 lines.",
-      demonstrates: ["R2", "R4", "C1"],
+      demonstrates: ["R2", "R4"],
     },
     {
       text: "'{' → not JSON; a finding without evidence, or unspecified with a specItem → one line each naming the field, invalid, no summary.",

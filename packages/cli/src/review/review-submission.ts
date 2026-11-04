@@ -1,4 +1,4 @@
-import { closeSync, openSync, readSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { type Finding, format, summarize } from "../shared/diagnostics.ts";
 import { inWords } from "../shared/failure.ts";
 import { failureLine, orFailed, type Report, resultLine } from "../shared/report.ts";
@@ -59,16 +59,10 @@ function judgeFinding(value: unknown, where: string): SubmittedFinding | string[
   if (known === undefined) {
     problems.push(`${where}.category ${described(category)}; send against-spec, possibly-against-spec or unspecified`);
   }
-  if (known === "unspecified" && specItem !== undefined) {
+  if (known !== undefined && (known === "unspecified" ? specItem !== undefined : typeof specItem !== "string")) {
     problems.push(
-      `${where}.specItem is given, but an unspecified finding cites no spec item; drop specItem, or make the category against-spec or possibly-against-spec`,
+      `${where}.specItem ${described(specItem)}; an against-spec or possibly-against-spec finding cites the spec item it goes against by its reference, e.g. "requirements[R1]", an unspecified one none`,
     );
-  } else if (known !== undefined && known !== "unspecified" && typeof specItem !== "string") {
-    problems.push(
-      `${where}.specItem ${described(specItem)}; a ${known} finding cites the spec item it goes against by its reference, e.g. "requirements[R1]"`,
-    );
-  } else if (known === undefined && specItem !== undefined && typeof specItem !== "string") {
-    problems.push(`${where}.specItem is ${inWords(specItem)}; send a spec item's reference, e.g. "requirements[R1]"`);
   }
   if (typeof file !== "string" || file === "") {
     problems.push(`${where}.file ${described(file)}; send the file the finding is in, as the prompt lists it`);
@@ -123,30 +117,10 @@ function judgeShape(value: unknown): Submission | string[] {
   return { node: node as string, reviewedFiles: reviewedFiles as string[], findings: judged };
 }
 
-/** The bytes lineCount reads at a time. */
-const CHUNK = 64 * 1024;
-
-/**
- * How many lines a file has, counted up to `enough` (a last line ending in a newline opens none): read in chunks and
- * never past the line that settles it, so a huge cited file is never loaded whole.
- */
-function lineCount(file: string, enough: number): number {
-  const fd = openSync(file, "r");
-  try {
-    const buffer = Buffer.alloc(CHUNK);
-    let newlines = 0;
-    let last = -1;
-    for (let read = readSync(fd, buffer); read > 0; read = readSync(fd, buffer)) {
-      for (let index = buffer.indexOf(10); index !== -1 && index < read; index = buffer.indexOf(10, index + 1)) {
-        newlines++;
-      }
-      last = buffer[read - 1] ?? -1;
-      if (newlines >= enough) return newlines;
-    }
-    return last === -1 || last === 10 ? newlines : newlines + 1;
-  } finally {
-    closeSync(fd);
-  }
+/** How many lines a file has: a last line ending in a newline opens none. */
+function lineCount(file: string): number {
+  const text = readFileSync(file, "utf8");
+  return text === "" ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
 }
 
 /**
@@ -158,9 +132,6 @@ function judgeContent(submission: Submission, scope: Scope): string[] {
   const specFiles = [...new Set(scope.items.map((item) => item.file))];
   const citable = new Set([...scope.files, ...specFiles]);
   const lines = new Map<string, number>();
-  // The furthest line cited per file: counting stops there.
-  const furthest = new Map<string, number>();
-  for (const { file, line } of submission.findings) furthest.set(file, Math.max(line, furthest.get(file) ?? 0));
   for (const [index, finding] of submission.findings.entries()) {
     const where = `findings[${index}]`;
     if (finding.specItem !== undefined && find(scope.items, finding.specItem) === undefined) {
@@ -174,11 +145,8 @@ function judgeContent(submission: Submission, scope: Scope): string[] {
       );
       continue;
     }
-    let count = lines.get(finding.file);
-    if (count === undefined) {
-      count = lineCount(finding.file, furthest.get(finding.file) ?? finding.line);
-      lines.set(finding.file, count);
-    }
+    const count = lines.get(finding.file) ?? lineCount(finding.file);
+    lines.set(finding.file, count);
     if (finding.line > count) {
       problems.push(
         `${where}.line ${finding.line} is past the end of ${finding.file}, which has ${count} line${count === 1 ? "" : "s"}; cite a line within it`,
