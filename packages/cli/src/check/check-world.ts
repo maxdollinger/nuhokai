@@ -1,8 +1,8 @@
 import { LoadError, type LoadedWorld, loadWorld } from "../load/load-world.ts";
+import { type Finding, format, order, summarize } from "../shared/diagnostics.ts";
 import { NoWorldError } from "../shared/inspect.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
-import { compareFindings, type Finding, formatFinding, positionOf } from "./diagnostics.ts";
 import { applyRules } from "./spec-check/apply-rules.ts";
 import { runTypeCheck } from "./type-check.ts";
 
@@ -54,36 +54,24 @@ function withLoadFinding(
     places.some((place) => place.line === finding.line && place.column === finding.column);
   const actionable = (finding: Finding) => finding.formatMessage === true || finding.fix !== undefined;
   if (typeFindings.some((finding) => samePlace(finding) && actionable(finding))) return [...typeFindings];
-  return [...typeFindings.filter((finding) => !samePlace(finding)), load].sort(compareFindings);
-}
-
-/** A count with its noun: "1 error", "2 warnings". */
-function counted(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-/** check's last line, `ok: 0 errors, 1 warning`: its prefix is never a finding's severity. */
-function summaryLine(outcome: "ok" | "failed", errors: number, warnings: number): string {
-  return `${outcome}: ${counted(errors, "error")}, ${counted(warnings, "warning")}`;
+  return [...typeFindings.filter((finding) => !samePlace(finding)), load].sort(order);
 }
 
 /**
  * The check command for the project directory `root`, named from the cwd: load once; without a world, stop there.
  * Then TypeCheck beside SpecCheck, or TypeCheck alone when the load failed, then CodeCheck when neither found an
  * error. Answers TypeCheck's findings, then SpecCheck's, then CodeCheck's, one result line each, and one failure
- * line per failure, in the order they happen, then one summary line, `<outcome>: <n> errors, <n> warnings` (R7); the
+ * line per failure, in the order they happen, then one summary line, Diagnostics' summarize (R7); the
  * outcome is ok without errors (warnings allowed), else failed. Without a world there is nothing to sum up: the one
  * failure line alone. Programming errors propagate as a CutShort carrying the lines added before them, and crash with their stack.
  */
 export async function runCheck(root: string): Promise<Report> {
   // A bug crashes with its stack, after Cli prints the lines added before it.
   return collecting(async (lines) => {
-    const counts = { error: 0, warning: 0 };
+    const reported: Finding[] = [];
     const addFindings = (findings: readonly Finding[]) => {
-      for (const finding of findings) {
-        counts[finding.severity]++;
-        lines.push(resultLine(formatFinding(finding)));
-      }
+      reported.push(...findings);
+      lines.push(...format(findings).map(resultLine));
     };
     // An expected failure becomes one failure line; a bug is rethrown.
     const addFailure = (thrown: unknown) => {
@@ -91,7 +79,7 @@ export async function runCheck(root: string): Promise<Report> {
     };
     /** The Report, its summary line last: what an agent reads to know the check ran and how it ended. */
     const summarized = (outcome: "ok" | "failed"): Report => {
-      lines.push(resultLine(summaryLine(outcome, counts.error, counts.warning)));
+      lines.push(resultLine(summarize(reported, outcome === "failed")));
       return { outcome, lines };
     };
     const failedReport = (): Report => summarized("failed");
@@ -124,7 +112,8 @@ export async function runCheck(root: string): Promise<Report> {
       const loadFinding: Finding = {
         severity: "error",
         file: unread.file,
-        ...positionOf(unread),
+        ...(unread.line === undefined ? {} : { line: unread.line }),
+        ...(unread.line === undefined || unread.column === undefined ? {} : { column: unread.column }),
         rule: unread.rule,
       };
       addFindings(withLoadFinding("value" in typed ? typed.value : [], loadFinding, unread.alsoAt));

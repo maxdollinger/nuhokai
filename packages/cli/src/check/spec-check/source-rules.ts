@@ -1,108 +1,15 @@
-import { type Dirent, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
-import type { LoadedNode, LoadedWorld, Position, SourcePlaces } from "../../load/load-world.ts";
+import type { Line, LoadedNode, LoadedWorld, SourcePlaces } from "../../load/load-world.ts";
+import { type Finding, locate } from "../../shared/diagnostics.ts";
+import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
-import { isInside } from "../../shared/world-path.ts";
-import { at, atWorld, compareText, type Finding, positionOf } from "../diagnostics.ts";
+import { ProjectFiles } from "../../shared/project-files.ts";
 import type { Ids } from "./ids.ts";
-
-/** Bun's glob syntax: an entry with none of these characters is a plain path. */
-const GLOB_CHARS = /[*?[\]{}!\\]/;
-
-/**
- * The project's files, read lazily and at most once per directory: every path is `/`-separated and relative to the
- * project directory, and no symlink is followed out of it (SourceRules R1, R2).
- */
-class ProjectFiles {
-  readonly #root: string;
-  readonly #realRoot: string;
-  /** Each directory read, by its relative path ("" for the root): the files below it, at any depth. */
-  readonly #below = new Map<string, readonly string[]>();
-
-  constructor(root: string) {
-    this.#root = resolve(root);
-    this.#realRoot = realpathSync(this.#root);
-  }
-
-  /** Whether a real path lies inside the project directory. */
-  #inside(real: string): boolean {
-    return isInside(real, this.#realRoot);
-  }
-
-  /** The real path behind a relative path, if it exists and stays inside the project directory. */
-  #real(path: string): string | undefined {
-    try {
-      const real = realpathSync(join(this.#root, path));
-      return this.#inside(real) ? real : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  /** Whether `path` names a file inside the project directory, through symlinks that stay inside. */
-  isFile(path: string): boolean {
-    const real = this.#real(path);
-    return real !== undefined && (statSync(real, { throwIfNoEntry: false })?.isFile() ?? false);
-  }
-
-  /** Every file below the directory `dir` ("" for the project directory), each directory read once. */
-  filesBelow(dir: string, visiting: ReadonlySet<string> = new Set()): readonly string[] {
-    const cached = this.#below.get(dir);
-    if (cached) return cached;
-    const real = this.#real(dir);
-    if (real === undefined || visiting.has(real) || !statSync(real, { throwIfNoEntry: false })?.isDirectory()) {
-      return [];
-    }
-    const inner = new Set([...visiting, real]);
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(join(this.#root, dir), { withFileTypes: true });
-    } catch {
-      entries = [];
-    }
-    const files: string[] = [];
-    for (const entry of entries.sort((a, b) => compareText(a.name, b.name))) {
-      const path = dir ? `${dir}/${entry.name}` : entry.name;
-      if (entry.isFile()) files.push(path);
-      else if (entry.isDirectory()) files.push(...this.filesBelow(path, inner));
-      else if (entry.isSymbolicLink()) {
-        if (this.isFile(path)) files.push(path);
-        else files.push(...this.filesBelow(path, inner));
-      }
-    }
-    this.#below.set(dir, files);
-    return files;
-  }
-}
-
-/**
- * An entry, checked: the files it matches, or why it is refused: it names a place outside the project directory
- * (absolute, or starting with `..`), or it climbs back with a `..` segment inside it.
- */
-type Expansion = { readonly files: readonly string[] } | { readonly refused: "outside" | "climbs" };
-
-/**
- * One source entry's matches; plain paths are checked directly, globs expanded below their static prefix. Never
- * normalized: a pattern is matched as written, so an entry with a `..` segment, or an absolute one, is refused.
- */
-function expand(project: ProjectFiles, entry: string): Expansion {
-  const path = entry.replace(/^(\.\/)+/, "");
-  const segments = path.split("/");
-  if (isAbsolute(entry) || segments[0] === "..") return { refused: "outside" };
-  if (segments.includes("..")) return { refused: "climbs" };
-  if (!GLOB_CHARS.test(path)) return { files: project.isFile(path) ? [path] : [] };
-  const firstGlob = segments.findIndex((segment) => GLOB_CHARS.test(segment));
-  const prefix = segments.slice(0, firstGlob).join("/");
-  const glob = new Bun.Glob(path);
-  return { files: project.filesBelow(prefix).filter((file) => glob.match(file)) };
-}
 
 /** A node or the world, as a source's owner: where its findings point and how they name it. */
 interface Owner {
   readonly node?: LoadedNode;
   readonly file: string;
   readonly line?: number;
-  readonly column?: number;
   readonly label: string;
   /** Where its source and each entry were written: a finding about one points there, else at the owner. */
   readonly source?: SourcePlaces;
@@ -111,7 +18,7 @@ interface Owner {
 /** One string entry of a source, with where it was written when known. */
 interface Entry {
   readonly text: string;
-  readonly at?: Position;
+  readonly at?: Line;
 }
 
 /**
@@ -122,11 +29,10 @@ interface Entry {
 export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Finding[] {
   const project = new ProjectFiles(root);
   const findings: Finding[] = [];
-  const error = (owner: Owner, rule: string, fix: string, where?: Position) =>
+  const error = (owner: Owner, rule: string, fix: string, where?: Line) =>
     findings.push({
       severity: "error",
-      file: owner.file,
-      ...positionOf(where ?? owner),
+      ...locate({ file: owner.file, line: (where ?? owner).line }),
       ...(owner.node ? { node: owner.node.path } : {}),
       rule,
       fix,
@@ -144,72 +50,55 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
       const at = owner.source?.entries[index];
       if (typeof entry === "string") entries.push(at ? { text: entry, at } : { text: entry });
       else {
-        const rule = `${owner.label}'s source lists ${describe(entry)}, which is not a string`;
+        const rule = `${owner.label}'s source lists ${inWords(entry)}, which is not a string`;
         error(owner, rule, "list paths or globs", at);
       }
     }
     return entries;
   };
 
-  // The world's source: inside the project directory, every entry matching a file (SpecCheck R10, R6).
+  /**
+   * One entry's files, as ProjectFiles.expand finds them (SourceRules R1), for the world and a node alike: one outside
+   * the project directory is an error and matches nothing (SpecCheck R10), one matching no file an error (SpecCheck R6).
+   */
+  const filesOf = (owner: Owner, entry: string, where?: Line): readonly string[] => {
+    const named = `${owner.node ? "" : "the world's "}source entry "${entry}"`;
+    const files = project.expand(entry);
+    if (files === undefined) {
+      const why = `lies outside the project directory${owner.node ? ", so outside the world's source" : ""}`;
+      const fix = owner.node
+        ? "list only paths inside the world's source"
+        : "list only paths inside the project directory, or run check with --path at the directory holding the code";
+      error(owner, `${named} ${why}`, fix, where);
+      return [];
+    }
+    if (!files.length) error(owner, `${named} matches no file`, "fix the path or glob, or drop the entry", where);
+    return files;
+  };
+
+  // The world's source (SpecCheck R10, R6).
   const worldOwner: Owner = {
-    ...atWorld(world),
+    ...locate({ file: world.definedIn, line: world.line }),
     label: "the world",
     ...(world.sourcePlaces ? { source: world.sourcePlaces } : {}),
   };
   const worldEntries = entriesOf(worldOwner, world.source);
-  let covered: Set<string> | undefined;
-  if (worldEntries) {
-    covered = new Set();
-    for (const { text: entry, at: where } of worldEntries) {
-      const expansion = expand(project, entry);
-      if ("refused" in expansion) {
-        error(
-          worldOwner,
-          expansion.refused === "outside"
-            ? `the world's source entry "${entry}" lies outside the project directory`
-            : `the world's source entry "${entry}" has a .. segment`,
-          "list only paths inside the project directory, without .., or run check with --path at the directory holding the code",
-          where,
-        );
-        continue;
-      }
-      if (!expansion.files.length) {
-        error(
-          worldOwner,
-          `the world's source entry "${entry}" matches no file`,
-          "fix the path or glob, or drop the entry",
-          where,
-        );
-      }
-      for (const file of expansion.files) covered.add(file);
-    }
-  }
+  const covered = worldEntries && new Set(worldEntries.flatMap(({ text, at }) => filesOf(worldOwner, text, at)));
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
   const owners = new Map<string, LoadedNode[]>();
   for (const node of world.nodes) {
     if (ids.duplicated.has(node.spec.id)) continue;
-    const owner: Owner = { node, ...at(node), label: node.spec.name, ...(node.source ? { source: node.source } : {}) };
+    const owner: Owner = {
+      node,
+      ...locate(node),
+      label: node.spec.name,
+      ...(node.source ? { source: node.source } : {}),
+    };
     const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
     for (const { text: entry, at: where } of entries ?? []) {
-      const expansion = expand(project, entry);
-      if ("refused" in expansion) {
-        error(
-          owner,
-          expansion.refused === "outside"
-            ? `source entry "${entry}" lies outside the project directory, so outside the world's source`
-            : `source entry "${entry}" has a .. segment`,
-          "list only paths inside the world's source, without ..",
-          where,
-        );
-        continue;
-      }
-      if (!expansion.files.length) {
-        error(owner, `source entry "${entry}" matches no file`, "fix the path or glob, or drop the entry", where);
-        continue;
-      }
-      const uncovered = covered && expansion.files.find((file) => !covered.has(file));
+      const files = filesOf(owner, entry, where);
+      const uncovered = covered && files.find((file) => !covered.has(file));
       if (uncovered !== undefined) {
         error(
           owner,
@@ -218,7 +107,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
           where,
         );
       }
-      for (const file of expansion.files) {
+      for (const file of files) {
         const claimed = owners.get(file) ?? [];
         if (!claimed.includes(node)) claimed.push(node);
         owners.set(file, claimed);
@@ -233,7 +122,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
         if (isAncestor(world, other, node) || isAncestor(world, node, other)) continue;
         const [first, second] = other.index < node.index ? [other, node] : [node, other];
         error(
-          { node: second, ...at(second), label: second.spec.name },
+          { node: second, ...locate(second), label: second.spec.name },
           `${file} is in the source of both ${first.path} (${first.file}) and ${second.path}`,
           "keep the file in one node's source, or move the shared code into a node of its own",
         );
@@ -241,12 +130,4 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     }
   }
   return findings;
-}
-
-function describe(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
 }

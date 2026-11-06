@@ -7,12 +7,12 @@ import { SourceRules } from "./source-rules.ts";
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
-  status: "built",
+  status: "building",
   source: ["src/check/spec-check/**"],
   requirements: [
     {
       id: "R1",
-      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation at the second listing, naming both places with their file:line:column, the node in the node part only. Every other rule skips nodes whose id is duplicated.",
+      text: "Every id is unique in the world, the world's own id included. A node listed in two places is a violation at the second listing, naming both places with their file:line, the node in the node part only. Every other rule skips nodes whose id is duplicated.",
     },
     {
       id: "R2",
@@ -58,7 +58,7 @@ export const SpecCheck = node({
       demonstrates: ["R1"],
     },
     {
-      text: "An exported node missing from index.ts → one warning at its file, line and column, exit 0; its own broken edges go unreported.",
+      text: "An exported node missing from index.ts → one warning at its file and line, exit 0; its own broken edges go unreported.",
       demonstrates: ["R2"],
     },
     {

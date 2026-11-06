@@ -31,6 +31,14 @@ export function nameInProject(root: string, path: string): string {
   return (isAbsolute(path) ? path : join(root, path)).split(sep).join("/");
 }
 
+/**
+ * The one order of the names commands print, and of what findings sort by: plain code-unit order, so the same names
+ * sort byte-identically on every machine and locale.
+ */
+export function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /** Whether the real path `path` is the real directory `dir` or lies inside it: how a symlink is held to a boundary. */
 export function isInside(path: string, dir: string): boolean {
   return path === dir || path.startsWith(dir.endsWith(sep) ? dir : `${dir}${sep}`);

@@ -14,15 +14,19 @@ src/
   map/          draw the loaded world into nuhokai/.generated/map.html: the program, the file, the viewer and its scene
   check/        check the world: tsc and the declarative rule, the spec rules on the loaded world, one diagnostics list
   tree/         print the node hierarchy, one line per node: the program and the lines
-  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), what sits at nuhokai/,
-                the error types and plain text, and the one client of the pinned type checker
+  review/       a node's review by the user's coding agent: its spec items and scope, the prompt, and the submission's check
+  shared/       the names the CLI prints (a file's path, a node's hierarchy path, a suggested command), the files a
+                source entry names, what sits at nuhokai/, the finding line, the error types and plain text, and the one
+                client of the pinned type checker
   toolchain/    generated assets: @nuhokai/world declarations, three.js and the map's viewer
 scripts/        build-time embedding of those assets
 nuhokai/        this package described as nodes in its own format
 ```
 
 Unit tests sit next to what they test (`*.test.ts`); there is no `test/` directory and no export exists solely for a
-test. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and `src/toolchain/map-assets.gen.ts` from
+test. A leaf's port names are its functions' names (`findNode`, `summarize`), so a reader of the spec finds the code
+and the reverse; a program's `run` port is `run<Program>` in code (`runTree`, `runReviewSubmission`), so each
+command's entry point is distinct. `src/toolchain/world-types.gen.ts` is generated from `packages/world` and `src/toolchain/map-assets.gen.ts` from
 the exactly pinned `three` dev dependency plus `src/map/viewer.html` and `src/map/scene.js`; both are checked in.
 `bun run embed` regenerates them, `bun run build` embeds before bundling, and `bun test` fails if a committed asset is
 stale. A test also type-checks a consumer world against the bundled declarations, so the `.d.ts` cannot drift from
@@ -30,12 +34,13 @@ stale. A test also type-checks a consumer world against the bundled declarations
 
 ## Commands
 
-| Command | Purpose                                                                                |
-| ------- | -------------------------------------------------------------------------------------- |
-| `check` | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)      |
-| `init`  | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types |
-| `map`   | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map             |
-| `tree`  | print the node hierarchy, one line per node: `path \| source \| purpose`               |
+| Command  | Purpose                                                                                      |
+| -------- | -------------------------------------------------------------------------------------------- |
+| `check`  | load the world, run tsc and the global rules, exit 1 on any error (warnings pass)            |
+| `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types       |
+| `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map                   |
+| `review` | print a prompt for a coding agent to review a leaf against its spec; `--submit` its findings |
+| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`                     |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -56,10 +61,10 @@ directory exits 2 and runs nothing; `nuhokai map --path packages/cli --help` pri
 starts from a node named `help`. Any other argument starting with `-` is an unknown option and an extra argument is named; both
 exit 2 and run nothing. `--help` is enough to drive the CLI without this README: the usage states where failures go and
 what each exit code means, and each command's help adds what its arguments are and the shape of every line it prints. Without a `nuhokai/`
-there, `check`, `map` and `tree` fail with one line. Every printed path, on stdout and in errors, is named from the current
+there, `check`, `map`, `tree` and `review` fail with one line. Every printed path, on stdout and in errors, is named from the current
 directory, so it opens as printed: `nuhokai/.generated/map.html` without `--path`,
 `packages/cli/nuhokai/.generated/map.html` with `--path packages/cli`, and a load error names
-`packages/cli/nuhokai/<file>:<line>:<column>`.
+`packages/cli/nuhokai/<file>:<line>`, without a column, as every finding line.
 
 `init` writes those four files and nothing else. `index.ts` carries a fresh world id, generated per run, so two
 projects never share per-world state such as the map's saved layout; everything else is the same per CLI version. An
@@ -67,10 +72,11 @@ existing `nuhokai/` directory is left untouched: it prints one line and exits 0,
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
-the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`, and every
-`source` entry against the project's files); the code check runs only when neither found an error, and finds nothing
-yet. Every finding is one stdout line, `<severity>: <file>:<line>:<column>: <node>: <rule>; <fix>`, naming a node by its path
-from the world. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
+the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
+and every `source` entry against the project's files, a glob never listing through a symlink to a directory, as git does); the code check runs only when neither found an error, and finds nothing
+yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
+from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
+line (three tsc errors on one line) print it once, ending in ` (×3)`, while the summary counts each. A tsc error says what to change, not how tsc typed it: one about a rule the format spells out
 (`Forbidden<"…">`) is that message alone (`a draft is not a node: call .edges(), also with {}`), any other names
 types without their arguments (`'NodeShape'`) and a long object literal as `'{ … }'`, and tsc's advice to change the library or install types gives way to
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
@@ -78,9 +84,9 @@ format's functions among it), and the type check allows imports only from `@nuho
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
 exits 1 on any error and 0 otherwise; orphans are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
 or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
-load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file, line and column (where a type-check finding
+load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file and line (where a type-check finding
 sits at that very position, one of the two: that finding when it says what to do, else the loader's)
-(``error: nuhokai/b.ts:3:1: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}` ``),
+(``error: nuhokai/b.ts:3: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}` ``),
 so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
@@ -104,6 +110,14 @@ everything; a dome cut off by the level shows `/ (<n>)` and its child count. Sou
 like every other path, and the whole purpose stays on the line. Like `map`, `tree` does not run `check`. A path that
 names no node exits 2 with the closest match (``did you mean `nuhokai tree Check/SpecCheck`?``, a command to run as printed) or the `tree` command listing where it
 went wrong.
+
+`review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state
+and call no model. `nuhokai review Tree/PrintTree` prints a prompt for the agent: the node's spec items, its files,
+what it may use, and the JSON to answer with. The agent pipes that JSON to `nuhokai review --submit`, which validates
+it and prints each finding as `check` does, then the summary. It exits 0 when the review passes (warnings allowed), 1
+on an `against-spec` finding or when the world does not load, and 2 for an invalid submission, a node that cannot be
+reviewed or a misused flag; `nuhokai review --help` has the details. It is a dev-loop tool, not a CI gate, since
+nothing proves a review ran.
 
 `init` exists so an editor's built-in TypeScript can resolve `@nuhokai/world` and use the
 world's strict options without the repo installing TypeScript. The CLI does not ship a language server.

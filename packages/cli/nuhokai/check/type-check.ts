@@ -1,22 +1,22 @@
 import { node } from "@nuhokai/world";
 import { CheckerClient } from "../checker-client.ts";
+import { Diagnostics } from "../diagnostics.ts";
 import { FileSystem } from "../external.ts";
 import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
-import { Diagnostics } from "./diagnostics.ts";
 
 /** The world's type check, beside SpecCheck. */
 export const TypeCheck = node({
   id: "01a186f7-93a5-7791-86db-5d2a7e555555",
   purpose: "Type-check the world files with the CLI's pinned checker and nuhokai/tsconfig.json.",
-  status: "built",
+  status: "building",
   source: ["src/check/type-check.ts"],
   ports: {
     run: {
       kind: "call",
       purpose: "Type-check the project directory's world",
       input: "project directory, cwd-relative",
-      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file:line:column",
+      output: "findings as Diagnostics.format takes them: one error per tsc error, at its file and line",
       errors: ["no nuhokai/tsconfig.json: says how to restore it"],
     },
   },
@@ -70,4 +70,13 @@ export const TypeCheck = node({
       ],
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Failure.format, CheckerClient.session, Diagnostics.order, FileSystem.read] });
+}).edges({
+  uses: () => [
+    Path.nameInWorld,
+    Failure.format,
+    CheckerClient.session,
+    Diagnostics.order,
+    Diagnostics.locate,
+    FileSystem.read,
+  ],
+});

@@ -1,13 +1,13 @@
 import { node } from "@nuhokai/world";
+import { Diagnostics } from "../../diagnostics.ts";
 import { Path } from "../../path/path.ts";
-import { Diagnostics } from "../diagnostics.ts";
 
 /** The rules on the loaded world alone: R1–R5, R9, R11. */
 export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
   purpose:
     "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, rules tsc leaves to check, built nodes with code.",
-  status: "built",
+  status: "building",
   source: ["src/check/spec-check/data-rules.ts"],
   requirements: [
     { id: "R1", text: "Pure: reads only the loaded world, no filesystem." },
@@ -17,7 +17,7 @@ export const DataRules = node({
     },
     {
       id: "R3",
-      text: "A finding about the world itself points at its defineWorld call, line and column, in the file holding it (LoadWorld's definedIn: index.ts, or a world file it re-exports the world from).",
+      text: "A finding about the world itself points at its defineWorld call's line in the file holding it (LoadWorld's definedIn: index.ts, or a world file it re-exports the world from).",
     },
     {
       id: "R4",
@@ -32,4 +32,4 @@ export const DataRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Diagnostics.locate, Path.childrenOf, Path.isAncestor] });
+}).edges({ uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor] });

@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import { format } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
-import { formatFinding } from "./diagnostics.ts";
 import { runTypeCheck } from "./type-check.ts";
 
 const roots: string[] = [];
@@ -27,7 +27,7 @@ async function world(files: Record<string, string> = {}): Promise<string> {
 }
 
 async function typeCheck(root: string): Promise<string[]> {
-  return (await runTypeCheck(root)).map((finding) => formatFinding(finding).replaceAll(`${root}/`, ""));
+  return (await runTypeCheck(root)).map((finding) => format([finding]).join("").replaceAll(`${root}/`, ""));
 }
 
 test("a world fresh from init type-checks clean", async () => {
@@ -40,7 +40,7 @@ test("R1: a type error in nuhokai/index.test.ts is one error; the same in nuhoka
     "nuhokai/.generated/x.ts": 'export const x: number = "one";\n',
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'.",
+    "error: nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'.",
   ]);
 });
 
@@ -64,8 +64,8 @@ export const read = Reflect.get(Dome, "$def");
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/dome.ts:10:14: world files use no cast; it bypasses the rules tsc checks; drop the cast and fix the type error",
-    "error: nuhokai/dome.ts:13:1: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
+    "error: nuhokai/dome.ts:10: world files use no cast; it bypasses the rules tsc checks; drop the cast and fix the type error",
+    "error: nuhokai/dome.ts:13: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
   ]);
 });
 
@@ -83,7 +83,7 @@ test("R2: a test file importing bun:test fails too", async () => {
   const root = await world({ "nuhokai/index.test.ts": 'import { test } from "bun:test";\n\ntest("x", () => {});\n' });
   const findings = await typeCheck(root);
   expect(findings).toContain(
-    'error: nuhokai/index.test.ts:1:1: world files import only @nuhokai/world and files under nuhokai/, not "bun:test"; move what the import provides into the world, or drop the import',
+    'error: nuhokai/index.test.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "bun:test"; move what the import provides into the world, or drop the import',
   );
   expect(findings.every((line) => line.startsWith("error: nuhokai/index.test.ts:"))).toBe(true);
 });
@@ -99,9 +99,9 @@ export { later } from "./example.ts";
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    'error: nuhokai/a.ts:1:1: world files import only @nuhokai/world and files under nuhokai/, not "../src/outside.ts"; move what the import provides into the world, or drop the import',
-    "error: nuhokai/a.ts:3:17: world files use no any; it bypasses the rules tsc checks; name the real type",
-    "error: nuhokai/a.ts:4:18: world files use no non-null assertion; drop the ! and handle the missing value",
+    'error: nuhokai/a.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "../src/outside.ts"; move what the import provides into the world, or drop the import',
+    "error: nuhokai/a.ts:3: world files use no any; it bypasses the rules tsc checks; name the real type",
+    "error: nuhokai/a.ts:4: world files use no non-null assertion; drop the ! and handle the missing value",
   ]);
 });
 
@@ -116,10 +116,10 @@ export const Odd = node({ id: "a5", purpose: "p", status: "planned", source: [],
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/a.ts:3:94: a draft is not a node: call .edges(), also with {}",
-    "error: nuhokai/a.ts:4:95: a child is a node reference, not a string: list the node's const, e.g. children: [Orders]",
-    "error: nuhokai/a.ts:5:95: externalType is for external nodes only",
-    "error: nuhokai/a.ts:6:93: Object literal may only specify known properties, but 'purpos' does not exist in type 'NodeShape'. Did you mean to write 'purpose'?",
+    "error: nuhokai/a.ts:3: a draft is not a node: call .edges(), also with {}",
+    "error: nuhokai/a.ts:4: a child is a node reference, not a string: list the node's const, e.g. children: [Orders]",
+    "error: nuhokai/a.ts:5: externalType is for external nodes only",
+    "error: nuhokai/a.ts:6: Object literal may only specify known properties, but 'purpos' does not exist in type 'NodeShape'. Did you mean to write 'purpose'?",
   ]);
 });
 
@@ -131,8 +131,8 @@ export const B = node({ id: "b", purpose: "the world's <best> & {last}", status:
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/a.ts:2:23: Argument of type '{ … }' is not assignable to parameter of type 'NodeShape'. Property 'purpose' is missing in type '{ … }' but required in type 'NodeShape'.",
-    "error: nuhokai/a.ts:3:116: Object literal may only specify known properties, and 'bogus' does not exist in type 'NodeShape'.",
+    "error: nuhokai/a.ts:2: Argument of type '{ … }' is not assignable to parameter of type 'NodeShape'. Property 'purpose' is missing in type '{ … }' but required in type 'NodeShape'.",
+    "error: nuhokai/a.ts:3: Object literal may only specify known properties, and 'bogus' does not exist in type 'NodeShape'.",
   ]);
 });
 
@@ -141,8 +141,8 @@ test("R4: tsc's advice to change the library or install types gives way to the w
   const fix =
     "remove the code that uses it: world files hold data only (do not edit nuhokai/tsconfig.json, it is CLI-owned)";
   expect(await typeCheck(root)).toEqual([
-    `error: nuhokai/a.ts:1:25: Cannot find name 'console'; ${fix}`,
-    `error: nuhokai/a.ts:2:25: Cannot find name 'process'; ${fix}`,
+    `error: nuhokai/a.ts:1: Cannot find name 'console'; ${fix}`,
+    `error: nuhokai/a.ts:2: Cannot find name 'process'; ${fix}`,
   ]);
 });
 
@@ -155,8 +155,8 @@ export const B = node({ id: "b", purpose: "p", status: "planned", source: [] }).
     "nuhokai/b.ts": 'import { pad } from "left-pad";\nexport const b = pad;\n',
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/a.ts:2:67: ',' expected.",
-    'error: nuhokai/b.ts:1:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
+    "error: nuhokai/a.ts:2: ',' expected.",
+    'error: nuhokai/b.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
   ]);
 });
 
@@ -170,7 +170,7 @@ export const v = o["b"];
   writeFileSync(index, readFileSync(index, "utf8").replace(/ {2}name: .*\n/, ""));
   const findings = await typeCheck(root);
   expect(findings).toContain(
-    "error: nuhokai/a.ts:2:18: Element implicitly has an 'any' type because expression of type '\"b\"' can't be used to index type '{ readonly a: \"it's\"; }'. Property 'b' does not exist on type '{ readonly a: \"it's\"; }'.",
+    "error: nuhokai/a.ts:2: Element implicitly has an 'any' type because expression of type '\"b\"' can't be used to index type '{ readonly a: \"it's\"; }'. Property 'b' does not exist on type '{ readonly a: \"it's\"; }'.",
   );
   const missing = findings.find((line) => line.includes("Property 'name' is missing"));
   // The reader's literal is { … }; the type it should match is tsc's, spelled out, cut to names where tsc cut it off.
@@ -181,7 +181,7 @@ export const v = o["b"];
 test("R5: a multi-line import R2 refuses is R2's finding alone", async () => {
   const root = await world({ "nuhokai/a.ts": 'import {\n  pad,\n} from "left-pad";\nexport const p = pad;\n' });
   expect(await typeCheck(root)).toEqual([
-    'error: nuhokai/a.ts:1:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
+    'error: nuhokai/a.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
   ]);
 });
 
@@ -203,9 +203,9 @@ export const w = /\\/\\/ @ts-ignore/;
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/a.ts:2:26: world files use no @ts-ignore directive; it hides what tsc reports; drop the directive and fix the error",
-    "error: nuhokai/a.ts:4:38: Unused '@ts-expect-error' directive.",
-    "error: nuhokai/a.ts:4:38: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
+    "error: nuhokai/a.ts:2: world files use no @ts-ignore directive; it hides what tsc reports; drop the directive and fix the error",
+    "error: nuhokai/a.ts:4: Unused '@ts-expect-error' directive.",
+    "error: nuhokai/a.ts:4: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
   ]);
 });
 
@@ -214,7 +214,7 @@ test("R3: an unknown compiler option or broken JSON in nuhokai/tsconfig.json is 
   const tsconfig = join(root, "nuhokai/tsconfig.json");
   const original = readFileSync(tsconfig, "utf8");
   writeFileSync(tsconfig, original.replace('"compilerOptions": {', '"compilerOptions": {\n    "bogusOption": 1,'));
-  expect(await typeCheck(root)).toEqual(["error: nuhokai/tsconfig.json:3:5: Unknown compiler option 'bogusOption'."]);
+  expect(await typeCheck(root)).toEqual(["error: nuhokai/tsconfig.json:3: Unknown compiler option 'bogusOption'."]);
   writeFileSync(tsconfig, original.replace("{", "{ ,"));
   const broken = await typeCheck(root);
   expect(broken.length).toBeGreaterThan(0);

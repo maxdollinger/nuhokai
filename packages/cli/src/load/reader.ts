@@ -59,8 +59,9 @@ export interface Position {
 
 /**
  * A world that cannot be read, at a world file and, when known, its line and column: the message is
- * `<file>:<line>:<column>: <rule>` (or `<file>: <rule>`), so a command that prints it as a failure line needs nothing
- * else; check reports it as a finding of its own. Typed apart instead of recognised by its text: a project directory
+ * `<file>:<line>: <rule>` (or `<file>: <rule>`), no column, as every finding line, so a command that prints it as a
+ * failure line needs nothing else; check reports it as a finding of its own, the column telling its very position
+ * (CheckWorld R6). Typed apart instead of recognised by its text: a project directory
  * may hold spaces or colons.
  */
 export class LoadError extends CliError {
@@ -74,7 +75,7 @@ export class LoadError extends CliError {
     /** Other places in `file` where tsc reports the same break (a bad children item: at the `children:` property). */
     readonly alsoAt: readonly Position[] = [],
   ) {
-    super(at === undefined ? `${file}: ${rule}` : `${file}:${at.line}:${at.column}: ${rule}`);
+    super(at === undefined ? `${file}: ${rule}` : `${file}:${at.line}: ${rule}`);
     this.name = "LoadError";
     if (at !== undefined) {
       this.line = at.line;
@@ -88,8 +89,13 @@ export class LoadError extends CliError {
  * position is absent where the value was written in another file than its owner's (a shared const imported).
  */
 export interface SourcePlaces {
-  readonly at?: Position;
-  readonly entries: readonly (Position | undefined)[];
+  readonly at?: Line;
+  readonly entries: readonly (Line | undefined)[];
+}
+
+/** A 1-based line in a world file: where the loaded world says something was written. */
+export interface Line {
+  readonly line: number;
 }
 
 /** A name that resolves to no declaration in the world: as a callee, it is a call the format does not allow. */
@@ -101,9 +107,9 @@ export function positionIn(file: SourceFile, position: number): Position {
   return { line: line + 1, column: character + 1 };
 }
 
-/** A place in a world file as a message names it: `nuhokai/a.ts:3:14`. */
+/** A place in a world file as a message names it: `nuhokai/a.ts:3`. */
 function placeText(at: At): string {
-  return `${at.file}:${at.line}:${at.column}`;
+  return `${at.file}:${at.line}`;
 }
 
 /** A syntax kind in words, with its article: SyntaxKind.ExpressionStatement → "an expression statement". */
@@ -324,8 +330,7 @@ export class Reader {
    * another file is left out.
    */
   sourcePlaces(record: Rec, key: string, file: string): SourcePlaces {
-    const inFile = (at: At | undefined): Position | undefined =>
-      at?.file === file ? { line: at.line, column: at.column } : undefined;
+    const inFile = (at: At | undefined): Line | undefined => (at?.file === file ? { line: at.line } : undefined);
     const value = record[key];
     const at = inFile(this.propertyPlaces.get(record)?.get(key));
     const entries = Array.isArray(value) ? value.map((_item, index) => inFile(this.itemIn(value, index, file))) : [];

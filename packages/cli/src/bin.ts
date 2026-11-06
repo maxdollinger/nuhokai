@@ -2,10 +2,11 @@
 
 import { statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
-import type { Args, Cmd, Option } from "./cli/cmd.ts";
+import type { Args, Cmd, Flag, Option } from "./cli/cmd.ts";
 import { checkCmd } from "./cli/commands/check.ts";
 import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
+import { reviewCmd } from "./cli/commands/review.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
 import { plainText } from "./shared/failure.ts";
 import { CutShort, type Outcome, type Report, type ReportLine } from "./shared/report.ts";
@@ -32,20 +33,79 @@ const PATH_OPTION: Option<string> = {
   parse: (raw) => raw,
 };
 
+/**
+ * Stdin as Cli reads it, only for a command's stdin flag: whether it is a terminal, which Cli never waits on, its bytes
+ * as they arrive, and how long Cli waits for the first of them.
+ */
+interface Stdin {
+  readonly isTTY: boolean;
+  readonly waitMs: number;
+  stream(): ReadableStream<Uint8Array>;
+}
+
+/**
+ * How long Cli waits for stdin's first chunk: a pipe the caller never writes to and never closes (exec and spawn leave
+ * stdin open) ends in a usage error instead of a wait (Terminal R2). Once input starts, Cli reads it to its end.
+ */
+const STDIN_WAIT_MS = 10_000;
+
+/** The process's stdin. */
+const PROCESS_STDIN: Stdin = {
+  get isTTY() {
+    return process.stdin.isTTY === true;
+  },
+  waitMs: STDIN_WAIT_MS,
+  stream: () => Bun.stdin.stream(),
+};
+
+/** Stdin's text, read to its end once its first chunk arrives; undefined when it closes or stays silent first. */
+async function readStdin(stdin: Stdin): Promise<string | undefined> {
+  const reader = stdin.stream().getReader();
+  let timer: Timer | undefined;
+  const silent = new Promise<undefined>((done) => {
+    timer = setTimeout(done, stdin.waitMs);
+  });
+  try {
+    const first = await Promise.race([reader.read(), silent]).finally(() => clearTimeout(timer));
+    if (first === undefined || first.done) return undefined;
+    const chunks = [first.value];
+    for (let next = await reader.read(); !next.done; next = await reader.read()) chunks.push(next.value);
+    return new TextDecoder().decode(Buffer.concat(chunks));
+  } finally {
+    // Stop reading: a pipe left open must not keep the process waiting.
+    reader.cancel().catch(() => {});
+  }
+}
+
 /** An option's value as typed: the spelling that named it (for messages) and the raw value, not yet judged. */
 interface OptionValue {
   readonly spelling: string;
   readonly raw: string;
 }
 
+function isFlag(option: Option | Flag): option is Flag {
+  return "flag" in option;
+}
+
 /** An option's spellings, shortest first: "-L, --level". */
-function spellings(option: Option): string[] {
+function spellings(option: Option | Flag): string[] {
   return [...option.names].sort((a, b) => a.length - b.length);
 }
 
+/** An option as its form shows it: its spelling and the value it takes, a flag's spelling alone. */
+function form(option: Option | Flag, spelled: string): string {
+  return isFlag(option) ? spelled : `${spelled} ${option.value}`;
+}
+
+/** A command's own options, its stdin flag last. */
+function ownOptions(cmd: Cmd): (Option | Flag)[] {
+  return [...cmd.options, ...(cmd.stdinFlag ? [cmd.stdinFlag] : [])];
+}
+
 /** A command's argument form, from its positionals and its own options: "nuhokai tree [node] [-L <n>]". */
-function synopsis(name: string, { positionals, options }: Cmd): string {
-  const optional = options.map((option) => `[${spellings(option)[0]} ${option.value}]`);
+function synopsis(name: string, cmd: Cmd): string {
+  const { positionals } = cmd;
+  const optional = ownOptions(cmd).map((option) => `[${form(option, spellings(option)[0] ?? "")}]`);
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
 
@@ -92,11 +152,11 @@ function columns(rows: readonly (readonly [string, string])[]): string[] {
  * --help, then what it prints and the contract every command shares.
  */
 function commandUsage(name: string, cmd: Cmd): string {
-  const { description, options, output } = cmd;
+  const { description, output } = cmd;
   const args = cmd.arguments;
   const flags: (readonly [string, string])[] = [
-    ...[...options, PATH_OPTION].map((option): [string, string] => [
-      `${spellings(option).join(", ")} ${option.value}`,
+    ...[...ownOptions(cmd), PATH_OPTION].map((option): [string, string] => [
+      form(option, spellings(option).join(", ")),
       option.text,
     ]),
     ["--help", "show this help"],
@@ -121,13 +181,13 @@ function isHelpFlag(value: string): boolean {
 
 /**
  * Split one option off the arguments, touching nothing else: `--name <value>`, `--name=<value>` for a long name,
- * or a short name and its value. A missing value (a help flag included) or a second occurrence is the
- * invocation's fault, so it is a message naming the spelling typed, never a command run. The value itself is the
- * option's parse to judge, after help.
+ * or a short name and its value; a flag's name alone. A missing value (a help flag included), a value given to a
+ * flag or a second occurrence is the invocation's fault, so it is a message naming the spelling typed, never a
+ * command run. The value itself is the option's parse to judge, after help.
  */
 function splitOption(
   args: readonly string[],
-  option: Option,
+  option: Option | Flag,
 ): { value?: OptionValue; rest: string[] } | { error: string } {
   let value: OptionValue | undefined;
   const rest: string[] = [];
@@ -139,6 +199,11 @@ function splitOption(
       continue;
     }
     if (value !== undefined) return { error: `${spelling} given twice` };
+    if (isFlag(option)) {
+      if (arg !== spelling) return { error: `${spelling} takes no value` };
+      value = { spelling, raw: "" };
+      continue;
+    }
     const raw = arg === spelling ? args[++index] : arg.slice(spelling.length + 1);
     if (!raw || isHelpFlag(raw)) return { error: `${spelling} needs ${option.needs}` };
     value = { spelling, raw };
@@ -149,9 +214,9 @@ function splitOption(
 /** Split each option off in turn, so the first one's errors come first; what is left is `rest`. */
 function splitOptions(
   args: readonly string[],
-  options: readonly Option[],
-): { values: ReadonlyMap<Option, OptionValue>; rest: readonly string[] } | { error: string } {
-  const values = new Map<Option, OptionValue>();
+  options: readonly (Option | Flag)[],
+): { values: ReadonlyMap<Option | Flag, OptionValue>; rest: readonly string[] } | { error: string } {
+  const values = new Map<Option | Flag, OptionValue>();
   let rest = args;
   for (const option of options) {
     const split = splitOption(rest, option);
@@ -189,13 +254,17 @@ function usageError(name: string, cmd: Cmd, error: string): number {
   return 2;
 }
 
-/** Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. */
-export async function main(argv: readonly string[]): Promise<number> {
+/**
+ * Resolves to the process exit code: 0 ok, 1 diagnostics or failure, 2 usage or argument error. `stdin` is read only
+ * for a command's stdin flag.
+ */
+export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN): Promise<number> {
   // The commands the CLI exposes, in usage's order.
   const commands: Commands = {
     check: checkCmd,
     init: initCmd,
     map: mapCmd,
+    review: reviewCmd,
     tree: treeCmd,
   };
   const [first, ...typed] = argv;
@@ -208,7 +277,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.error(`nuhokai: unknown command '${plainText(first)}'\n\n${usage(commands)}`);
     return 2;
   }
-  const split = splitOptions(typed, [PATH_OPTION, ...cmd.options]);
+  const split = splitOptions(typed, [PATH_OPTION, ...ownOptions(cmd)]);
   if ("error" in split) return usageError(first, cmd, split.error);
   // Help wins over any value, a bad --path included: values are judged only after it.
   if (split.rest.length === 1 && isHelpFlag(split.rest[0] ?? "")) {
@@ -220,8 +289,12 @@ export async function main(argv: readonly string[]): Promise<number> {
   // The count before any value: the first positional past the command's declared ones is named.
   const extra = split.rest[cmd.positionals.length];
   if (extra !== undefined) return usageError(first, cmd, `unexpected argument '${extra}'`);
-  const values = new Map<Option, unknown>();
+  const values = new Map<Option | Flag, unknown>();
   for (const [option, { spelling, raw }] of split.values) {
+    if (isFlag(option)) {
+      values.set(option, true);
+      continue;
+    }
     const value = option.parse(raw);
     if (value === undefined) return usageError(first, cmd, `${spelling} needs ${option.needs}, got '${raw}'`);
     values.set(option, value);
@@ -231,6 +304,19 @@ export async function main(argv: readonly string[]): Promise<number> {
     // A closure, not a method, so a command may destructure it; each value is its own option's parse result.
     get: <T>(option: Option<T>) => values.get(option) as T | undefined,
   };
+  // The stdin flag stands in for the positionals: one of the two, never both.
+  const stdinFlag = cmd.stdinFlag && values.has(cmd.stdinFlag) ? cmd.stdinFlag.names[0] : undefined;
+  if (cmd.stdinFlag !== undefined) {
+    const [positional] = split.rest;
+    const flag = cmd.stdinFlag.names[0];
+    const name = cmd.arguments[0]?.name ?? "argument";
+    if (stdinFlag !== undefined && positional !== undefined) {
+      return usageError(first, cmd, `give a ${name} or ${flag}, not both: '${positional}' and ${flag}`);
+    }
+    if (stdinFlag === undefined && positional === undefined) {
+      return usageError(first, cmd, `give a ${name}, or ${flag} with its input piped to stdin`);
+    }
+  }
   // The project directory is --path against the cwd, else the cwd itself.
   const cwd = process.cwd();
   const named = args.get(PATH_OPTION) ?? ".";
@@ -238,7 +324,13 @@ export async function main(argv: readonly string[]): Promise<number> {
   if (!isDirectory(dir)) return usageError(first, cmd, `not a directory: ${named}`);
   // Commands get the directory as named from the cwd, so every path they print opens as printed.
   const root = relative(cwd, dir).split(sep).join("/") || ".";
-  return finish(first, cmd, root, args);
+  if (stdinFlag === undefined) return finish(first, cmd, root, args);
+  // Only Cli reads stdin: never a terminal, and a silent pipe only until STDIN_WAIT_MS (Terminal R2).
+  const pipe = `pipe it in: nuhokai ${first} ${stdinFlag} < <file>`;
+  if (stdin.isTTY) return usageError(first, cmd, `${stdinFlag} reads stdin, but stdin is a terminal; ${pipe}`);
+  const text = await readStdin(stdin);
+  if (!text?.trim()) return usageError(first, cmd, `${stdinFlag} got no input on stdin; ${pipe}`);
+  return finish(first, cmd, root, { ...args, stdin: text });
 }
 
 /**

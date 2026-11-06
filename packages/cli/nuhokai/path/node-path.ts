@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Failure } from "../failure.ts";
 import { WorldPath } from "./world-path.ts";
 
 /** The one name of a node: its hierarchy path, and the way back from a typed path to the node. Pure. */
@@ -114,4 +115,4 @@ export const NodePath = node({
       ],
     },
   ],
-}).edges({ uses: () => [WorldPath.suggestedCommand] });
+}).edges({ uses: () => [WorldPath.suggestedCommand, Failure.format] });

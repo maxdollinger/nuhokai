@@ -4,16 +4,15 @@ import { FileSystem, Terminal } from "./external.ts";
 import { Failure } from "./failure.ts";
 import { Init } from "./init/init.ts";
 import { WorldMap } from "./map/world-map.ts";
+import { Review } from "./review/review.ts";
 import { Tree } from "./tree/tree.ts";
 
 /** The command surface: argv, usage, exit codes and dispatch to the command nodes. */
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
   purpose:
-    "Command surface: parse argv, print usage, dispatch to per-command Cmds listed in main (help text: their " +
-    "positionals and options explained and their output's shape; options each with the parse of its value, and a " +
-    "run holding the deferred call into the command node), print their reports; owns exit codes and is the only " +
-    "node that touches the terminal. Implements no command; Build makes and ships it.",
+    "The command surface: parse argv, answer usage and help, run the command's node and print its Report. Owns the " +
+    "exit codes and is the only node that touches the terminal; implements no command.",
   status: "building",
   source: [
     "src/bin.ts",
@@ -23,6 +22,7 @@ export const Cli = node({
     "src/cli/commands/check.ts",
     "src/cli/commands/init.ts",
     "src/cli/commands/map.ts",
+    "src/cli/commands/review.ts",
     "src/cli/commands/tree.ts",
     "src/cli/commands/tree.test.ts",
   ],
@@ -52,12 +52,8 @@ export const Cli = node({
       text: "No loading, rule, tsc or writing logic in Cli: each command is its own node. Each command's Cmd imports its node only inside its run, called only when the command runs, so usage and help load none: bin.ts statically reaches only Cli's own files, Report and Failure.",
     },
     {
-      id: "R5",
-      text: "World imports type-check only as relative files and @nuhokai/world; the CLI runs no world file and installs nothing.",
-    },
-    {
       id: "R6",
-      text: "Cli enforces argument counts: init, check, map none; tree at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and tree's R8 options → 'unknown option'; then Cli counts the positionals against the Cmd's declared ones: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
+      text: "Cli enforces argument counts: init, check, map none; tree and review at most one. Cli splits --path and the command's own options off and answers help; a help flag beside other arguments → 'unexpected argument', any other dash argument than --path, --help, -h and the command's own options (R8, R10) → 'unknown option'; then Cli counts the positionals against the Cmd's declared ones: too many → argument error (2) naming the first extra ('unexpected argument 'x''), before any value is judged. Each exits 2 and the command never runs. Arguments pass through unchanged, never validated.",
     },
     {
       id: "R7",
@@ -69,7 +65,11 @@ export const Cli = node({
     },
     {
       id: "R9",
-      text: "Cli is the only node that prints: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters or bidirectional format characters as one space (Terminal R1, Failure's plainText), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its run throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
+      text: "Cli is the only node that prints or reads stdin: a command returns a Report (outcome and ordered lines) and never touches the terminal. Cli writes its result lines to stdout and its failure lines to stderr after 'nuhokai <command>: ', in the Report's order, each run of control characters or bidirectional format characters as one space (Terminal R1, Failure's plainText), as in what its usage errors echo of what was typed, then maps the outcome to the exit code (R2). A bug cutting a command short (a CutShort, Failure R5), whether its run throws at once or rejects, still crashes with its stack, after Cli prints the lines the command answered before it.",
+    },
+    {
+      id: "R10",
+      text: "review takes a hierarchy path, handed to Review.run, or instead its stdin flag --submit: Cli reads stdin to its end and Review.submit gets the text. Both or neither, or --submit with stdin a tty, empty, or silent for 10s (a pipe exec or spawn leaves open) → usage error (2) before anything runs. `nuhokai review --help` explains the flow from review <node> to review --submit and the exit codes.",
     },
     { id: "C1", kind: "constraint", text: "No bundled language server; editors use their own." },
     { id: "C3", kind: "constraint", text: "macOS/Linux, arm64/x86_64." },
@@ -89,7 +89,7 @@ export const Cli = node({
     },
     {
       text: "Empty node_modules: the checker reports only authored violations and rejects a non-relative import.",
-      demonstrates: ["R1", "R5"],
+      demonstrates: ["R1"],
     },
     {
       text: "`nuhokai map` runs WorldMap with the cwd; `nuhokai map x` → argument error, WorldMap never runs.",
@@ -130,6 +130,10 @@ export const Cli = node({
     {
       text: "An unknown command, an unknown option, a -L value, an extra argument and a --path holding ESC, a newline or a bell → the usage error echoes each run as one space.",
       demonstrates: ["R9"],
+    },
+    {
+      text: "`review Tree/PrintTree` reaches Review.run with (directory, Tree/PrintTree); `echo '{…}' | review --submit` reaches Review.submit with the text, also when it pauses past the wait once started; `review --submit Tree/PrintTree`, `review`, and `review --submit` from a tty, with empty input or from a pipe silent past the wait → exit 2, nothing runs.",
+      demonstrates: ["R6", "R10"],
     },
     {
       text: "Following bin.ts's static imports through the syntax tree (not `import type`, not import()) reaches only src/cli, Report, Failure and node: modules; a static import of a command node in a Cmd fails it.",
@@ -197,7 +201,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, an optional stdin flag, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
       why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {
@@ -220,6 +224,17 @@ export const Cli = node({
           option: "A module-level COMMANDS const",
           why: "Reading main means jumping to it and back; inside main the list sits where dispatch starts, and usage and help take it as an argument.",
         },
+      ],
+    },
+    {
+      decision: "review's second step is the flag --submit, not a `submit` argument or command.",
+      why: "Cmd has positionals and options only; a flag is one more option (one without a value), and no node name is reserved. Cmd's one stdinFlag says it all: Cli reads stdin when it is given, in place of the positionals, so a command needs no hook of its own.",
+      rejected: [
+        {
+          option: "`review submit`",
+          why: "Reserves 'submit' as a node name and needs a subcommand case in the parser.",
+        },
+        { option: "`nuhokai submit`", why: "Splits one flow across two commands in usage." },
       ],
     },
     {
@@ -252,9 +267,12 @@ export const Cli = node({
     WorldMap.run,
     Check.run,
     Tree.run,
+    Review.run,
+    Review.submit,
     Failure.report,
     Terminal.print,
     Terminal.printError,
+    Terminal.read,
     FileSystem.read,
   ],
 });

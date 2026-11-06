@@ -18,9 +18,9 @@ export const Failure = node({
   ports: {
     format: {
       kind: "call",
-      purpose: "Flatten a thrown value to one failure line",
-      input: "any thrown value",
-      output: "one non-empty line, no newlines",
+      purpose: "Flatten a thrown value or a text to one line, and name a JSON value in words for a message",
+      input: "any thrown value, a text, or a JSON value",
+      output: 'one non-empty line, no newlines; a value as `"x"`, `3`, `a list`, `an object` or `null`',
       errors: [],
     },
     isExpected: {

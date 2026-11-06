@@ -66,8 +66,8 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [A, B] })
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      'error: <root>/nuhokai/a.ts:3:18: A: a built node lists no source; list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
-      'error: <root>/nuhokai/b.ts:3:76: B: source entry "src/gone.ts" matches no file; fix the path or glob, or drop the entry',
+      'error: <root>/nuhokai/a.ts:3: A: a built node lists no source; list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
+      'error: <root>/nuhokai/b.ts:3: B: source entry "src/gone.ts" matches no file; fix the path or glob, or drop the entry',
       "failed: 2 errors, 0 warnings",
     ],
     err: [],
@@ -103,7 +103,7 @@ test("CheckWorld R1, R6: a syntax error in a node file is one finding, tsc's and
   try {
     expect(await check(root)).toEqual({
       outcome: "failed",
-      out: ["error: <root>/nuhokai/broken.ts:1:24: Property assignment expected.", "failed: 1 error, 0 warnings"],
+      out: ["error: <root>/nuhokai/broken.ts:1: Property assignment expected.", "failed: 1 error, 0 warnings"],
       err: [],
     });
     expect(spec).not.toHaveBeenCalled();
@@ -120,8 +120,8 @@ test("CheckWorld R6: a world file the loader cannot read is an error finding on 
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      "error: <root>/nuhokai/a.ts:1:14: Type 'string' is not assignable to type 'number'.",
-      "error: <root>/nuhokai/b.ts:3:1: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}`",
+      "error: <root>/nuhokai/a.ts:1: Type 'string' is not assignable to type 'number'.",
+      "error: <root>/nuhokai/b.ts:3: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}`",
       "failed: 2 errors, 0 warnings",
     ],
     err: [],
@@ -135,8 +135,8 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      "error: <root>/nuhokai/a.ts:1:14: Type 'string' is not assignable to type 'number'.",
-      "error: <root>/nuhokai/a.ts:3:1: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}`",
+      "error: <root>/nuhokai/a.ts:1: Type 'string' is not assignable to type 'number'.",
+      "error: <root>/nuhokai/a.ts:3: world files hold only imports, exports and declarations of data, not an if statement: `if (n) {}`",
       "failed: 2 errors, 0 warnings",
     ],
     err: [],
@@ -145,7 +145,7 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   // The loader's "comes from" points at the import, where R2's finding already says what to do: that one stays.
   const imported = await world({ "nuhokai/a.ts": 'import { pad } from "left-pad";\nexport const p = pad;\n' });
   expect((await check(imported)).out).toEqual([
-    'error: <root>/nuhokai/a.ts:1:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
+    'error: <root>/nuhokai/a.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
     "failed: 1 error, 0 warnings",
   ]);
 
@@ -158,8 +158,9 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   );
   const both = (await check(castAndCall)).out;
   expect(both).toHaveLength(3);
-  expect(both[0]).toContain("world files use no cast");
-  expect(both[1]).toContain("not String(...)");
+  // One line, so ordered by rule.
+  expect(both[0]).toContain("not String(...)");
+  expect(both[1]).toContain("world files use no cast");
   expect(both[2]).toBe("failed: 2 errors, 0 warnings");
 
   // A string spread into children from another file: tsc at `children:`, the loader at the spread; one break.
@@ -188,7 +189,7 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   );
   writeFileSync(reIndex, 'export { default } from "./w.ts";\n');
   expect((await check(reExported)).out).toEqual([
-    "error: <root>/nuhokai/w.ts:6:3: the world's id is not a string; keep the id init gave it, or give it a fresh UUID",
+    "error: <root>/nuhokai/w.ts:6: the world's id is not a string; keep the id init gave it, or give it a fresh UUID",
     "failed: 1 error, 0 warnings",
   ]);
 
@@ -196,7 +197,7 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   const index = join(notAList, "nuhokai/index.ts");
   writeFileSync(index, readFileSync(index, "utf8").replace("children: [Example]", "children: Example"));
   expect((await check(notAList)).out).toEqual([
-    "error: <root>/nuhokai/index.ts:10:3: the world's children is not a list of nodes: children: [A, B]",
+    "error: <root>/nuhokai/index.ts:10: the world's children is not a list of nodes: children: [A, B]",
     "failed: 1 error, 0 warnings",
   ]);
 });
@@ -214,8 +215,8 @@ export default defineWorld({ id: "w", name: " ", source: [], children: [Example,
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      "error: <root>/nuhokai/index.ts:4:39: name must not be empty or whitespace: give the world a name, e.g. Shop",
-      "error: <root>/nuhokai/index.ts:4:82: a draft is not a node: call .edges(), also with {}",
+      "error: <root>/nuhokai/index.ts:4: a draft is not a node: call .edges(), also with {}",
+      "error: <root>/nuhokai/index.ts:4: name must not be empty or whitespace: give the world a name, e.g. Shop",
       "failed: 2 errors, 0 warnings",
     ],
     err: [],
@@ -249,7 +250,7 @@ test("CheckWorld R2: a tsc error with a clean spec never runs CodeCheck; an orph
     expect(await check(typeError)).toEqual({
       outcome: "failed",
       out: [
-        "error: <root>/nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'.",
+        "error: <root>/nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'.",
         "failed: 1 error, 0 warnings",
       ],
       err: [],
@@ -260,7 +261,7 @@ test("CheckWorld R2: a tsc error with a clean spec never runs CodeCheck; an orph
     expect(await check(orphan)).toEqual({
       outcome: "ok",
       out: [
-        "warning: <root>/nuhokai/orphan.ts:3:23: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (<root>/nuhokai/index.ts), or delete it",
+        "warning: <root>/nuhokai/orphan.ts:3: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (<root>/nuhokai/index.ts), or delete it",
         "ok: 0 errors, 1 warning",
       ],
       err: [],
@@ -286,7 +287,7 @@ test("a bug in SpecCheck crashes check as a CutShort carrying the tsc findings a
     const cut = thrown as CutShort;
     expect(cut.bug).toBe(bug);
     expect(splitReport({ outcome: "failed", lines: cut.lines }, root).out).toEqual([
-      "error: <root>/nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'.",
+      "error: <root>/nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'.",
     ]);
   } finally {
     spec.mockRestore();
@@ -314,8 +315,8 @@ export const wrong: number = "one";
   const result = await check(root);
   expect(result.outcome).toBe("failed");
   expect(result.out).toEqual([
-    "error: <root>/nuhokai/example.ts:3:66: Example: Type '\"done\"' is not assignable to type 'NodeStatus'.",
-    "error: <root>/nuhokai/index.ts:5:14: Type 'string' is not assignable to type 'number'.",
+    "error: <root>/nuhokai/example.ts:3: Example: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+    "error: <root>/nuhokai/index.ts:5: Type 'string' is not assignable to type 'number'.",
     "failed: 2 errors, 0 warnings",
   ]);
 });
@@ -341,7 +342,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example,
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      "error: <root>/nuhokai/example.ts:3:66: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+      "error: <root>/nuhokai/example.ts:3: Type '\"done\"' is not assignable to type 'NodeStatus'.",
       "failed: 1 error, 0 warnings",
     ],
     err: [],
@@ -368,7 +369,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example]
   );
   const result = await check(root);
   expect(result.out).toContain(
-    "error: <root>/nuhokai/example.ts:3:66: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+    "error: <root>/nuhokai/example.ts:3: Type '\"done\"' is not assignable to type 'NodeStatus'.",
   );
 });
 
@@ -393,7 +394,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [P] });
   );
   const result = await check(root);
   expect(result.out).toContain(
-    "error: <root>/nuhokai/c2.ts:3:62: P/C2: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+    "error: <root>/nuhokai/c2.ts:3: P/C2: Type '\"done\"' is not assignable to type 'NodeStatus'.",
   );
 });
 
@@ -428,6 +429,6 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Dome] })
   const errors = result.out.filter((line) => line.startsWith("error:"));
   expect(result.outcome).toBe("failed");
   expect(errors).toHaveLength(1);
-  expect(errors[0]).toStartWith("error: <root>/nuhokai/bad.ts:3:96: ");
+  expect(errors[0]).toStartWith("error: <root>/nuhokai/bad.ts:3: ");
   expect(errors[0]).toContain("external nodes are top level only");
 });

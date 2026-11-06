@@ -65,6 +65,8 @@ function oneNode(purpose: string): LoadedWorld {
         },
         parent: null,
         children: [],
+        uses: [],
+        contracts: [],
         path: "A",
         file: "nuhokai/a.ts",
       },

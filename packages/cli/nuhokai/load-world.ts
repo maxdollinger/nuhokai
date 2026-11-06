@@ -9,8 +9,8 @@ import { Path } from "./path/path.ts";
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
   purpose:
-    "Read nuhokai/ without running it → the world's id, name and source, NodeSpecs, tbd placeholders, and where each " +
-    "node is listed and defined. Shared; checks no rule, writes nothing in the project.",
+    "Read nuhokai/ without running it into plain data: the world, each node as its NodeSpec placed in the hierarchy " +
+    "and its edges, tbd placeholders, and where everything is written. Checks no rule; writes nothing in the project.",
   status: "building",
   source: ["src/load/**"],
   ports: {
@@ -19,7 +19,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? and column? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, path, file, line?, column?, source?: { at?, entries } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line?, column? }[]; orphans: { id, name, file, line?, column? }[]",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: (position | null)[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, uses } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -50,7 +50,7 @@ export const LoadWorld = node({
     },
     {
       id: "R5",
-      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3:14: <rule>', under --path app 'app/nuhokai/orders.ts:3:14: <rule>'. An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
+      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3: <rule>', under --path app 'app/nuhokai/orders.ts:3: <rule>': no column, as every finding line; the column only tells check its very position (CheckWorld R6). An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
     },
     {
       id: "R6",
@@ -58,15 +58,15 @@ export const LoadWorld = node({
     },
     {
       id: "R7",
-      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children; with the file the list is written in and the line and column of the item there (or the ...spread that brought it in), when there.",
+      text: "listings: every place a node is listed, in walk order, a repeat included; parent null = the world's children; with the file the list is written in and the line of the item there (or the ...spread that brought it in), when there.",
     },
     {
       id: "R8",
-      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2, with its node() call's line and column.",
+      text: "orphans: every exported node the walk never reaches, in sorted file order, each once; name and file as R2, with its node() call's line.",
     },
     {
       id: "R9",
-      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line and column of its node() call when that file holds it; and where its source property and each entry were written, when in that file, so check points at the entry.",
+      text: "Each node's file: its defining file as R2 picks it, cwd-relative, and the line of its node() call when that file holds it; and where its source property and each entry were written, when in that file, so check points at the entry.",
     },
     {
       id: "R10",
@@ -84,6 +84,14 @@ export const LoadWorld = node({
       id: "R13",
       text: "A dome's ports are copied from the child ports they reference, each with delegate { to: child id, port }; a port of a non-child, or one its node lacks, is a load error at the dome's node() line.",
     },
+    {
+      id: "R14",
+      text: "Each node's uses targets and implements contracts as positions in nodes, in its edges' order (uses edges first, so uses[i] is edges[i]'s target), read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null.",
+    },
+    {
+      id: "R15",
+      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses edge's first item; a spread-in item at its `...spread`. Review cites them.",
+    },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
       id: "C2",
@@ -92,6 +100,14 @@ export const LoadWorld = node({
     },
   ],
   testCases: [
+    {
+      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [Stock's position], contracts [null]; a second node with Stock's id leaves the target Stock's own position.",
+      demonstrates: ["R14"],
+    },
+    {
+      text: "A node with purpose on line 4, requirements R1 on 9 and R2 on 10, a spread-in test case → places give 4, 9, 10 and the spread's line.",
+      demonstrates: ["R15"],
+    },
     {
       text: "No nuhokai/, or a file there → one NoWorldError (naming init when absent), nothing read; a missing index.ts → a CliError that is no NoWorldError.",
       demonstrates: ["R11"],
@@ -126,7 +142,7 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R5", "R6", "R12"],
     },
     {
-      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>:<column>' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
+      text: "The CLI, a world file using a value from an uncached package → one 'nuhokai map: nuhokai/example.ts:<line>: …' line naming the package, exit 1; nothing installed. Symlinked node file → named by export.",
       demonstrates: ["R1", "R2", "R5"],
     },
     {
@@ -163,7 +179,7 @@ export const LoadWorld = node({
     },
     {
       decision:
-        "Top-level shared loader for map, check and tree; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
+        "Top-level shared loader for map, check, tree and review; outputs the world's id, name and source, NodeSpecs and tbd placeholders.",
       why: "map and check need the same load; node-spec.ts stays the only node shape; NodeSpec has no target-less edge; the world id keys per-world state.",
     },
     {
@@ -182,6 +198,16 @@ export const LoadWorld = node({
         {
           option: "nodes: NodeSpec[] beside parents and files arrays aligned by position",
           why: "Every consumer re-zipped them and re-derived children and paths; the map takes the NodeSpecs alone.",
+        },
+      ],
+    },
+    {
+      decision: "The loaded world records lines, never columns; only a LoadError keeps its column.",
+      why: "Every place the world names is printed as file:line (Diagnostics), so a column there is data no reader uses. A LoadError's column stays: CheckWorld R6 tells a load error and tsc's finding at the very same token apart by it.",
+      rejected: [
+        {
+          option: "Keep line and column everywhere",
+          why: "Fields every consumer carries and none reads, and a hint that something prints them.",
         },
       ],
     },

@@ -15,11 +15,23 @@ export interface Option<T = unknown> {
   readonly parse: (raw: string) => T | undefined;
 }
 
-/** What Cli hands a command once its arguments passed: its positionals and its options' typed values. */
+/** An option without a value, such as review's --submit: given or not. `--submit=x` is a usage error. */
+export interface Flag {
+  readonly names: readonly [string, ...string[]];
+  readonly flag: true;
+  readonly text: string;
+}
+
+/**
+ * What Cli hands a command once its arguments passed: its positionals, its options' typed values, and stdin's text
+ * when its stdin flag was given.
+ */
 export interface Args {
   readonly positionals: readonly string[];
   /** An option's typed value, or undefined if it was not given. */
   get<T>(option: Option<T>): T | undefined;
+  /** Stdin's text, read by Cli: present exactly when the command's stdin flag was given. */
+  readonly stdin?: string;
 }
 
 /** A positional argument as a command's help explains it. */
@@ -40,6 +52,12 @@ export interface Cmd {
   readonly output: string;
   /** The command's own options beside --path; Cli splits them off, judges their values and its help lists them. */
   readonly options: readonly Option[];
+  /**
+   * The flag that makes Cli read stdin and hand its text over as `stdin`, in place of the positionals: one of the two
+   * is required, never both. Never from a terminal, nor empty or silent past Cli's wait, so an unattended run ends.
+   * Help lists it with the options; only Cli reads stdin.
+   */
+  readonly stdinFlag?: Flag;
   /**
    * Run the command in the project directory, once Cli passed its arguments. It holds the deferred import of the
    * node, so help and usage never load one.

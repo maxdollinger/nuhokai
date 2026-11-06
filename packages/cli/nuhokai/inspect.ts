@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { FileSystem } from "./external.ts";
+import { Failure } from "./failure.ts";
 import { Path } from "./path/path.ts";
 
 /** What sits at nuhokai/ in the project directory, as a verdict. Reads only. */
@@ -87,4 +88,4 @@ export const Inspect = node({
       why: "A linked world (nuhokai -> ../shared/nuhokai) is read and written through the link; init never creates through one.",
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Path.suggestedCommand, FileSystem.read] });
+}).edges({ uses: () => [Path.nameInWorld, Path.suggestedCommand, FileSystem.read, Failure.format] });

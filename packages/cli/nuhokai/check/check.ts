@@ -1,11 +1,10 @@
 import { node } from "@nuhokai/world";
 import { CheckWorld } from "./check-world.ts";
 import { CodeCheck } from "./code-check.ts";
-import { Diagnostics } from "./diagnostics.ts";
 import { SpecCheck } from "./spec-check/spec-check.ts";
 import { TypeCheck } from "./type-check.ts";
 
-/** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), CodeCheck (stub), Diagnostics (findings). */
+/** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), CodeCheck (stub). */
 export const Check = node({
   id: "01a18319-89bb-7640-a85c-2a46040966af",
   purpose: "Ensure the specs follow the rules.",
@@ -25,8 +24,8 @@ export const Check = node({
   ],
   decisions: [
     {
-      decision: "Children CheckWorld, TypeCheck, SpecCheck, CodeCheck and Diagnostics.",
-      why: "Specific names read better on the map; Diagnostics are findings, Failure is thrown failures.",
+      decision: "Children CheckWorld, TypeCheck, SpecCheck and CodeCheck; the finding line is the shared Diagnostics.",
+      why: "Specific names read better on the map; review prints the same findings, so their format lives outside Check.",
     },
     {
       decision: "A program child, CheckWorld, exposes run; it loads once and runs SpecCheck and CodeCheck.",
@@ -46,6 +45,6 @@ export const Check = node({
       rejected: [{ option: "A tbd port", why: "tbd stands for an unknown target; this one is known." }],
     },
   ],
-  children: [CheckWorld, TypeCheck, SpecCheck, CodeCheck, Diagnostics],
+  children: [CheckWorld, TypeCheck, SpecCheck, CodeCheck],
   ports: { run: CheckWorld.run },
 }).edges({});

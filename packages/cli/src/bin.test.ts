@@ -7,8 +7,11 @@ import * as specCheck from "./check/spec-check/apply-rules.ts";
 import { checkCmd } from "./cli/commands/check.ts";
 import { initCmd } from "./cli/commands/init.ts";
 import { mapCmd } from "./cli/commands/map.ts";
+import { reviewCmd } from "./cli/commands/review.ts";
 import { treeCmd } from "./cli/commands/tree.ts";
 import { runInit } from "./init/scaffold.ts";
+import * as reviewPrompt from "./review/review-prompt.ts";
+import * as reviewSubmission from "./review/review-submission.ts";
 import { CutShort, failureLine, type Report, resultLine } from "./shared/report.ts";
 import * as printTree from "./tree/print-tree.ts";
 
@@ -18,8 +21,31 @@ const TREE_OK: Report = { outcome: "ok", lines: [] };
 /** What main printed: its exit code, or the error it threw, and each line it wrote to stdout and to stderr. */
 type Printed = { code: number; out: string[]; err: string[] } | { thrown: unknown; out: string[]; err: string[] };
 
+/**
+ * Stdin as main reads it: a terminal (undefined), or a pipe that sends `text` (when not empty) after `delayMs` and
+ * then closes, unless `open`; main waits 50ms for its first chunk. `reads` counts how often it was read.
+ */
+function stdinOf(text: string | undefined, { open = false, delayMs = 0 } = {}) {
+  const stdin = {
+    isTTY: text === undefined,
+    waitMs: 50,
+    reads: 0,
+    stream: () => {
+      stdin.reads++;
+      return new ReadableStream<Uint8Array>({
+        async start(controller) {
+          if (delayMs > 0) await Bun.sleep(delayMs);
+          if (text) controller.enqueue(new TextEncoder().encode(text));
+          if (!open) controller.close();
+        },
+      });
+    },
+  };
+  return stdin;
+}
+
 /** Run main with console.log and console.error captured, the one way these tests read what Cli prints. */
-async function printed(argv: string[]): Promise<Printed> {
+async function printed(argv: string[], stdin: Parameters<typeof main>[1] = stdinOf("")): Promise<Printed> {
   const out: string[] = [];
   const err: string[] = [];
   const log = console.log;
@@ -27,7 +53,7 @@ async function printed(argv: string[]): Promise<Printed> {
   console.log = (line: string) => out.push(line);
   console.error = (line: string) => err.push(line);
   try {
-    return { code: await main(argv), out, err };
+    return { code: await main(argv, stdin), out, err };
   } catch (thrown) {
     return { thrown, out, err };
   } finally {
@@ -53,7 +79,9 @@ async function failed(argv: string[]): Promise<[number | undefined, string[]]> {
 }
 
 test("usage lists every command", async () => {
-  for (const command of ["check", "init", "map", "tree"]) expect(await usage()).toContain(`nuhokai ${command}`);
+  for (const command of ["check", "init", "map", "review", "tree"]) {
+    expect(await usage()).toContain(`nuhokai ${command}`);
+  }
 });
 
 test("--help exits 0", async () => {
@@ -139,7 +167,7 @@ test("--path names the project directory, against the cwd; without it the cwd is
     expect(await printed(["map", "--path", "packages/app"])).toEqual({
       code: 1,
       out: [],
-      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1:21: Expression expected."],
+      err: ["nuhokai map: packages/app/nuhokai/orders.ts:1: Expression expected."],
     });
     expect(await printed(["map", "--path", "packages"])).toEqual({
       code: 1,
@@ -248,7 +276,7 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
     expect(await printed(["check"])).toEqual({
       code: 0,
       out: [
-        "warning: nuhokai/orphan.ts:3:23: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
+        "warning: nuhokai/orphan.ts:3: Orphan: exported but not reachable from the world; list it in a dome's children or in the world's (nuhokai/index.ts), or delete it",
         "ok: 0 errors, 1 warning",
       ],
       err: [],
@@ -262,7 +290,7 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
 test("Cli R3: usage and each command's help state the output, where failures go and the exit codes", async () => {
   const exitCodes =
     "Exit codes: 0 ok, 1 errors found or the command failed, 2 an invalid argument (an unknown option, a node path naming no node).";
-  const commands = { check: checkCmd, init: initCmd, map: mapCmd, tree: treeCmd };
+  const commands = { check: checkCmd, init: initCmd, map: mapCmd, review: reviewCmd, tree: treeCmd };
   expect(await usage()).toContain(exitCodes);
   expect(await usage()).toContain(
     "Failures: one line each on stderr, `nuhokai <command>: <message>`; an argument error (an unknown option, a bad option value, an extra argument; exit 2) prints that command's help after its line; an unknown command is `nuhokai: unknown command '<name>'`, then usage.",
@@ -277,7 +305,7 @@ test("Cli R3: usage and each command's help state the output, where failures go 
     expect(await help(name)).toEndWith(exitCodes);
   }
   expect(await help("check")).toContain(
-    "Output: one line per finding, `<error|warning>: <file>:<line>:<column>: <node>: <rule>; <fix>`",
+    "Output: one line per finding, `<error|warning>: <file>:<line>: <node>: <rule>; <fix>`",
   );
   expect(await help("tree")).toContain(
     "Arguments:\n  node  the node to start from, by its path as tree prints it, e.g. Check/SpecCheck (default: the top level)\n",
@@ -448,12 +476,153 @@ test("Cli R9: a bug in a command still crashes with it, after Cli prints the lin
     process.chdir(project);
     expect(await printed(["check"])).toEqual({
       thrown: bug,
-      out: ["error: nuhokai/index.test.ts:1:14: Type 'string' is not assignable to type 'number'."],
+      out: ["error: nuhokai/index.test.ts:1: Type 'string' is not assignable to type 'number'."],
       err: [],
     });
   } finally {
     process.chdir(cwd);
     spec.mockRestore();
     rmSync(project, { recursive: true, force: true });
+  }
+});
+
+/** What a stubbed Review answers: done, nothing to print. */
+const REVIEW_OK: Report = { outcome: "ok", lines: [] };
+
+test("Cli R3, R10: review's help explains the flow to --submit, its exit codes and finding a node with tree", async () => {
+  expect(await usage()).toContain("nuhokai review [node] [--submit]");
+  const text = await help("review");
+  expect(text).toContain("Usage: nuhokai review [node] [--submit]");
+  expect(text).toContain("  --submit      validate the review JSON piped to stdin");
+  expect(text).toContain("pipes its findings as JSON to `nuhokai review --submit`");
+  expect(text).toContain("by its path as `nuhokai tree` prints it");
+  expect(text).toContain(
+    "exit 0 when the review passes (warnings allowed), 1 on an against-spec finding, 2 for an invalid submission",
+  );
+  expect(text).toContain("<error|warning>: <file>:<line>: <node>: <spec item|unspecified>; <evidence>");
+  expect(await printed(["review", "--submit", "--help"])).toEqual({ code: 0, out: [text], err: [] });
+});
+
+test("Cli R6, R10: review hands Review.run the directory and the path, Review.submit the directory and stdin's text", async () => {
+  const run = spyOn(reviewPrompt, "runReviewPrompt").mockResolvedValue(REVIEW_OK);
+  const submit = spyOn(reviewSubmission, "runReviewSubmission").mockResolvedValue(REVIEW_OK);
+  try {
+    const unread = stdinOf("{}");
+    expect(await printed(["review", "Tree/PrintTree"], unread)).toEqual({ code: 0, out: [], err: [] });
+    expect(run.mock.calls).toEqual([[".", "Tree/PrintTree"]]);
+    // Without --submit, stdin is never read.
+    expect(unread.reads).toBe(0);
+    const piped = stdinOf('{"node":"Tree/PrintTree"}\n');
+    expect(await printed(["review", "--submit"], piped)).toEqual({ code: 0, out: [], err: [] });
+    expect(submit.mock.calls).toEqual([[".", '{"node":"Tree/PrintTree"}\n']]);
+    expect(piped.reads).toBe(1);
+    // A slow producer: input starts within the wait, then pauses longer than it; Cli reads on to the end.
+    const encode = (text: string) => new TextEncoder().encode(text);
+    const slow = {
+      isTTY: false,
+      waitMs: 50,
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            await Bun.sleep(20);
+            controller.enqueue(encode('{"node":'));
+            await Bun.sleep(200);
+            controller.enqueue(encode('"Tree/PrintTree"}'));
+            controller.close();
+          },
+        }),
+    };
+    expect(await printed(["review", "--submit"], slow)).toEqual({ code: 0, out: [], err: [] });
+    expect(submit.mock.calls[1]).toEqual([".", '{"node":"Tree/PrintTree"}']);
+  } finally {
+    run.mockRestore();
+    submit.mockRestore();
+  }
+});
+
+test("Cli R6, R10: a node beside --submit, neither, a terminal or empty input, --submit=x → exit 2, nothing runs", async () => {
+  const run = spyOn(reviewPrompt, "runReviewPrompt").mockResolvedValue(REVIEW_OK);
+  const submit = spyOn(reviewSubmission, "runReviewSubmission").mockResolvedValue(REVIEW_OK);
+  try {
+    const both = stdinOf("{}");
+    expect(await failed(["review", "--submit", "Tree/PrintTree"])).toEqual([
+      2,
+      ["nuhokai review: give a node or --submit, not both: 'Tree/PrintTree' and --submit"],
+    ]);
+    expect(await printed(["review", "Tree/PrintTree", "--submit"], both)).toMatchObject({ code: 2 });
+    expect(both.reads).toBe(0);
+    expect(await failed(["review"])).toEqual([
+      2,
+      ["nuhokai review: give a node, or --submit with its input piped to stdin"],
+    ]);
+    const terminal = stdinOf(undefined);
+    const fromTty = await printed(["review", "--submit"], terminal);
+    expect(fromTty).toMatchObject({ code: 2, out: [] });
+    expect((fromTty.err[0] ?? "").split("\n")[0]).toBe(
+      "nuhokai review: --submit reads stdin, but stdin is a terminal; pipe it in: nuhokai review --submit < <file>",
+    );
+    // A terminal is never read, so nothing waits.
+    expect(terminal.reads).toBe(0);
+    // Empty input, and a pipe left open with nothing in it (exec and spawn leave stdin open), end in a usage error.
+    for (const empty of [stdinOf(""), stdinOf(" \n"), stdinOf("", { open: true }), stdinOf("{}", { delayMs: 200 })]) {
+      const result = await printed(["review", "--submit"], empty);
+      expect(result).toMatchObject({ code: 2, out: [] });
+      expect((result.err[0] ?? "").split("\n")[0]).toBe(
+        "nuhokai review: --submit got no input on stdin; pipe it in: nuhokai review --submit < <file>",
+      );
+    }
+    expect(await failed(["review", "--submit=x"])).toEqual([2, ["nuhokai review: --submit takes no value"]]);
+    expect(await failed(["review", "--submit", "--submit"])).toEqual([2, ["nuhokai review: --submit given twice"]]);
+    expect(await failed(["review", "a", "b"])).toEqual([2, ["nuhokai review: unexpected argument 'b'"]]);
+    expect(await failed(["tree", "--submit"])).toEqual([2, ["nuhokai tree: unknown option '--submit'"]]);
+    expect(run).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+  } finally {
+    run.mockRestore();
+    submit.mockRestore();
+  }
+});
+
+test("Review: in packages/cli, review Tree/PrintTree prints the prompt, exit 0; a dome or no source, exit 2; a submission exits by its findings", async () => {
+  const cwd = process.cwd();
+  try {
+    process.chdir(join(import.meta.dir, ".."));
+    const prompt = await printed(["review", "Tree/PrintTree"]);
+    expect(prompt).toMatchObject({ code: 0, err: [] });
+    const out = "out" in prompt ? prompt.out.join("\n") : "";
+    expect(out).toContain("- src/tree/print-tree.ts");
+    expect(out).toContain("- src/tree/print-tree.test.ts");
+    for (const ref of ["requirements[R1]", "requirements[R2]", "requirements[R3]"]) expect(out).toContain(`- ${ref} (`);
+    expect(out).toContain("- LoadWorld: load (");
+    expect(await failed(["review", "Check"])).toEqual([
+      2,
+      ["nuhokai review: Check is a dome, and a review covers one leaf; `nuhokai tree Check` lists its children"],
+    ]);
+    expect((await failed(["review", "Terminal"]))[0]).toBe(2);
+
+    const files = ["src/tree/print-tree.ts"];
+    const submit = (findings: unknown[]) =>
+      printed(["review", "--submit"], stdinOf(JSON.stringify({ node: "Tree/PrintTree", findings })));
+    expect(await submit([])).toEqual({ code: 0, out: ["ok: 0 errors, 0 warnings"], err: [] });
+    expect(
+      await submit([
+        { category: "against-spec", specItem: "requirements[R2]", file: files[0], line: 3, evidence: "e" },
+        { category: "unspecified", file: files[0], line: 4, evidence: "u" },
+      ]),
+    ).toEqual({
+      code: 1,
+      out: [
+        "error: src/tree/print-tree.ts:3: Tree/PrintTree: requirements[R2]; e",
+        "warning: src/tree/print-tree.ts:4: Tree/PrintTree: unspecified; u",
+        "failed: 1 error, 1 warning",
+      ],
+      err: [],
+    });
+    const cited = await submit([
+      { category: "against-spec", specItem: "requirements[R9]", file: files[0], line: 3, evidence: "e" },
+    ]);
+    expect(cited).toMatchObject({ code: 2, out: [] });
+  } finally {
+    process.chdir(cwd);
   }
 });

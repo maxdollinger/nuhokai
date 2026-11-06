@@ -8,7 +8,7 @@ export const Path = node({
   purpose:
     "Own the names the CLI prints and takes back: a file's, cwd-relative (WorldPath), and a node's, its hierarchy " +
     "path (NodePath). Shared by every command; pure, no I/O.",
-  status: "built",
+  status: "building",
   source: [
     "src/shared/world-path.ts",
     "src/shared/world-path.test.ts",
@@ -44,6 +44,7 @@ export const Path = node({
     nameInProject: WorldPath.nameInProject,
     suggestedCommand: WorldPath.suggestedCommand,
     isInside: WorldPath.isInside,
+    compareText: WorldPath.compareText,
     nameNodes: NodePath.nameNodes,
     findNode: NodePath.findNode,
     childrenOf: NodePath.childrenOf,

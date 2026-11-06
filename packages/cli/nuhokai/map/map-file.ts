@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { FileSystem } from "../external.ts";
+import { Failure } from "../failure.ts";
 import { Path } from "../path/path.ts";
 import { Viewer } from "./viewer.ts";
 
@@ -54,4 +55,4 @@ export const MapFile = node({
       why: "three.js ships only ES modules now; one classic script the page can inline, with no list of names kept by hand.",
     },
   ],
-}).edges({ uses: () => [Path.nameInWorld, Path.isInside, Viewer.draw, FileSystem.write] });
+}).edges({ uses: () => [Path.nameInWorld, Path.isInside, Viewer.draw, FileSystem.write, Failure.format] });

@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Diagnostics } from "../../diagnostics.ts";
 import { DataRules } from "./data-rules.ts";
 import { SourceRules } from "./source-rules.ts";
 
@@ -24,4 +25,4 @@ export const ApplyRules = node({
     },
     { id: "R2", text: "A rule group that throws is a bug: it propagates, never a finding." },
   ],
-}).edges({ uses: () => [DataRules.check, SourceRules.check] });
+}).edges({ uses: () => [DataRules.check, SourceRules.check, Diagnostics.order] });
