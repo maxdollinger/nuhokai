@@ -6,11 +6,13 @@ Your architecture as typed TypeScript in the repo, checked like code and readabl
 
 ## Why
 
-A system's design usually lives in diagrams and docs that drift from the code, and coding agents never see it. nuhokai
-keeps it next to the code as one checked source of truth: what each part is for, what it may use, and why.
+Coding agents write code fast, but they don't understand a system the way its people do. nuhokai's goal is to combine
+the two: people make the design decisions and keep the overview, agents write the code quickly, and good design becomes
+the easy path.
 
-That makes it a tool for agentic coding. An agent gets a spec to work from and something to check its code against,
-and every command answers in seconds with lines it can act on, so the loop of plan, build and check stays fast.
+UML could describe the design too, but a diagram never fails. In nuhokai the design is types, so a broken reference
+or a rule that doesn't hold is an error right away, for the person in the editor and for the agent in its loop. Rules
+become checks you can enforce, and the agent always has a spec to build from and something to check its code against.
 
 ## How
 
