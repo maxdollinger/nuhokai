@@ -15,7 +15,6 @@ architecture in a form it can find, read and check its work against, and so does
 ## Goal
 
 One source of truth for a system's structure and intent that
-
 - sits in the repository and is versioned and reviewed with the code;
 - is precise enough for tools to check: a reference to a component or port that does not exist is an error, not a
   stale arrow in a diagram;
@@ -27,7 +26,6 @@ One source of truth for a system's structure and intent that
 ## How it works
 
 A repository describes itself as a **world**: a graph of **nodes** written in a `nuhokai/` folder.
-
 - **Nodes are TypeScript, read as data.** Every node is a `node({ … }).edges({ … })` call. Edges are typed references
   to other nodes' ports, so plain `tsc` catches dangling references, and your editor's completion, go-to-definition
   and find-references work on the architecture out of the box. World files are never run: the tooling reads them with
