@@ -9,8 +9,5 @@ import { scopeAt } from "./review-scope.ts";
  * not reviewable (R2). Programming errors propagate and crash with their stack.
  */
 export function runReviewPrompt(root: string, node: string): Promise<Report> {
-  return orFailed(async () => {
-    const scope = await scopeAt(root, node);
-    return "outcome" in scope ? scope : ok(render(root, scope));
-  });
+  return orFailed(async () => ok(render(root, await scopeAt(root, node))));
 }

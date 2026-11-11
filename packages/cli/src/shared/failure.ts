@@ -6,6 +6,17 @@ export class CliError extends Error {
   }
 }
 
+/**
+ * An argument value that names nothing the command can work on, such as a node path naming no node: a CliError that
+ * the command reports as invalid (exit 2), as Cli does its own usage errors, never as a failure (exit 1).
+ */
+export class InvalidArgument extends CliError {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidArgument";
+  }
+}
+
 /** Whether a command expects to explain a thrown value: a CliError, or a filesystem failure. */
 export function isExpected(error: unknown): boolean {
   if (error instanceof CliError) return true;

@@ -7,7 +7,8 @@ export const CheckerClient = node({
   id: "01a1a1ad-ebfb-74ab-8f7a-f62a2c5ec333",
   purpose:
     "Find the pinned checker and hold one session on one project: open it, hand it to the caller's work, always " +
-    "close it; every checker failure is one CliError, a programming error never disguised as one. Shared, so " +
+    "close it; every checker failure is one CliError; whatever else the caller's work throws passes as it is, so a " +
+    "programming error is never disguised as one. Shared, so " +
     "LoadWorld and TypeCheck talk to the checker the same way and neither reaches into the other.",
   status: "built",
   source: ["src/shared/checker-client.ts"],
@@ -20,7 +21,7 @@ export const CheckerClient = node({
       output: "what the work answers",
       errors: [
         "no type checker: the sidecar or the platform package is missing",
-        "the type checker failed: it did not start, answer or close",
+        "the type checker failed: it did not start, open the project, answer a request or close",
         "the type checker opened no project for the tsconfig",
       ],
     },
@@ -36,7 +37,7 @@ export const CheckerClient = node({
     },
     {
       id: "R3",
-      text: "A JavaScript runtime error (TypeError, RangeError, ReferenceError) inside a session propagates as it is, with its stack: a bug, never 'the type checker failed'.",
+      text: "Inside the caller's work, a request the checker fails (its JSON-RPC rejects it with an Error carrying a numeric code: a protocol error, a closed or disposed connection) is 'the type checker failed: …'; anything else the work throws passes as it is (Failure R1): a CliError or filesystem error for the caller to report, any other error a bug that crashes with its stack.",
     },
     {
       id: "R4",
@@ -48,7 +49,10 @@ export const CheckerClient = node({
       text: "A checker path naming nothing, or a file that is no executable → one CliError 'the type checker failed: …'.",
       demonstrates: ["R1", "R2"],
     },
-    { text: "A TypeError thrown inside a session → that TypeError, not a CliError.", demonstrates: ["R3"] },
+    {
+      text: "A TypeError, a plain Error, an errno error or a CliError thrown inside a session → that very value; an Error with a numeric code (a dropped request) → a CliError 'the type checker failed: …'.",
+      demonstrates: ["R3"],
+    },
     {
       text: "Loading a world leaves the project and the temporary directory as they were.",
       demonstrates: ["R4"],

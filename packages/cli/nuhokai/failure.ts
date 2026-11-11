@@ -4,7 +4,7 @@ import { node } from "@nuhokai/world";
 export const Failure = node({
   id: "01a17950-b221-7126-bd52-7e93a4c10f38",
   purpose:
-    "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, flattening any " +
+    "The CLI's failure surface: one error type for expected failures and its invalid-argument kind, the expected-vs-bug test, flattening any " +
     "thrown value to one line, and the Report every command returns: its outcome and its result and failure " +
     "lines, and the helpers that build it. Classifies, formats and shapes only; never prints.",
   status: "built",
@@ -33,7 +33,7 @@ export const Failure = node({
     report: {
       kind: "call",
       purpose:
-        "Build a command's Report: a result or failure line, ok from result texts, failed from a thrown value; run a command that adds its lines as it goes",
+        "Build a command's Report: a result or failure line, ok from result texts, failed or invalid from a thrown value; run a command that adds its lines as it goes",
       input: "result texts, a failure text or a thrown value; a command adding its lines as it goes",
       output:
         "a Report or one of its lines; a bug is rethrown, and one escaping a command adding its lines is a CutShort carrying them",
@@ -56,7 +56,7 @@ export const Failure = node({
     },
     {
       id: "R5",
-      text: "From a thrown value, report makes one failure line (format) only when it is expected (isExpected); a bug is rethrown. A bug escaping a command that adds its lines as it goes becomes a CutShort carrying those lines and the bug, so Cli prints what the command found before it crashes.",
+      text: "From a thrown value, report makes one failure line (format) only when it is expected (isExpected); a bug is rethrown. Its outcome is invalid for an InvalidArgument (a CliError for an argument value naming nothing to work on, such as a node path naming no node), failed for any other expected failure. A bug escaping a command that adds its lines as it goes becomes a CutShort carrying those lines and the bug, so Cli prints what the command found before it crashes.",
     },
     {
       id: "C1",
@@ -78,7 +78,7 @@ export const Failure = node({
       demonstrates: ["R1"],
     },
     {
-      text: "ok of two texts → two result lines; failedFrom a CliError → its one failure line, failed; failedFrom a TypeError → the TypeError rethrown; a collecting command that adds a line, then throws → a CutShort with that line and the bug.",
+      text: "ok of two texts → two result lines; orFailed over a CliError → its one failure line, failed; over an InvalidArgument → its one line, invalid; over a TypeError → the TypeError rethrown; a collecting command that adds a line, then throws → a CutShort with that line and the bug.",
       demonstrates: ["R4", "R5"],
     },
   ],

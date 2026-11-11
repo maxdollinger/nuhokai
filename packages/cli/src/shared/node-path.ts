@@ -1,4 +1,4 @@
-import { CliError } from "./failure.ts";
+import { InvalidArgument } from "./failure.ts";
 import { suggestedCommand } from "./world-path.ts";
 
 /** A node as the hierarchy knows it, by position: its name, parent, children and path. LoadWorld's nodes are these. */
@@ -41,10 +41,10 @@ export function nameNodes(nodes: readonly { readonly name: string; readonly pare
 
 /**
  * The position in `nodes` of the node a typed hierarchy path names: exact and case-sensitive, one segment at a
- * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one CliError: at
+ * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one InvalidArgument: at
  * the first segment that matches nothing, the closest sibling's name with the rest of the path as typed, suggested
  * as `nuhokai <command> <path>`, else `nuhokai tree` listing the deepest node found; two siblings sharing a
- * segment's name are one CliError naming nuhokai check. Commands in a message carry `--path <root>` unless `root`
+ * segment's name are one InvalidArgument naming nuhokai check. Commands in a message carry `--path <root>` unless `root`
  * is the cwd, so they run as printed.
  */
 export function findNode(world: Hierarchy, typed: string, root: string, asked: string): number {
@@ -52,7 +52,7 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
   if (path === "" || segments.some((segment) => segment === "")) {
-    throw new CliError(
+    throw new InvalidArgument(
       `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
@@ -62,7 +62,7 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
     const matches = siblings.filter((node) => node.spec.name === segment);
     if (matches.length > 1) {
       const here = segments.slice(0, depth + 1).join("/");
-      throw new CliError(`'${here}' names ${matches.length} siblings; ${command("check")} reports the clash`);
+      throw new InvalidArgument(`'${here}' names ${matches.length} siblings; ${command("check")} reports the clash`);
     }
     const [match] = matches;
     if (match !== undefined) {
@@ -70,7 +70,9 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
       continue;
     }
     if (world.nodes.some((node) => node.path === path)) {
-      throw new CliError(`no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`);
+      throw new InvalidArgument(
+        `no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`,
+      );
     }
     const closest = closestName(
       segment,
@@ -81,10 +83,10 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
         parent === undefined
           ? `${command("tree")} lists the top level`
           : `${command("tree", parent.path)} lists its children`;
-      throw new CliError(`no node '${typed}'; ${list}`);
+      throw new InvalidArgument(`no node '${typed}'; ${list}`);
     }
     const corrected = [...(parent === undefined ? [] : [parent.path]), closest, ...segments.slice(depth + 1)];
-    throw new CliError(`no node '${typed}'; did you mean ${command(asked, corrected.join("/"))}?`);
+    throw new InvalidArgument(`no node '${typed}'; did you mean ${command(asked, corrected.join("/"))}?`);
   }
   // segments is never empty, so the loop chose a node.
   return (parent as HierarchyNode).index;

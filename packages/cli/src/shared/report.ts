@@ -1,5 +1,5 @@
 /** What a command answers instead of printing: Cli alone writes the lines and turns the outcome into an exit code. */
-import { errorLine, isExpected } from "./failure.ts";
+import { errorLine, InvalidArgument, isExpected } from "./failure.ts";
 
 /** How the command ended; Cli alone maps it to an exit code: ok 0, failed 1, invalid 2. */
 export type Outcome = "ok" | "failed" | "invalid";
@@ -37,25 +37,24 @@ export function failureLineFrom(thrown: unknown): ReportLine {
   return failureLine(errorLine(thrown));
 }
 
-/** A failed Report of one failure line for an expected thrown value; a bug is rethrown. */
-function failedFrom(thrown: unknown): Report {
-  return { outcome: "failed", lines: [failureLineFrom(thrown)] };
-}
-
-/** An invalid Report of one failure line for an expected thrown value, such as an argument naming nothing; a bug is rethrown. */
-export function invalidFrom(thrown: unknown): Report {
-  return { outcome: "invalid", lines: [failureLineFrom(thrown)] };
+/**
+ * The Report of one failure line for an expected thrown value: invalid for an InvalidArgument, else failed; a bug is
+ * rethrown.
+ */
+function reportFrom(thrown: unknown): Report {
+  const line = failureLineFrom(thrown);
+  return { outcome: thrown instanceof InvalidArgument ? "invalid" : "failed", lines: [line] };
 }
 
 /**
- * Run a command that answers its Report or throws: an expected failure becomes a failed Report of its one line
- * (Failure R1); a bug is rethrown, to crash with its stack.
+ * Run a command that answers its Report or throws: an InvalidArgument becomes an invalid Report of its one line, any
+ * other expected failure a failed one (Failure R1); a bug is rethrown, to crash with its stack.
  */
 export async function orFailed(command: () => Promise<Report>): Promise<Report> {
   try {
     return await command();
   } catch (thrown) {
-    return failedFrom(thrown);
+    return reportFrom(thrown);
   }
 }
 

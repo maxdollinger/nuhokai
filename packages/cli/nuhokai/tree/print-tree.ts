@@ -37,7 +37,7 @@ export const PrintTree = node({
     },
     {
       id: "R3",
-      text: "Path.findNode's error → invalid, an invalid argument value (Cli exits 2), its message as the failure line. No world or a load failure → failed.",
+      text: "Path.findNode's InvalidArgument → invalid (Cli exits 2), its message as the failure line, by Failure's report as any other thrown failure. No world or a load failure → failed.",
     },
   ],
   testCases: [

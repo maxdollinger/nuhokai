@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { CliError } from "./failure.ts";
+import { CliError, InvalidArgument } from "./failure.ts";
 import { CutShort, collecting, ok, orFailed, resultLine } from "./report.ts";
 
 test("Failure R4: ok of texts is their result lines, in order", () => {
@@ -23,6 +23,13 @@ test("Failure R5: an expected failure is one failure line, failed; a bug is reth
   });
   const bug = new TypeError("boom");
   await expect(failing(bug)).rejects.toBe(bug);
+});
+
+test("Failure R5: an InvalidArgument is one failure line, invalid", async () => {
+  const report = await orFailed(async () => {
+    throw new InvalidArgument("no node 'X'");
+  });
+  expect(report).toEqual({ outcome: "invalid", lines: [{ kind: "failure", text: "no node 'X'" }] });
 });
 
 test("Failure R5: a bug escaping a collecting command is a CutShort carrying the lines added before it", async () => {

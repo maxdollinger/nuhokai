@@ -19,7 +19,7 @@ export const ReviewScope = node({
       purpose: "Both programs' first steps: load the world, find the node, its review's scope",
       input: "project directory (cwd-relative), hierarchy path",
       output:
-        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets, drafts: the tbd placeholders it uses }; or an invalid Report of one failure line",
+        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets, drafts: the tbd placeholders it uses }",
       errors: [
         "no node at the path: names the closest match",
         "a dome: names `nuhokai tree <path>` to list its children",
@@ -32,7 +32,7 @@ export const ReviewScope = node({
   requirements: [
     {
       id: "R1",
-      text: "Reviewable: a leaf whose source matches at least one file (externals, contracts and nodes not built have none). Else one CliError saying why: an invalid argument, as a node path naming no node is.",
+      text: "Reviewable: a leaf whose source matches at least one file (externals, contracts and nodes not built have none). Else one InvalidArgument saying why, as for a node path naming no node.",
     },
     {
       id: "R2",
@@ -49,7 +49,7 @@ export const ReviewScope = node({
     { id: "R5", text: "Same world, files and node → the same scope." },
     {
       id: "R6",
-      text: "Order: load (LoadWorld.load), find the node (Path.findNode), its scope; a CliError from either → the invalid Report of its message (exit 2); no world or a load failure is thrown, for the program to report as failed (exit 1).",
+      text: "Order: load (LoadWorld.load), find the node (Path.findNode), its scope; a path naming no node or a node not reviewable is an InvalidArgument (the program reports it invalid, exit 2); no world or a load failure is the load's own error (failed, exit 1). Both are thrown: scopeAt answers a Scope or throws.",
     },
     {
       id: "R7",
@@ -70,7 +70,7 @@ export const ReviewScope = node({
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {
-      text: "review Tree/PrintTre → invalid, did you mean `nuhokai review Tree/PrintTree`; review Check → invalid, a dome; no world → thrown, failed.",
+      text: "review Tree/PrintTre → an InvalidArgument, did you mean `nuhokai review Tree/PrintTree`; review Check → an InvalidArgument, a dome; no world → the NoWorldError, thrown.",
       demonstrates: ["R6"],
     },
   ],

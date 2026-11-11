@@ -1,6 +1,6 @@
 import { loadWorld } from "../load/load-world.ts";
 import { findNode } from "../shared/node-path.ts";
-import { invalidFrom, ok, orFailed, type Report } from "../shared/report.ts";
+import { ok, orFailed, type Report } from "../shared/report.ts";
 import { renderTree } from "./tree-lines.ts";
 
 /**
@@ -14,15 +14,8 @@ export function runTree(root: string, node: string | undefined, level: number): 
   return orFailed(async () => {
     // Unchecked: any world that loads gets a tree.
     const world = await loadWorld(root);
-    let start: number | null = null;
-    if (node !== undefined) {
-      try {
-        start = findNode(world, node, root, "tree");
-      } catch (error) {
-        // A path naming no node is an invalid argument value: exit 2, as Cli's usage errors.
-        return invalidFrom(error);
-      }
-    }
+    // A path naming no node is an InvalidArgument: exit 2, as Cli's usage errors.
+    const start = node === undefined ? null : findNode(world, node, root, "tree");
     return ok(renderTree(world, root, start, level));
   });
 }

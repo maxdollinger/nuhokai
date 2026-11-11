@@ -231,13 +231,33 @@ test("a checker that fails to start is one CliError", async () => {
   await expect(notExecutable).rejects.toThrow("the type checker failed: ");
 });
 
-test("a programming error inside a checker session is no checker failure: it propagates as it is", async () => {
+/** What a checker session rejects with when its work throws `thrown`. */
+async function rejection(session: Parameters<typeof withChecker>[0], thrown: unknown): Promise<unknown> {
+  return withChecker(session, async () => {
+    throw thrown;
+  }).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+}
+
+test("whatever a checker session's work throws passes as it is: a bug, an errno error, a CliError", async () => {
   const root = await world();
-  const bug = new TypeError("boom");
   const session = { root, config: join(root, "nuhokai/tsconfig.json"), name: "tsconfig", checker: checkerPath() };
-  await expect(
-    withChecker(session, async () => {
-      throw bug;
-    }),
-  ).rejects.toBe(bug);
+  const errno = Object.assign(new Error("EACCES: permission denied, open 'x'"), { errno: -13, code: "EACCES" });
+  for (const thrown of [new TypeError("boom"), new Error("a plain bug"), errno, new CliError("ours")]) {
+    expect(await rejection(session, thrown)).toBe(thrown);
+  }
+});
+
+test("a request the checker fails inside a session is one CliError 'the type checker failed'", async () => {
+  const root = await world();
+  const session = { root, config: join(root, "nuhokai/tsconfig.json"), name: "tsconfig", checker: checkerPath() };
+  // The checker's JSON-RPC rejects a failed or dropped request with an Error carrying a numeric code.
+  const dropped = Object.assign(new Error("Pending response rejected since connection got disposed"), { code: -32097 });
+  const failed = await rejection(session, dropped);
+  expect(failed).toBeInstanceOf(CliError);
+  expect((failed as CliError).message).toBe(
+    "the type checker failed: Pending response rejected since connection got disposed",
+  );
 });

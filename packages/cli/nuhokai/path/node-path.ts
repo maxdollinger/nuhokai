@@ -60,11 +60,11 @@ export const NodePath = node({
     },
     {
       id: "R4",
-      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; that name replaces the segment and the rest of the path stays as typed, suggested as the command that asked: \"no node 'check/SpecCheck'; did you mean `nuhokai review Check/SpecCheck`?\" from review, `nuhokai tree …` from tree. No close name → the command listing the deepest node found: \"no node 'Check/Rules'; `nuhokai tree Check` lists its children\". Paths are quoted; a command is in backticks, carries --path <dir> unless the project directory is the cwd, and quotes a word as a shell needs it, so it runs as printed.",
+      text: "No node → one InvalidArgument (Failure) naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; that name replaces the segment and the rest of the path stays as typed, suggested as the command that asked: \"no node 'check/SpecCheck'; did you mean `nuhokai review Check/SpecCheck`?\" from review, `nuhokai tree …` from tree. No close name → the command listing the deepest node found: \"no node 'Check/Rules'; `nuhokai tree Check` lists its children\". Paths are quoted; a command is in backticks, carries --path <dir> unless the project directory is the cwd, and quotes a word as a shell needs it, so it runs as printed.",
     },
     {
       id: "R5",
-      text: "Two siblings with the segment's name → one CliError naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nameNodes still names both.",
+      text: "Two siblings with the segment's name → one InvalidArgument naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nameNodes still names both.",
     },
     {
       id: "C1",

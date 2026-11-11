@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
-import { splitReport } from "../shared/split-report.ts";
-import { type Scope, scopeAt } from "./review-scope.ts";
+import { InvalidArgument } from "../shared/failure.ts";
+import { scopeAt } from "./review-scope.ts";
 import { named, ROOT } from "./test-world.ts";
 
 const temps: string[] = [];
@@ -13,21 +13,15 @@ afterEach(() => {
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** The scope of the node at `path`; the test fails if it is not reviewable. */
-async function scoped(root: string, path: string): Promise<Scope> {
-  const scope = await scopeAt(root, path);
-  if ("outcome" in scope) throw new Error(`${path} is not reviewable: ${splitReport(scope).err.join("; ")}`);
-  return scope;
-}
-
-/** Why the node at `path` is not reviewable: the one line of the invalid Report. */
-async function refusal(root: string, path: string): Promise<string | undefined> {
-  const scope = await scopeAt(root, path);
-  if (!("outcome" in scope)) throw new Error(`${path} is reviewable`);
-  const report = splitReport(scope);
-  expect(report).toMatchObject({ outcome: "invalid", out: [] });
-  expect(report.err).toHaveLength(1);
-  return report.err[0];
+/** Why the node at `path` is not reviewable: the message of the InvalidArgument it throws. */
+async function refusal(root: string, path: string): Promise<string> {
+  try {
+    await scopeAt(root, path);
+  } catch (error) {
+    expect(error).toBeInstanceOf(InvalidArgument);
+    return (error as InvalidArgument).message;
+  }
+  throw new Error(`${path} is reviewable`);
 }
 
 /** An init'd project whose example node lists `source`, with src/example.ts written. */
@@ -43,7 +37,7 @@ async function example(source: string): Promise<string> {
 }
 
 test("R2, R3, R7: PrintTree's files and what it may use; LoadWorld's files are every file under src/load/, sorted", async () => {
-  const printTree = await scoped(ROOT, "Tree/PrintTree");
+  const printTree = await scopeAt(ROOT, "Tree/PrintTree");
   expect(printTree.node).toBe("Tree/PrintTree");
   expect(printTree.specFile).toBe(named("nuhokai/tree/print-tree.ts"));
   expect(printTree.files).toEqual([named("src/tree/print-tree.test.ts"), named("src/tree/print-tree.ts")]);
@@ -52,7 +46,7 @@ test("R2, R3, R7: PrintTree's files and what it may use; LoadWorld's files are e
   expect(printTree.drafts).toEqual([]);
   expect(printTree.items.length).toBeGreaterThan(0);
 
-  const load = await scoped(ROOT, "LoadWorld");
+  const load = await scopeAt(ROOT, "LoadWorld");
   const expected = readdirSync(join(ROOT, "src/load"))
     .sort()
     .map((file) => named(`src/load/${file}`));
@@ -78,18 +72,18 @@ test("R1: a dome names tree, a node without source or with one that is no list s
 
 test("R2: files as check finds them, each entry normalized, a file named twice listed once", async () => {
   const root = await example('["src//example.ts", "src/example.ts", "./src/example.ts"]');
-  expect((await scoped(root, "Example")).files).toEqual([`${root}/src/example.ts`]);
+  expect((await scopeAt(root, "Example")).files).toEqual([`${root}/src/example.ts`]);
 });
 
 test("R4, R5, R7: the example node's tbd is one draft with its description, never among the uses; same input, same scope", async () => {
   const root = await example('["src/**"]');
-  const scope = await scoped(root, "Example");
+  const scope = await scopeAt(root, "Example");
   expect(scope.drafts).toMatchObject([{ description: "Describe what this node has to do", name: "later" }]);
   expect(scope.drafts).toHaveLength(1);
   expect(scope.uses).toEqual([]);
   expect(scope.files).toEqual([`${root}/src/example.ts`]);
   expect(scope.example).toBe("purpose");
-  expect(await scoped(root, "Example")).toEqual(scope);
+  expect(await scopeAt(root, "Example")).toEqual(scope);
 });
 
 test("R3: a uses edge to an orphan is listed by its name, without a node", async () => {
@@ -101,7 +95,7 @@ test("R3: a uses edge to an orphan is listed by its name, without a node", async
 export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "planned", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
 `,
   );
-  expect((await scoped(root, "Example")).uses).toEqual([{ name: "Lost", ports: ["run"] }]);
+  expect((await scopeAt(root, "Example")).uses).toEqual([{ name: "Lost", ports: ["run"] }]);
 });
 
 test("R6: a path naming no node → its invalid Report; no world → thrown", async () => {

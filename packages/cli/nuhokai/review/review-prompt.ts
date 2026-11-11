@@ -28,7 +28,7 @@ export const ReviewPrompt = node({
     { id: "R1", text: "Order: load, find the node and its scope (ReviewScope.scopeAt), render, report." },
     {
       id: "R2",
-      text: "No world or a load failure → failed. No such node or one not reviewable → ReviewScope.scopeAt's invalid Report (exit 2), as it answers it.",
+      text: "No world or a load failure → failed. No such node or one not reviewable → ReviewScope.scopeAt's InvalidArgument, reported invalid (exit 2) by Failure's report.",
     },
   ],
   testCases: [

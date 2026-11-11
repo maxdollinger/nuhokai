@@ -180,7 +180,6 @@ export function runReviewSubmission(root: string, text: string): Promise<Report>
     const submission = judgeShape(parsed);
     if (Array.isArray(submission)) return invalid(submission);
     const scope = await scopeAt(root, submission.node);
-    if ("outcome" in scope) return scope;
     const problems = judgeContent(submission, scope);
     if (problems.length > 0) return invalid(problems);
     const findings = submission.findings.map((finding) => findingOf(scope, finding));

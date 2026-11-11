@@ -39,7 +39,7 @@ export const ReviewSubmission = node({
     },
     {
       id: "R3",
-      text: "Any problem → invalid (exit 2), every problem one failure line saying what is wrong and what to send instead (an example reference: the scope's), all of them, no finding line. No such node or one not reviewable → ReviewScope.scopeAt's invalid Report. No world or a load failure → failed, one failure line.",
+      text: "Any problem → invalid (exit 2), every problem one failure line saying what is wrong and what to send instead (an example reference: the scope's), all of them, no finding line. No such node or one not reviewable → ReviewScope.scopeAt's InvalidArgument, one failure line, invalid. No world or a load failure → failed, one failure line.",
     },
     {
       id: "R4",
