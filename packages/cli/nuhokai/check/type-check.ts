@@ -10,7 +10,7 @@ export const TypeCheck = node({
   id: "01a186f7-93a5-7791-86db-5d2a7e555555",
   purpose: "Type-check the world files with the CLI's pinned checker and nuhokai/tsconfig.json.",
   status: "building",
-  source: ["src/check/type-check.ts"],
+  source: ["src/check/type-check.ts", "src/check/tsc-message.ts", "src/check/declarative-rules.ts"],
   ports: {
     run: {
       kind: "call",
@@ -58,6 +58,17 @@ export const TypeCheck = node({
     },
   ],
   decisions: [
+    {
+      decision:
+        "Three files, one node: tsc-message.ts rewrites tsc's messages (R4) and is pure, declarative-rules.ts holds R2's lint, type-check.ts runs the checker and assembles the findings (R1, R3, R5).",
+      why: "They change for different reasons: R4 follows tsc's wording, R2 the world format, the runner the checker's API. The message rewriting is the most fragile part and is tested on its own; one port and one spec still cover all three.",
+      rejected: [
+        {
+          option: "A dome with a child node per file",
+          why: "The parts share no port with the rest of the CLI; three nodes would add ports and edges that only restate the file split.",
+        },
+      ],
+    },
     {
       decision:
         "R2 keeps only what the type check needs: imports, casts, !, any and @ts- directives. Calls and other code are LoadWorld's.",
