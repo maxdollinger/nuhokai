@@ -389,9 +389,7 @@ async function walk(
         const owner = parent ? `${nodeName(context, parent)}'s children` : "the world's children";
         const what = `${owner} list a value that is not a node: item ${position + 1} is ${valueInWords(child)}; list nodes made by node(...).edges(...), e.g. children: [A, B]`;
         const where = at ?? listedAt;
-        // tsc reports a bad item at the `children:` property when the item came in through a spread.
-        const property = reader.propertyAt(parent ? parent.def : world.def, "children");
-        throw new LoadError(where.file, where, what, property?.file === where.file ? [property] : []);
+        throw new LoadError(where.file, where, what);
       }
       listings.push({
         node: child.id,

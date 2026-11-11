@@ -22,7 +22,6 @@ test("readTscError: an error about a Forbidden<…> is its message alone", () =>
   const message = `Type 'NodeDraft<"x">' is not assignable to type 'NoInfer<Forbidden<"a draft is not a node: call .edges(), also with {}">>'.`;
   expect(readTscError([message])).toEqual({
     rule: "a draft is not a node: call .edges(), also with {}",
-    formatMessage: true,
   });
 });
 

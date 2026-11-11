@@ -85,7 +85,7 @@ export const Diagnostics = node({
       demonstrates: ["R1"],
     },
     {
-      text: "Three findings with one rule on nuhokai/a.ts:2 at columns 10, 20 and 30, and another rule there → the other's line, then '…: <rule> (×3)'; summary 'failed: 4 errors, 0 warnings'.",
+      text: "Three findings with one rule on nuhokai/a.ts:2 (three tsc errors at different tokens), and another rule there → the other's line, then '…: <rule> (×3)'; summary 'failed: 4 errors, 0 warnings'.",
       demonstrates: ["R3"],
     },
   ],

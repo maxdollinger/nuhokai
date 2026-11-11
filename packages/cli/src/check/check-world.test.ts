@@ -97,7 +97,7 @@ test("CheckWorld R4, R7: no world, or a file at nuhokai, is LoadWorld's one line
   }
 });
 
-test("CheckWorld R1, R6: a syntax error in a node file is one finding, tsc's and the loader's alike, failed; SpecCheck never runs", async () => {
+test("CheckWorld R1, R6: a syntax error in a node file is one finding, as tsc and the loader word it alike, failed; SpecCheck never runs", async () => {
   const root = await world({ "nuhokai/broken.ts": "export const Broken = {;\n" });
   const spec = spyOn(specCheck, "applyRules");
   try {
@@ -128,7 +128,7 @@ test("CheckWorld R6: a world file the loader cannot read is an error finding on 
   });
 });
 
-test("CheckWorld R6: a load error beside an unrelated tsc error in its file stays; on tsc's own line its words win", async () => {
+test("CheckWorld R6: a load error stays beside every tsc error, on its own line too; it is matched by nothing but identical words", async () => {
   const root = await world({
     "nuhokai/a.ts": 'export const wrong: number = "one";\nexport const n = 1;\nif (n) {}\n',
   });
@@ -142,11 +142,12 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
     err: [],
   });
 
-  // The loader's "comes from" points at the import, where R2's finding already says what to do: that one stays.
+  // The loader's "comes from" and R2's finding both point at the import: one break, two lines in their own words.
   const imported = await world({ "nuhokai/a.ts": 'import { pad } from "left-pad";\nexport const p = pad;\n' });
   expect((await check(imported)).out).toEqual([
+    "error: <root>/nuhokai/a.ts:1: 'pad' comes from 'left-pad'; a world file reads only world files and @nuhokai/world",
     'error: <root>/nuhokai/a.ts:1: world files import only @nuhokai/world and files under nuhokai/, not "left-pad"; move what the import provides into the world, or drop the import',
-    "failed: 1 error, 0 warnings",
+    "failed: 2 errors, 0 warnings",
   ]);
 
   // A cast and a call on one line are two breaks: the cast's finding (with its fix) does not stand for the call.
@@ -163,7 +164,7 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   expect(both[1]).toContain("world files use no cast");
   expect(both[2]).toBe("failed: 2 errors, 0 warnings");
 
-  // A string spread into children from another file: tsc at `children:`, the loader at the spread; one break.
+  // A string spread into children from another file: tsc at `children:`, the loader at the spread.
   const spread = await world({ "nuhokai/kids.ts": 'export const kids = ["notanode"];\n' });
   const spreadIndex = join(spread, "nuhokai/index.ts");
   writeFileSync(
@@ -176,11 +177,12 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
       ),
   );
   const spreadOut = (await check(spread)).out;
-  expect(spreadOut).toHaveLength(2);
-  expect(spreadOut[0]).toContain("a child is a node reference, not a string");
-  expect(spreadOut[1]).toBe("failed: 1 error, 0 warnings");
+  expect(spreadOut).toHaveLength(3);
+  expect(spreadOut.join("\n")).toContain("a child is a node reference, not a string");
+  expect(spreadOut.join("\n")).toContain('item 2 is the string "notanode"');
+  expect(spreadOut[2]).toBe("failed: 2 errors, 0 warnings");
 
-  // A world re-exported from another file: its id's load error is at w.ts, beside tsc's there, so one finding.
+  // A world re-exported from another file: its id's load error is at w.ts, beside tsc's there.
   const reExported = await world();
   const reIndex = join(reExported, "nuhokai/index.ts");
   writeFileSync(
@@ -189,20 +191,24 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   );
   writeFileSync(reIndex, 'export { default } from "./w.ts";\n');
   expect((await check(reExported)).out).toEqual([
+    "error: <root>/nuhokai/w.ts:6: Type 'number' is not assignable to type 'string'.",
     "error: <root>/nuhokai/w.ts:6: the world's id is not a string; keep the id init gave it, or give it a fresh UUID",
-    "failed: 1 error, 0 warnings",
+    "failed: 2 errors, 0 warnings",
   ]);
 
   const notAList = await world();
   const index = join(notAList, "nuhokai/index.ts");
   writeFileSync(index, readFileSync(index, "utf8").replace("children: [Example]", "children: Example"));
-  expect((await check(notAList)).out).toEqual([
+  const notAListOut = (await check(notAList)).out;
+  expect(notAListOut).toHaveLength(3);
+  expect(notAListOut[0]).toStartWith("error: <root>/nuhokai/index.ts:10: Type 'NodeHandle' is not assignable");
+  expect(notAListOut[1]).toBe(
     "error: <root>/nuhokai/index.ts:10: the world's children is not a list of nodes: children: [A, B]",
-    "failed: 1 error, 0 warnings",
-  ]);
+  );
+  expect(notAListOut[2]).toBe("failed: 2 errors, 0 warnings");
 });
 
-test("CheckWorld R6: a load error on the line of a message the format wrote is left out; DataRules R4 waits for tsc too", async () => {
+test("CheckWorld R6: a load error on the line of a message the format wrote stays beside it; DataRules R4 waits for tsc too", async () => {
   const root = await world();
   writeFileSync(
     join(root, "nuhokai/index.ts"),
@@ -217,7 +223,8 @@ export default defineWorld({ id: "w", name: " ", source: [], children: [Example,
     out: [
       "error: <root>/nuhokai/index.ts:4: a draft is not a node: call .edges(), also with {}",
       "error: <root>/nuhokai/index.ts:4: name must not be empty or whitespace: give the world a name, e.g. Shop",
-      "failed: 2 errors, 0 warnings",
+      "error: <root>/nuhokai/index.ts:4: the world's children list a value that is not a node: item 2 is a draft: node(...) without .edges(...); list nodes made by node(...).edges(...), e.g. children: [A, B]",
+      "failed: 3 errors, 0 warnings",
     ],
     err: [],
   });

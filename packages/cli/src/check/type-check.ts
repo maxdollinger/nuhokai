@@ -19,7 +19,7 @@ function messagesOf(diagnostic: Diagnostic): string[] {
 const UNRESOLVED_MODULE = new Set([2307, 2792]);
 
 /** A tsc error's finding text, as readTscError reads its messages. */
-function ruleOf(diagnostic: Diagnostic): { rule: string; fix?: string; formatMessage?: true } {
+function ruleOf(diagnostic: Diagnostic): { rule: string; fix?: string } {
   return readTscError(messagesOf(diagnostic));
 }
 
@@ -79,8 +79,8 @@ export async function runTypeCheck(root: string, checker: () => string = checker
   const unparsed = new Set([...firstSyntaxError.keys()].flatMap((name) => (name === undefined ? [] : resolve(name))));
 
   const findings: Finding[] = [];
-  /** tsc's findings for a module it cannot resolve: kept unless R2 refuses that import anyway. */
-  const unresolved: Finding[] = [];
+  /** tsc's findings for a module it cannot resolve, by file:line:column: kept unless R2 refuses that import anyway. */
+  const unresolved: [string, Finding][] = [];
   const seen = new Set<string>();
   for (const diagnostic of [...firstSyntaxError.values(), ...diagnostics]) {
     if (diagnostic.fileName !== undefined && firstSyntaxError.get(diagnostic.fileName) !== diagnostic) {
@@ -98,13 +98,14 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     }
     if (!inWorldFiles(path)) continue;
     const file = files.get(path);
+    const at = file ? positionIn(file, diagnostic.pos) : undefined;
     const finding: Finding = {
       severity: "error",
       file: printedName(path),
-      ...(file ? positionIn(file, diagnostic.pos) : {}),
+      ...(at ? { line: at.line } : {}),
       ...ruleOf(diagnostic),
     };
-    if (UNRESOLVED_MODULE.has(diagnostic.code)) unresolved.push(finding);
+    if (UNRESOLVED_MODULE.has(diagnostic.code)) unresolved.push([`${finding.file}:${at?.line}:${at?.column}`, finding]);
     else findings.push(finding);
   }
   /** Each specifier R2 refuses, by file:line:column. */
@@ -113,6 +114,6 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     if (!unparsed.has(path)) findings.push(...declarativeFindings(file, worldDir, printedName(path), refused));
   }
   // An import R2 refuses already says what to do with it: tsc's "cannot find module" at its specifier says it again.
-  findings.push(...unresolved.filter((finding) => !refused.has(`${finding.file}:${finding.line}:${finding.column}`)));
+  findings.push(...unresolved.flatMap(([place, finding]) => (refused.has(place) ? [] : [finding])));
   return findings.sort(order);
 }

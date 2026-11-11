@@ -59,29 +59,22 @@ export interface Position {
 }
 
 /**
- * A world that cannot be read, at a world file and, when known, its line and column: the message is
- * `<file>:<line>: <rule>` (or `<file>: <rule>`), no column, as every finding line, so a command that prints it as a
- * failure line needs nothing else; check reports it as a finding of its own, the column telling its very position
- * (CheckWorld R6). Typed apart instead of recognised by its text: a project directory
- * may hold spaces or colons.
+ * A world that cannot be read, at a world file and, when known, its line: the message is `<file>:<line>: <rule>` (or
+ * `<file>: <rule>`), as every finding line, so a command that prints it as a failure line needs nothing else; check
+ * reports it as a finding of its own (CheckWorld R6). Typed apart instead of recognised by its text: a project
+ * directory may hold spaces or colons.
  */
 export class LoadError extends CliError {
   readonly line?: number;
-  readonly column?: number;
 
   constructor(
     readonly file: string,
-    at: Position | undefined,
+    at: { readonly line: number } | undefined,
     readonly rule: string,
-    /** Other places in `file` where tsc reports the same break (a bad children item: at the `children:` property). */
-    readonly alsoAt: readonly Position[] = [],
   ) {
     super(at === undefined ? `${file}: ${rule}` : `${file}:${at.line}: ${rule}`);
     this.name = "LoadError";
-    if (at !== undefined) {
-      this.line = at.line;
-      this.column = at.column;
-    }
+    if (at !== undefined) this.line = at.line;
   }
 }
 

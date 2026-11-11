@@ -33,25 +33,15 @@ test("every part present: severity, file:line, node, rule and fix", () => {
   ]);
 });
 
-test("R2: a line carries no column, also where the finding knows one", () => {
-  expect(
-    format([
-      { severity: "error", file: "nuhokai/x.ts", line: 3, column: 14, rule: "Cannot find name 'gone'." },
-      { severity: "warning", file: "nuhokai/lost.ts", line: 3, column: 20, node: "Box", rule: "orphan" },
-    ]),
-  ).toEqual(["warning: nuhokai/lost.ts:3: Box: orphan", "error: nuhokai/x.ts:3: Cannot find name 'gone'."]);
-});
-
 test("R3: three type errors on one line are one line ending in (×3); the summary still counts three", () => {
-  const error = (column: number): Finding => ({
+  const error: Finding = {
     severity: "error",
     file: "nuhokai/a.ts",
     line: 2,
-    column,
     rule: "Type 'number' is not assignable to type 'string'.",
-  });
+  };
   const other: Finding = { severity: "error", file: "nuhokai/a.ts", line: 2, rule: "Cannot find name 'x'." };
-  const findings = [error(30), other, error(10), error(20)];
+  const findings = [error, other, error, error];
   expect(format(findings)).toEqual([
     "error: nuhokai/a.ts:2: Cannot find name 'x'.",
     "error: nuhokai/a.ts:2: Type 'number' is not assignable to type 'string'. (×3)",
@@ -70,15 +60,9 @@ test("summarize: no findings ok; warnings alone ok; any error failed", () => {
   expect(summarize([warning], true)).toBe("failed: 0 errors, 1 warning");
 });
 
-test("order: file, then line, rule and node; the column never decides", () => {
-  const at = (line: number, column: number, rule: string): Finding => ({
-    severity: "error",
-    file: "a.ts",
-    line,
-    column,
-    rule,
-  });
-  const sorted = [at(2, 1, "b"), at(1, 9, "b"), at(1, 1, "c"), at(1, 5, "a")].sort(order);
+test("order: file, then line, rule and node", () => {
+  const at = (line: number, rule: string): Finding => ({ severity: "error", file: "a.ts", line, rule });
+  const sorted = [at(2, "b"), at(1, "b"), at(1, "c"), at(1, "a")].sort(order);
   expect(sorted.map((finding) => `${finding.line}${finding.rule}`)).toEqual(["1a", "1b", "1c", "2b"]);
 });
 

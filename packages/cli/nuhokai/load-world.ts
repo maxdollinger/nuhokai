@@ -51,7 +51,7 @@ export const LoadWorld = node({
     },
     {
       id: "R5",
-      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line and column when known and the rule, its message 'nuhokai/orders.ts:3: <rule>', under --path app 'app/nuhokai/orders.ts:3: <rule>': no column, as every finding line; the column only tells check its very position (CheckWorld R6). An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
+      text: "Load error: one LoadError (a CliError) carrying the cwd-relative file, the line when known and the rule, its message 'nuhokai/orders.ts:3: <rule>', under --path app 'app/nuhokai/orders.ts:3: <rule>': no column, as every finding line. An error about the world's id or children is at that property in the file defineWorld is written in. An error about a node is at its node() line, one about a children item at that item, or at the `...spread` that brought it in from another file. The rule names code it cannot read in words and quotes it ('not an if statement: `if (n) {}`'), never by the parser's kind name, and says what a value is where a node belongs ('item 2 is a draft: node(...) without .edges(...)') or where data belongs, by its path ('A.requirements[0].text holds a tbd placeholder where data belongs; …'). A rule says what to write instead where the reader cannot tell (a syntax error stays the parser's own message): an undeclared name 'is declared nowhere; declare it in a world file, or import it from one', a children that is no list 'is not a list of nodes: children: [A, B]'.",
     },
     {
       id: "R6",
@@ -215,8 +215,8 @@ export const LoadWorld = node({
       ],
     },
     {
-      decision: "The loaded world records lines, never columns; only a LoadError keeps its column.",
-      why: "Every place the world names is printed as file:line (Diagnostics), so a column there is data no reader uses. A LoadError's column stays: CheckWorld R6 tells a load error and tsc's finding at the very same token apart by it.",
+      decision: "The loaded world and a LoadError record lines, never columns.",
+      why: "Every place the world names is printed as file:line (Diagnostics), so a column there is data no reader uses; check no longer matches a load error to tsc's findings by position (CheckWorld R6).",
       rejected: [
         {
           option: "Keep line and column everywhere",

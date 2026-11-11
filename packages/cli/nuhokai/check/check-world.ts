@@ -42,7 +42,7 @@ export const CheckWorld = node({
     },
     {
       id: "R6",
-      text: "A world file the loader cannot read (a LoadError) is an error finding at its file and line, on stdout among TypeCheck's in the one order of findings, so whoever reads the findings reads why the world did not load; one break is counted once: when a type-check finding sits at the load error's very position, file, line and column (a syntax error, a missing name, a draft in children, an import R2 refuses), a finding that already says what to do (a message the format wrote, or one with a fix) stays and the load error goes, and tsc's own words give way to the loader's, which say what to do; a finding anywhere else, the same line included, is another break, and both stay; a bad children item spread in also matches tsc's finding at the `children:` property. Any other load failure is a failure line after the findings.",
+      text: "A world file the loader cannot read (a LoadError) is an error finding at its file and line, on stdout among TypeCheck's in the one order of findings, so whoever reads the findings reads why the world did not load. It is never matched to tsc's findings by position: where both name one break in their own words (a missing name, a draft in children, an import R2 refuses), both lines stay; only a tsc finding with the very same file, line and words (a syntax error, which both report from the parser) stands for it. Any other load failure is a failure line after the findings.",
     },
     {
       id: "R7",
@@ -59,7 +59,7 @@ export const CheckWorld = node({
       demonstrates: ["R1", "R6"],
     },
     {
-      text: "A tsc error in a.ts and an if statement in b.ts → the tsc error, then 'error: nuhokai/b.ts:3: … not an if statement: `if (n) {}`', both on stdout, failed; the same two in one file → both; children: Example → only the loader's 'the world's children is not a list of nodes'.",
+      text: "A tsc error in a.ts and an if statement in b.ts → the tsc error, then 'error: nuhokai/b.ts:3: … not an if statement: `if (n) {}`', both on stdout, failed; the same two in one file → both; children: Example → tsc's error and the loader's 'the world's children is not a list of nodes', both at its line.",
       demonstrates: ["R6"],
     },
     {
@@ -80,6 +80,16 @@ export const CheckWorld = node({
     },
   ],
   decisions: [
+    {
+      decision: "A load error is printed beside tsc's findings, never matched to them by position.",
+      why: "Matching needed the loader to know where tsc reports each break (a column on every finding, the places a spread item is also reported at, which messages already say what to do): three modules sharing one piece of knowledge to save one line of output. Two lines naming one break in two ways still tell the reader what to fix.",
+      rejected: [
+        {
+          option: "Drop the load error where a tsc finding sits at its very line and column",
+          why: "Kept columns in every finding and LoadError only for this, and broke whenever tsc reported a break at another token than the loader.",
+        },
+      ],
+    },
     {
       decision:
         "Load first; TypeCheck and SpecCheck run on its outcome, TypeCheck even when the load fails, and SpecCheck after TypeCheck, so it knows whether tsc found an error.",

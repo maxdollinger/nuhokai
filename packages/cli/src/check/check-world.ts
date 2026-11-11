@@ -1,5 +1,5 @@
 import { LoadError, type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { type Finding, format, order, summarize } from "../shared/diagnostics.ts";
+import { type Finding, format, locate, summarize } from "../shared/diagnostics.ts";
 import { NoWorldError } from "../shared/inspect.ts";
 import { collecting, failureLineFrom, type Report, resultLine } from "../shared/report.ts";
 import { runCodeCheck } from "./code-check.ts";
@@ -32,29 +32,6 @@ function nameTypeFindings(findings: readonly Finding[], world: LoadedWorld | und
     if (finding.node !== undefined || paths?.length !== 1 || paths[0] === undefined) return finding;
     return { ...finding, node: paths[0] };
   });
-}
-
-/**
- * CheckWorld R6: TypeCheck's findings with the load error among them, one break counted once. One reported at the
- * load error's very position, file, line and column (a syntax error, a missing name, a draft in children, an import
- * R2 refuses), is the same break: a finding that already says what to do (a message the world format wrote, or one
- * with a fix) stays and the load error goes; tsc's own words give way to the loader's, which say what to do. A
- * finding anywhere else, the same line included (a cast beside a call), is another break, and both stay. `alsoAt`:
- * other places the loader knows tsc reports the same break at.
- */
-function withLoadFinding(
-  typeFindings: readonly Finding[],
-  load: Finding,
-  alsoAt: readonly { line: number; column: number }[],
-): Finding[] {
-  const places = [...(load.line === undefined ? [] : [{ line: load.line, column: load.column }]), ...alsoAt];
-  const samePlace = (finding: Finding) =>
-    finding.severity === "error" &&
-    finding.file === load.file &&
-    places.some((place) => place.line === finding.line && place.column === finding.column);
-  const actionable = (finding: Finding) => finding.formatMessage === true || finding.fix !== undefined;
-  if (typeFindings.some((finding) => samePlace(finding) && actionable(finding))) return [...typeFindings];
-  return [...typeFindings.filter((finding) => !samePlace(finding)), load].sort(order);
 }
 
 /**
@@ -109,14 +86,19 @@ export async function runCheck(root: string): Promise<Report> {
         return failedReport();
       }
       const typed = await typing;
+      // R6: the load error is one more finding beside tsc's, which may name the same break in other words; only a
+      // finding of tsc's with the very same file, line and words (a syntax error, which both report) stands for it.
+      const typeFindings = "value" in typed ? typed.value : [];
       const loadFinding: Finding = {
         severity: "error",
-        file: unread.file,
-        ...(unread.line === undefined ? {} : { line: unread.line }),
-        ...(unread.line === undefined || unread.column === undefined ? {} : { column: unread.column }),
+        ...locate({ file: unread.file, line: unread.line }),
         rule: unread.rule,
       };
-      addFindings(withLoadFinding("value" in typed ? typed.value : [], loadFinding, unread.alsoAt));
+      const said = typeFindings.some(
+        (finding) =>
+          finding.file === loadFinding.file && finding.line === loadFinding.line && finding.rule === loadFinding.rule,
+      );
+      addFindings(said ? typeFindings : [...typeFindings, loadFinding]);
       if ("thrown" in typed) addFailure(typed.thrown);
       return failedReport();
     }

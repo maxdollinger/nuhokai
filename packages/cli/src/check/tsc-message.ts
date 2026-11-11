@@ -153,10 +153,10 @@ function shortTypes(message: string): string {
  * alone, as the world format wrote it for the reader (TypeCheck R4); otherwise each message of the chain with its
  * types cut to their names, and tsc's advice to install types or change the library replaced by the world's fix.
  */
-export function readTscError(messages: readonly string[]): { rule: string; fix?: string; formatMessage?: true } {
+export function readTscError(messages: readonly string[]): { rule: string; fix?: string } {
   const forbidden = [...new Set(messages.flatMap(forbiddenIn))];
   if (forbidden.length > 0) {
-    return { rule: forbidden.map((text) => (text ?? "").replace(/\\(.)/g, "$1")).join("; "), formatMessage: true };
+    return { rule: forbidden.map((text) => (text ?? "").replace(/\\(.)/g, "$1")).join("; ") };
   }
   const advised = messages.some((message) => SETUP_ADVICE.test(message));
   const rule = messages.map((message) => shortTypes(message.replace(SETUP_ADVICE, ""))).join(" ");

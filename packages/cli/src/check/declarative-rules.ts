@@ -57,7 +57,7 @@ export function declarativeFindings(file: SourceFile, worldDir: string, name: st
     findings.push({
       severity: "error",
       file: name,
-      ...positionIn(file, typeof node === "number" ? node : node.getStart(file)),
+      line: positionIn(file, typeof node === "number" ? node : node.getStart(file)).line,
       rule,
       fix,
     });

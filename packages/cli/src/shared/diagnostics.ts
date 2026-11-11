@@ -8,19 +8,12 @@ export interface Finding {
   /** Named from the cwd, as the loader names world files. */
   readonly file: string;
   readonly line?: number;
-  /**
-   * 1-based, beside a line: set only by TypeCheck and on the load error, so CheckWorld R6 can tell the load error's
-   * very position from another break on its line. Never printed, never ordered by.
-   */
-  readonly column?: number;
   /** The node's path from the world, `Check/SpecCheck`; absent when the file defines no node to name. */
   readonly node?: string;
   /** The broken rule, one sentence. */
   readonly rule: string;
   /** How to fix it, listing the alternatives when there is a choice. */
   readonly fix?: string;
-  /** The rule is a message the world format wrote for its reader (a tsc error about a Forbidden<"…">). */
-  readonly formatMessage?: true;
 }
 
 /** A finding's place: a file and its line when known, as a node, a listing or the world's defineWorld call holds them. */
