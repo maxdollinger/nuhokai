@@ -77,6 +77,7 @@ function oneNode(purpose: string): LoadedWorld {
     definedIn: "nuhokai/index.ts",
     listings: [],
     orphans: [],
+    problems: [],
   };
 }
 
@@ -94,7 +95,14 @@ test("the example world's data block parses back unchanged, and a second write g
   expect(files(root)).toEqual([...before, "nuhokai/.generated/map.html"].sort());
   // Only what the map draws: each node's NodeSpec, never its place, file or path, nor listings or orphans.
   const { id, name, source, nodes, placeholders } = world;
-  const drawn = { id, name, source, nodes: nodes.map((node) => node.spec), placeholders };
+  const drawn = {
+    id,
+    name,
+    source,
+    nodes: nodes.map((node) => node.spec),
+    parents: nodes.map((node) => node.parent),
+    placeholders,
+  };
   expect(JSON.parse(html.match(DATA_BLOCK)?.[1] ?? "")).toEqual(JSON.parse(JSON.stringify(drawn)));
 
   writeMap(root, world);

@@ -12,12 +12,16 @@ export const Viewer = node({
     draw: {
       kind: "call",
       purpose: "Draw the loaded world in the browser",
-      input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
+      input:
+        "LoadWorld.load's id, name, source, each node's NodeSpec and parent position, and placeholders as JSON in the page's one data block",
       output: "the drawn page: islands per scope, edges, holes, saved layout, click details, search",
     },
   },
   requirements: [
-    { id: "R1", text: "Top level: top-level nodes as islands. A dome: its direct children as islands." },
+    {
+      id: "R1",
+      text: "Top level: top-level nodes as islands. A dome: its direct children as islands, by the parent positions LoadWorld placed, so nodes sharing an id stay where they are.",
+    },
     {
       id: "R2",
       text: "Double-click opens a dome; breadcrumbs lead back. The top level, first breadcrumb and page title carry the world's name, else World.",
@@ -75,7 +79,7 @@ export const Viewer = node({
       demonstrates: ["R2"],
     },
     {
-      text: "scene.js under bun: a node without source (world files are not type-checked) → empty Source section, no crash.",
+      text: "scene.js under bun: a node without source, and every node of a world whose purpose, source and requirements had the wrong shape → details, no crash.",
       demonstrates: ["R9"],
     },
     {

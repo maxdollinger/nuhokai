@@ -5,7 +5,7 @@ import { nameNodes } from "../shared/node-path.ts";
 import { renderTree } from "./tree-lines.ts";
 
 /** A loaded world's tree part: each node's name, parent position, source and purpose, its path as NodePath names it. */
-function world(entries: readonly [name: string, parent: number | null, source: unknown, purpose: unknown][]) {
+function world(entries: readonly [name: string, parent: number | null, source: string[], purpose: string][]) {
   const paths = nameNodes(entries.map(([name, parent]) => ({ name, parent })));
   const nodes = entries.map(([name, parent, source, purpose], index) => ({
     index,
@@ -85,9 +85,4 @@ test("TreeLines R3, R6: a purpose is one line with single spaces; the same input
 test("TreeLines R3: no field breaks the line or passes a control code, whatever an unchecked world holds", () => {
   const hostile = world([["a\nINJECTED | fake", null, ["src/\u001b[31mred.ts"], "\u001b[2Jclear\r\nnext"]]);
   expect(renderTree(hostile, ".", null, 1)).toEqual(["a INJECTED | fake | src/ [31mred.ts | [2Jclear next"]);
-});
-
-test("TreeLines: an unchecked world's odd source or purpose prints, never crashes", () => {
-  const odd = world([["A", null, "src/**", 42]]);
-  expect(renderTree(odd, ".", null, 1)).toEqual(["A | (none) | "]);
 });

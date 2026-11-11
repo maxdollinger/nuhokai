@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import type { Edge, NodeSpec, Port, UsesEdge } from "@nuhokai/world/node-spec";
 import type { SourceFile } from "typescript/unstable/ast";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
+import type { Finding } from "../shared/diagnostics.ts";
 import { errorLine, oneLine } from "../shared/failure.ts";
 import { requireWorld } from "../shared/inspect.ts";
 import { nameNodes } from "../shared/node-path.ts";
@@ -36,6 +37,7 @@ import {
   valueInWords,
   WorldV,
 } from "./reader.ts";
+import { SpecShape } from "./spec-shape.ts";
 
 export { type Line, LoadError, type SourcePlaces };
 
@@ -109,7 +111,15 @@ export interface LoadedNode {
   readonly source?: SourcePlaces;
   /** Where each spec item was written in `file`, when it holds the call (R15). */
   readonly places?: SpecPlaces;
+  /**
+   * The spec's fields the loader replaced because they had the wrong shape (R16), such as `source` when it was no
+   * list; the world's `problems` say why. Absent when it replaced none.
+   */
+  readonly reshaped?: readonly ShapedField[];
 }
+
+/** The NodeSpec fields whose shape the loader judges (R16). */
+export type ShapedField = "source" | "purpose" | "requirements" | "testCases" | "decisions";
 
 /** The world as data: what `map` draws, `check` judges and `tree` prints. */
 export interface LoadedWorld {
@@ -124,12 +134,12 @@ export interface LoadedWorld {
   readonly definedIn: string;
   /** The defineWorld call's line in `definedIn`. */
   readonly line?: number;
-  /** Where the world's source was written in `definedIn`. */
+  /** Where the world's source and each of its entries were written in `definedIn`, when it has a source. */
   readonly sourcePlaces?: SourcePlaces;
   /** The world's name, as given; absent if it is no string. */
   readonly name?: string;
-  /** The world's source, as given; absent if it is no list. */
-  readonly source?: readonly unknown[];
+  /** The world's source, its string entries as given; absent if it is no list (R16). */
+  readonly source?: readonly string[];
   /** Depth-first from the world: a parent before its children, children in list order, each node once. */
   readonly nodes: readonly LoadedNode[];
   /** The top-level nodes' positions in `nodes`, in the world's list order. */
@@ -140,6 +150,11 @@ export interface LoadedWorld {
   readonly listings: Listing[];
   /** In sorted file order, each once. */
   readonly orphans: Orphan[];
+  /**
+   * Every field of the world or a node the loader replaced because its shape was wrong (R16): one error finding each,
+   * at the field or item, naming the node. Check reports them; every other reader gets well-shaped data.
+   */
+  readonly problems: readonly Finding[];
 }
 
 /**
@@ -604,10 +619,15 @@ async function worldOf(
   const nodes: LoadedNode[] = [];
   // R14: edge targets by reference, as parents are, so a duplicate id never points elsewhere.
   const positionOf = (target: NodeV) => position.get(target) ?? null;
+  const problems: Finding[] = [];
   for (const [at, entry] of placed.entries()) {
     // R9: the defining file, and the node() call's place and where its source was written, when that file holds it.
     const file = fileOf(context, entry.node);
     const read = await specOf(context, entry, placeholders);
+    const path = paths[at] ?? "";
+    const holds = entry.node.at.file === file;
+    const shaped = shapeNode(reader, read, entry.node, { file, holds, path });
+    problems.push(...shaped.problems);
     nodes.push({
       index: at,
       spec: read.spec,
@@ -615,15 +635,12 @@ async function worldOf(
       children: children[at] ?? [],
       uses: read.uses.targets.map(positionOf),
       contracts: read.implements.targets.map(positionOf),
-      path: paths[at] ?? "",
+      path,
       file,
-      ...(entry.node.at.file === file
-        ? {
-            line: entry.node.at.line,
-            source: reader.sourcePlaces(entry.node.def, "source", file),
-            places: specPlaces(reader, read, entry.node.def, file),
-          }
-        : {}),
+      ...(holds ? { line: entry.node.at.line } : {}),
+      ...(shaped.source ? { source: shaped.source } : {}),
+      ...(shaped.places ? { places: shaped.places } : {}),
+      ...(shaped.reshaped.length > 0 ? { reshaped: shaped.reshaped } : {}),
     });
   }
 
@@ -637,20 +654,95 @@ async function worldOf(
     if (node.def.ports !== undefined) await lazily(context, node, "ports", () => reader.portsOf(node));
   }
 
+  // R16: the world's source is a list of strings, or none; what it drops is a problem at the world.
+  const worldShape = new SpecShape({ file: world.at.file, line: world.at.line, label: "the world" });
+  const rawSource = world.def.source;
+  const source = worldShape.source(
+    Array.isArray(rawSource) ? plain(reader, rawSource, world.at, "the world's source") : rawSource,
+    reader.sourcePlaces(world.def, "source", world.at.file),
+  );
+
   return {
     id: world.id,
     ...(typeof world.def.name === "string" ? { name: world.def.name } : {}),
-    ...(Array.isArray(world.def.source)
-      ? { source: plain(reader, world.def.source, world.at, "the world's source") as unknown[] }
-      : {}),
+    ...(source ? { source: source.source } : {}),
     file: worldFile,
     definedIn: world.at.file,
     line: world.at.line,
-    sourcePlaces: reader.sourcePlaces(world.def, "source", world.at.file),
+    ...(source?.places ? { sourcePlaces: source.places } : {}),
     nodes,
     top,
     placeholders: [...placeholders.values()],
     listings,
     orphans: orphansOf(context, modules, reached),
+    problems: [...worldShape.problems, ...problems],
+  };
+}
+
+/** A node's spec with its fields' shapes judged (R16), and where they were written, when `file` holds its call. */
+interface ShapedNode {
+  readonly source?: SourcePlaces;
+  readonly places?: SpecPlaces;
+  readonly reshaped: ShapedField[];
+  readonly problems: readonly Finding[];
+}
+
+/**
+ * R16: replace each field of `read.spec` whose shape is wrong, in place, by what it can keep: a source by its string
+ * entries ([] for no list), the purpose by "" when it is no string, requirements, test cases and decisions by their
+ * object items (dropped when no list). Places follow the items kept, and are known only when the node's defining
+ * `file` holds its call; every problem names the node by `path`, in `file`.
+ */
+function shapeNode(
+  reader: Reader,
+  read: ReadNode,
+  node: NodeV,
+  { file, holds, path }: { file: string; holds: boolean; path: string },
+): ShapedNode {
+  const spec = read.spec as unknown as Record<string, unknown>;
+  const def = node.def;
+  const lineOf = (at: At | undefined) => (holds && at?.file === file ? at.line : undefined);
+  const raw = holds ? specPlaces(reader, read, def, file) : undefined;
+  const shape = new SpecShape({ file, ...(holds ? { line: node.at.line } : {}), node: path, label: read.spec.name });
+  const reshaped: ShapedField[] = [];
+
+  const given = holds ? reader.sourcePlaces(def, "source", file) : undefined;
+  const source = shape.source(spec.source, given);
+  const list = Array.isArray(spec.source) ? spec.source : undefined;
+  if (!source || source.source.length !== list?.length) reshaped.push("source");
+  spec.source = source?.source ?? [];
+
+  const purpose = shape.text(
+    "purpose",
+    spec.purpose,
+    raw?.purpose ?? lineOf(reader.propertyAt(def, "purpose")),
+    "say why the node exists, as a string",
+  );
+  if (purpose !== spec.purpose) reshaped.push("purpose");
+  spec.purpose = purpose;
+
+  const places: Record<"requirements" | "testCases" | "decisions", readonly (number | undefined)[]> = {
+    requirements: raw?.requirements ?? [],
+    testCases: raw?.testCases ?? [],
+    decisions: raw?.decisions ?? [],
+  };
+  for (const field of ["requirements", "testCases", "decisions"] as const) {
+    const value = spec[field];
+    const kept = shape.objects(field, value, lineOf(reader.propertyAt(def, field)), (index) => raw?.[field][index]);
+    if (kept === undefined) {
+      if (value !== undefined) reshaped.push(field);
+      delete spec[field];
+      places[field] = [];
+      continue;
+    }
+    if (kept.items.length !== (value as unknown[]).length) reshaped.push(field);
+    spec[field] = kept.items;
+    places[field] = kept.lines;
+  }
+  return {
+    ...(source?.places ? { source: source.places } : {}),
+    ...(raw ? { places: { ...raw, ...places } } : {}),
+    reshaped,
+    problems: shape.problems,
   };
 }

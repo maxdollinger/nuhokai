@@ -211,9 +211,19 @@ test("R5: malformed requirements and test cases are errors naming the node and f
     "error: nuhokai/a.ts:2: A: requirements is not a list; make requirements a list of objects, or drop it",
     "error: nuhokai/a.ts:2: A: testCases is not a list; make testCases a list of objects, or drop it",
     "error: nuhokai/a.ts:3: B: requirements[0] is not an object; make it an object, or drop it from requirements",
-    "error: nuhokai/a.ts:3: B: test case 1's demonstrates is not a list; make it a list of requirement ids, or drop it",
     "error: nuhokai/a.ts:3: B: testCases[0] is not an object; make it an object, or drop it from testCases",
   ]);
+});
+
+test("LoadWorld's shape problems are left out in a file TypeCheck found an error in, kept elsewhere", async () => {
+  const root = project({
+    "nuhokai/index.ts": index("A, B", `import { A } from "./a.ts";\nimport { B } from "./b.ts";`),
+    "nuhokai/a.ts": HEADER + leaf("A", "a", "requirements: 5 as any"),
+    "nuhokai/b.ts": HEADER + leaf("B", "b", "requirements: 5 as any"),
+  });
+  const world = await loadWorld(root);
+  const rules = applyRules(root, world, new Set([`${root}/nuhokai/a.ts`])).map((finding) => finding.file);
+  expect(rules).toEqual([`${root}/nuhokai/b.ts`]);
 });
 
 test("R5: two requirements whose ids come from one variable are an error naming the node", async () => {

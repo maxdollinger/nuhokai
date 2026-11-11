@@ -21,7 +21,7 @@ export const DataRules = node({
     },
     {
       id: "R4",
-      text: "A missing, non-string or blank world name is an error, never a crash. It re-checks what tsc checks of defineWorld's name, so after a type error in the file holding defineWorld it is left out; a name tsc cannot judge (a const typed string) is still reported beside a type error elsewhere.",
+      text: "A missing, non-string or blank world name is an error, never a crash. The fields LoadWorld shapes (R16) are judged as shaped; a node's test cases are judged only when LoadWorld kept its requirements and test cases whole, and a built node with a source LoadWorld replaced is no second break. It re-checks what tsc checks of defineWorld's name, so after a type error in the file holding defineWorld it is left out; a name tsc cannot judge (a const typed string) is still reported beside a type error elsewhere.",
     },
   ],
   ports: {

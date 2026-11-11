@@ -2,12 +2,16 @@
 import type { NodeSpec, NodeStatus } from "@nuhokai/world/node-spec";
 import type { Placeholder } from "../load/load-world.ts";
 
-/** The world as the map's data block holds it: only what the map draws, each node as its NodeSpec. */
+/**
+ * The world as the map's data block holds it: only what the map draws, each node as its NodeSpec, shaped as LoadWorld
+ * shapes it, and each node's parent by position in `nodes` (null at the top level), as LoadWorld placed it.
+ */
 export interface MapWorld {
   readonly id: string;
   readonly name?: string;
-  readonly source?: readonly unknown[];
+  readonly source?: readonly string[];
   readonly nodes: readonly NodeSpec[];
+  readonly parents: readonly (number | null)[];
   readonly placeholders: readonly Placeholder[];
 }
 

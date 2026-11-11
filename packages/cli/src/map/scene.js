@@ -24,17 +24,14 @@ const EXTERNAL_LOOKS = {
   db: { look: "db", side: 1 },
 };
 
-/** Index the loaded world once: parents, children and first nodes per id, by position in `nodes`. */
+/**
+ * Index the loaded world once: children and first nodes per id, by position in `nodes`. Parents come as LoadWorld
+ * placed them, by position, so nodes sharing an id stay where they are.
+ */
 export function mapScene(world) {
   const nodes = world.nodes;
+  const parents = world.parents;
   const byId = new Map();
-  const latest = new Map();
-  // The loader lists a parent before its children, so the parent is the latest node with that id so far.
-  const parents = nodes.map((node, index) => {
-    const parent = node.parent === null ? null : (latest.get(node.parent) ?? null);
-    latest.set(node.id, index);
-    return parent;
-  });
   nodes.forEach((node, index) => {
     if (!byId.has(node.id)) byId.set(node.id, index);
   });

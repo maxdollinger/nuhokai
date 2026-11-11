@@ -38,9 +38,8 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
       `${path} is a dome, and a review covers one leaf; ${suggestedCommand("tree", [path], root)} lists its children`,
     );
   }
-  // A source that is not a list, check's to report, is no source here.
-  const source: unknown[] = Array.isArray(spec.source) ? spec.source : [];
-  const entries = source.filter((entry) => typeof entry === "string");
+  // A source LoadWorld had to replace is empty here; check reports why (LoadWorld R16).
+  const entries = spec.source;
   if (entries.length === 0) {
     const why = spec.external ? "it is external" : spec.abstract ? "it is a contract" : "it is not built yet";
     throw new CliError(`${path} has no source to review: ${why}; review a node whose source lists its code`);

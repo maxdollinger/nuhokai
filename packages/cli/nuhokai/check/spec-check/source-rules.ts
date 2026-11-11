@@ -1,6 +1,5 @@
 import { node } from "@nuhokai/world";
 import { Diagnostics } from "../../diagnostics.ts";
-import { Failure } from "../../failure.ts";
 import { Path } from "../../path/path.ts";
 import { ProjectFiles } from "../../project-files.ts";
 
@@ -18,11 +17,11 @@ export const SourceRules = node({
     },
     {
       id: "R3",
-      text: "A missing source, or an entry that is no string, is an error at its node or the world file, never a crash.",
+      text: "Judges sources as LoadWorld shapes them (LoadWorld R16): lists of strings; a world without a source list covers nothing, so no node's file is held against it.",
     },
     {
       id: "R4",
-      text: "A finding about one entry points at that entry, and one about a source that is no list at its source property, when written in the owner's file; an entry spread in from another file points at that `...spread`, else at its owner's node() or defineWorld call.",
+      text: "A finding about one entry points at that entry, when written in the owner's file; an entry spread in from another file points at that `...spread`, else at its owner's node() or defineWorld call.",
     },
   ],
   ports: {
@@ -34,5 +33,5 @@ export const SourceRules = node({
     },
   },
 }).edges({
-  uses: () => [Path.isAncestor, ProjectFiles.expand, ProjectFiles.isDirectory, Diagnostics.locate, Failure.format],
+  uses: () => [Path.isAncestor, ProjectFiles.expand, ProjectFiles.isDirectory, Diagnostics.locate],
 });

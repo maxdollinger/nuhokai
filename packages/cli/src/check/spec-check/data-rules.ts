@@ -224,28 +224,19 @@ function formatRules(world: LoadedWorld, node: LoadedNode): Finding[] {
   if (isDome && !spec.abstract && usesSomething) {
     error("a dome has uses edges; its behavior is its children", "move the uses to the child that needs them");
   }
-  /** A field that must be a list of objects, as [position, object]; anything else is an error, never a crash. */
-  const objects = (field: "requirements" | "testCases"): [number, Record<string, unknown>][] => {
-    const value: unknown = spec[field];
-    if (value === undefined) return [];
-    if (!Array.isArray(value)) {
-      error(`${field} is not a list`, `make ${field} a list of objects, or drop it`);
-      return [];
-    }
-    return [...value.entries()].flatMap(([index, item]): [number, Record<string, unknown>][] => {
-      if (typeof item === "object" && item !== null && !Array.isArray(item)) return [[index, item]];
-      error(`${field}[${index}] is not an object`, `make it an object, or drop it from ${field}`);
-      return [];
-    });
-  };
-  const ids = objects("requirements").map(([, requirement]) => requirement.id);
+  // LoadWorld made requirements and test cases lists of objects (R16).
+  const ids = (spec.requirements ?? []).map((requirement) => requirement.id);
   for (const [index, id] of ids.entries()) {
     if (ids.indexOf(id) !== index) {
       error(`requirement id "${String(id)}" is used twice`, "give each requirement its own id");
     }
   }
-  for (const [index, testCase] of objects("testCases")) {
-    const demonstrates = testCase.demonstrates ?? [];
+  // Test cases are numbered as written, and judged against every requirement: after LoadWorld dropped an item of
+  // either list, its problem comes first, so neither is judged here.
+  const reshaped = node.reshaped ?? [];
+  const judgeTests = !reshaped.includes("testCases") && !reshaped.includes("requirements");
+  for (const [index, testCase] of judgeTests ? (spec.testCases ?? []).entries() : []) {
+    const demonstrates: unknown = testCase.demonstrates ?? [];
     if (!Array.isArray(demonstrates)) {
       error(`test case ${index}'s demonstrates is not a list`, "make it a list of requirement ids, or drop it");
       continue;
@@ -323,7 +314,8 @@ function portNames(spec: NodeSpec): string[] {
 function builtWithoutSource(node: LoadedNode): Finding[] {
   const spec = node.spec;
   if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];
-  if (!Array.isArray(spec.source) || spec.source.length > 0) return [];
+  // A source LoadWorld replaced has its problem already: an empty list there is no second break (R16).
+  if (spec.source.length > 0 || node.reshaped?.includes("source")) return [];
   return [
     nodeError(
       node,

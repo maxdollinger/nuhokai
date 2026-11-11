@@ -23,7 +23,7 @@ export const ReviewScope = node({
       errors: [
         "no node at the path: names the closest match",
         "a dome: names `nuhokai tree <path>` to list its children",
-        "no source (none, or not a list): external, abstract or not built yet",
+        "no source (none, or one LoadWorld replaced): external, abstract or not built yet",
         "its source matches no file: names `nuhokai check`",
         "no world at nuhokai/, or the world failed to load: thrown",
       ],

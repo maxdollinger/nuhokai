@@ -9,7 +9,10 @@ import type { MapWorld } from "./scene.js";
 /** The viewer's slots, each held exactly once: a comment in a script, the data block's placeholder string. */
 const SLOTS = /\/\*nuhokai:(three|scene)\*\/|"nuhokai:(world)"/g;
 
-/** What the map draws of a loaded world: id, name, source, each node's NodeSpec and the placeholders; never paths. */
+/**
+ * What the map draws of a loaded world: id, name, source, each node's NodeSpec and parent position, and the
+ * placeholders; never paths.
+ */
 function mapWorld(world: LoadedWorld): MapWorld {
   const { id, name, source, nodes, placeholders } = world;
   return {
@@ -17,6 +20,7 @@ function mapWorld(world: LoadedWorld): MapWorld {
     ...(name === undefined ? {} : { name }),
     ...(source === undefined ? {} : { source }),
     nodes: nodes.map((node) => node.spec),
+    parents: nodes.map((node) => node.parent),
     placeholders,
   };
 }

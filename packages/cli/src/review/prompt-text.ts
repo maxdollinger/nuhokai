@@ -88,16 +88,14 @@ export function render(root: string, scope: Scope): string[] {
                 return `- ${oneLine(name)}: ${used} (unreachable: the world never reaches this node; ${check} reports it)`;
               }
               const { spec } = target;
-              // Source entries as written, named from the cwd, never expanded; an unchecked world may hold anything.
-              const source: unknown[] = Array.isArray(spec.source) ? spec.source : [];
-              const entries = source.filter((entry) => typeof entry === "string");
+              // Source entries as written, named from the cwd, never expanded.
+              const entries = spec.source;
               const where = spec.external
                 ? "external: known by name and purpose alone"
                 : entries.length === 0
                   ? "no source yet"
                   : `source ${entries.map((entry) => plainText(nameInProject(root, entry))).join(", ")}`;
-              const purpose = typeof spec.purpose === "string" ? spec.purpose : "";
-              return `- ${oneLine(target.path)}: ${used} (${where}): ${oneLine(purpose)}`;
+              return `- ${oneLine(target.path)}: ${used} (${where}): ${oneLine(spec.purpose)}`;
             }),
           ),
         ]),

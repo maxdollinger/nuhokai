@@ -27,7 +27,7 @@ export const MapFile = node({
     },
     {
       id: "R2",
-      text: "The drawn part of the loaded world (id, name, source, nodes, placeholders) embedded unchanged as one JSON block; every < escaped.",
+      text: "The drawn part of the loaded world (id, name, source, each node's NodeSpec and parent position, placeholders) embedded unchanged as one JSON block; every < escaped.",
     },
     { id: "R3", text: "Same world, same bytes: no timestamp, project directory path or randomness." },
     {

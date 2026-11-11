@@ -27,10 +27,9 @@ export function renderTree(world: LoadedWorld, root: string, start: number | nul
   return lines;
 }
 
-/** One node's line, each field on one line; an unchecked world's odd fields print as best they can, never crash. */
+/** One node's line, each field on one line; LoadWorld gives every spec a source list and a purpose (R16). */
 function line(root: string, spec: NodeSpec, path: string): string {
-  const entries = Array.isArray(spec?.source) ? spec.source.filter((entry) => typeof entry === "string") : [];
+  const { source: entries, purpose } = spec;
   const source = entries.length > 0 ? entries.map((entry) => nameInProject(root, entry)).join(", ") : NO_SOURCE;
-  const purpose = typeof spec?.purpose === "string" ? spec.purpose : "";
   return [path, source, purpose].map(oneLine).join(" | ");
 }

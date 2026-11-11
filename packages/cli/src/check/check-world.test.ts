@@ -432,3 +432,23 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Dome] })
   expect(errors[0]).toStartWith("error: <root>/nuhokai/bad.ts:3: ");
   expect(errors[0]).toContain("external nodes are top level only");
 });
+
+test("LoadWorld R16: a source that is no list is reported once, by tsc: no shape problem, no missing source", async () => {
+  const root = await world({
+    "nuhokai/a.ts": `import { node } from "@nuhokai/world";
+export const A = node({ id: "a", purpose: "p", status: "built", source: "src/**" }).edges({});
+`,
+    "nuhokai/index.ts": `import { defineWorld } from "@nuhokai/world";
+import { A } from "./a.ts";
+export default defineWorld({ id: "w", name: "W", source: [], children: [A] });
+`,
+  });
+
+  const result = await check(root);
+  const errors = result.out.filter((line) => line.startsWith("error: <root>/nuhokai/a.ts"));
+
+  // tsc's error alone: no "source is not a list" beside it, and no "a built node lists no source".
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toContain("not assignable");
+  expect(result.outcome).toBe("failed");
+});

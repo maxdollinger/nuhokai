@@ -1,6 +1,5 @@
 import type { Line, LoadedNode, LoadedWorld, SourcePlaces } from "../../load/load-world.ts";
 import { type Finding, locate } from "../../shared/diagnostics.ts";
-import { inWords } from "../../shared/failure.ts";
 import { isAncestor } from "../../shared/node-path.ts";
 import { ProjectFiles } from "../../shared/project-files.ts";
 import type { Ids } from "./ids.ts";
@@ -38,24 +37,12 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
       fix,
     });
 
-  /** SourceRules R3: the entries of a source that is a list, strings only; anything else is an error, never a crash. */
-  const entriesOf = (owner: Owner, source: unknown): Entry[] | undefined => {
-    if (!Array.isArray(source)) {
-      const fix = 'make it a list of paths or globs, e.g. ["src/**"]';
-      error(owner, `${owner.label}'s source is not a list`, fix, owner.source?.at);
-      return undefined;
-    }
-    const entries: Entry[] = [];
-    for (const [index, entry] of source.entries()) {
+  /** A source's entries, each with where it was written when known: LoadWorld already made each a string (R16). */
+  const entriesOf = (owner: Owner, source: readonly string[]): Entry[] =>
+    source.map((text, index) => {
       const at = owner.source?.entries[index];
-      if (typeof entry === "string") entries.push(at ? { text: entry, at } : { text: entry });
-      else {
-        const rule = `${owner.label}'s source lists ${inWords(entry)}, which is not a string`;
-        error(owner, rule, "list paths or globs", at);
-      }
-    }
-    return entries;
-  };
+      return at ? { text, at } : { text };
+    });
 
   /**
    * One entry's files, as ProjectFiles.expand finds them (SourceRules R1), for the world and a node alike: one outside
@@ -86,8 +73,10 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
     label: "the world",
     ...(world.sourcePlaces ? { source: world.sourcePlaces } : {}),
   };
-  const worldEntries = entriesOf(worldOwner, world.source);
-  const covered = worldEntries && new Set(worldEntries.flatMap(({ text, at }) => filesOf(worldOwner, text, at)));
+  // A world without a source list has its problem from LoadWorld, and covers nothing to judge nodes against.
+  const covered =
+    world.source &&
+    new Set(entriesOf(worldOwner, world.source).flatMap(({ text, at }) => filesOf(worldOwner, text, at)));
 
   // Each node's source (SpecCheck R6, R10); the files it matches feed the ownership rule (SpecCheck R7).
   const owners = new Map<string, LoadedNode[]>();
@@ -99,8 +88,7 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
       label: node.spec.name,
       ...(node.source ? { source: node.source } : {}),
     };
-    const entries = entriesOf(owner, (node.spec as { source?: unknown }).source);
-    for (const { text: entry, at: where } of entries ?? []) {
+    for (const { text: entry, at: where } of entriesOf(owner, node.spec.source)) {
       const files = filesOf(owner, entry, where);
       const uncovered = covered && files.find((file) => !covered.has(file));
       if (uncovered !== undefined) {

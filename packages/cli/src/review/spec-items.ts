@@ -1,5 +1,5 @@
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
-import type { Decision, Port, Requirement, TestCase } from "@nuhokai/world/node-spec";
+import type { Port } from "@nuhokai/world/node-spec";
 import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
 import { oneLine } from "../shared/failure.ts";
 
@@ -67,12 +67,14 @@ export function targets(world: LoadedWorld, position: number): Target[] {
   const node = world.nodes[position];
   if (node === undefined) return [];
   // Uses edges come first in the spec's edges, so the i-th target is the i-th edge's.
-  const edges = listOf<{ to?: unknown; port?: unknown }>(node.spec.edges);
+  const edges = node.spec.edges ?? [];
   const found = node.uses.map((to, at): Target => {
     const target = to === null ? undefined : world.nodes[to];
-    const id = textOf(edges[at]?.to);
+    const id = edges[at]?.to ?? "";
     const name = target?.spec.name ?? world.orphans.find((orphan) => orphan.id === id)?.name ?? id;
-    return { name, ports: listOf<string>(edges[at]?.port), ...(target ? { node: target } : {}) };
+    const edge = edges[at];
+    const ports = edge?.kind === "uses" ? edge.port : [];
+    return { name, ports, ...(target ? { node: target } : {}) };
   });
   // A name two targets share would cite either: those go by their path.
   return found.map((target) =>
@@ -103,20 +105,21 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
       ...(extra.untested ? { untested: true as const } : {}),
     });
   };
-  if (own) add("purpose", "purpose", textOf(spec.purpose), places?.purpose);
-  for (const [index, port] of listOf<Port>(spec.ports).entries()) {
+  if (own) add("purpose", "purpose", spec.purpose, places?.purpose);
+  for (const [index, port] of (spec.ports ?? []).entries()) {
     const text = `${textOf(port.kind)} port: ${textOf(port.purpose)}`;
     add(`ports.${port.name}`, "port", text, places?.ports[index], { details: portDetails(port) });
   }
-  const testCases = listOf<TestCase>(spec.testCases);
-  const demonstrated = new Set(testCases.flatMap((testCase) => listOf<string>(testCase?.demonstrates)));
-  for (const [index, requirement] of listOf<Requirement>(spec.requirements).entries()) {
-    const id = textOf(requirement?.id);
-    const constraint = requirement?.kind === "constraint";
+  // LoadWorld made these lists of objects (R16); what is inside each is as written, so checked here.
+  const testCases = spec.testCases ?? [];
+  const demonstrated = new Set(testCases.flatMap((testCase) => listOf<string>(testCase.demonstrates)));
+  for (const [index, requirement] of (spec.requirements ?? []).entries()) {
+    const id = textOf(requirement.id);
+    const constraint = requirement.kind === "constraint";
     const kind = constraint ? "constraint" : "requirement";
     // Only the node's own: an implementor's test cases demonstrate its own ids, never its contracts' (R4).
     const untested = own && !constraint && !demonstrated.has(id);
-    add(`requirements[${id}]`, kind, textOf(requirement?.text), places?.requirements[index], { untested });
+    add(`requirements[${id}]`, kind, textOf(requirement.text), places?.requirements[index], { untested });
   }
   if (own) {
     for (const [index, { name, ports }] of targets(world, node.index).entries()) {
@@ -124,16 +127,16 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
     }
   }
   for (const [index, testCase] of testCases.entries()) {
-    const demonstrates = listOf<string>(testCase?.demonstrates);
+    const demonstrates = listOf<string>(testCase.demonstrates);
     const shows = demonstrates.length > 0 ? ` (demonstrates ${demonstrates.join(", ")})` : "";
-    add(`testCases[${index}]`, "test case", `${textOf(testCase?.text)}${shows}`, places?.testCases[index]);
+    add(`testCases[${index}]`, "test case", `${textOf(testCase.text)}${shows}`, places?.testCases[index]);
   }
   if (own) {
-    for (const [index, decision] of listOf<Decision>(spec.decisions).entries()) {
-      const rejected = listOf<{ option?: unknown; why?: unknown }>(decision?.rejected).map(
+    for (const [index, decision] of (spec.decisions ?? []).entries()) {
+      const rejected = listOf<{ option?: unknown; why?: unknown }>(decision.rejected).map(
         (option) => `rejected: ${textOf(option?.option)} Why not: ${textOf(option?.why)}`,
       );
-      const text = `${textOf(decision?.decision)} Why: ${textOf(decision?.why)}`;
+      const text = `${textOf(decision.decision)} Why: ${textOf(decision.why)}`;
       add(`decisions[${index}]`, "decision", text, places?.decisions[index], { details: rejected });
     }
   }

@@ -21,7 +21,11 @@ function exampleWorld(): string {
 
 const loaded = await loadWorld(exampleWorld());
 /** The example world as the map's data block holds it: each node as its NodeSpec. */
-const world: MapWorld = { ...loaded, nodes: loaded.nodes.map((node) => node.spec) };
+const world: MapWorld = {
+  ...loaded,
+  nodes: loaded.nodes.map((node) => node.spec),
+  parents: loaded.nodes.map((node) => node.parent),
+};
 const scene = mapScene(world);
 const indexOf = (name: string) => world.nodes.findIndex((node) => node.name === name);
 
@@ -68,6 +72,7 @@ test("a world without a name, or with a blank one, still calls its top level Wor
   const unnamed: MapWorld = {
     id: "w",
     nodes: [],
+    parents: [],
     placeholders: [],
   };
 
@@ -126,6 +131,7 @@ test("an edge listing a call and an event port is a lane and an air route; group
       leaf("b", "B", { group: "core", edges: [{ kind: "uses", to: "a", port: ["run", "ran"] }] }),
       leaf("c", "C", { external: true, externalType: "caller", edges: [{ kind: "uses", to: "b", port: ["x"] }] }),
     ],
+    parents: [null, null, null],
     placeholders: [],
   };
 
@@ -158,6 +164,7 @@ test("a call cycle between islands still gets finite levels", () => {
     mapScene({
       id: "w",
       nodes: [leaf("a", "b"), leaf("b", "a")],
+      parents: [null, null],
       placeholders: [],
     }),
     null,
@@ -217,6 +224,7 @@ test("two holes sharing a description stay two, each with its sorted users", () 
   const loaded: MapWorld = {
     id: "w",
     nodes: [leaf("a"), leaf("b"), leaf("c")],
+    parents: [null, null, null],
     placeholders: [
       { kind: "call", description: "notify", users: ["c", "a"] },
       { kind: "call", description: "notify", users: ["b"] },
@@ -386,6 +394,7 @@ test("a hole's home is the deepest scope holding all its users", () => {
   const nested = mapScene({
     id: "w",
     nodes: [leaf("a"), leaf("b"), leaf("c", "b")],
+    parents: [null, null, 1],
     placeholders: [
       { kind: "call", description: "notify", users: ["c", "a"] },
       { kind: "call", description: "log", users: ["c"] },
@@ -463,6 +472,7 @@ test("subsequence hits light when no better hit lights anything in the open scop
   const nested = mapScene({
     id: "w",
     nodes: [leaf("A"), leaf("Directive", "A"), leaf("dec")],
+    parents: [null, 0, null],
     placeholders: [],
   });
   const hits = search(nested, "dec");
@@ -485,6 +495,7 @@ test("a node found by its name's start ranks with its own port that matches bett
       { ...leaf("Reload"), ports: [loadPort] },
       leaf("load"),
     ],
+    parents: [null, null, null, null],
     placeholders: [],
   });
   const load = search(ranked, "load");
@@ -497,4 +508,21 @@ test("a node found by its name's start ranks with its own port that matches bett
     ["Reload › load", 1],
     ["Reload", 4], // a substring: not promoted
   ]);
+});
+
+test("the click panel never throws for a node of a world whose fields had the wrong shape", async () => {
+  const odd = join(root, "odd");
+  mkdirSync(join(odd, "nuhokai"), { recursive: true });
+  writeFileSync(
+    join(odd, "nuhokai/index.ts"),
+    `import { defineWorld, node } from "@nuhokai/world";
+export const A = node({ id: "a", purpose: 5, status: "built", source: "src/**", requirements: [null], testCases: 3 }).edges({});
+export default defineWorld({ id: "w", name: "W", source: 7, children: [A] });
+`,
+  );
+  const shaped = await loadWorld(odd);
+  expect(shaped.problems.length).toBeGreaterThan(0);
+  for (const node of shaped.nodes) {
+    expect(detailsOf(node.spec)).toMatchObject({ name: "A", purpose: "" });
+  }
 });

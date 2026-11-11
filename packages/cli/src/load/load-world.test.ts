@@ -953,3 +953,54 @@ test("no world: the suggested init command quotes a project directory the shell 
     `no nuhokai/ in ${root}; run \`nuhokai init --path '${root}'\` to start a world there`,
   );
 });
+
+test("R16: a world whose fields have the wrong shape loads, each field replaced and one problem each at its line", async () => {
+  const root = world({
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { A, B } from "./a.ts";
+export default defineWorld({ id: "w", name: "W", source: "src/**", children: [A, B] });
+`,
+    "a.ts": `import { node } from "@nuhokai/world";
+export const A = node({
+  id: "a",
+  purpose: 5,
+  status: "built",
+  source: "src/**",
+  requirements: [null, { id: "R1", text: "t" }],
+  decisions: 3,
+}).edges({});
+export const B = node({
+  id: "b",
+  purpose: "b",
+  status: "planned",
+  source: [
+    1,
+    "src/b.ts",
+  ],
+  testCases: [{ text: "t" }, "loose"],
+}).edges({});
+`,
+  });
+  const loaded = await loadWorld(root);
+  const [a, b] = loaded.nodes;
+
+  expect(loaded.source).toBeUndefined();
+  expect(loaded.sourcePlaces).toBeUndefined();
+  expect(a?.spec).toMatchObject({ purpose: "", source: [], requirements: [{ id: "R1", text: "t" }] });
+  expect(a?.spec.decisions).toBeUndefined();
+  expect(a?.places?.requirements).toEqual([7]);
+  expect(a?.reshaped).toEqual(["source", "purpose", "requirements", "decisions"]);
+  expect(b?.spec).toMatchObject({ source: ["src/b.ts"], testCases: [{ text: "t" }] });
+  expect(b?.source?.entries).toEqual([{ line: 16 }]);
+  expect(b?.places?.testCases).toEqual([18]);
+  expect(b?.reshaped).toEqual(["source", "testCases"]);
+  expect(loaded.problems.map(({ file, line, node, rule }) => [file, line, node, rule])).toEqual([
+    [`${root}/nuhokai/index.ts`, 3, undefined, "the world's source is not a list"],
+    [`${root}/nuhokai/a.ts`, 6, "A", "A's source is not a list"],
+    [`${root}/nuhokai/a.ts`, 4, "A", "purpose is 5, not a string"],
+    [`${root}/nuhokai/a.ts`, 7, "A", "requirements[0] is not an object"],
+    [`${root}/nuhokai/a.ts`, 8, "A", "decisions is not a list"],
+    [`${root}/nuhokai/a.ts`, 15, "B", "B's source lists 1, which is not a string"],
+    [`${root}/nuhokai/a.ts`, 18, "B", "testCases[1] is not an object"],
+  ]);
+});
