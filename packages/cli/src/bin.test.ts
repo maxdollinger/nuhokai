@@ -194,6 +194,9 @@ test("a --path without a value, given twice or not a directory is a usage error 
   expect(await failed(["map", `--path=${file}/x`])).toEqual([2, [`nuhokai map: not a directory: ${file}/x`]]);
   expect(await failed(["tree", "a", "--path"])).toEqual([2, ["nuhokai tree: --path needs a directory"]]);
   expect(await failed(["map", "--path", "--help"])).toEqual([2, ["nuhokai map: --path needs a directory"]]);
+  // The next option is never taken as the value: --path -L 2 does not make -L the directory and 2 the node.
+  expect(await failed(["tree", "--path", "-L", "2"])).toEqual([2, ["nuhokai tree: --path needs a directory"]]);
+  expect(await failed(["tree", "--level", "--path", "."])).toEqual([2, ["nuhokai tree: --level needs a whole number"]]);
   expect(readdirSync(dir)).toEqual(["file"]);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -361,7 +364,8 @@ test("Cli R6, R8: a missing or second --level, a bad one or -L on another comman
     expect(await failed(["tree", "-L", "1", "-L", "2"])).toEqual([2, ["nuhokai tree: -L given twice"]]);
     // A value the option's parse rejects (tree.test.ts) is a usage error naming the spelling typed.
     expect(await failed(["tree", "-L", "x"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got 'x'"]]);
-    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number, got '-1'"]]);
+    expect(await failed(["tree", "-L", "-1"])).toEqual([2, ["nuhokai tree: -L needs a whole number"]]);
+    expect(await failed(["tree", "--level=-1"])).toEqual([2, ["nuhokai tree: --level needs a whole number, got '-1'"]]);
     expect(await failed(["tree", "--level", "1.5"])).toEqual([
       2,
       ["nuhokai tree: --level needs a whole number, got '1.5'"],

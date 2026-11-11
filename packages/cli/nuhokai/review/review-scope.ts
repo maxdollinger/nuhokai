@@ -70,7 +70,7 @@ export const ReviewScope = node({
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {
-      text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed.",
+      text: "review Tree/PrintTre → invalid, did you mean `nuhokai review Tree/PrintTree`; review Check → invalid, a dome; no world → thrown, failed.",
       demonstrates: ["R6"],
     },
   ],

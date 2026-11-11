@@ -105,7 +105,7 @@ export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "plan
 });
 
 test("R6: a path naming no node → its invalid Report; no world → thrown", async () => {
-  expect(await refusal(ROOT, "Tree/PrintTre")).toContain("did you mean `nuhokai tree Tree/PrintTree");
+  expect(await refusal(ROOT, "Tree/PrintTre")).toContain("did you mean `nuhokai review Tree/PrintTree");
   const empty = mkdtempSync(join(tmpdir(), "nuhokai-review-scope-"));
   temps.push(empty);
   await expect(scopeAt(empty, "Tree/PrintTree")).rejects.toThrow("no nuhokai/");

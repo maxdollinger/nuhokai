@@ -26,7 +26,7 @@ test("R1, R2: a reviewable leaf → the prompt, ok; a typo or a dome → one lin
   expect(splitReport(await runReviewPrompt(ROOT, "Tree/PrintTre"))).toEqual({
     outcome: "invalid",
     out: [],
-    err: [`no node 'Tree/PrintTre'; did you mean \`nuhokai tree Tree/PrintTree${pathArgs}\`?`],
+    err: [`no node 'Tree/PrintTre'; did you mean \`nuhokai review Tree/PrintTree${pathArgs}\`?`],
   });
   expect(splitReport(await runReviewPrompt(ROOT, "Check"))).toEqual({
     outcome: "invalid",

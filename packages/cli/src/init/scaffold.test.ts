@@ -147,7 +147,7 @@ test("a symlink at nuhokai/ is occupied, not a world", async () => {
   const repo = tempDir();
   const elsewhere = tempDir();
   symlinkSync(elsewhere, join(repo, "nuhokai"));
-  expect(inspectTarget(repo)).toEqual({ kind: "occupied" });
+  expect(inspectTarget(repo)).toBe("occupied");
   const output = await init(repo);
 
   expect(output.outcome).toBe("failed");

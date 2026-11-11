@@ -17,7 +17,7 @@ export function runTree(root: string, node: string | undefined, level: number): 
     let start: number | null = null;
     if (node !== undefined) {
       try {
-        start = findNode(world, node, root);
+        start = findNode(world, node, root, "tree");
       } catch (error) {
         // A path naming no node is an invalid argument value: exit 2, as Cli's usage errors.
         return invalidFrom(error);

@@ -34,5 +34,5 @@ export const SourceRules = node({
     },
   },
 }).edges({
-  uses: () => [Path.isAncestor, ProjectFiles.expand, Diagnostics.locate, Failure.format],
+  uses: () => [Path.isAncestor, ProjectFiles.expand, ProjectFiles.isDirectory, Diagnostics.locate, Failure.format],
 });

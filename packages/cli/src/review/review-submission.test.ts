@@ -105,7 +105,7 @@ test("R2: the node must be one, and reviewable: a typo or a dome is one line, in
   const typo = await submitted(JSON.stringify({ node: "Tree/PrintTre", findings: [] }));
   expect(typo.outcome).toBe("invalid");
   expect(typo.err).toHaveLength(1);
-  expect(typo.err[0]).toContain("did you mean `nuhokai tree Tree/PrintTree");
+  expect(typo.err[0]).toContain("did you mean `nuhokai review Tree/PrintTree");
   const dome = await submitted(JSON.stringify({ node: "Check", findings: [] }));
   expect(dome.outcome).toBe("invalid");
   expect(dome.err[0]).toStartWith("Check is a dome");
@@ -167,5 +167,22 @@ test("R2, R4: a file whose name holds spaces is cited and printed as the prompt 
   );
   expect(splitReport(await runReviewSubmission(root, cite(3))).err).toEqual([
     `findings[0].line 3 is past the end of ${file}, which has 2 lines; cite a line within it`,
+  ]);
+});
+
+test("R3: a file outside the review names the first five citable files and counts the rest", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
+  temps.push(root);
+  expect((await runInit(root)).outcome).toBe("ok");
+  const spec = join(root, "nuhokai/example.ts");
+  writeFileSync(spec, readFileSync(spec, "utf8").replace("source: [],", 'source: ["src/**"],'));
+  mkdirSync(join(root, "src"), { recursive: true });
+  for (const name of ["a", "b", "c", "d", "e", "f", "g"]) writeFileSync(join(root, `src/${name}.ts`), "");
+  const text = JSON.stringify({
+    node: "Example",
+    findings: [{ category: "unspecified", file: "elsewhere.ts", line: 1, evidence: "x" }],
+  });
+  expect(splitReport(await runReviewSubmission(root, text), root).err).toEqual([
+    `findings[0].file "elsewhere.ts" is not a file of Example's review; cite one of <root>/src/a.ts, <root>/src/b.ts, <root>/src/c.ts, <root>/src/d.ts, <root>/src/e.ts and 3 more (the prompt lists them all), as printed`,
   ]);
 });

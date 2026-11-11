@@ -60,7 +60,7 @@ export const NodePath = node({
     },
     {
       id: "R4",
-      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; the rest of the path corrected the same way as far as it goes: \"no node 'check/specchek'; did you mean `nuhokai tree Check/SpecCheck`?\", a command like the other. No close name → the command listing the deepest node found: \"no node 'Check/Rules'; `nuhokai tree Check` lists its children\". Paths are quoted; a command is in backticks, carries --path <dir> unless the project directory is the cwd, and quotes a word as a shell needs it, so it runs as printed.",
+      text: "No node → one CliError naming the typed path and, at the first segment that matches nothing, the closest name among that parent's children: equal ignoring case, else the smallest edit distance up to a third of the segment's length, ties in walk order; that name replaces the segment and the rest of the path stays as typed, suggested as the command that asked: \"no node 'check/SpecCheck'; did you mean `nuhokai review Check/SpecCheck`?\" from review, `nuhokai tree …` from tree. No close name → the command listing the deepest node found: \"no node 'Check/Rules'; `nuhokai tree Check` lists its children\". Paths are quoted; a command is in backticks, carries --path <dir> unless the project directory is the cwd, and quotes a word as a shell needs it, so it runs as printed.",
     },
     {
       id: "R5",
@@ -78,7 +78,7 @@ export const NodePath = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "Example world: findNode Shop/Stock and Shop/Stock/ → Stock's position; shop/stock and Shop/Stok → did you mean `nuhokai tree Shop/Stock`; Shop/Basket → `nuhokai tree Shop` lists its children, under --path packages/cli `nuhokai tree Shop --path packages/cli`; '', /Shop, Shop//Stock → no node; a top-level node named Ex/ample → its name holds /.",
+      text: "Example world: findNode Shop/Stock and Shop/Stock/ → Stock's position; Shop/Stok → did you mean `nuhokai tree Shop/Stock`, from review `nuhokai review Shop/Stock`; Shp/Basket → did you mean `nuhokai tree Shop/Basket`; Shop/Basket → `nuhokai tree Shop` lists its children, under --path packages/cli `nuhokai tree Shop --path packages/cli`; '', /Shop, Shop//Stock → no node; a top-level node named Ex/ample → its name holds /.",
       demonstrates: ["R3", "R4"],
     },
     {

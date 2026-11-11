@@ -35,7 +35,7 @@ export const ReviewSubmission = node({
     },
     {
       id: "R2",
-      text: "Order: parse, judge the shape, load, find node and its scope (ReviewScope.scopeAt), judge the content. Content: each specItem found by SpecItems.find; each file one of the scope's files or an item's spec file, and its line within that file, as printed.",
+      text: "Order: parse, judge the shape, load, find node and its scope (ReviewScope.scopeAt), judge the content. Content: each specItem found by SpecItems.find; each file one of the scope's files or an item's spec file, and its line within that file, as printed. A file that is none names the first five it may cite and counts the rest, so the line stays readable for a node of many files.",
     },
     {
       id: "R3",
@@ -57,6 +57,10 @@ export const ReviewSubmission = node({
     },
     {
       text: "PrintTree: specItem requirements[R9], line 999 of print-tree.ts → two failure lines, invalid.",
+      demonstrates: ["R2", "R3"],
+    },
+    {
+      text: "Example over src/a.ts … src/g.ts, citing elsewhere.ts → one line naming src/a.ts to src/e.ts and 3 more, invalid.",
       demonstrates: ["R2", "R3"],
     },
     {

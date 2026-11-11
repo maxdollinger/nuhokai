@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { createScanner, type Node, type SourceFile, SyntaxKind } from "typescript/unstable/ast";
 import { type Diagnostic, DiagnosticCategory } from "typescript/unstable/async";
+import { positionIn } from "../load/reader.ts";
 import { checkerPath, withChecker } from "../shared/checker-client.ts";
 import { type Finding, locate, order } from "../shared/diagnostics.ts";
 import { CliError } from "../shared/failure.ts";
@@ -197,12 +198,6 @@ function ruleOf(diagnostic: Diagnostic): { rule: string; fix?: string; formatMes
   return readTscError(messagesOf(diagnostic));
 }
 
-/** The 1-based line and column of a position. */
-function lineOf(file: SourceFile, position: number): { line: number; column: number } {
-  const { line, character } = file.getLineAndCharacterOfPosition(position);
-  return { line: line + 1, column: character + 1 };
-}
-
 /**
  * Every comment in the file, by its start: a scan of the text that skips each literal the parser found, so text
  * inside a string, template or regular expression is never read as a comment, nor a comment after one missed.
@@ -243,7 +238,7 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string, r
     findings.push({
       severity: "error",
       file: name,
-      ...lineOf(file, typeof node === "number" ? node : node.getStart(file)),
+      ...positionIn(file, typeof node === "number" ? node : node.getStart(file)),
       rule,
       fix,
     });
@@ -256,7 +251,7 @@ function declarativeFindings(file: SourceFile, worldDir: string, name: string, r
       if (target.startsWith(`${worldDir}${sep}`)) return;
     }
     // Where tsc reports a module it cannot find: the specifier, wherever the import statement starts.
-    const at = lineOf(file, specifier.getStart(file));
+    const at = positionIn(file, specifier.getStart(file));
     refused.add(`${name}:${at.line}:${at.column}`);
     error(
       node,
@@ -391,7 +386,7 @@ export async function runTypeCheck(root: string, checker: () => string = checker
     const finding: Finding = {
       severity: "error",
       file: printedName(path),
-      ...(file ? lineOf(file, diagnostic.pos) : {}),
+      ...(file ? positionIn(file, diagnostic.pos) : {}),
       ...ruleOf(diagnostic),
     };
     if (UNRESOLVED_MODULE.has(diagnostic.code)) unresolved.push(finding);

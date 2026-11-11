@@ -102,6 +102,16 @@ function lineCount(file: string): number {
   return text === "" ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
 }
 
+/** How many files a message names before it counts the rest. */
+const NAMED_FILES = 5;
+
+/** The first files, then how many more: "a.ts, b.ts and 3 more (the prompt lists them all)". */
+function someOf(files: readonly string[]): string {
+  if (files.length <= NAMED_FILES) return files.join(", ");
+  const more = files.length - NAMED_FILES;
+  return `${files.slice(0, NAMED_FILES).join(", ")} and ${more} more (the prompt lists them all)`;
+}
+
 /**
  * The submission's content against its scope (R2): each spec item one the scope lists, each file one of its files or
  * an item's spec file and each line within it. Every problem.
@@ -120,7 +130,7 @@ function judgeContent(submission: Submission, scope: Scope): string[] {
     }
     if (!citable.has(finding.file)) {
       problems.push(
-        `${where}.file ${JSON.stringify(finding.file)} is not a file of ${scope.node}'s review; cite one of ${[...scope.files, ...specFiles].join(", ")}, as printed`,
+        `${where}.file ${JSON.stringify(finding.file)} is not a file of ${scope.node}'s review; cite one of ${someOf([...scope.files, ...specFiles])}, as printed`,
       );
       continue;
     }

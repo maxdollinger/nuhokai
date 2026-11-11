@@ -267,6 +267,13 @@ test("R6: source ['src/gone/**'] is an error naming the node and the entry", asy
   ]);
 });
 
+test("R6: a source entry naming a directory says so and gives the glob for its files", async () => {
+  expect(await check(project(SOURCES({ A: `["src/map", "src/shared.ts"]`, B: `["scripts/"]` })))).toEqual([
+    'error: nuhokai/a.ts:3: A: source entry "src/map" is a directory, not a file; write "src/map/**" for the files below it',
+    'error: nuhokai/a.ts:4: B: source entry "scripts/" is a directory, not a file; write "scripts/**" for the files below it',
+  ]);
+});
+
 test("R6: under --path app the source resolves in app/, not the cwd", async () => {
   const parent = project({ "src/only-in-cwd.ts": "" });
   const app = join(parent, "app");

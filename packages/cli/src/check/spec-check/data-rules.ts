@@ -27,13 +27,13 @@ export function checkDataRules(
     // DataRules R4 re-checks what tsc checks of defineWorld's name: after a type error in the world file it would
     // only repeat tsc; a name tsc cannot judge (a const typed string) still gets it after one elsewhere.
     ...(typeErrorFiles.has(world.definedIn) ? [] : worldName(world)),
-    ...duplicateIds(world, ids),
+    ...duplicateIds(world),
     ...repeatedListings(world, ids),
     ...orphans(world),
     ...judged.flatMap((node) => scope(world, ids, node)),
     ...siblingNames(world, ids),
     // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
-    ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, ids, node))),
+    ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, node))),
     ...judged.flatMap((node) => builtWithoutSource(node)),
     ...judged.flatMap((node) => contracts(world, ids, node, typeErrors)),
   ];
@@ -53,7 +53,7 @@ function worldName(world: LoadedWorld): Finding[] {
 }
 
 /** SpecCheck R1: one error per node that repeats an id already held by the world or an earlier node, naming the first holder. */
-function duplicateIds(world: LoadedWorld, _ids: Ids): Finding[] {
+function duplicateIds(world: LoadedWorld): Finding[] {
   const first = new Map<string, string>([[world.id, `the world (${world.definedIn})`]]);
   const findings: Finding[] = [];
   for (const node of world.nodes) {
@@ -199,7 +199,7 @@ function siblingNames(world: LoadedWorld, ids: Ids): Finding[] {
 }
 
 /** SpecCheck R5: the node-spec rules tsc only checks on literal ids and flags, held against the loaded values. */
-function formatRules(world: LoadedWorld, _ids: Ids, node: LoadedNode): Finding[] {
+function formatRules(world: LoadedWorld, node: LoadedNode): Finding[] {
   const spec = node.spec;
   const findings: Finding[] = [];
   const error = (rule: string, fix: string) => findings.push(nodeError(node, rule, fix));

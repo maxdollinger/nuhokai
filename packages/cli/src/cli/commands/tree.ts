@@ -14,10 +14,10 @@ export const LEVEL_OPTION: Option<number> = {
 
 export const treeCmd: Cmd = {
   description: "Print the node hierarchy, one line per node: path | source | purpose",
-  positionals: ["[node]"],
   arguments: [
     {
       name: "node",
+      required: false,
       text: "the node to start from, by its path as tree prints it, e.g. Check/SpecCheck (default: the top level)",
     },
   ],

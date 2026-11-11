@@ -32,7 +32,7 @@ export const SpecCheck = node({
     },
     {
       id: "R6",
-      text: "Every source entry, relative to the project directory, matches at least one file; one matching nothing is a violation naming the node and the entry.",
+      text: 'Every source entry, relative to the project directory, matches at least one file; one matching nothing is a violation naming the node and the entry; one naming a directory says so and gives the glob for its files ("src/map" → write "src/map/**").',
     },
     {
       id: "R7",
@@ -75,6 +75,10 @@ export const SpecCheck = node({
     },
     {
       text: "source ['src/gone/**'] → error naming the node and the entry; under --path app it resolves in app/, not the cwd.",
+      demonstrates: ["R6"],
+    },
+    {
+      text: 'Source ["src/map"] and ["scripts/"] → one error each: is a directory, not a file; write "src/map/**" and "scripts/**".',
       demonstrates: ["R6"],
     },
     {

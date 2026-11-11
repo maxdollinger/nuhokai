@@ -19,6 +19,7 @@ import { nameNodes } from "../shared/node-path.ts";
 import { isInside, nameInWorld, WORLD_GENERATED_DIR, WORLD_INDEX } from "../shared/world-path.ts";
 import {
   type At,
+  type Export,
   Fn,
   InheritedV,
   type Line,
@@ -258,7 +259,7 @@ interface Named {
 }
 
 /** Each world file's exports, in sorted file order. */
-type Modules = readonly (readonly [file: string, exports: readonly [string, Val][]])[];
+type Modules = readonly (readonly [file: string, exports: readonly Export[]])[];
 
 /** What building the world needs at every step: the reader, the world file, and the export names of nodes and placeholders. */
 interface Context {
@@ -275,14 +276,23 @@ interface Placed {
   readonly parent: NodeV | null;
 }
 
-/** R2: each value `is` picks, named by the defining file's export, else the first export in sorted file order. */
+/**
+ * R2: each value `is` picks, named by the export whose declaration makes it (`export const A = node(…)`), else the
+ * defining file's first export of it (an alias there), else the first export in sorted file order.
+ */
 function namesOf<T extends NodeV | PlaceholderV>(modules: Modules, is: (value: Val) => value is T): Map<T, Named> {
   const named = new Map<T, Named>();
-  for (const definersOnly of [true, false]) {
+  const passes: ((file: string, entry: Export, value: T) => boolean)[] = [
+    (_file, entry) => entry.own,
+    (file, _entry, value) => file === value.at.file,
+    () => true,
+  ];
+  for (const pass of passes) {
     for (const [file, exports] of modules) {
-      for (const [exported, value] of exports) {
-        if (exported === "default" || !is(value) || named.has(value)) continue;
-        if (!definersOnly || file === value.at.file) named.set(value, { name: exported, file: value.at.file });
+      for (const entry of exports) {
+        const { name, value } = entry;
+        if (name === "default" || !is(value) || named.has(value) || !pass(file, entry, value)) continue;
+        named.set(value, { name, file: value.at.file });
       }
     }
   }
@@ -308,7 +318,7 @@ function worldIn(
   modules: Modules,
   worldFile: string,
 ): { at: At; def: Rec; id: string; children: readonly Val[] } {
-  const world = modules.find(([file]) => file === worldFile)?.[1].find(([exported]) => exported === "default")?.[1];
+  const world = modules.find(([file]) => file === worldFile)?.[1].find(({ name }) => name === "default")?.value;
   if (!(world instanceof WorldV)) {
     throw new LoadError(
       worldFile,
@@ -546,7 +556,7 @@ function orphansOf(context: Context, modules: Modules, reached: ReadonlySet<Node
   const orphans: Orphan[] = [];
   const orphaned = new Set<NodeV>();
   for (const [, exports] of modules) {
-    for (const [, value] of exports) {
+    for (const { value } of exports) {
       if (!(value instanceof NodeV) || reached.has(value) || orphaned.has(value)) continue;
       orphaned.add(value);
       const file = fileOf(context, value);
@@ -567,7 +577,7 @@ async function worldOf(
   sources: readonly [string, SourceFile][],
   worldFile: string,
 ): Promise<LoadedWorld> {
-  const modules: [string, [string, Val][]][] = [];
+  const modules: [string, Export[]][] = [];
   for (const [name, file] of sources) modules.push([name, await reader.exportsOf(file)]);
   const context: Context = {
     reader,

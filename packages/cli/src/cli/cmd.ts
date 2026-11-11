@@ -36,17 +36,17 @@ export interface Args {
 
 /** A positional argument as a command's help explains it. */
 export interface Argument {
-  /** As its usage shows it, without brackets: "node". */
+  /** Its name, without brackets: "node". Usage shows it as `<node>` when required, else `[node]`. */
   readonly name: string;
+  /** Whether usage shows it as one to give (`<node>`) or one to leave out (`[node]`); the command judges its absence. */
+  readonly required: boolean;
   readonly text: string;
 }
 
 /** One command: what usage and its help show, the arguments Cli lets through, and what it runs. */
 export interface Cmd {
   readonly description: string;
-  /** Its positionals as usage shows them, e.g. ["[node]"]; their count is the most it takes. */
-  readonly positionals: readonly string[];
-  /** Each positional, explained: what to pass and its default. */
+  /** Its positionals in order, each explained; their count is the most it takes. */
   readonly arguments: readonly Argument[];
   /** What it prints on stdout, with the shape of each line, so a reader can parse it without a trial run. */
   readonly output: string;

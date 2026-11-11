@@ -73,7 +73,7 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
 export async function scopeAt(root: string, node: string): Promise<Scope | Report> {
   const world = await loadWorld(root);
   try {
-    return scope(root, world, findNode(world, node, root));
+    return scope(root, world, findNode(world, node, root, "review"));
   } catch (error) {
     if (error instanceof CliError) return invalidFrom(error);
     throw error;

@@ -41,12 +41,13 @@ export function nameNodes(nodes: readonly { readonly name: string; readonly pare
 
 /**
  * The position in `nodes` of the node a typed hierarchy path names: exact and case-sensitive, one segment at a
- * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one CliError
- * naming the command for the closest match (the rest of the path corrected as far as it goes), or the command listing the
- * deepest node found; two siblings sharing a segment's name are one CliError naming nuhokai check. Commands in
- * a message carry `--path <root>` unless `root` is the cwd, so they run as printed.
+ * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one CliError: at
+ * the first segment that matches nothing, the closest sibling's name with the rest of the path as typed, suggested
+ * as `nuhokai <command> <path>`, else `nuhokai tree` listing the deepest node found; two siblings sharing a
+ * segment's name are one CliError naming nuhokai check. Commands in a message carry `--path <root>` unless `root`
+ * is the cwd, so they run as printed.
  */
-export function findNode(world: Hierarchy, typed: string, root: string): number {
+export function findNode(world: Hierarchy, typed: string, root: string, asked: string): number {
   const command = (name: string, ...args: string[]) => suggestedCommand(name, args, root);
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
@@ -71,8 +72,10 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
     if (world.nodes.some((node) => node.path === path)) {
       throw new CliError(`no node '${typed}': a name on it holds /, which a node path cannot address; rename the node`);
     }
-    const names = (nodes: readonly HierarchyNode[]) => nodes.map((node) => node.spec.name);
-    const closest = closestName(segment, names(siblings));
+    const closest = closestName(
+      segment,
+      siblings.map((node) => node.spec.name),
+    );
     if (closest === undefined) {
       const list =
         parent === undefined
@@ -80,17 +83,8 @@ export function findNode(world: Hierarchy, typed: string, root: string): number 
           : `${command("tree", parent.path)} lists its children`;
       throw new CliError(`no node '${typed}'; ${list}`);
     }
-    // Correct the rest of the path too, as far as each segment has an equal or close name.
-    let corrected = parent === undefined ? closest : `${parent.path}/${closest}`;
-    let at = siblings.find((node) => node.spec.name === closest);
-    for (const next of segments.slice(depth + 1)) {
-      const below = at === undefined ? [] : childrenOf(world, at.index);
-      const name = names(below).includes(next) ? next : closestName(next, names(below));
-      if (name === undefined) break;
-      corrected = `${corrected}/${name}`;
-      at = below.find((node) => node.spec.name === name);
-    }
-    throw new CliError(`no node '${typed}'; did you mean ${command("tree", corrected)}?`);
+    const corrected = [...(parent === undefined ? [] : [parent.path]), closest, ...segments.slice(depth + 1)];
+    throw new CliError(`no node '${typed}'; did you mean ${command(asked, corrected.join("/"))}?`);
   }
   // segments is never empty, so the loop chose a node.
   return (parent as HierarchyNode).index;

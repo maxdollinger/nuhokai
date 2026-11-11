@@ -35,9 +35,9 @@ const example = hierarchy([
   ["Stock", 2],
 ]);
 
-function failure(world: Hierarchy, typed: string, root = "."): string {
+function failure(world: Hierarchy, typed: string, root = ".", command = "tree"): string {
   try {
-    findNode(world, typed, root);
+    findNode(world, typed, root, command);
   } catch (error) {
     expect(error).toBeInstanceOf(CliError);
     return (error as Error).message;
@@ -60,14 +60,14 @@ test("NodePath R1, R2: paths from the top level down, in nodes order, by positio
 });
 
 test("NodePath R3: exact, case-sensitive, one trailing / allowed", () => {
-  expect(findNode(example, "Shop/Stock", ".")).toBe(4);
-  expect(findNode(example, "Shop/Stock/", ".")).toBe(4);
-  expect(findNode(example, "Shop/", ".")).toBe(2);
-  expect(findNode(example, "Postgres", ".")).toBe(0);
+  expect(findNode(example, "Shop/Stock", ".", "tree")).toBe(4);
+  expect(findNode(example, "Shop/Stock/", ".", "tree")).toBe(4);
+  expect(findNode(example, "Shop/", ".", "tree")).toBe(2);
+  expect(findNode(example, "Postgres", ".", "tree")).toBe(0);
 });
 
 test("NodePath R4: a miss names the closest name, else the command listing the deepest node found", () => {
-  expect(failure(example, "shop/stock")).toBe("no node 'shop/stock'; did you mean `nuhokai tree Shop/Stock`?");
+  expect(failure(example, "shop/stock")).toBe("no node 'shop/stock'; did you mean `nuhokai tree Shop/stock`?");
   expect(failure(example, "Shop/Stok")).toBe("no node 'Shop/Stok'; did you mean `nuhokai tree Shop/Stock`?");
   expect(failure(example, "Shp")).toBe("no node 'Shp'; did you mean `nuhokai tree Shop`?");
   expect(failure(example, "Shop/Basket")).toBe("no node 'Shop/Basket'; `nuhokai tree Shop` lists its children");
@@ -93,10 +93,19 @@ test("NodePath R4: a command in a message carries --path, quoted where a shell n
   );
 });
 
-test("NodePath R4: the rest of the path is corrected as far as it has close names", () => {
+test("NodePath R4: the closest name replaces the first segment that misses; the rest stays as typed", () => {
   expect(failure(example, "Shp/Stock")).toBe("no node 'Shp/Stock'; did you mean `nuhokai tree Shop/Stock`?");
-  expect(failure(example, "Shp/Basket")).toBe("no node 'Shp/Basket'; did you mean `nuhokai tree Shop`?");
-  expect(failure(example, "shop/stok")).toBe("no node 'shop/stok'; did you mean `nuhokai tree Shop/Stock`?");
+  expect(failure(example, "Shp/Basket")).toBe("no node 'Shp/Basket'; did you mean `nuhokai tree Shop/Basket`?");
+  expect(failure(example, "shop/stok")).toBe("no node 'shop/stok'; did you mean `nuhokai tree Shop/stok`?");
+});
+
+test("NodePath R4: the suggestion names the command that asked; listing children stays tree's", () => {
+  expect(failure(example, "Shop/Stok", ".", "review")).toBe(
+    "no node 'Shop/Stok'; did you mean `nuhokai review Shop/Stock`?",
+  );
+  expect(failure(example, "Shop/Basket", ".", "review")).toBe(
+    "no node 'Shop/Basket'; `nuhokai tree Shop` lists its children",
+  );
 });
 
 test("NodePath R3: an empty path or segment names no node", () => {

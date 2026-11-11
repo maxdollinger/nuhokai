@@ -3,7 +3,6 @@ import type { Cmd } from "../cmd.ts";
 
 export const initCmd: Cmd = {
   description: "Write the world skeleton, the CLI-owned tsconfig and the @nuhokai/world types",
-  positionals: [],
   arguments: [],
   output: "each file written, one path per line; `<dir>/nuhokai/ already exists; nothing to do` when there is one",
   options: [],

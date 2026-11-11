@@ -1,4 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
+import * as fs from "node:fs";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,4 +50,48 @@ test("R2: an entry is normalized, then a plain path if a file is there, a glob w
   for (const entry of ["../x/a.ts", "src/../../x", join(root, "src/a.ts")]) {
     expect(files.expand(entry)).toBeUndefined();
   }
+});
+
+test("R1: a glob never matches inside .git or node_modules, even through **; a plain path there still names its file", () => {
+  const root = project({
+    "a.ts": "",
+    "src/b.ts": "",
+    ".git/hooks/c.ts": "",
+    "node_modules/pkg/d.ts": "",
+    "src/node_modules/e.ts": "",
+    ".hidden/f.ts": "",
+  });
+  const files = new ProjectFiles(root);
+  expect(files.expand("**/*.ts")).toEqual([".hidden/f.ts", "a.ts", "src/b.ts"]);
+  expect(files.expand("node_modules/**")).toEqual([]);
+  expect(files.expand("node_modules/pkg/d.ts")).toEqual(["node_modules/pkg/d.ts"]);
+});
+
+test("R2: a glob without ** reads only as deep as its segments reach", () => {
+  const root = project({ "a.md": "", "src/b.md": "", "src/deep/c.md": "", "src/deep/deeper/d.md": "" });
+  const read: string[] = [];
+  const files = new ProjectFiles(root);
+  const spy = spyOn(fs, "readdirSync");
+  try {
+    expect(files.expand("*.md")).toEqual(["a.md"]);
+    expect(files.expand("src/*/*.md")).toEqual(["src/deep/c.md"]);
+    expect(files.expand("src/**/*.md")).toEqual(["src/b.md", "src/deep/c.md", "src/deep/deeper/d.md"]);
+    for (const [path] of spy.mock.calls) read.push(String(path).slice(root.length));
+  } finally {
+    spy.mockRestore();
+  }
+  // *.md lists the root alone; src/*/*.md stops at src/deep; only ** reaches src/deep/deeper.
+  expect(read).toEqual(["", "/src", "/src/deep", "/src/deep/deeper"]);
+});
+
+test("isDirectory: a directory inside the project; a file, a missing path or one outside is not", () => {
+  const outside = project({ "x/y": "" });
+  const root = project({ "src/a.ts": "" });
+  symlinkSync(join(outside, "x"), join(root, "out"));
+  const files = new ProjectFiles(root);
+  expect(files.isDirectory("src")).toBe(true);
+  expect(files.isDirectory("./src/")).toBe(true);
+  expect(files.isDirectory("src/a.ts")).toBe(false);
+  expect(files.isDirectory("gone")).toBe(false);
+  expect(files.isDirectory("out")).toBe(false);
 });

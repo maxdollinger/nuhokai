@@ -72,7 +72,11 @@ export function checkSourceRules(root: string, world: LoadedWorld, ids: Ids): Fi
       error(owner, `${named} ${why}`, fix, where);
       return [];
     }
-    if (!files.length) error(owner, `${named} matches no file`, "fix the path or glob, or drop the entry", where);
+    if (files.length) return files;
+    if (project.isDirectory(entry)) {
+      const glob = `${entry.replace(/\/+$/, "")}/**`;
+      error(owner, `${named} is a directory, not a file`, `write "${glob}" for the files below it`, where);
+    } else error(owner, `${named} matches no file`, "fix the path or glob, or drop the entry", where);
     return files;
   };
 

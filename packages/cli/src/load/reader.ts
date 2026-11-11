@@ -50,6 +50,7 @@ import {
 } from "typescript/unstable/ast";
 import { type Project, SymbolFlags, type Symbol as TsSymbol } from "typescript/unstable/async";
 import { CliError } from "../shared/failure.ts";
+import { compareText } from "../shared/world-path.ts";
 
 /** A 1-based line and column in a world file. */
 export interface Position {
@@ -136,6 +137,13 @@ const FUNCTION_PARAMETERS =
   "a function in a world file takes no parameters: it is never called, only read as an edge's list; write uses: () => [A.run], and each node out as data";
 
 // ─── Values ──────────────────────────────────────────────────────────────
+
+/** One export of a world file: its name, its value, and whether its declaration makes that value. */
+export interface Export {
+  readonly name: string;
+  readonly value: Val;
+  readonly own: boolean;
+}
 
 /** A value read from a world file: data, or one of the format's objects. */
 export type Val = undefined | null | boolean | number | string | readonly Val[] | Rec | Ref;
@@ -578,9 +586,7 @@ export class Reader {
 
   private async call(expr: CallExpression, env: Env): Promise<Val> {
     const notAllowed = () => {
-      const file = expr.getSourceFile();
-      const text = file.text.slice(expr.expression.getStart(file), expr.expression.end).replace(/\s+/g, " ");
-      const callee = text.length > 40 ? `${text.slice(0, 37)}...` : text;
+      const callee = codeOf(expr.expression);
       return this.fail(
         expr,
         `world files are declarative: they call only ${ALLOWED_CALLS}, not ${callee}(...); write what it would make out as data`,
@@ -738,24 +744,40 @@ export class Reader {
     return [...this.made.values()].filter((value): value is NodeV => value instanceof NodeV);
   }
 
-  /** Each export of a world file, by name in code-unit order (as a module namespace lists them), with its value. */
-  async exportsOf(file: SourceFile): Promise<[string, Val][]> {
+  /**
+   * Each export of a world file, by name in code-unit order (as a module namespace lists them), with its value and
+   * whether its declaration makes that value: `own` when the node() or tbd call is written inside it, never for an
+   * alias such as `export const B = A`.
+   */
+  async exportsOf(file: SourceFile): Promise<Export[]> {
     const checker = this.project.checker;
     const module = this.symbols.has(file) ? this.symbols.get(file) : await checker.getSymbolAtLocation(file);
     if (!module) return [];
-    const exports: [string, Val][] = [];
+    const exports: Export[] = [];
     // Code-unit order, as a module namespace lists its exports: the same on every machine and locale.
-    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) =>
-      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
-    );
+    const symbols = [...(await checker.getExportsOfModule(module))].sort((a, b) => compareText(a.name, b.name));
     for (const symbol of symbols) {
       const target = await this.target(symbol);
       const declaration = target.valueDeclaration && (await this.declarationOf(target));
       if (!declaration || this.printedName(declaration.getSourceFile()) === undefined) continue;
       if (!isVariableDeclaration(declaration) && !isExportAssignment(declaration)) continue;
-      exports.push([symbol.name, await this.declaration(declaration, declaration)]);
+      const value = await this.declaration(declaration, declaration);
+      // A re-export under another name (`export { A as B }`) resolves to A's declaration, but does not make A.
+      const declared = isVariableDeclaration(declaration) && isIdentifier(declaration.name) && declaration.name.text;
+      const own = declared === symbol.name && this.makes(declaration, value);
+      exports.push({ name: symbol.name, value, own });
     }
     return exports;
+  }
+
+  /** Whether `value`, a node or placeholder, was made by a call written inside `declaration`. */
+  private makes(declaration: Node, value: Val): boolean {
+    if (!(value instanceof NodeV || value instanceof PlaceholderV)) return false;
+    const start = this.at(declaration);
+    const end = positionIn(declaration.getSourceFile(), declaration.end);
+    const { at } = value;
+    const after = (a: Position, b: Position) => a.line > b.line || (a.line === b.line && a.column >= b.column);
+    return at.file === start.file && after(at, start) && after(end, at);
   }
 }
 

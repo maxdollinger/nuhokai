@@ -399,6 +399,27 @@ export const held = { Made: node(${leaf("made")}).edges({}) };
   expect(specs(loaded).map((spec) => spec.name)).toEqual(["Late", "First", "hidden"]);
 });
 
+test("names: the export whose declaration makes the node wins over an alias that sorts first, in its file or another", async () => {
+  const root = world({
+    "a.ts": `import { Orders } from "./orders.ts";\nexport const Aaa = Orders;\n`,
+    "orders.ts": `import { node, tbd } from "@nuhokai/world";
+export const Alias = Orders;
+export const Orders = node(${leaf("orders")}).edges({ uses: () => [hole] });
+export const Abc = hole;
+export const hole = tbd.call({ description: "later" });
+`,
+    "index.ts": `import { defineWorld } from "@nuhokai/world";
+import { Orders } from "./orders.ts";
+export default defineWorld({ id: "w", name: "w", source: [], children: [Orders] });
+`,
+  });
+
+  const loaded = await loadWorld(root);
+
+  expect(specs(loaded).map((spec) => spec.name)).toEqual(["Orders"]);
+  expect(loaded.placeholders.map((placeholder) => placeholder.name)).toEqual(["hole"]);
+});
+
 test("a call to a function of the world's own is a load error at the call, never applied: no factory, no recursion", async () => {
   const factory = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";

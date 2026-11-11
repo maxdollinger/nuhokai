@@ -15,7 +15,7 @@ export class NoWorldError extends CliError {
 }
 
 /** What sits at `<root>/nuhokai`; init decides, this only observes. */
-export type TargetState = { readonly kind: "absent" } | { readonly kind: "world" } | { readonly kind: "occupied" };
+export type TargetState = "absent" | "world" | "occupied";
 
 /** What every command says when something other than a directory sits at `<root>/nuhokai`. */
 export function occupiedMessage(root: string): string {
@@ -28,10 +28,10 @@ export function inspectTarget(root: string): TargetState {
   try {
     stats = lstatSync(join(root, WORLD_DIR));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { kind: "absent" };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
     throw error;
   }
-  return stats.isDirectory() ? { kind: "world" } : { kind: "occupied" };
+  return stats.isDirectory() ? "world" : "occupied";
 }
 
 /**
@@ -41,14 +41,14 @@ export function inspectTarget(root: string): TargetState {
  */
 export function requireWorld(root: string): void {
   const state = inspectTarget(root);
-  if (state.kind === "absent") {
+  if (state === "absent") {
     throw new NoWorldError(
       root === "."
         ? `no ${WORLD_DIR}/ here; run \`nuhokai init\` to start a world here, or pass --path <project dir>`
         : `no ${WORLD_DIR}/ in ${root}; run ${suggestedCommand("init", [], root)} to start a world there`,
     );
   }
-  if (state.kind === "occupied" && !statSync(join(root, WORLD_DIR), { throwIfNoEntry: false })?.isDirectory()) {
+  if (state === "occupied" && !statSync(join(root, WORLD_DIR), { throwIfNoEntry: false })?.isDirectory()) {
     throw new NoWorldError(occupiedMessage(root));
   }
 }

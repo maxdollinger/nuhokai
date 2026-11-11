@@ -102,9 +102,9 @@ function ownOptions(cmd: Cmd): (Option | Flag)[] {
   return [...cmd.options, ...(cmd.stdinFlag ? [cmd.stdinFlag] : [])];
 }
 
-/** A command's argument form, from its positionals and its own options: "nuhokai tree [node] [-L <n>]". */
+/** A command's argument form, from its arguments and its own options: "nuhokai tree [node] [-L <n>]". */
 function synopsis(name: string, cmd: Cmd): string {
-  const { positionals } = cmd;
+  const positionals = cmd.arguments.map((arg) => (arg.required ? `<${arg.name}>` : `[${arg.name}]`));
   const optional = ownOptions(cmd).map((option) => `[${form(option, spellings(option)[0] ?? "")}]`);
   return ["nuhokai", name, ...positionals, ...optional].join(" ");
 }
@@ -181,7 +181,8 @@ function isHelpFlag(value: string): boolean {
 
 /**
  * Split one option off the arguments, touching nothing else: `--name <value>`, `--name=<value>` for a long name,
- * or a short name and its value; a flag's name alone. A missing value (a help flag included), a value given to a
+ * or a short name and its value; a flag's name alone. A missing value (a dash argument such as a help flag or
+ * another option in its place, unless written `--name=<value>`), a value given to a
  * flag or a second occurrence is the invocation's fault, so it is a message naming the spelling typed, never a
  * command run. The value itself is the option's parse to judge, after help.
  */
@@ -204,8 +205,9 @@ function splitOption(
       value = { spelling, raw: "" };
       continue;
     }
+    // A separate value starting with a dash is the next option, never this one's value: `--path -L 2` names no dir.
     const raw = arg === spelling ? args[++index] : arg.slice(spelling.length + 1);
-    if (!raw || isHelpFlag(raw)) return { error: `${spelling} needs ${option.needs}` };
+    if (!raw || (arg === spelling && raw.startsWith("-"))) return { error: `${spelling} needs ${option.needs}` };
     value = { spelling, raw };
   }
   return value === undefined ? { rest } : { value, rest };
@@ -287,7 +289,7 @@ export async function main(argv: readonly string[], stdin: Stdin = PROCESS_STDIN
   const stray = strayArgument(split.rest);
   if (stray) return usageError(first, cmd, stray.error);
   // The count before any value: the first positional past the command's declared ones is named.
-  const extra = split.rest[cmd.positionals.length];
+  const extra = split.rest[cmd.arguments.length];
   if (extra !== undefined) return usageError(first, cmd, `unexpected argument '${extra}'`);
   const values = new Map<Option | Flag, unknown>();
   for (const [option, { spelling, raw }] of split.values) {

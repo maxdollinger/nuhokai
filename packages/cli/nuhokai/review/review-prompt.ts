@@ -33,7 +33,7 @@ export const ReviewPrompt = node({
   ],
   testCases: [
     {
-      text: "`review Tree/PrintTree` → the prompt, ok; `review Tree/PrintTre` → did you mean `nuhokai tree Tree/PrintTree`?, invalid; `review Check` → not reviewable, invalid; no world → one failure line, failed.",
+      text: "`review Tree/PrintTree` → the prompt, ok; `review Tree/PrintTre` → did you mean `nuhokai review Tree/PrintTree`?, invalid; `review Check` → not reviewable, invalid; no world → one failure line, failed.",
       demonstrates: ["R1", "R2"],
     },
   ],

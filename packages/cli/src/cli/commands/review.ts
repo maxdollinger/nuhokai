@@ -4,10 +4,10 @@ import type { Cmd } from "../cmd.ts";
 export const reviewCmd: Cmd = {
   description:
     "Have your coding agent review a node's code against its spec: print its prompt, then --submit its findings",
-  positionals: ["[node]"],
   arguments: [
     {
       name: "node",
+      required: false,
       text: "the leaf to review, by its path as `nuhokai tree` prints it, e.g. Tree/PrintTree (`nuhokai tree <dome>` lists a dome's children); required unless --submit",
     },
   ],

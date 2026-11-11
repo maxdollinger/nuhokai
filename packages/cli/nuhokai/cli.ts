@@ -57,11 +57,11 @@ export const Cli = node({
     },
     {
       id: "R7",
-      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. Missing value, second --path or a path that is no directory → usage error (2), command never runs. The command gets the directory, never the cwd, and prints its paths cwd-relative.",
+      text: "Every command works in one project directory: --path <dir> (or --path=<dir>) against the cwd, else the cwd. Missing value (a dash argument in its place: `--path -L 2` names no directory, `--path=-x` does), second --path or a path that is no directory → usage error (2), command never runs. The command gets the directory, never the cwd, and prints its paths cwd-relative.",
     },
     {
       id: "R8",
-      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, -1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli splits it off as it does --path and judges the value by the option's parse; tree's run hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
+      text: "tree takes --level <n> (--level=<n>, -L <n>): a whole number, 0 = unlimited, default 1. Missing value (a dash argument in its place, so `-L -1` is a missing value) or a second --level or -L → usage error (2) naming the spelling typed; no whole number (x, --level=-1, 1.5) → usage error (2), judged after help as a bad --path is; the command never runs. Cli splits it off as it does --path and judges the value by the option's parse; tree's run hands Tree.run the directory, the hierarchy path or none, and the level as a number; `nuhokai tree --help` lists --level.",
     },
     {
       id: "R9",
@@ -96,7 +96,7 @@ export const Cli = node({
       demonstrates: ["R6"],
     },
     {
-      text: "From a parent directory: `init --path packages/app` writes packages/app/nuhokai/, `map --path=packages/app` maps it; --path without value, twice or naming no directory (missing path, file, file/x) → exit 2, nothing runs; `map --path x --help` prints map's help.",
+      text: "From a parent directory: `init --path packages/app` writes packages/app/nuhokai/, `map --path=packages/app` maps it; --path without value, twice, followed by another option (`tree --path -L 2`) or naming no directory (missing path, file, file/x) → exit 2, nothing runs; `map --path x --help` prints map's help.",
       demonstrates: ["R7"],
     },
     {
@@ -201,7 +201,7 @@ export const Cli = node({
     },
     {
       decision:
-        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, positionals, arguments, output, options each with its parse, an optional stdin flag, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> <positionals> [<option> <value>]…' from positionals and options; run(root, args) holds the deferred import and reads typed values by option.",
+        "Inside Cli each command is a Cmd in its own file under src/cli/commands (description, arguments each with whether usage shows it as required, output, options each with its parse, an optional stdin flag, run), and main lists them in a const object at its top, the one place to see which commands exist. bin.ts splits --path and the command's options off once, answers help and stray dash arguments, counts the positionals, judges each value by its option's parse, and derives the synopsis 'nuhokai <name> [<argument>] [<option> <value>]…' from arguments and options; run(root, args) holds the deferred import and reads typed values by option.",
       why: "Adding a command touches one file instead of five parallel tables; Cli does the generic counting and judging once, so a command declares data and states only its call; the deferred import sits in run, which only a running command calls, so help never loads a command node; the generic lives on Option, so the registry stays plain Cmds.",
       rejected: [
         {
@@ -228,7 +228,7 @@ export const Cli = node({
     },
     {
       decision: "review's second step is the flag --submit, not a `submit` argument or command.",
-      why: "Cmd has positionals and options only; a flag is one more option (one without a value), and no node name is reserved. Cmd's one stdinFlag says it all: Cli reads stdin when it is given, in place of the positionals, so a command needs no hook of its own.",
+      why: "Cmd has arguments and options only; a flag is one more option (one without a value), and no node name is reserved. Cmd's one stdinFlag says it all: Cli reads stdin when it is given, in place of the positionals, so a command needs no hook of its own.",
       rejected: [
         {
           option: "`review submit`",

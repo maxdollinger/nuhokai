@@ -3,7 +3,6 @@ import type { Cmd } from "../cmd.ts";
 
 export const mapCmd: Cmd = {
   description: "Draw the world into nuhokai/.generated/map.html, a self-contained 3D map",
-  positionals: [],
   arguments: [],
   output: "the map's path, one line: nuhokai/.generated/map.html under the project directory",
   options: [],

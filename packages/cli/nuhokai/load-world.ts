@@ -41,7 +41,7 @@ export const LoadWorld = node({
     },
     {
       id: "R2",
-      text: "Node = a node(…).edges(…) call, as its NodeSpec per packages/world/README.md; each call is exactly one node, as a function of the world's own is never called: a uses arrow two nodes share holds one tbd placeholder. Name: export name; exported twice → the defining file's (the one holding the call), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
+      text: "Node = a node(…).edges(…) call, as its NodeSpec per packages/world/README.md; each call is exactly one node, as a function of the world's own is never called: a uses arrow two nodes share holds one tbd placeholder. Name: export name; exported twice → the export whose declaration holds the call (`export const Orders = node(…)`), else the defining file's first (the one holding the call), a re-export or alias never; else first in sorted file order; unexported → id. Errors about a node name its defining file.",
     },
     { id: "R3", text: "Order: depth-first from the world, parent before children, list order; each node once." },
     {
@@ -121,6 +121,10 @@ export const LoadWorld = node({
       demonstrates: ["R2", "R3", "R7"],
     },
     { text: "tbd used by two nodes → one placeholder, both ids, no edges.", demonstrates: ["R4"] },
+    {
+      text: "orders.ts exports Alias = Orders before Orders = node(…), a.ts exports Aaa = Orders → named Orders; a tbd aliased as Abc in its own file → named by its declaration.",
+      demonstrates: ["R2", "R4"],
+    },
     {
       text: "tbd exported from holes.ts and re-exported as alias from a.ts → named hole; an inline tbd → no name.",
       demonstrates: ["R4"],

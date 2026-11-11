@@ -12,8 +12,8 @@ import { publishWorld } from "./publish.ts";
 export function runInit(root: string): Promise<Report> {
   return orFailed(async () => {
     const state = inspectTarget(root);
-    if (state.kind === "world") return ok([`${nameInWorld(root)}/ already exists; nothing to do`]);
-    if (state.kind === "occupied") throw new CliError(occupiedMessage(root));
+    if (state === "world") return ok([`${nameInWorld(root)}/ already exists; nothing to do`]);
+    if (state === "occupied") throw new CliError(occupiedMessage(root));
     return ok(publishWorld(root));
   });
 }
