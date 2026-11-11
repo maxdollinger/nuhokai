@@ -20,7 +20,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name: the world's; source?: the world's, strings only, absent when no list (R16); file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: (position | null)[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, uses }, reshaped?: the fields R16 replaced }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; problems: one error finding per field R16 replaced; every place a line, never a column",
+        "id, name: the world's; source?: the world's, strings only, absent when no list (R16); file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: { to, ports, target: position | null, line? }[], contracts: { to, target: position | null }[], path, file, line?, source?: { at?, entries }, places?: { purpose?, items: each port, requirement, test case and decision object → its line }, reshaped?: the fields R16 replaced }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; problems: one error finding per field R16 replaced; every place a line, never a column",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -87,15 +87,15 @@ export const LoadWorld = node({
     },
     {
       id: "R14",
-      text: "Each node's uses targets and implements contracts as positions in nodes, in its edges' order (uses edges first, so uses[i] is edges[i]'s target), read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null.",
+      text: "Each node's uses and implements edges, in its edges' order, each carrying its own target's position in nodes (and a uses edge its ports), read by reference as R10 reads parents, so a duplicate id never points elsewhere; a target the walk never reaches (an orphan) is null. No reader pairs them with spec.edges by index.",
     },
     {
       id: "R15",
-      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses edge's first item; a spread-in item at its `...spread`. Review cites them.",
+      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose; of each port, requirement, test case and decision, keyed by the item object itself, never by its index; and of each uses edge's first item, on the loaded edge. A spread-in item at its `...spread`. Review cites them.",
     },
     {
       id: "R16",
-      text: "Every loaded spec has the shapes NodeSpec declares, so no reader re-checks them: source a list of strings, purpose a string, requirements, testCases and decisions lists of objects. A field of another shape is replaced by what it can keep (a source's string entries, else []; \"\" for a purpose; a list's object items, else no list), its places following the items kept, the field named in the node's reshaped; the world's source likewise, absent when no list. Each replacement is one problem: an error finding at the field or item, naming the node ('A's source is not a list', 'requirements[0] is not an object'), for check to report.",
+      text: "Every loaded spec has the shapes NodeSpec declares, so no reader re-checks them: source a list of strings, purpose a string, requirements, testCases and decisions lists of objects. A field of another shape is replaced by what it can keep (a source's string entries, else []; \"\" for a purpose; a list's object items, else no list), the items kept keeping their places, the field named in the node's reshaped; the world's source likewise, absent when no list. Each replacement is one problem: an error finding at the field or item, naming the node ('A's source is not a list', 'requirements[0] is not an object'), for check to report.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
@@ -106,11 +106,11 @@ export const LoadWorld = node({
   ],
   testCases: [
     {
-      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [Stock's position], contracts [null]; a second node with Stock's id leaves the target Stock's own position.",
+      text: "Orders uses Stock.reserve and implements Store; Stock is listed, Store an orphan → Orders' uses [{ to: Stock's id, ports, target: Stock's position }], contracts [{ to: Store's id, target: null }]; a second node with Stock's id leaves the target Stock's own position.",
       demonstrates: ["R14"],
     },
     {
-      text: "A node with purpose on line 4, requirements R1 on 9 and R2 on 10, a spread-in test case → places give 4, 9, 10 and the spread's line.",
+      text: "A node with purpose on line 4, requirements R1 on 9 and R2 on 10, a spread-in test case → its places give 4, 9, 10 and the spread's line, each looked up by the item itself.",
       demonstrates: ["R15"],
     },
     {

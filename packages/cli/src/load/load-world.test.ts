@@ -15,7 +15,7 @@ import { writeCliFiles } from "../init/cli-files.ts";
 import { runInit } from "../init/scaffold.ts";
 import { CliError } from "../shared/failure.ts";
 import { NoWorldError } from "../shared/inspect.ts";
-import { type LoadedWorld, loadWorld } from "./load-world.ts";
+import { type LoadedNode, type LoadedWorld, loadWorld } from "./load-world.ts";
 
 /** Each loaded node's NodeSpec, in nodes order. */
 const specs = (world: LoadedWorld) => world.nodes.map((node) => node.spec);
@@ -24,6 +24,10 @@ const specs = (world: LoadedWorld) => world.nodes.map((node) => node.spec);
  * Where each loaded node sits and is defined: its id, path, parent and children by position, file and line,
  * and where its source was written.
  */
+/** The line R15 knows for each item of one of a node's spec lists, by the item itself. */
+const lines = (node: LoadedNode | undefined, field: "ports" | "requirements" | "testCases" | "decisions") =>
+  ((node?.spec[field] ?? []) as object[]).map((item) => node?.places?.items.get(item));
+
 const places = (world: LoadedWorld) =>
   world.nodes.map(({ spec, path, parent, children, file, line, source }) => ({
     id: spec.id,
@@ -239,9 +243,9 @@ export const Orders = node({ ...${leaf("orders")}, implements: () => [Store] }).
 
   expect(loaded.nodes.map((node) => node.path)).toEqual(["Twin", "Stock", "Orders"]);
   const orders = loaded.nodes[2];
-  expect(orders?.uses).toEqual([1]);
+  expect(orders?.uses).toMatchObject([{ to: "stock", ports: ["reserve", "count"], target: 1 }]);
   expect(orders?.spec.edges?.[0]).toMatchObject({ kind: "uses", port: ["reserve", "count"] });
-  expect(orders?.contracts).toEqual([null]);
+  expect(orders?.contracts).toEqual([{ to: "store", target: null }]);
   expect(loaded.nodes[0]?.uses).toEqual([]);
   expect(loaded.nodes[0]?.contracts).toEqual([]);
 });
@@ -277,14 +281,12 @@ export const Box = node({
 
   const loaded = await loadWorld(root);
   const box = loaded.nodes.find((node) => node.path === "Box");
-  expect(box?.places).toEqual({
-    purpose: 6,
-    ports: [9],
-    requirements: [11, 12],
-    testCases: [14, 14],
-    decisions: [15],
-    uses: [17],
-  });
+  expect(box?.places?.purpose).toBe(6);
+  expect(lines(box, "ports")).toEqual([9]);
+  expect(lines(box, "requirements")).toEqual([11, 12]);
+  expect(lines(box, "testCases")).toEqual([14, 14]);
+  expect(lines(box, "decisions")).toEqual([15]);
+  expect(box?.uses.map((use) => use.line)).toEqual([17]);
 });
 
 test("a node listed at the top level and then inside a dome stays at its first listing", async () => {
@@ -988,11 +990,11 @@ export const B = node({
   expect(loaded.sourcePlaces).toBeUndefined();
   expect(a?.spec).toMatchObject({ purpose: "", source: [], requirements: [{ id: "R1", text: "t" }] });
   expect(a?.spec.decisions).toBeUndefined();
-  expect(a?.places?.requirements).toEqual([7]);
+  expect(lines(a, "requirements")).toEqual([7]);
   expect(a?.reshaped).toEqual(["source", "purpose", "requirements", "decisions"]);
   expect(b?.spec).toMatchObject({ source: ["src/b.ts"], testCases: [{ text: "t" }] });
   expect(b?.source?.entries).toEqual([{ line: 16 }]);
-  expect(b?.places?.testCases).toEqual([18]);
+  expect(lines(b, "testCases")).toEqual([18]);
   expect(b?.reshaped).toEqual(["source", "testCases"]);
   expect(loaded.problems.map(({ file, line, node, rule }) => [file, line, node, rule])).toEqual([
     [`${root}/nuhokai/index.ts`, 3, undefined, "the world's source is not a list"],

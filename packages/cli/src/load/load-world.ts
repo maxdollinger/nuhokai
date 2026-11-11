@@ -72,17 +72,30 @@ export interface Orphan {
 }
 
 /**
- * Where each spec item was written in the node's file (R15), by line: the purpose, and one entry per port,
- * requirement, test case, decision and uses edge, in the NodeSpec's order (an edge at its first item); a spread-in
- * item at its `...spread`. An entry is undefined where the item was written in another file.
+ * Where a node's spec items were written in its file (R15): the purpose's line, and each port, requirement, test case
+ * and decision by the item itself, the very object in `spec`, so no reader counts positions; a spread-in item at its
+ * `...spread`. An item written in another file has no line.
  */
 export interface SpecPlaces {
   readonly purpose?: number;
-  readonly ports: readonly (number | undefined)[];
-  readonly requirements: readonly (number | undefined)[];
-  readonly testCases: readonly (number | undefined)[];
-  readonly decisions: readonly (number | undefined)[];
-  readonly uses: readonly (number | undefined)[];
+  readonly items: ReadonlyMap<object, number>;
+}
+
+/** One uses edge as loaded (R14): its target's id, the ports used there, the target itself and where it was written. */
+export interface LoadedUse {
+  readonly to: string;
+  readonly ports: readonly string[];
+  /** The target's position in `nodes`; null for one the walk never reaches, an orphan. */
+  readonly target: number | null;
+  /** The line of the edge's first item in the node's file, when that file holds its node() call (R15). */
+  readonly line?: number;
+}
+
+/** One implements edge as loaded (R14): its contract's id and the contract itself. */
+export interface LoadedContract {
+  readonly to: string;
+  /** The contract's position in `nodes`; null for one the walk never reaches, an orphan. */
+  readonly target: number | null;
 }
 
 /** A reachable node as loaded: its NodeSpec, where it sits in the hierarchy, and where it is defined. */
@@ -94,13 +107,10 @@ export interface LoadedNode {
   readonly parent: number | null;
   /** Its direct children's positions in `nodes`, in list order. */
   readonly children: readonly number[];
-  /**
-   * Its uses edges' targets by position, in its edges' order: `uses[i]` is `spec.edges[i]`'s, as uses edges come
-   * first; null for one the walk never reaches, an orphan (R14).
-   */
-  readonly uses: readonly (number | null)[];
-  /** Its implements edges' contracts by position, in its edges' order; null for one the walk never reaches (R14). */
-  readonly contracts: readonly (number | null)[];
+  /** Its uses edges, in its edges' order, each with its target (R14) and line (R15). */
+  readonly uses: readonly LoadedUse[];
+  /** Its implements edges, in its edges' order, each with its contract (R14). */
+  readonly contracts: readonly LoadedContract[];
   /** Its hierarchy path from the world, `Check/SpecCheck`, as NodePath names it: how every command names a node. */
   readonly path: string;
   /** Its defining file (R2), named from the cwd. */
@@ -543,27 +553,53 @@ async function specOf(
   return { spec, uses, implements: contracts };
 }
 
-/** R15: where each of a node's spec items was written in `file`, by line, in the NodeSpec's order. */
-function specPlaces(reader: Reader, { spec, uses }: ReadNode, def: Rec, file: string): SpecPlaces {
-  const line = (at: At | undefined) => (at?.file === file ? at.line : undefined);
-  const items = (key: string) => {
-    const list = def[key];
-    return Array.isArray(list) ? list.map((_item, index) => line(reader.itemIn(list, index, file))) : [];
+/**
+ * R15: where the purpose and each port, requirement, test case and decision of `spec` were written in `file`, each
+ * item by the object itself. Read before R16 shapes the spec: shaping drops items, never replaces the ones it keeps.
+ */
+function specPlaces(reader: Reader, spec: NodeSpec, def: Rec, file: string): SpecPlaces {
+  const lineOf = (at: At | undefined) => (at?.file === file ? at.line : undefined);
+  const items = new Map<object, number>();
+  const note = (item: unknown, at: At | undefined) => {
+    const line = lineOf(at);
+    if (line !== undefined && typeof item === "object" && item !== null) items.set(item, line);
   };
+  const fields = spec as unknown as Record<string, unknown>;
+  for (const key of ["requirements", "testCases", "decisions"]) {
+    // `plain` read the spec's lists item for item from the written ones, so an item's index is its written index.
+    const written = def[key];
+    const read = fields[key];
+    if (!Array.isArray(written) || !Array.isArray(read)) continue;
+    read.forEach((item, index) => {
+      note(item, reader.itemIn(written, index, file));
+    });
+  }
   const ports = def.ports;
-  const purpose = line(reader.propertyAt(def, "purpose"));
-  return {
-    ...(purpose === undefined ? {} : { purpose }),
-    ports: (spec.ports ?? []).map((port) =>
-      ports !== null && typeof ports === "object" && !Array.isArray(ports)
-        ? line(reader.propertyAt(ports as Rec, port.name))
-        : undefined,
-    ),
-    requirements: items("requirements"),
-    testCases: items("testCases"),
-    decisions: items("decisions"),
-    uses: uses.items.map((item) => line(reader.itemIn(uses.list, item, file))),
-  };
+  if (ports !== null && typeof ports === "object" && !Array.isArray(ports)) {
+    for (const port of spec.ports ?? []) note(port, reader.propertyAt(ports as Rec, port.name));
+  }
+  const purpose = lineOf(reader.propertyAt(def, "purpose"));
+  return purpose === undefined ? { items } : { purpose, items };
+}
+
+/** R14, R15: a node's uses edges as loaded, each with its target's position and, when `file` holds the call, its line. */
+function loadedUses(
+  reader: Reader,
+  uses: ReadUses,
+  positionOf: (target: NodeV) => number | null,
+  file: string | undefined,
+): LoadedUse[] {
+  return uses.edges.map((edge, at) => {
+    const target = uses.targets[at];
+    const item = uses.items[at];
+    const written = file === undefined || item === undefined ? undefined : reader.itemIn(uses.list, item, file);
+    return {
+      to: edge.to,
+      ports: edge.port,
+      target: target === undefined ? null : positionOf(target),
+      ...(written?.file === file && written !== undefined ? { line: written.line } : {}),
+    };
+  });
 }
 
 /** R8: exported but never reached, in sorted file order, each once. */
@@ -633,8 +669,11 @@ async function worldOf(
       spec: read.spec,
       parent: parents[at] ?? null,
       children: children[at] ?? [],
-      uses: read.uses.targets.map(positionOf),
-      contracts: read.implements.targets.map(positionOf),
+      uses: loadedUses(reader, read.uses, positionOf, holds ? file : undefined),
+      contracts: read.implements.edges.map((edge, index) => {
+        const contract = read.implements.targets[index];
+        return { to: edge.to, target: contract === undefined ? null : positionOf(contract) };
+      }),
       path,
       file,
       ...(holds ? { line: entry.node.at.line } : {}),
@@ -690,8 +729,9 @@ interface ShapedNode {
 /**
  * R16: replace each field of `read.spec` whose shape is wrong, in place, by what it can keep: a source by its string
  * entries ([] for no list), the purpose by "" when it is no string, requirements, test cases and decisions by their
- * object items (dropped when no list). Places follow the items kept, and are known only when the node's defining
- * `file` holds its call; every problem names the node by `path`, in `file`.
+ * object items (dropped when no list). Places are read first and name the items themselves, so the items kept keep
+ * theirs; they are known only when the node's defining `file` holds its call. Every problem names the node by `path`,
+ * in `file`.
  */
 function shapeNode(
   reader: Reader,
@@ -702,7 +742,7 @@ function shapeNode(
   const spec = read.spec as unknown as Record<string, unknown>;
   const def = node.def;
   const lineOf = (at: At | undefined) => (holds && at?.file === file ? at.line : undefined);
-  const raw = holds ? specPlaces(reader, read, def, file) : undefined;
+  const places = holds ? specPlaces(reader, read.spec, def, file) : undefined;
   const shape = new SpecShape({ file, ...(holds ? { line: node.at.line } : {}), node: path, label: read.spec.name });
   const reshaped: ShapedField[] = [];
 
@@ -715,33 +755,29 @@ function shapeNode(
   const purpose = shape.text(
     "purpose",
     spec.purpose,
-    raw?.purpose ?? lineOf(reader.propertyAt(def, "purpose")),
+    lineOf(reader.propertyAt(def, "purpose")),
     "say why the node exists, as a string",
   );
   if (purpose !== spec.purpose) reshaped.push("purpose");
   spec.purpose = purpose;
 
-  const places: Record<"requirements" | "testCases" | "decisions", readonly (number | undefined)[]> = {
-    requirements: raw?.requirements ?? [],
-    testCases: raw?.testCases ?? [],
-    decisions: raw?.decisions ?? [],
-  };
   for (const field of ["requirements", "testCases", "decisions"] as const) {
     const value = spec[field];
-    const kept = shape.objects(field, value, lineOf(reader.propertyAt(def, field)), (index) => raw?.[field][index]);
+    const written = def[field];
+    const itemLine = (index: number) =>
+      Array.isArray(written) ? lineOf(reader.itemIn(written, index, file)) : undefined;
+    const kept = shape.objects(field, value, lineOf(reader.propertyAt(def, field)), itemLine);
     if (kept === undefined) {
       if (value !== undefined) reshaped.push(field);
       delete spec[field];
-      places[field] = [];
       continue;
     }
-    if (kept.items.length !== (value as unknown[]).length) reshaped.push(field);
-    spec[field] = kept.items;
-    places[field] = kept.lines;
+    if (kept.length !== (value as unknown[]).length) reshaped.push(field);
+    spec[field] = kept;
   }
   return {
     ...(source?.places ? { source: source.places } : {}),
-    ...(raw ? { places: { ...raw, ...places } } : {}),
+    ...(places ? { places } : {}),
     reshaped,
     problems: shape.problems,
   };

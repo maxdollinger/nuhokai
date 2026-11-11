@@ -60,10 +60,10 @@ test("NodePath R1, R2: paths from the top level down, in nodes order, by positio
 });
 
 test("NodePath R3: exact, case-sensitive, one trailing / allowed", () => {
-  expect(findNode(example, "Shop/Stock", ".", "tree")).toBe(4);
-  expect(findNode(example, "Shop/Stock/", ".", "tree")).toBe(4);
-  expect(findNode(example, "Shop/", ".", "tree")).toBe(2);
-  expect(findNode(example, "Postgres", ".", "tree")).toBe(0);
+  expect(findNode(example, "Shop/Stock", ".", "tree").index).toBe(4);
+  expect(findNode(example, "Shop/Stock/", ".", "tree").index).toBe(4);
+  expect(findNode(example, "Shop/", ".", "tree").index).toBe(2);
+  expect(findNode(example, "Postgres", ".", "tree").index).toBe(0);
 });
 
 test("NodePath R4: a miss names the closest name, else the command listing the deepest node found", () => {

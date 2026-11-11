@@ -37,7 +37,7 @@ export const NodePath = node({
       purpose: "Find the node a hierarchy path names",
       input:
         "the loaded world, a hierarchy path as typed, the project directory (cwd-relative) for the commands it names",
-      output: "the node's position in nodes",
+      output: "the node",
       errors: [
         "no node at that path: names the closest match or the command listing where it went wrong",
         "two siblings share a name on the path",
@@ -78,7 +78,7 @@ export const NodePath = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "Example world: findNode Shop/Stock and Shop/Stock/ → Stock's position; Shop/Stok → did you mean `nuhokai tree Shop/Stock`, from review `nuhokai review Shop/Stock`; Shp/Basket → did you mean `nuhokai tree Shop/Basket`; Shop/Basket → `nuhokai tree Shop` lists its children, under --path packages/cli `nuhokai tree Shop --path packages/cli`; '', /Shop, Shop//Stock → no node; a top-level node named Ex/ample → its name holds /.",
+      text: "Example world: findNode Shop/Stock and Shop/Stock/ → Stock; Shop/Stok → did you mean `nuhokai tree Shop/Stock`, from review `nuhokai review Shop/Stock`; Shp/Basket → did you mean `nuhokai tree Shop/Basket`; Shop/Basket → `nuhokai tree Shop` lists its children, under --path packages/cli `nuhokai tree Shop --path packages/cli`; '', /Shop, Shop//Stock → no node; a top-level node named Ex/ample → its name holds /.",
       demonstrates: ["R3", "R4"],
     },
     {

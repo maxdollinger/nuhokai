@@ -1,6 +1,6 @@
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 import type { Port } from "@nuhokai/world/node-spec";
-import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
+import type { LoadedNode, LoadedUse, LoadedWorld } from "../load/load-world.ts";
 import { oneLine } from "../shared/failure.ts";
 
 /** What a spec item is, as the prompt names it. */
@@ -59,29 +59,38 @@ function portDetails(port: Port): string[] {
   return details;
 }
 
+/** A uses edge with the name its item cites, beside the edge as loaded. */
+interface NamedUse {
+  readonly use: LoadedUse;
+  readonly name: string;
+  readonly node?: LoadedNode;
+}
+
 /**
- * The uses edges of the node at `position`, in its edges' order, each with the name its item cites (R1, R6): the
- * target's name, its path when two targets share a name, and an unreachable target's export name (else its id).
+ * `node`'s uses edges, in its edges' order, each with the name its item cites (R1, R6): the target's name, its path
+ * when two targets share a name, and an unreachable target's export name (else its id).
  */
-export function targets(world: LoadedWorld, position: number): Target[] {
-  const node = world.nodes[position];
-  if (node === undefined) return [];
-  // Uses edges come first in the spec's edges, so the i-th target is the i-th edge's.
-  const edges = node.spec.edges ?? [];
-  const found = node.uses.map((to, at): Target => {
-    const target = to === null ? undefined : world.nodes[to];
-    const id = edges[at]?.to ?? "";
-    const name = target?.spec.name ?? world.orphans.find((orphan) => orphan.id === id)?.name ?? id;
-    const edge = edges[at];
-    const ports = edge?.kind === "uses" ? edge.port : [];
-    return { name, ports, ...(target ? { node: target } : {}) };
+function namedUses(world: LoadedWorld, node: LoadedNode): NamedUse[] {
+  const found = node.uses.map((use): NamedUse => {
+    const target = use.target === null ? undefined : world.nodes[use.target];
+    const name = target?.spec.name ?? world.orphans.find((orphan) => orphan.id === use.to)?.name ?? use.to;
+    return { use, name, ...(target ? { node: target } : {}) };
   });
   // A name two targets share would cite either: those go by their path.
-  return found.map((target) =>
-    target.node && found.filter((other) => other.name === target.name).length > 1
-      ? { ...target, name: target.node.path }
-      : target,
+  return found.map((named) =>
+    named.node && found.filter((other) => other.name === named.name).length > 1
+      ? { ...named, name: named.node.path }
+      : named,
   );
+}
+
+/** `node`'s uses edges' targets, in its edges' order, each by the name its item cites (R1, R6). */
+export function targets(world: LoadedWorld, node: LoadedNode): Target[] {
+  return namedUses(world, node).map(({ use, name, node: target }) => ({
+    name,
+    ports: use.ports,
+    ...(target ? { node: target } : {}),
+  }));
 }
 
 /**
@@ -90,6 +99,8 @@ export function targets(world: LoadedWorld, position: number): Target[] {
  */
 function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: string): SpecItem[] {
   const { spec, places } = node;
+  /** Where an item of the spec was written, by the item itself (LoadWorld R15). */
+  const lineOf = (item: object) => places?.items.get(item);
   const items: SpecItem[] = [];
   type Extra = { details?: readonly string[]; untested?: boolean };
   const add = (ref: string, kind: SpecItemKind, text: string, line: number | undefined, extra: Extra = {}) => {
@@ -106,30 +117,30 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
     });
   };
   if (own) add("purpose", "purpose", spec.purpose, places?.purpose);
-  for (const [index, port] of (spec.ports ?? []).entries()) {
+  for (const port of spec.ports ?? []) {
     const text = `${textOf(port.kind)} port: ${textOf(port.purpose)}`;
-    add(`ports.${port.name}`, "port", text, places?.ports[index], { details: portDetails(port) });
+    add(`ports.${port.name}`, "port", text, lineOf(port), { details: portDetails(port) });
   }
   // LoadWorld made these lists of objects (R16); what is inside each is as written, so checked here.
   const testCases = spec.testCases ?? [];
   const demonstrated = new Set(testCases.flatMap((testCase) => listOf<string>(testCase.demonstrates)));
-  for (const [index, requirement] of (spec.requirements ?? []).entries()) {
+  for (const requirement of spec.requirements ?? []) {
     const id = textOf(requirement.id);
     const constraint = requirement.kind === "constraint";
     const kind = constraint ? "constraint" : "requirement";
     // Only the node's own: an implementor's test cases demonstrate its own ids, never its contracts' (R4).
     const untested = own && !constraint && !demonstrated.has(id);
-    add(`requirements[${id}]`, kind, textOf(requirement.text), places?.requirements[index], { untested });
+    add(`requirements[${id}]`, kind, textOf(requirement.text), lineOf(requirement), { untested });
   }
   if (own) {
-    for (const [index, { name, ports }] of targets(world, node.index).entries()) {
-      add(`edges.uses[${name}]`, "uses edge", `uses ${name}: ${ports.join(", ")}`, places?.uses[index]);
+    for (const { use, name } of namedUses(world, node)) {
+      add(`edges.uses[${name}]`, "uses edge", `uses ${name}: ${use.ports.join(", ")}`, use.line);
     }
   }
   for (const [index, testCase] of testCases.entries()) {
     const demonstrates = listOf<string>(testCase.demonstrates);
     const shows = demonstrates.length > 0 ? ` (demonstrates ${demonstrates.join(", ")})` : "";
-    add(`testCases[${index}]`, "test case", `${textOf(testCase.text)}${shows}`, places?.testCases[index]);
+    add(`testCases[${index}]`, "test case", `${textOf(testCase.text)}${shows}`, lineOf(testCase));
   }
   if (own) {
     for (const [index, decision] of (spec.decisions ?? []).entries()) {
@@ -137,25 +148,23 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
         (option) => `rejected: ${textOf(option?.option)} Why not: ${textOf(option?.why)}`,
       );
       const text = `${textOf(decision.decision)} Why: ${textOf(decision.why)}`;
-      add(`decisions[${index}]`, "decision", text, places?.decisions[index], { details: rejected });
+      add(`decisions[${index}]`, "decision", text, lineOf(decision), { details: rejected });
     }
   }
   return items;
 }
 
 /**
- * Every item of the spec of the node at `position`, in spec order, the node's own first: its purpose, ports (their
+ * Every item of `node`'s spec, in spec order, the node's own first: its purpose, ports (their
  * shapes, errors and transport below each), requirements, uses edges, test cases and decisions (their rejected
  * options below each) (R1). Then each contract's ports, requirements and test cases, prefixed by the contract's name
  * (R2); a contract the walk never reached adds nothing. Each carries its spec file and line (R3); a requirement no
  * test case demonstrates is marked untested (R4), a uses edge to an orphan cited by its name (R6).
  */
-export function list(world: LoadedWorld, position: number): SpecItem[] {
-  const node = world.nodes[position];
-  if (node === undefined) return [];
+export function list(world: LoadedWorld, node: LoadedNode): SpecItem[] {
   const items = itemsOf(world, node, true, "");
-  for (const contract of node.contracts) {
-    const inherited = contract === null ? undefined : world.nodes[contract];
+  for (const { target } of node.contracts) {
+    const inherited = target === null ? undefined : world.nodes[target];
     if (inherited) items.push(...itemsOf(world, inherited, false, `${inherited.spec.name}.`));
   }
   return items;

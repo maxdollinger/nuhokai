@@ -15,7 +15,7 @@ export function runTree(root: string, node: string | undefined, level: number): 
     // Unchecked: any world that loads gets a tree.
     const world = await loadWorld(root);
     // A path naming no node is an InvalidArgument: exit 2, as Cli's usage errors.
-    const start = node === undefined ? null : findNode(world, node, root, "tree");
+    const start = node === undefined ? null : findNode(world, node, root, "tree").index;
     return ok(renderTree(world, root, start, level));
   });
 }

@@ -77,14 +77,15 @@ export class SpecShape {
 
   /**
    * An optional list of objects: undefined when absent; a value that is no list is dropped, with a problem at the
-   * field; an item that is no object is dropped, with a problem at it. `itemLine` gives the line of an item.
+   * field; an item that is no object is dropped, with a problem at it. `itemLine` gives the line of an item, for its
+   * problem; the items kept are the very objects given, so whatever is known of them by identity stays true.
    */
   objects(
     field: string,
     value: unknown,
     line: number | undefined,
     itemLine: (index: number) => number | undefined,
-  ): Kept<Record<string, unknown>> | undefined {
+  ): Record<string, unknown>[] | undefined {
     if (value === undefined) return undefined;
     if (!Array.isArray(value)) {
       this.problem(`${field} is not a list`, `make ${field} a list of objects, or drop it`, line);
@@ -95,7 +96,7 @@ export class SpecShape {
       itemLine,
       (item): item is Record<string, unknown> => typeof item === "object" && item !== null && !Array.isArray(item),
       (_item, index) => [`${field}[${index}] is not an object`, `make it an object, or drop it from ${field}`],
-    );
+    ).items;
   }
 
   /** The items `is` keeps, with their lines; one problem for each item dropped. */

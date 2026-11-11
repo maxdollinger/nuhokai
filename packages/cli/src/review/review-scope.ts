@@ -1,5 +1,5 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
-import { type LoadedWorld, loadWorld, type Placeholder } from "../load/load-world.ts";
+import { type LoadedNode, type LoadedWorld, loadWorld, type Placeholder } from "../load/load-world.ts";
 import { InvalidArgument } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
@@ -24,13 +24,11 @@ export interface Scope {
 }
 
 /**
- * The scope of a review of the node at `position` in the world loaded from the project directory `root` (named from
+ * The scope of a review of `node` in the world loaded from the project directory `root` (named from
  * the cwd): its spec items, its files, the nodes it may use and the drafts it uses (R2–R4). A node that is not
  * reviewable is one InvalidArgument saying why (R1): a dome, a node without source, or one whose source matches no file.
  */
-function scope(root: string, world: LoadedWorld, position: number): Scope {
-  const node = world.nodes[position];
-  if (node === undefined) throw new Error(`no node at position ${position}`);
+function scope(root: string, world: LoadedWorld, node: LoadedNode): Scope {
   const { spec, path } = node;
   if (node.children.length > 0) {
     throw new InvalidArgument(
@@ -51,14 +49,14 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
     const check = suggestedCommand("check", [], root);
     throw new InvalidArgument(`${path}'s source matches no file; ${check} names the entry to fix`);
   }
-  const items = list(world, position);
+  const items = list(world, node);
   return {
     node: path,
     specFile: node.file,
     items,
     example: items.find((item) => item.kind === "requirement")?.ref ?? "purpose",
     files,
-    uses: targets(world, position),
+    uses: targets(world, node),
     drafts: world.placeholders.filter((placeholder) => placeholder.users.includes(spec.id)),
   };
 }

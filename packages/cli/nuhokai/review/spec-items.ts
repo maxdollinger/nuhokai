@@ -13,7 +13,7 @@ export const SpecItems = node({
     list: {
       kind: "call",
       purpose: "Every item of a node's spec, with its reference",
-      input: "the loaded world, a node's position",
+      input: "the loaded world, a node",
       output:
         "items: { ref, kind, text, details?: lines below it, file, line?, contract?: path, untested? }[], in spec order, the node's own first",
       errors: [],
@@ -21,7 +21,7 @@ export const SpecItems = node({
     targets: {
       kind: "call",
       purpose: "Each uses edge's target, with the name its item cites",
-      input: "the loaded world, a node's position",
+      input: "the loaded world, a node",
       output: "{ name, ports, node? (none when the world never reaches it) }[], in the edges' order",
       errors: [],
     },
@@ -40,7 +40,7 @@ export const SpecItems = node({
     },
     {
       id: "R2",
-      text: "Inherited items: each contract's ports, requirements and test cases (the format's inheritance), prefixed by the contract's name: Store.requirements[R1]. Contracts come from LoadWorld's positions; a null one adds nothing.",
+      text: "Inherited items: each contract's ports, requirements and test cases (the format's inheritance), prefixed by the contract's name: Store.requirements[R1]. Contracts come from the node's loaded implements edges; one the walk never reached adds nothing.",
     },
     {
       id: "R3",

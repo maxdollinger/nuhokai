@@ -40,14 +40,14 @@ export function nameNodes(nodes: readonly { readonly name: string; readonly pare
 }
 
 /**
- * The position in `nodes` of the node a typed hierarchy path names: exact and case-sensitive, one segment at a
+ * The node a typed hierarchy path names: exact and case-sensitive, one segment at a
  * time from the top level; one trailing `/` allowed, as Tree prints a collapsed dome. Otherwise one InvalidArgument: at
  * the first segment that matches nothing, the closest sibling's name with the rest of the path as typed, suggested
  * as `nuhokai <command> <path>`, else `nuhokai tree` listing the deepest node found; two siblings sharing a
  * segment's name are one InvalidArgument naming nuhokai check. Commands in a message carry `--path <root>` unless `root`
  * is the cwd, so they run as printed.
  */
-export function findNode(world: Hierarchy, typed: string, root: string, asked: string): number {
+export function findNode<N extends HierarchyNode>(world: Hierarchy<N>, typed: string, root: string, asked: string): N {
   const command = (name: string, ...args: string[]) => suggestedCommand(name, args, root);
   const path = typed.endsWith("/") ? typed.slice(0, -1) : typed;
   const segments = path.split("/");
@@ -56,7 +56,7 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
       `no node '${typed}'; a node path is names joined by single /, as ${command("tree")} prints them`,
     );
   }
-  let parent: HierarchyNode | undefined;
+  let parent: N | undefined;
   for (const [depth, segment] of segments.entries()) {
     const siblings = childrenOf(world, parent?.index ?? null);
     const matches = siblings.filter((node) => node.spec.name === segment);
@@ -89,7 +89,7 @@ export function findNode(world: Hierarchy, typed: string, root: string, asked: s
     throw new InvalidArgument(`no node '${typed}'; did you mean ${command(asked, corrected.join("/"))}?`);
   }
   // segments is never empty, so the loop chose a node.
-  return (parent as HierarchyNode).index;
+  return parent as N;
 }
 
 /**
