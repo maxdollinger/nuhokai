@@ -74,7 +74,7 @@ Because `Stock.reserve` is a typed reference, your editor completes it and jumps
 `Stock.reserv` and `nuhokai check` says:
 
 ```text
-error: nuhokai/shop.ts:22: Property 'reserv' does not exist on type 'NodeHandle'. Did you mean 'reserve'?
+error: nuhokai/shop.ts:23: Property 'reserv' does not exist on type 'NodeHandle'. Did you mean 'reserve'?
 ```
 
 These files are only read, never run, and need no dependencies in your repo. Nodes can also be nested, share
