@@ -8,24 +8,13 @@ reviews code against it.
 
 ![The 3D map of nuhokai's own CLI](docs/map.png)
 
+_nuhokai's own CLI, [described in nuhokai](packages/cli/nuhokai) and drawn by `nuhokai map`._
+
 ## The problem
 
 Agents produce code faster than you can review it. They work file by file with no view of the design, so module
 boundaries erode and dependencies creep in that nobody decided on. Diagrams and docs don't help: a tool can't check
 them, and an agent doesn't read them.
-
-## What you get
-
-- **Dependencies are typed references.** `uses: () => [Stock.reserve]` is real TypeScript: completion,
-  go-to-definition and find-references work on your architecture, and a dangling reference is a `tsc` error.
-- **Rules you can enforce.** `nuhokai check` exits 1 on violations such as an out-of-scope dependency, a duplicate id
-  or a `source` glob matching no files. Each finding is one `file:line` line, easy to grep and easy for an agent to fix.
-- **A spec per component.** Purpose, ports, requirements and design decisions sit next to the code. `nuhokai review`
-  has your agent check a component's code against them.
-- **A map of the real thing.** `nuhokai map` writes a self-contained HTML file: a searchable 3D graph of components,
-  dependencies, build status and the parts not designed yet.
-- **No toolchain.** One binary with its own type checker. No `node_modules`, no build step; the files are read
-  statically and never executed.
 
 ## See it
 
@@ -67,20 +56,46 @@ export default defineWorld({
 });
 ```
 
-Typo a dependency and `nuhokai check` (or plain `tsc`) fails:
+Now depend on a port that doesn't exist, say `Stock.reserv`. Your editor underlines it, and `nuhokai check` tells
+you or your agent where it is and what to do:
 
 ```text
+error: nuhokai/shop.ts:12: Orders.uses lists a value that is not a port reference; list other nodes' ports, e.g. uses: () => [A.run]
 error: nuhokai/shop.ts:19: Property 'reserv' does not exist on type 'NodeHandle'. Did you mean 'reserve'?
+failed: 2 errors, 0 warnings
 ```
 
-## Get started
+## What you get
 
-[Install](#install) the binary, then:
+- **Dependencies are typed references.** `uses: () => [Stock.reserve]` is real TypeScript: completion,
+  go-to-definition and find-references work on your architecture, and a dangling reference is a `tsc` error.
+- **Rules you can enforce.** `nuhokai check` exits 1 on violations such as an out-of-scope dependency, a duplicate id
+  or a `source` glob matching no files. Each finding is one `file:line` line, easy to grep and easy for an agent to fix.
+- **A spec per component.** Purpose, ports, requirements and design decisions sit next to the code. `nuhokai review`
+  has your agent check a component's code against them.
+- **A map of the real thing.** `nuhokai map` writes a self-contained HTML file: a searchable 3D graph of components,
+  dependencies, build status and the parts not designed yet.
+- **No toolchain.** One binary with its own type checker. No `node_modules`, no build step; the files are read
+  statically and never executed.
+
+## Try it
+
+It takes a minute and adds one folder, `nuhokai/`, to your repo. Your code and your dependencies stay untouched;
+delete the folder to undo it.
+
+[Install](#install) the binary, then in any repo:
 
 ```sh
 nuhokai init     # scaffold nuhokai/ with an example node, a tsconfig and the format's types
 nuhokai check    # type-check and run the rules; exit 1 on errors, so it fits CI and agent loops
-nuhokai map      # write nuhokai/.generated/map.html
+nuhokai map      # write nuhokai/.generated/map.html, then open it in a browser
+```
+
+Replace the example with two or three of your real components, or ask your agent to. Then put it in the loop with
+one line in your `AGENTS.md` or `CLAUDE.md`:
+
+```text
+The architecture is specified in nuhokai/. Run `nuhokai check` after every change to it and fix what it reports.
 ```
 
 Go deeper: the [format](packages/world/README.md), the [CLI](packages/cli/README.md), or `nuhokai --help`.
