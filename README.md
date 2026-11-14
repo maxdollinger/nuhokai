@@ -102,21 +102,18 @@ Go deeper: the [format](packages/world/README.md), the [CLI](packages/cli/README
 
 ## Install
 
-macOS (Apple silicon) and Linux (x64, arm64). Pick the latest version from the
-[releases](https://github.com/maxdollinger/nuhokai/releases) and your target:
+macOS (Apple silicon) and Linux (x64, arm64):
 
 ```sh
-VERSION=0.1.0
-TARGET=darwin-arm64   # or linux-x64, linux-arm64
-
-mkdir -p ~/.nuhokai
-curl -fsSL "https://github.com/maxdollinger/nuhokai/releases/download/v$VERSION/nuhokai-v$VERSION-$TARGET.tar.gz" \
-  | tar -xz --strip-components=1 -C ~/.nuhokai
-
-echo 'export PATH="$HOME/.nuhokai:$PATH"' >> ~/.zshrc   # or ~/.bashrc
+curl -fsSL https://raw.githubusercontent.com/maxdollinger/nuhokai/main/install.sh | bash
 ```
 
-Open a new shell and run `nuhokai --help`. The archive holds the `nuhokai` binary and its type checker in `tsgo/`;
-keep them in the same folder.
+It installs the latest release into `~/.nuhokai/bin`, after checking it against the release's checksums, and adds
+that folder to your `PATH`. Open a new shell and run `nuhokai --help`. To uninstall, delete `~/.nuhokai` and its line
+in your shell config.
+
+Options go on `bash`, e.g. `curl … | NUHOKAI_VERSION=0.1.0 bash`: `NUHOKAI_VERSION` pins a version,
+`NUHOKAI_INSTALL` picks another folder, and `NUHOKAI_NO_MODIFY_PATH=1` leaves your shell config alone. Prefer to read
+it first? It's [install.sh](install.sh).
 
 [Apache License 2.0](packages/cli/LICENSE)
