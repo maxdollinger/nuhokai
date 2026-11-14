@@ -54,6 +54,19 @@ export const Orders = node({
 });
 ```
 
+```ts
+// nuhokai/index.ts: the entry point, listing the top-level nodes
+import { defineWorld } from "@nuhokai/world";
+import { Orders, Stock } from "./shop.ts";
+
+export default defineWorld({
+  id: "01a17bb6-ad4d-7298-8492-a53237d45f80",
+  name: "Shop",
+  source: ["src/**"],
+  children: [Orders, Stock],
+});
+```
+
 Typo a dependency and `nuhokai check` (or plain `tsc`) fails:
 
 ```text
@@ -62,7 +75,7 @@ error: nuhokai/shop.ts:19: Property 'reserv' does not exist on type 'NodeHandle'
 
 ## Get started
 
-Download the binary from the [releases](https://github.com/maxdollinger/nuhokai/releases), then:
+[Install](#install) the binary, then:
 
 ```sh
 nuhokai init     # scaffold nuhokai/ with an example node, a tsconfig and the format's types
@@ -71,5 +84,24 @@ nuhokai map      # write nuhokai/.generated/map.html
 ```
 
 Go deeper: the [format](packages/world/README.md), the [CLI](packages/cli/README.md), or `nuhokai --help`.
+
+## Install
+
+macOS (Apple silicon) and Linux (x64, arm64). Pick the latest version from the
+[releases](https://github.com/maxdollinger/nuhokai/releases) and your target:
+
+```sh
+VERSION=0.1.0
+TARGET=darwin-arm64   # or linux-x64, linux-arm64
+
+mkdir -p ~/.nuhokai
+curl -fsSL "https://github.com/maxdollinger/nuhokai/releases/download/v$VERSION/nuhokai-v$VERSION-$TARGET.tar.gz" \
+  | tar -xz --strip-components=1 -C ~/.nuhokai
+
+echo 'export PATH="$HOME/.nuhokai:$PATH"' >> ~/.zshrc   # or ~/.bashrc
+```
+
+Open a new shell and run `nuhokai --help`. The archive holds the `nuhokai` binary and its type checker in `tsgo/`;
+keep them in the same folder.
 
 [Apache License 2.0](packages/cli/LICENSE)
