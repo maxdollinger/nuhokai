@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/maxdollinger/nuhokai/main/install.sh | bash
 #
 # Environment:
-#   NUHOKAI_VERSION    the version to install, e.g. 0.1.0 (default: the latest release)
+#   NUHOKAI_VERSION    the version to install, e.g. 0.2.0 (default: the latest release)
 #   NUHOKAI_INSTALL    where to install (default: ~/.nuhokai); the binary goes into its bin/
 #   NUHOKAI_NO_MODIFY_PATH=1   do not add the bin/ folder to your shell's startup file
 #
