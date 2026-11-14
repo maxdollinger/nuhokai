@@ -112,7 +112,7 @@ It installs the latest release into `~/.nuhokai/bin`, after checking it against 
 that folder to your `PATH`. Open a new shell and run `nuhokai --help`. To uninstall, delete `~/.nuhokai` and its line
 in your shell config.
 
-Options go on `bash`, e.g. `curl … | NUHOKAI_VERSION=0.1.0 bash`: `NUHOKAI_VERSION` pins a version,
+Options go on `bash`, e.g. `curl … | NUHOKAI_VERSION=0.2.0 bash`: `NUHOKAI_VERSION` pins a version,
 `NUHOKAI_INSTALL` picks another folder, and `NUHOKAI_NO_MODIFY_PATH=1` leaves your shell config alone. Prefer to read
 it first? It's [install.sh](install.sh).
 
