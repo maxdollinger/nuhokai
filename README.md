@@ -1,30 +1,35 @@
 # nuhokai
 
-**Let agents write the code. Keep the architecture yours.**
+**Architecture as code, type-checked. Built for repos where agents write most of the code.**
 
-nuhokai turns your system's design into typed TypeScript that lives in your repo. You decide the design, coding agents
-build inside it, and a broken rule is an error within seconds, not a surprise in review.
+nuhokai is a TypeScript format and a CLI. You declare your system's components, their interfaces and their
+dependencies in a `nuhokai/` folder; `tsc` and `nuhokai check` keep it consistent, and your coding agent builds and
+reviews code against it.
 
 ![The 3D map of nuhokai's own CLI](docs/map.png)
 
 ## The problem
 
-Coding agents write code faster than anyone can read it. They see files, not the design, so boundaries blur,
-dependencies spread, and you lose the overview you need to judge what is being built.
+Agents produce code faster than you can review it. They work file by file with no view of the design, so module
+boundaries erode and dependencies creep in that nobody decided on. Diagrams and docs don't help: a tool can't check
+them, and an agent doesn't read them.
 
 ## What you get
 
-- **A design that can fail.** A diagram never complains. Here the design is types: a wrong dependency or a broken
-  rule fails in your editor, in CI and in the agent's loop.
-- **Agents that stay on track.** Every part has a spec to build from, and `nuhokai review` lets your agent check its
-  code against it.
-- **The whole system at a glance.** A searchable 3D map shows what depends on what, what is still missing and where
-  the architecture gets tangled.
-- **Nothing to set up.** One binary, no dependencies in your repo. Your design files are only read, never run.
+- **Dependencies are typed references.** `uses: () => [Stock.reserve]` is real TypeScript: completion,
+  go-to-definition and find-references work on your architecture, and a dangling reference is a `tsc` error.
+- **Rules you can enforce.** `nuhokai check` exits 1 on violations such as an out-of-scope dependency, a duplicate id
+  or a `source` glob matching no files. Each finding is one `file:line` line, easy to grep and easy for an agent to fix.
+- **A spec per component.** Purpose, ports, requirements and design decisions sit next to the code. `nuhokai review`
+  has your agent check a component's code against them.
+- **A map of the real thing.** `nuhokai map` writes a self-contained HTML file: a searchable 3D graph of components,
+  dependencies, build status and the parts not designed yet.
+- **No toolchain.** One binary with its own type checker. No `node_modules`, no build step; the files are read
+  statically and never executed.
 
 ## See it
 
-Describe each part of your system: what it is for, what it offers and what it uses.
+A component is a `node`: its purpose, the code it covers, the ports it offers and the ports it uses.
 
 ```ts
 // nuhokai/shop.ts
@@ -49,7 +54,7 @@ export const Orders = node({
 });
 ```
 
-Depend on something that does not exist, and you and your agent hear about it at once:
+Typo a dependency and `nuhokai check` (or plain `tsc`) fails:
 
 ```text
 error: nuhokai/shop.ts:19: Property 'reserv' does not exist on type 'NodeHandle'. Did you mean 'reserve'?
@@ -60,9 +65,9 @@ error: nuhokai/shop.ts:19: Property 'reserv' does not exist on type 'NodeHandle'
 Download the binary from the [releases](https://github.com/maxdollinger/nuhokai/releases), then:
 
 ```sh
-nuhokai init     # create nuhokai/ with an example to copy from
-nuhokai check    # verify your design, by hand, by your agent or in CI
-nuhokai map      # see your system as a 3D map
+nuhokai init     # scaffold nuhokai/ with an example node, a tsconfig and the format's types
+nuhokai check    # type-check and run the rules; exit 1 on errors, so it fits CI and agent loops
+nuhokai map      # write nuhokai/.generated/map.html
 ```
 
 Go deeper: the [format](packages/world/README.md), the [CLI](packages/cli/README.md), or `nuhokai --help`.
