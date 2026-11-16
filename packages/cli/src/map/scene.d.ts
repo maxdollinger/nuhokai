@@ -1,5 +1,5 @@
 /** Types of scene.js, the map's scene logic; the page inlines the JS, so it stays plain JS. */
-import type { NodeSpec, NodeStatus } from "@nuhokai/world/node-spec";
+import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Placeholder } from "../load/load-world.ts";
 
 /** The world as the map's data block holds it: only what the map draws, each node as its NodeSpec. */
@@ -10,6 +10,12 @@ export interface MapWorld {
   readonly nodes: readonly NodeSpec[];
   readonly placeholders: readonly Placeholder[];
 }
+
+/**
+ * A node's state, read from the world, never authored: deprecated with a note; else built when it or a node inside
+ * it lists source, or it is a contract with an implementor that is external or built; else planned.
+ */
+export type NodeState = "planned" | "built" | "deprecated";
 
 /** A scope: null for the top level, else the dome's position in `nodes`. */
 export type Scope = number | null;
@@ -22,16 +28,18 @@ export interface Scene {
   readonly children: ReadonlyMap<Scope, readonly number[]>;
   /** The first node with each id. */
   readonly byId: ReadonlyMap<string, number>;
+  /** Each node's state, by position; null for an external that is not deprecated: it is not ours to build. */
+  readonly states: readonly (NodeState | null)[];
 }
 
-/** A direct child of the scope, drawn as an island coloured by its status. */
+/** A direct child of the scope, drawn as an island coloured by its state. */
 export interface Island {
   readonly key: string;
   readonly kind: "island";
   readonly node: number;
   readonly name: string;
   readonly side: 0;
-  readonly status: NodeStatus;
+  readonly state: NodeState;
   readonly abstract: boolean;
   readonly dome: boolean;
   readonly parts: number;
@@ -116,7 +124,9 @@ export interface ScopeView {
 
 export interface Details {
   readonly name: string;
-  readonly status: NodeStatus;
+  readonly state: NodeState | null;
+  /** The node's deprecation note; null when it has none. */
+  readonly deprecated: string | null;
   readonly kind: string | null;
   readonly purpose: string;
   readonly sections: readonly {
@@ -155,6 +165,6 @@ export interface Light {
 
 export function mapScene(world: MapWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
-export function detailsOf(node: NodeSpec): Details;
+export function detailsOf(scene: Scene, index: number): Details;
 export function search(scene: Scene, query: string): Hit[];
 export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): Light[];

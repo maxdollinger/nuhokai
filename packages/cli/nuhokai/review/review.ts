@@ -11,7 +11,6 @@ export const Review = node({
   purpose:
     "Let the user's coding agent review one leaf's code against its spec: hand it the prompt, then validate the " +
     "findings it submits. Calls no model and stores nothing; conformance only, no general bug review.",
-  status: "building",
   source: ["src/review/**"],
   requirements: [
     {

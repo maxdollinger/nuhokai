@@ -10,7 +10,6 @@ export const Publish = node({
   purpose:
     "Make a complete world appear in the project directory or leave nothing: staged inside it, filled by the two " +
     "content nodes, committed in one step. Atomicity only, no content.",
-  status: "built",
   source: ["src/init/publish.ts"],
   ports: {
     run: {

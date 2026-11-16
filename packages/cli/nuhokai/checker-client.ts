@@ -9,7 +9,6 @@ export const CheckerClient = node({
     "Find the pinned checker and hold one session on one project: open it, hand it to the caller's work, always " +
     "close it; every checker failure is one CliError, a programming error never disguised as one. Shared, so " +
     "LoadWorld and TypeCheck talk to the checker the same way and neither reaches into the other.",
-  status: "built",
   source: ["src/shared/checker-client.ts"],
   ports: {
     session: {

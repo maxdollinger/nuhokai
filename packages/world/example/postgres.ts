@@ -5,7 +5,6 @@ export const Postgres = node({
   external: true,
   externalType: "db",
   purpose: "The shared database; run by ops, not built by us.",
-  status: "built",
   source: [],
   ports: { query: { kind: "call", purpose: "Run SQL", transport: "postgres" } },
 }).edges({});

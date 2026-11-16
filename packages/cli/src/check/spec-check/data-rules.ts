@@ -13,7 +13,7 @@ interface Place {
 
 /**
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
- * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
+ * leaves to check, uses of deprecated nodes. Pure: reads nothing but the world; every violation is one finding.
  */
 export function checkDataRules(
   world: LoadedWorld,
@@ -34,7 +34,7 @@ export function checkDataRules(
     ...siblingNames(world, ids),
     // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
     ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, ids, node))),
-    ...judged.flatMap((node) => builtWithoutSource(node)),
+    ...judged.flatMap((node) => deprecations(world, ids, node)),
     ...judged.flatMap((node) => contracts(world, ids, node, typeErrors)),
   ];
 }
@@ -319,16 +319,50 @@ function portNames(spec: NodeSpec): string[] {
   return (spec.ports ?? []).map((port) => port.name);
 }
 
-/** SpecCheck R9: a building or built node, not external or abstract, lists at least one source entry. */
-function builtWithoutSource(node: LoadedNode): Finding[] {
-  const spec = node.spec;
-  if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];
-  if (!Array.isArray(spec.source) || spec.source.length > 0) return [];
-  return [
-    nodeError(
-      node,
-      `a ${spec.status} node lists no source`,
-      'list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
-    ),
-  ];
+/** A node's deprecation note, when it carries one that says something. */
+function deprecationOf(spec: NodeSpec): string | undefined {
+  const note: unknown = spec.deprecated;
+  return typeof note === "string" && note.trim() !== "" ? note.trim() : undefined;
+}
+
+/** Whether the node or a dome around it is deprecated: what it uses is then on its way out with it. */
+function onItsWayOut(world: LoadedWorld, node: LoadedNode): boolean {
+  for (let at: LoadedNode | undefined = node; at; at = at.parent === null ? undefined : world.nodes[at.parent]) {
+    if (deprecationOf(at.spec) !== undefined) return true;
+  }
+  return false;
+}
+
+/**
+ * SpecCheck R9: a uses edge to a deprecated node is a warning at the edge, with the node's note, unless the using node
+ * is deprecated itself or sits in a deprecated dome; a blank note is an error. A note that is not a string is tsc's.
+ */
+function deprecations(world: LoadedWorld, ids: Ids, node: LoadedNode): Finding[] {
+  const findings: Finding[] = [];
+  const note: unknown = node.spec.deprecated;
+  if (typeof note === "string" && note.trim() === "") {
+    findings.push(
+      nodeError(
+        node,
+        "deprecated is blank",
+        'say what to use instead, e.g. deprecated: "use Stock.reserve", or drop the field',
+      ),
+    );
+  }
+  if (onItsWayOut(world, node)) return findings;
+  for (const [index, edge] of (node.spec.edges ?? []).entries()) {
+    if (edge.kind !== "uses" || ids.duplicated.has(edge.to)) continue;
+    const target = ids.byId(edge.to);
+    const why = target && deprecationOf(target.spec);
+    if (!target || why === undefined) continue;
+    const line = node.places?.uses[index] ?? node.line;
+    findings.push({
+      severity: "warning",
+      ...locate({ file: node.file, line }),
+      node: node.path,
+      rule: `${usesEdge(node, target.spec.name, edge.port)}, but ${target.path} is deprecated: ${why}`,
+      fix: "use what the note names instead, or drop the edge",
+    });
+  }
+  return findings;
 }

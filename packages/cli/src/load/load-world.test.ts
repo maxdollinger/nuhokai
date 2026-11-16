@@ -69,7 +69,7 @@ function exampleWorld(): string {
 
 /** A leaf's static fields, with the given id and ports. */
 function leaf(id: string, ports = "{}"): string {
-  return `{ id: "${id}", purpose: "${id} purpose", status: "planned", source: [], ports: ${ports} }`;
+  return `{ id: "${id}", purpose: "${id} purpose", source: [], ports: ${ports} }`;
 }
 
 async function loadError(root: string): Promise<unknown> {
@@ -122,7 +122,6 @@ test("after init, without node_modules, loads Example named by its export plus i
       external: false,
       abstract: false,
       purpose: "An example to copy from; replace it with the first real node.",
-      status: "planned",
       source: [],
       ports: [{ name: "greet", kind: "call", purpose: "Say hello", input: "a name", output: "a greeting" }],
     },
@@ -144,7 +143,7 @@ test("the example world: depth-first, edges grouped per target, delegates kept, 
     ["Orders", id("Shop")],
     ["Stock", id("Shop")],
   ]);
-  expect(byName.Postgres).toMatchObject({ external: true, externalType: "db", status: "built" });
+  expect(byName.Postgres).toMatchObject({ external: true, externalType: "db" });
   expect(byName.AuditLog).toMatchObject({ abstract: true, requirements: [{ id: "R1" }] });
   expect(byName.Orders?.edges).toEqual([
     { kind: "uses", to: id("Stock"), port: ["reserve"] },
@@ -197,7 +196,7 @@ export const User = node(${leaf("user")}).edges({
   uses: () => [Target.one, Target.two, Target.one, inherited(Target, Contract.audit)],
 });
 export const Box = node({
-  id: "box", purpose: "box", status: "building", source: ["src/box/**"],
+  id: "box", purpose: "box", source: ["src/box/**"],
   children: [User, Target],
   ports: { run: Target.one },
 }).edges({});
@@ -260,7 +259,6 @@ export const Target = node(${leaf("target", '{ run: { kind: "call", purpose: "ru
 export const Box = node({
   id: "box",
   purpose: "box",
-  status: "planned",
   source: [],
   ports: { go: { kind: "call", purpose: "go" } },
   requirements: [
@@ -279,11 +277,11 @@ export const Box = node({
   const box = loaded.nodes.find((node) => node.path === "Box");
   expect(box?.places).toEqual({
     purpose: 6,
-    ports: [9],
-    requirements: [11, 12],
-    testCases: [14, 14],
-    decisions: [15],
-    uses: [17],
+    ports: [8],
+    requirements: [10, 11],
+    testCases: [13, 13],
+    decisions: [14],
+    uses: [16],
   });
 });
 
@@ -296,7 +294,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Shared, 
     "box.ts": `import { node } from "@nuhokai/world";
 export const Shared = node(${leaf("shared")}).edges({});
 export const Inner = node(${leaf("inner")}).edges({});
-export const Box = node({ id: "box", purpose: "box", status: "planned", source: [], children: [Shared, Inner], ports: {} }).edges({});
+export const Box = node({ id: "box", purpose: "box", source: [], children: [Shared, Inner], ports: {} }).edges({});
 `,
   });
 
@@ -319,7 +317,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [P, T] })
 export const C1 = node(${leaf("x")}).edges({});
 export const C2 = node(${leaf("c2")}).edges({});
 export const T = node(${leaf("t")}).edges({});
-export const P = node({ id: "x", purpose: "p", status: "planned", source: [], children: [C1, C2], ports: {} }).edges({});
+export const P = node({ id: "x", purpose: "p", source: [], children: [C1, C2], ports: {} }).edges({});
 `,
   });
 
@@ -402,7 +400,7 @@ export const held = { Made: node(${leaf("made")}).edges({}) };
 test("a call to a function of the world's own is a load error at the call, never applied: no factory, no recursion", async () => {
   const factory = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
-const mk = (id: string) => node({ id, purpose: "p", status: "planned", source: [] }).edges({});
+const mk = (id: string) => node({ id, purpose: "p", source: [] }).edges({});
 export const Made = mk("made");
 export default defineWorld({ id: "w", name: "w", source: [], children: [Made] });
 `,
@@ -415,7 +413,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Made] })
   // A parameterless helper fails at its call.
   const helper = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
-const mk = () => node({ id: "a", purpose: "p", status: "planned", source: [] }).edges({});
+const mk = () => node({ id: "a", purpose: "p", source: [] }).edges({});
 export const Made = mk();
 export default defineWorld({ id: "w", name: "w", source: [], children: [Made] });
 `,
@@ -428,7 +426,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Made] })
   const unused = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 const A = node(${leaf("a")}).edges({});
-export const make = (id: string) => node({ id, purpose: "p", status: "planned", source: [] }).edges({});
+export const make = (id: string) => node({ id, purpose: "p", source: [] }).edges({});
 export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
 `,
   });
@@ -500,7 +498,7 @@ export default defineWorld({ id: "w", name: "Shop", source: ["src/**"], children
     "nodes.ts": `import { node } from "@nuhokai/world";
 export const Orphan = node(${leaf("orphan", '{ x: { kind: "call", purpose: "x" } }')}).edges({});
 export const Inner = node(${leaf("same-id")}).edges({ uses: () => [Orphan.x] });
-export const Outer = node({ id: "same-id", purpose: "o", status: "planned", source: [], children: [Inner], ports: {} }).edges({});
+export const Outer = node({ id: "same-id", purpose: "o", source: [], children: [Inner], ports: {} }).edges({});
 `,
   });
 
@@ -695,7 +693,7 @@ export const Leaf = node(${leaf("leaf", '{ run: { kind: "call", purpose: "run" }
 `,
   "cmd/cmd.ts": `import { node } from "@nuhokai/world";
 import { Leaf } from "./a-leaf.ts";
-export const Cmd = node({ id: "cmd", purpose: "cmd", status: "planned", source: [], children: [Leaf], ports: { run: Leaf.run } }).edges({});
+export const Cmd = node({ id: "cmd", purpose: "cmd", source: [], children: [Leaf], ports: { run: Leaf.run } }).edges({});
 `,
   "z-caller.ts": `import { node } from "@nuhokai/world";
 import { Cmd } from "./cmd/cmd.ts";
@@ -728,7 +726,7 @@ export default defineWorld({ id: "w", name: "w", source: [], children: [Cmd, Cal
 test("a dome port of a non-child or a missing port is one load error at the dome's node() line, listed or not", async () => {
   const dome = (ports: string) => `import { node } from "@nuhokai/world";
 import { Leaf, Other } from "./leaf.ts";
-export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: [Leaf], ports: ${ports} }).edges({});
+export const Dome = node({ id: "dome", purpose: "d", source: [], children: [Leaf], ports: ${ports} }).edges({});
 `;
   const files = (domeSource: string) => ({
     "index.ts": `import { defineWorld } from "@nuhokai/world";
@@ -856,7 +854,7 @@ test("a world file's own function is never called, so it cannot recurse: a call 
   const recursive = world({
     "index.ts": `import { defineWorld, node } from "@nuhokai/world";
 const f = (): string => f();
-export const A = node({ id: "a", purpose: f(), status: "planned", source: [], ports: {} }).edges({});
+export const A = node({ id: "a", purpose: f(), source: [], ports: {} }).edges({});
 export default defineWorld({ id: "w", name: "w", source: [], children: [A] });
 `,
   });

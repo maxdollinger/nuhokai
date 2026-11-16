@@ -12,7 +12,6 @@ export const Terminal = node({
     "Whoever runs nuhokai: a person at a shell (a tty), a script, a coding agent or a CI step. Starts the process " +
     "with argv in a working directory, may pipe in a review, reads stdout and stderr and branches on the exit code. " +
     "Never asked anything.",
-  status: "built",
   source: [],
   ports: {
     print: {
@@ -52,7 +51,6 @@ export const FileSystem = node({
   purpose:
     "The operating system's filesystem: the project directory's files, the world in nuhokai/ and everything the " +
     "CLI writes. The only state nuhokai keeps; no database, cache or config elsewhere.",
-  status: "built",
   source: [],
   ports: {
     read: {
@@ -89,7 +87,6 @@ export const BunRuntime = node({
   purpose:
     "Bun, the runtime the CLI runs on and embeds in each release binary (pinned by the repo's packageManager): " +
     "matches globs, makes ids, bundles and compiles. Never runs a world file. Not built by us; users never install it.",
-  status: "built",
   source: [],
   ports: {
     matchGlob: {
@@ -123,7 +120,6 @@ export const Tsgo = node({
     "TypeScript's native checker (tsgo) at the version the CLI pins: type-checks world files, and parses them for the " +
     "declarative rule and for the loader, which reads worlds without running them. Ships next to the release binary as a sidecar; from source, the platform build of the pinned " +
     "typescript package. Not built by us.",
-  status: "built",
   source: [],
   ports: {
     check: {
@@ -165,7 +161,6 @@ export const Browser = node({
   purpose:
     "Whichever web browser the user opens nuhokai/.generated/map.html in, offline from a file URL. Runs the Viewer " +
     "and keeps its saved layout. nuhokai never starts it.",
-  status: "built",
   source: [],
   ports: {
     runPage: {
@@ -201,7 +196,6 @@ export const ThreeJs = node({
   purpose:
     "three.js with OrbitControls, at the exactly pinned dev-dependency version: scene graph, WebGL renderer and " +
     "camera controls the Viewer draws with. Inlined into every map at build time; not built by us.",
-  status: "built",
   source: [],
   ports: {
     render: {

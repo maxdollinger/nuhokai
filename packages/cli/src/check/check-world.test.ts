@@ -35,7 +35,7 @@ async function check(root: string): Promise<SplitReport> {
 
 const ORPHAN = `import { node } from "@nuhokai/world";
 
-export const Orphan = node({ id: "orphan", purpose: "p", status: "planned", source: [] }).edges({});
+export const Orphan = node({ id: "orphan", purpose: "p", source: [] }).edges({});
 `;
 
 test("Check R1, CheckWorld R7: after init, check reports no finding, only its summary, ok", async () => {
@@ -46,11 +46,11 @@ test("Check R1: two violations in different files are two result lines, failed",
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
 
-export const A = node({ id: "a", purpose: "p", status: "built", source: [] }).edges({});
+export const A = node({ id: "a", purpose: "p", source: [], deprecated: " " }).edges({});
 `,
     "nuhokai/b.ts": `import { node } from "@nuhokai/world";
 
-export const B = node({ id: "b", purpose: "p", status: "planned", source: ["src/gone.ts"] }).edges({});
+export const B = node({ id: "b", purpose: "p", source: ["src/gone.ts"] }).edges({});
 `,
   });
   writeFileSync(
@@ -66,7 +66,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [A, B] })
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      'error: <root>/nuhokai/a.ts:3: A: a built node lists no source; list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
+      'error: <root>/nuhokai/a.ts:3: A: deprecated is blank; say what to use instead, e.g. deprecated: "use Stock.reserve", or drop the field',
       'error: <root>/nuhokai/b.ts:3: B: source entry "src/gone.ts" matches no file; fix the path or glob, or drop the entry',
       "failed: 2 errors, 0 warnings",
     ],
@@ -152,10 +152,7 @@ test("CheckWorld R6: a load error beside an unrelated tsc error in its file stay
   // A cast and a call on one line are two breaks: the cast's finding (with its fix) does not stand for the call.
   const castAndCall = await world();
   const example = join(castAndCall, "nuhokai/example.ts");
-  writeFileSync(
-    example,
-    readFileSync(example, "utf8").replace('status: "planned",', 'status: "planned" as "planned", group: String(1),'),
-  );
+  writeFileSync(example, readFileSync(example, "utf8").replace("source: [],", "source: [] as [], group: String(1),"));
   const both = (await check(castAndCall)).out;
   expect(both).toHaveLength(3);
   // One line, so ordered by rule.
@@ -208,7 +205,7 @@ test("CheckWorld R6: a load error on the line of a message the format wrote is l
     join(root, "nuhokai/index.ts"),
     `import { defineWorld, node } from "@nuhokai/world";
 import { Example } from "./example.ts";
-const Draft = node({ id: "d", purpose: "p", status: "planned", source: [] });
+const Draft = node({ id: "d", purpose: "p", source: [] });
 export default defineWorld({ id: "w", name: " ", source: [], children: [Example, Draft] });
 `,
   );
@@ -233,11 +230,11 @@ test("DataRules R4 waits only for a tsc error in the world file: a blank name ts
       .replace("/** The world", 'const blank: string = "  ";\n\n/** The world'),
   );
   const example = join(root, "nuhokai/example.ts");
-  writeFileSync(example, readFileSync(example, "utf8").replace('status: "planned"', 'status: "plannd"'));
+  writeFileSync(example, readFileSync(example, "utf8").replace("source: [],", "source: [], deprecated: 1,"));
   const result = await check(root);
   expect(result.out).toHaveLength(3);
   expect(result.out[0]).toStartWith("error: <root>/nuhokai/example.ts:");
-  expect(result.out[0]).toContain(`Type '"plannd"' is not assignable to type 'NodeStatus'.`);
+  expect(result.out[0]).toContain("Type 'number' is not assignable to type 'string'.");
   expect(result.out[1]).toStartWith("error: <root>/nuhokai/index.ts:");
   expect(result.out[1]).toContain("the world's name is blank; give defineWorld a name");
   expect(result.out[2]).toBe("failed: 2 errors, 0 warnings");
@@ -300,7 +297,7 @@ test("CheckWorld R3: a tsc finding names its node when its file defines exactly 
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], status: "done" }).edges({});
+export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
 `,
   );
   writeFileSync(
@@ -315,7 +312,7 @@ export const wrong: number = "one";
   const result = await check(root);
   expect(result.outcome).toBe("failed");
   expect(result.out).toEqual([
-    "error: <root>/nuhokai/example.ts:3: Example: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+    "error: <root>/nuhokai/example.ts:3: Example: Type 'number' is not assignable to type 'string'.",
     "error: <root>/nuhokai/index.ts:5: Type 'string' is not assignable to type 'number'.",
     "failed: 2 errors, 0 warnings",
   ]);
@@ -327,8 +324,8 @@ test("CheckWorld R3: no node is named for a file that defines two nodes", async 
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], status: "done" }).edges({});
-export const Other = node({ id: "o", purpose: "p", source: [], status: "planned" }).edges({});
+export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
+export const Other = node({ id: "o", purpose: "p", source: [] }).edges({});
 `,
   );
   writeFileSync(
@@ -342,7 +339,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example,
   expect(await check(root)).toEqual({
     outcome: "failed",
     out: [
-      "error: <root>/nuhokai/example.ts:3: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+      "error: <root>/nuhokai/example.ts:3: Type 'number' is not assignable to type 'string'.",
       "failed: 1 error, 0 warnings",
     ],
     err: [],
@@ -355,8 +352,8 @@ test("CheckWorld R3: an orphan counts as a node its file defines", async () => {
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], status: "done" }).edges({});
-export const Orphan = node({ id: "o", purpose: "p", source: [], status: "planned" }).edges({});
+export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
+export const Orphan = node({ id: "o", purpose: "p", source: [] }).edges({});
 `,
   );
   writeFileSync(
@@ -368,9 +365,7 @@ export default defineWorld({ id: "w", name: "W", source: [], children: [Example]
 `,
   );
   const result = await check(root);
-  expect(result.out).toContain(
-    "error: <root>/nuhokai/example.ts:3: Type '\"done\"' is not assignable to type 'NodeStatus'.",
-  );
+  expect(result.out).toContain("error: <root>/nuhokai/example.ts:3: Type 'number' is not assignable to type 'string'.");
 });
 
 test("CheckWorld R3: a node is named by its path even when a sibling shares its dome's id", async () => {
@@ -379,7 +374,7 @@ test("CheckWorld R3: a node is named by its path even when a sibling shares its 
     join(root, "nuhokai/c2.ts"),
     `import { node } from "@nuhokai/world";
 
-export const C2 = node({ id: "c2", purpose: "p", source: [], status: "done" }).edges({});
+export const C2 = node({ id: "c2", purpose: "p", source: [], deprecated: 1 }).edges({});
 `,
   );
   writeFileSync(
@@ -387,14 +382,14 @@ export const C2 = node({ id: "c2", purpose: "p", source: [], status: "done" }).e
     `import { defineWorld, node } from "@nuhokai/world";
 import { C2 } from "./c2.ts";
 
-export const C1 = node({ id: "x", purpose: "p", source: [], status: "planned" }).edges({});
-export const P = node({ id: "x", purpose: "p", source: [], status: "planned", children: [C1, C2], ports: {} }).edges({});
+export const C1 = node({ id: "x", purpose: "p", source: [] }).edges({});
+export const P = node({ id: "x", purpose: "p", source: [], children: [C1, C2], ports: {} }).edges({});
 export default defineWorld({ id: "w", name: "W", source: [], children: [P] });
 `,
   );
   const result = await check(root);
   expect(result.out).toContain(
-    "error: <root>/nuhokai/c2.ts:3: P/C2: Type '\"done\"' is not assignable to type 'NodeStatus'.",
+    "error: <root>/nuhokai/c2.ts:3: P/C2: Type 'number' is not assignable to type 'string'.",
   );
 });
 
@@ -414,8 +409,8 @@ test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the
 test("CheckWorld R5: after a type error SpecCheck leaves out R5, so an external child is reported once, by tsc", async () => {
   const root = await world({
     "nuhokai/bad.ts": `import { node } from "@nuhokai/world";
-export const Ext = node({ id: "ext", external: true, purpose: "e", status: "built", source: [] }).edges({});
-export const Dome = node({ id: "dome", purpose: "d", status: "planned", source: [], children: [Ext] }).edges({});
+export const Ext = node({ id: "ext", external: true, purpose: "e", source: [] }).edges({});
+export const Dome = node({ id: "dome", purpose: "d", source: [], children: [Ext] }).edges({});
 `,
     "nuhokai/index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Dome } from "./bad.ts";

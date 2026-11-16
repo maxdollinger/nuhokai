@@ -8,7 +8,6 @@ export const ProjectFiles = node({
   purpose:
     "Answer which files a source entry names in the project directory: the one expansion of an entry, so check and " +
     "review agree on a node's files; knows nothing of nodes.",
-  status: "building",
   source: ["src/shared/project-files.ts", "src/shared/project-files.test.ts"],
   ports: {
     expand: {

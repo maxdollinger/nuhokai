@@ -72,7 +72,7 @@ existing `nuhokai/` directory is left untouched: it prints one line and exits 0,
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
-the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
+the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, uses of deprecated nodes, the rules tsc leaves to `check`,
 and every `source` entry against the project's files, a glob never listing through a symlink to a directory, as git does); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
@@ -82,7 +82,7 @@ types without their arguments (`'NodeShape'`) and a long object literal as `'{ �
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
 format's functions among it), and the type check allows imports only from `@nuhokai/world` and other world files and
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
-exits 1 on any error and 0 otherwise; orphans are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
+exits 1 on any error and 0 otherwise; orphans and `uses` edges to a deprecated node are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
 or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
 load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file and line (where a type-check finding
 sits at that very position, one of the two: that finding when it says what to do, else the loader's)
@@ -91,7 +91,8 @@ so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
-coloured by its status. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
+coloured by its state, which the map reads from the world: planned until the node or a node inside it lists `source`, then
+built, and deprecated when it carries a `deprecated` note. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
 with its node) and `tbd` placeholders by export name or description in every scope, lights them in the open scope and jumps to one
 with Enter or a click. It never opens a browser. The map remembers moved islands per browser, under the world's id
 and by node id, so a regenerated map keeps them and two projects' maps never share them.

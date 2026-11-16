@@ -6,7 +6,6 @@ export const Viewer = node({
   id: "01a17bb5-b066-71d0-a81d-ccdfa4cb5fde",
   purpose:
     "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser. Never writes files, inlines assets or picks where the map goes.",
-  status: "building",
   source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
     draw: {
@@ -28,13 +27,19 @@ export const Viewer = node({
     },
     { id: "R4", text: "implements: dashed lane to the contract; abstract: contract island." },
     { id: "R5", text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType." },
-    { id: "R6", text: "status: island colour." },
+    {
+      id: "R6",
+      text: "Island colour = the node's state, read from the world, never authored: deprecated when it carries a note; else built when it or a node inside it lists source, or it is a contract with an implementor that is external or built; else planned. An external that is not deprecated has no state and keeps its own colour.",
+    },
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
       id: "R8",
       text: "Layout seeded by ids. Moved islands and outer items persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
     },
-    { id: "R9", text: "Click: purpose, status, ports, requirements, source; NodeSpec fields only." },
+    {
+      id: "R9",
+      text: "Click: the state (R6), then NodeSpec fields only: the deprecation note, purpose, ports, requirements, source.",
+    },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
       id: "R14",
@@ -42,7 +47,7 @@ export const Viewer = node({
     },
     {
       id: "R11",
-      text: "Search (/ or Ctrl K, ⌘K on Apple; the placeholder names both, touch screens neither): every node and port by name, every tbd hole by export name and description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole's description: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; a node found by prefix or word starts ranks with its own port that matches better, after nodes as good themselves; ties: nodes, holes, ports, then world order. Results: a status dot (a hole: dashed), matches bold, holes on up to two lines, the home scope's breadcrumbs without the world's (`top` there), past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; one active row, which the mouse moves too; `None in this view` when no hit lights the open scope; arrows, Enter or click, Escape; keys typed in the box, IME commits included, never go up or jump. Each row's accessible name reads `name, kind of owner, in path`; one polite live region announces the count, No matches and each landing.",
+      text: "Search (/ or Ctrl K, ⌘K on Apple; the placeholder names both, touch screens neither): every node and port by name, every tbd hole by export name and description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole's description: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; a node found by prefix or word starts ranks with its own port that matches better, after nodes as good themselves; ties: nodes, holes, ports, then world order. Results: a state dot (a hole: dashed), matches bold, holes on up to two lines, the home scope's breadcrumbs without the world's (`top` there), past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; one active row, which the mouse moves too; `None in this view` when no hit lights the open scope; arrows, Enter or click, Escape; keys typed in the box, IME commits included, never go up or jump. Each row's accessible name reads `name, kind of owner, in path`; one polite live region announces the count, No matches and each landing.",
     },
     {
       id: "R12",
@@ -149,7 +154,16 @@ export const Viewer = node({
         "viewer.html = the reference archipelago viewer with one data slot; scene.js, inlined, turns NodeSpecs into the scene.",
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
-    { decision: "Island colour = status.", why: "The one lifecycle field every node has." },
+    {
+      decision: "Island colour = a state derived from source and deprecated; nodes have no status field.",
+      why: "A hand-set status was a claim no tool could check, and it drifted: shipped nodes stayed building. Source says whether there is code; whether the code matches the spec is check's and review's to say.",
+      rejected: [
+        {
+          option: "An authored status: planned, building, built, deprecated",
+          why: "Nothing verified it, externals, contracts and domes had no clear value, and building against built had no test.",
+        },
+      ],
+    },
     {
       decision: "Edge tags hidden until an end is hovered or selected.",
       why: "Every lane tagged at once buries the islands; the tags you want are the ones of the item you look at.",

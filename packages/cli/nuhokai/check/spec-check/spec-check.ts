@@ -7,7 +7,6 @@ import { SourceRules } from "./source-rules.ts";
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
-  status: "building",
   source: ["src/check/spec-check/**"],
   requirements: [
     {
@@ -41,7 +40,7 @@ export const SpecCheck = node({
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
     {
       id: "R9",
-      text: "A node with status building or built, not external or abstract, lists at least one source entry.",
+      text: "A uses edge to a node that carries deprecated is a warning at the edge, naming the edge, the node and its note, never an error; none when the using node is deprecated itself or sits in a deprecated dome. A blank deprecated is an error.",
     },
     {
       id: "R10",
@@ -86,7 +85,7 @@ export const SpecCheck = node({
       demonstrates: ["R3", "R8"],
     },
     {
-      text: "A built leaf with source [] → error naming the node; the same planned, or an external, passes.",
+      text: "Orders uses Stock.reserve, Stock deprecated with 'use Warehouse.reserve' → one warning at the edge's line carrying the note, exit 0; Orders deprecated too → none; deprecated: '  ' → error.",
       demonstrates: ["R9"],
     },
     {

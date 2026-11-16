@@ -98,7 +98,7 @@ test("R3: a uses edge to an orphan is listed by its name, without a node", async
   writeFileSync(
     file,
     `${readFileSync(file, "utf8").replace("uses: () => [later]", "uses: () => [later, Lost.run]")}
-export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "planned", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
+export const Lost = node({ id: "lost", purpose: "Listed nowhere.", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
 `,
   );
   expect((await scoped(root, "Example")).uses).toEqual([{ name: "Lost", ports: ["run"] }]);

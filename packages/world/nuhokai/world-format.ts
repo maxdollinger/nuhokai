@@ -9,7 +9,6 @@ export const WorldFormat = node({
   purpose:
     "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
     "graph. Types only, never run; reading, rules, checks and writing are the CLI's.",
-  status: "building",
   source: ["src/**"],
   ports: {
     declareNode: {
@@ -294,6 +293,21 @@ export const WorldFormat = node({
         {
           option: "Key it by a node id",
           why: "Node ids are unique only within a world; init scaffolds the same example id into every project.",
+        },
+      ],
+    },
+    {
+      decision:
+        "No status field: whether a node has code is read from source. The one lifecycle field is the optional deprecated note.",
+      why: "A hand-set status is a claim no tool can verify, and it drifted in this repo's own worlds. That a node should gain no more dependents cannot be read from anything, so it is authored, and check warns about every uses edge to it.",
+      rejected: [
+        {
+          option: "status: planned, building, built or deprecated on every node",
+          why: "Unclear for externals, contracts, domes and a built node with one new requirement; it mixed build progress with deprecation.",
+        },
+        {
+          option: "A tsc error on a uses edge to a deprecated node",
+          why: "tsc has no warnings, and an error would break every existing dependent the day a node is deprecated.",
         },
       ],
     },

@@ -10,7 +10,6 @@ import { Stock } from "./stock.ts";
 export const Shop = node({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
   purpose: "The shop backend; everything a customer interacts with lives inside it.",
-  status: "planned",
   source: [],
   children: [Orders, Stock],
   ports: {

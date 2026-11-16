@@ -9,7 +9,6 @@ export const Build = node({
     "Make and ship the CLI: generate the embedded assets (the @nuhokai/world declarations, three.js and the map's " +
     "viewer), compile a per-platform release archive with the tsgo sidecar, and smoke-test it. Build time only: " +
     "nothing here is a dependency of the shipped binary.",
-  status: "built",
   source: ["scripts/**", "src/toolchain/**"],
   ports: {
     embed: {

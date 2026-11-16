@@ -97,7 +97,7 @@ test("PrintTree R1, R3: a node file that does not parse is one failure line nami
 
 test("Tree R3: siblings sharing a name both print; addressing them names nuhokai check", async () => {
   const twin = (id: string) =>
-    `import { node } from "@nuhokai/world";\nexport const Twin = node({ id: "${id}", purpose: "twin ${id}", status: "planned", source: [], ports: {} }).edges({});\n`;
+    `import { node } from "@nuhokai/world";\nexport const Twin = node({ id: "${id}", purpose: "twin ${id}", source: [], ports: {} }).edges({});\n`;
   const root = tempDir();
   const files: Record<string, string> = {
     "a/twin.ts": twin("a"),

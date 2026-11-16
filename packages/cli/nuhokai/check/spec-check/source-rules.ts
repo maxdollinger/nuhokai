@@ -9,7 +9,6 @@ export const SourceRules = node({
   id: "01a188c9-4a10-737f-97f6-8dfc24bc08b6",
   purpose:
     "Hold every source entry against the project's files: each exists, lies under the world's source, and each file has one owner.",
-  status: "building",
   source: ["src/check/spec-check/source-rules.ts"],
   requirements: [
     {

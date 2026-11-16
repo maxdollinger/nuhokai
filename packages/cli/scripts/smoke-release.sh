@@ -36,7 +36,6 @@ import { Example } from "./example.ts";
 export const Broken = node({
   id: "01a17950-b221-7124-8356-08fd2fee0888",
   purpose: "Uses a port Example does not have",
-  status: "planned",
   source: [],
 }).edges({ uses: () => [Example.gret] });
 TS

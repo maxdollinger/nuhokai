@@ -60,7 +60,6 @@ function oneNode(purpose: string): LoadedWorld {
           external: false,
           abstract: false,
           purpose,
-          status: "planned",
           source: [],
         },
         parent: null,

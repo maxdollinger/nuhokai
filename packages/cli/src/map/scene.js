@@ -45,7 +45,34 @@ export function mapScene(world) {
   parents.forEach((parent, index) => {
     children.get(parent).push(index);
   });
-  return { world, nodes, parents, children, byId };
+  return { world, nodes, parents, children, byId, states: statesOf(nodes, children) };
+}
+
+/** A node's deprecation note when it says something, else null: the map draws unchecked worlds too. */
+function deprecationOf(node) {
+  return typeof node.deprecated === "string" && node.deprecated.trim() !== "" ? node.deprecated.trim() : null;
+}
+
+/**
+ * Each node's state, by position: read from the world, never authored. "deprecated" with a note; else "built" when
+ * the node or a node inside it lists source, or it is a contract with an implementor that is external or built;
+ * else "planned". An external that is not deprecated has none (null): it is not ours to build.
+ */
+function statesOf(nodes, children) {
+  const hasCode = (index) =>
+    (Array.isArray(nodes[index].source) && nodes[index].source.some((entry) => typeof entry === "string")) ||
+    children.get(index).some(hasCode);
+  const coded = nodes.map((_, index) => hasCode(index));
+  const implemented = new Set();
+  nodes.forEach((node, index) => {
+    if (!node.external && !coded[index]) return;
+    for (const edge of node.edges ?? []) if (edge.kind === "implements") implemented.add(edge.to);
+  });
+  return nodes.map((node, index) => {
+    if (deprecationOf(node) !== null) return "deprecated";
+    if (node.external) return null;
+    return coded[index] || (node.abstract && implemented.has(node.id)) ? "built" : "planned";
+  });
 }
 
 /** The direct child of `scope` that contains node `index` (itself included), or undefined if it lies outside. */
@@ -110,7 +137,7 @@ export function scopeView(scene, scope) {
         node: index,
         name: node.name,
         side: 0,
-        status: node.status,
+        state: scene.states[index] ?? "planned",
         abstract: node.abstract,
         dome: parts > 0,
         parts,
@@ -256,14 +283,16 @@ function levelIslands(items, lanes) {
 }
 
 /**
- * What the click panel shows for a node: its NodeSpec fields only, purpose,
- * status, ports, requirements and source, in that order.
+ * What the click panel shows for the node at `index`: its state, then its NodeSpec fields only, the deprecation
+ * note, purpose, ports, requirements and source, in that order.
  */
-export function detailsOf(node) {
+export function detailsOf(scene, index) {
+  const node = scene.nodes[index];
   const kind = node.external ? `external ${node.externalType ?? "api"}` : node.abstract ? "contract" : null;
   return {
     name: node.name,
-    status: node.status,
+    state: scene.states[index],
+    deprecated: deprecationOf(node),
     kind,
     purpose: node.purpose,
     sections: [

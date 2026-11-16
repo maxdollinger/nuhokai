@@ -51,7 +51,7 @@ test("top level: Stock's Postgres lane and the notifyCustomer hole start at Shop
   ]);
   expect(top.air).toEqual([]);
   expect(top.items.Postgres).toMatchObject({ kind: "external", look: "db", side: 1 });
-  expect(top.items.AuditLog).toMatchObject({ kind: "island", abstract: true, status: "planned" });
+  expect(top.items.AuditLog).toMatchObject({ kind: "island", abstract: true, state: "planned" });
   expect(top.items.Shop).toMatchObject({ kind: "island", dome: true, parts: 2 });
   expect(top.items[HOLE]).toMatchObject({ kind: "hole", side: 1, portKind: "call" });
 });
@@ -109,7 +109,6 @@ test("an edge listing a call and an event port is a lane and an air route; group
     external: false,
     abstract: false,
     purpose: name,
-    status: "built" as const,
     source: [],
     ...extra,
   });
@@ -150,7 +149,6 @@ test("a call cycle between islands still gets finite levels", () => {
     external: false,
     abstract: false,
     purpose: id,
-    status: "planned" as const,
     source: [],
     edges: [{ kind: "uses" as const, to, port: ["p"] }],
   });
@@ -169,11 +167,12 @@ test("a call cycle between islands still gets finite levels", () => {
 test("the click panel shows Orders' own NodeSpec fields only", () => {
   const orders = world.nodes[indexOf("Orders")];
   if (!orders) throw new Error("no Orders");
-  const details = detailsOf(orders);
+  const details = detailsOf(scene, indexOf("Orders"));
 
   expect(details).toEqual({
     name: "Orders",
-    status: "planned",
+    state: "planned",
+    deprecated: null,
     kind: null,
     purpose: orders.purpose,
     sections: [
@@ -188,8 +187,8 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
       { label: "Source", rows: [] },
     ],
   });
-  expect(detailsOf(world.nodes[indexOf("Postgres")] ?? orders).kind).toBe("external db");
-  expect(detailsOf(world.nodes[indexOf("AuditLog")] ?? orders).sections[1]?.rows).toEqual([
+  expect(detailsOf(scene, indexOf("Postgres"))).toMatchObject({ kind: "external db", state: null });
+  expect(detailsOf(scene, indexOf("AuditLog")).sections[1]?.rows).toEqual([
     { name: "R1", meta: "Every change is listed with author and time." },
   ]);
 });
@@ -198,8 +197,62 @@ test("the click panel shows a node without source, as a world file may hold one"
   const orders = world.nodes[indexOf("Orders")];
   if (!orders) throw new Error("no Orders");
   const { source: _source, ...unsourced } = orders;
+  const details = detailsOf(mapScene({ ...world, nodes: [unsourced as typeof orders] }), 0);
 
-  expect(detailsOf(unsourced as typeof orders).sections.at(-1)).toEqual({ label: "Source", rows: [] });
+  expect(details.sections.at(-1)).toEqual({ label: "Source", rows: [] });
+  expect(details.state).toBe("planned");
+});
+
+test("a node's state is read from the world: source, what is inside it, its implementors, its deprecation note", () => {
+  const spec = (id: string, extra: object = {}) => ({
+    schema: "nuhokai/node@1" as const,
+    id,
+    name: id,
+    parent: null,
+    external: false,
+    abstract: false,
+    purpose: id,
+    source: [],
+    ...extra,
+  });
+  const states = (nodes: MapWorld["nodes"]) => mapScene({ id: "w", nodes, placeholders: [] }).states;
+
+  // Source makes a node built, and the dome around it; a sibling without stays planned.
+  expect(
+    states([
+      spec("dome"),
+      spec("coded", { parent: "dome", source: ["src/a.ts"] }),
+      spec("bare", { parent: "dome" }),
+      spec("empty"),
+    ]),
+  ).toEqual(["built", "built", "planned", "planned"]);
+  // A contract is built once an implementor is: one with code, or an external. An external has no state.
+  const implementing = (extra: object) => [
+    spec("contract", { abstract: true }),
+    spec("impl", { edges: [{ kind: "implements", to: "contract" }], ...extra }),
+  ];
+  expect(states(implementing({}))).toEqual(["planned", "planned"]);
+  expect(states(implementing({ source: ["src/a.ts"] }))).toEqual(["built", "built"]);
+  expect(states(implementing({ external: true }))).toEqual(["built", null]);
+  // A note deprecates whatever else holds, an external too; a blank one says nothing.
+  expect(
+    states([
+      spec("old", { source: ["src/a.ts"], deprecated: "use New.run" }),
+      spec("ext", { external: true, deprecated: "the vendor shuts it down" }),
+      spec("blank", { deprecated: "  " }),
+    ]),
+  ).toEqual(["deprecated", "deprecated", "planned"]);
+  const view = scopeView(
+    mapScene({ id: "w", nodes: [spec("old", { deprecated: " use New.run " })], placeholders: [] }),
+    null,
+  );
+  expect(view.items[0]).toMatchObject({ kind: "island", state: "deprecated" });
+  expect(
+    detailsOf(mapScene({ id: "w", nodes: [spec("old", { deprecated: " use New.run " })], placeholders: [] }), 0),
+  ).toMatchObject({
+    state: "deprecated",
+    deprecated: "use New.run",
+  });
 });
 
 test("two holes sharing a description stay two, each with its sorted users", () => {
@@ -211,7 +264,6 @@ test("two holes sharing a description stay two, each with its sorted users", () 
     external: false,
     abstract: false,
     purpose: id,
-    status: "planned" as const,
     source: [],
   });
   const loaded: MapWorld = {
@@ -240,7 +292,6 @@ const leaf = (id: string, parent: string | null = null) => ({
   external: false,
   abstract: false,
   purpose: id,
-  status: "planned" as const,
   source: [],
 });
 

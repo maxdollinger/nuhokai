@@ -14,7 +14,6 @@ const SHOP = `import { node } from "@nuhokai/world";
 export const Store = node({
   id: "store",
   purpose: "A place to keep things.",
-  status: "planned",
   source: [],
   abstract: true,
   ports: { keep: { kind: "call", purpose: "Keep one thing" } },
@@ -24,7 +23,6 @@ export const Store = node({
 export const Orders = node({
   id: "orders",
   purpose: "Owns orders.",
-  status: "building",
   source: ["src/orders.ts"],
   ports: { place: { kind: "event", purpose: "An order was placed", payload: "the order" } },
   requirements: [
@@ -44,14 +42,12 @@ export const Orders = node({
 export const Stock = node({
   id: "stock",
   purpose: "Counts stock.",
-  status: "planned",
   source: [],
   ports: { reserve: { kind: "call", purpose: "Reserve" }, count: { kind: "call", purpose: "Count" } },
 }).edges({});
 export const Lost = node({
   id: "lost",
   purpose: "Listed nowhere.",
-  status: "planned",
   source: [],
   ports: { run: { kind: "call", purpose: "Run" } },
 }).edges({});
@@ -105,8 +101,8 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
   const file = join(temp, "nuhokai/shop.ts");
   expect(find(items, "requirements[R1]")).toMatchObject({ kind: "requirement", file, line: lineOf(file, "Places") });
   // One item per target, its ports merged, at the edge's first item; an orphan by its export name, never dropped.
-  expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 31 });
-  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 31 });
+  expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 29 });
+  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 29 });
   expect(find(items, "ports.place")?.details).toEqual(["payload: the order"]);
   expect(find(items, "ports.place.payload")).toBeUndefined();
   expect(find(items, "decisions[0]")).toMatchObject({
@@ -114,8 +110,8 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
     details: ["rejected: A shared id service Why not: One more hop."],
   });
   expect(find(items, "decisions[0].rejected[0]")).toBeUndefined();
-  expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 9, contract: "Store" });
-  expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 10, contract: "Store" });
+  expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 8, contract: "Store" });
+  expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 9, contract: "Store" });
   expect(find(items, "Store.purpose")).toBeUndefined();
 });
 

@@ -24,7 +24,6 @@ import type {
  * export const Orders = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
  *   purpose: "Owns orders from checkout to delivery.",
- *   status: "planned",
  *   source: [],
  *   ports: { place: { kind: "call", purpose: "Place an order" } },
  * }).edges({
@@ -34,7 +33,6 @@ import type {
  * export const Shop = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ac",
  *   purpose: "The shop backend.",
- *   status: "planned",
  *   source: [],
  *   children: [Orders],
  *   ports: { placeOrder: Orders.place },

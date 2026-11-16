@@ -7,7 +7,6 @@ export const SpecItems = node({
   purpose:
     "Own the reference of each spec item a review cites: list a node's items, its contracts' included, each with " +
     "where it is written, and find the item a reference names. Pure.",
-  status: "building",
   source: ["src/review/spec-items.ts", "src/review/spec-items.test.ts"],
   ports: {
     list: {

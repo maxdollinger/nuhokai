@@ -7,10 +7,9 @@
 import { defineWorld, inherited, type NodeDef, node, type PortsDef, tbd } from "../src/index.ts";
 import { AuditLog, notifyCustomer, Orders, Postgres, Shop, Stock } from "./index.ts";
 
-const base: Pick<NodeDef, "id" | "purpose" | "status" | "source"> = {
+const base: Pick<NodeDef, "id" | "purpose" | "source"> = {
   id: "01a16dd2-bc47-74bf-84dd-c156e496d92b",
   purpose: "Type test",
-  status: "planned",
   source: [],
 };
 
@@ -526,3 +525,25 @@ export const validWorld = defineWorld({ id: "w", name: "w", source: [], children
 export const reusedWorld = defineWorld({ id: "w", name: "w", source: [], children: validWorld.children });
 const mixed = [Postgres, composedDome];
 export const mixedWorld = defineWorld({ id: "w", name: "w", source: [], children: mixed });
+
+// ─── Lifecycle: no status, an optional deprecation note ──────────────────
+
+const Deprecated = node({
+  ...base,
+  deprecated: "use Other.run",
+  ports: { run: { kind: "call", purpose: "Run" } },
+}).edges({});
+// A deprecated node is still a node: using it compiles, and `check` warns about the edge.
+export const usesDeprecated = node(base).edges({ uses: () => [Deprecated.run] });
+
+export const deprecatedWithoutNote = node({
+  ...base,
+  // @ts-expect-error deprecated is a note saying what to use instead, not a flag
+  deprecated: true,
+}).edges({});
+
+export const authoredStatus = node({
+  ...base,
+  // @ts-expect-error there is no status field: whether a node has code is read from source
+  status: "built",
+}).edges({});

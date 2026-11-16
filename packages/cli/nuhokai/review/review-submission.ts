@@ -11,7 +11,6 @@ export const ReviewSubmission = node({
   purpose:
     "The program behind `review --submit`: hold the agent's findings against the review's scope and print them " +
     "as check prints its findings; never prints itself.",
-  status: "building",
   source: ["src/review/review-submission.ts", "src/review/review-submission.test.ts"],
   ports: {
     run: {

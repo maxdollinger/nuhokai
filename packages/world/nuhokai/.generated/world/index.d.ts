@@ -60,17 +60,6 @@ type NodeId = string;
  * concrete shape, reading the callee's code where it already exists.
  */
 type Shape = string;
-/**
- * planned:    designed, no code yet
- * building:   implementation in progress
- * built:      implemented and matching this spec
- * deprecated: still exists, should no longer gain dependents
- *
- * "planned" and "building" are set by the game; "built" and "deprecated"
- * only manually. At the end of a quest, every node the quest created or
- * changed is set to "building", including built nodes. Any change counts.
- */
-type NodeStatus = "planned" | "building" | "built" | "deprecated";
 interface PortBase {
     /** Unique within the node, including inherited ports. */
     name: string;
@@ -188,19 +177,21 @@ interface NodeSpec {
     /** Why this node exists: the reason for the boundary, and what it deliberately does not do. */
     purpose: string;
     /**
-     * Lifecycle of the node. Applies to externals too: an external may still need to be built.
-     * Independent of the parent's status, e.g. a built parent can have planned children.
-     */
-    status: NodeStatus;
-    /**
      * Where the node lives in code: paths or globs relative to the project directory (the folder holding nuhokai/),
      * e.g. ["src/billing/**"]. Empty while there is no code yet; always empty for externals.
+     * There is no status field: whether a node is built is read from here, never claimed.
      */
     source: string[];
     /** Entry points others can depend on. */
     ports?: Port[];
     /** Outgoing relations only. Parent-level edges are never stored. */
     edges?: Edge[];
+    /**
+     * Set when the node should no longer gain dependents: the note says why and what to use instead,
+     * e.g. "use Stock.reserve". Not blank. Any node may carry it, an external, a contract or a dome too.
+     * The node still exists and still works; `check` warns about every `uses` edge that targets it.
+     */
+    deprecated?: string;
     /** Groups sibling islands; shown as a pillar. Only meaningful among siblings. */
     group?: string;
     /** Externals only: picks how the external is drawn at the outer edge of the map. */
@@ -228,7 +219,6 @@ interface NodeSpec {
  * export const Orders = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
  *   purpose: "Owns orders from checkout to delivery.",
- *   status: "planned",
  *   source: [],
  *   ports: { place: { kind: "call", purpose: "Place an order" } },
  * }).edges({
@@ -238,7 +228,6 @@ interface NodeSpec {
  * export const Shop = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ac",
  *   purpose: "The shop backend.",
- *   status: "planned",
  *   source: [],
  *   children: [Orders],
  *   ports: { placeOrder: Orders.place },
