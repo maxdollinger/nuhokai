@@ -18,7 +18,7 @@ export const ReviewScope = node({
       purpose: "Both programs' first steps: load the world, find the node, its review's scope",
       input: "project directory (cwd-relative), hierarchy path",
       output:
-        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets, drafts: the tbd placeholders it uses }; or an invalid Report of one failure line",
+        "{ node: path, specFile, items: SpecItems.list, example: a reference to cite in examples, files: cwd-relative, uses: SpecItems.targets, drafts: the tbd placeholders it uses, deprecated?: { note, by: the path of the node carrying it, file, line? } }; or an invalid Report of one failure line",
       errors: [
         "no node at the path: names the closest match",
         "a dome: names `nuhokai tree <path>` to list its children",
@@ -54,6 +54,10 @@ export const ReviewScope = node({
       id: "R7",
       text: "example: the first requirement's reference, else purpose: the one example the prompt's JSON and submit's messages cite.",
     },
+    {
+      id: "R8",
+      text: "deprecated: the deprecation the node is under (Path.deprecationOf), with the path of the node carrying the note, that node's spec file and the line of its node() call when known; absent when it is under none. A deprecated node stays reviewable.",
+    },
   ],
   testCases: [
     {
@@ -72,6 +76,10 @@ export const ReviewScope = node({
       text: "review Tree/PrintTre → invalid, did you mean; review Check → invalid, a dome; no world → thrown, failed.",
       demonstrates: ["R6"],
     },
+    {
+      text: "Example deprecated ' use Greeter ' → { note: 'use Greeter', by: Example, its spec file and node() line }; Example in a deprecated dome Box → by Box; neither → no deprecated.",
+      demonstrates: ["R8"],
+    },
   ],
 }).edges({
   uses: () => [
@@ -80,6 +88,7 @@ export const ReviewScope = node({
     LoadWorld.load,
     ProjectFiles.expand,
     Path.findNode,
+    Path.deprecationOf,
     Path.compareText,
     Path.nameInProject,
     Path.suggestedCommand,

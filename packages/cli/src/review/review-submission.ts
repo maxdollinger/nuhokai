@@ -153,9 +153,30 @@ function findingOf(scope: Scope, finding: SubmittedFinding): Finding {
 }
 
 /**
+ * The warning that the reviewed node is under a deprecation (R5): at the node carrying the note, saying whose it is.
+ * None for a node under no deprecation.
+ */
+function deprecationOf(scope: Scope): Finding[] {
+  const deprecated = scope.deprecated;
+  if (deprecated === undefined) return [];
+  const whose = deprecated.by === scope.node ? "is deprecated" : `is inside ${deprecated.by}, which is deprecated`;
+  return [
+    {
+      severity: "warning",
+      file: deprecated.file,
+      ...(deprecated.line === undefined ? {} : { line: deprecated.line }),
+      node: scope.node,
+      rule: `the reviewed node ${whose}: ${deprecated.note}`,
+      fix: "its code is on its way out: weigh the findings accordingly, or review what the note names instead",
+    },
+  ];
+}
+
+/**
  * The program behind `review --submit`: parse, judge the shape, load, find the node, its scope, judge the content
  * (R2). Answers the review `text` submitted for the project directory `root`, named from the cwd: ok or failed with
- * one finding line each, in Diagnostics' order, then the summary (R4); invalid with one failure line per problem
+ * one finding line each, in Diagnostics' order, a warning for a deprecated node among them (R5), then the summary
+ * (R4); invalid with one failure line per problem
  * (R3); failed with one failure line when no world loads. Programming errors propagate and crash with their stack.
  */
 export function runReviewSubmission(root: string, text: string): Promise<Report> {
@@ -173,7 +194,7 @@ export function runReviewSubmission(root: string, text: string): Promise<Report>
     if ("outcome" in scope) return scope;
     const problems = judgeContent(submission, scope);
     if (problems.length > 0) return invalid(problems);
-    const findings = submission.findings.map((finding) => findingOf(scope, finding));
+    const findings = [...submission.findings.map((finding) => findingOf(scope, finding)), ...deprecationOf(scope)];
     const outcome = findings.some((finding) => finding.severity === "error") ? "failed" : "ok";
     return { outcome, lines: [...format(findings), summarize(findings)].map(resultLine) };
   });

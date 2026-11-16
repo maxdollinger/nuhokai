@@ -169,3 +169,35 @@ test("R2, R4: a file whose name holds spaces is cited and printed as the prompt 
     `findings[0].line 3 is past the end of ${file}, which has 2 lines; cite a line within it`,
   ]);
 });
+
+test("R5: reviewing a deprecated node is one warning with its note beside the findings; it never fails the review", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
+  temps.push(root);
+  expect((await runInit(root)).outcome).toBe("ok");
+  const spec = join(root, "nuhokai/example.ts");
+  writeFileSync(
+    spec,
+    readFileSync(spec, "utf8").replace("source: [],", 'deprecated: "use Greeter.greet",\n  source: ["src/**"],'),
+  );
+  mkdirSync(join(root, "src"));
+  writeFileSync(join(root, "src/example.ts"), "export {};\n");
+  const line =
+    readFileSync(spec, "utf8")
+      .split("\n")
+      .findIndex((text) => text.startsWith("export const Example")) + 1;
+  const warning = `warning: <root>/nuhokai/example.ts:${line}: Example: the reviewed node is deprecated: use Greeter.greet; its code is on its way out: weigh the findings accordingly, or review what the note names instead`;
+  const submit = async (findings: unknown[]) =>
+    splitReport(await runReviewSubmission(root, JSON.stringify({ node: "Example", findings })), root);
+
+  expect(await submit([])).toEqual({ outcome: "ok", out: [warning, "ok: 0 errors, 1 warning"], err: [] });
+  const failed = await submit([
+    { category: "against-spec", specItem: "purpose", file: `${root}/src/example.ts`, line: 1, evidence: "x" },
+  ]);
+  expect(failed.outcome).toBe("failed");
+  expect(failed.out).toEqual([
+    warning,
+    "error: <root>/src/example.ts:1: Example: purpose; x",
+    "failed: 1 error, 1 warning",
+  ]);
+  expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain("- deprecated: use Greeter.greet");
+});

@@ -116,7 +116,9 @@ went wrong.
 `review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state
 and call no model. `nuhokai review Tree/PrintTree` prints a prompt for the agent: the node's spec items, its files,
 what it may use, and the JSON to answer with. The agent pipes that JSON to `nuhokai review --submit`, which validates
-it and prints each finding as `check` does, then the summary. It exits 0 when the review passes (warnings allowed), 1
+it and prints each finding as `check` does, then the summary. A deprecated node stays reviewable: the prompt names its
+note (its own, or that of a dome around it) and marks each deprecated dependency, and `--submit` adds one warning that
+the reviewed node is deprecated. It exits 0 when the review passes (warnings allowed), 1
 on an `against-spec` finding or when the world does not load, and 2 for an invalid submission, a node that cannot be
 reviewed or a misused flag; `nuhokai review --help` has the details. It is a dev-loop tool, not a CI gate, since
 nothing proves a review ran.

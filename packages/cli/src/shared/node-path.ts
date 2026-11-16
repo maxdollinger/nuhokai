@@ -4,7 +4,7 @@ import { suggestedCommand } from "./world-path.ts";
 /** A node as the hierarchy knows it, by position: its name, parent, children and path. LoadWorld's nodes are these. */
 export interface HierarchyNode {
   readonly index: number;
-  readonly spec: { readonly name: string };
+  readonly spec: { readonly name: string; readonly deprecated?: unknown };
   readonly parent: number | null;
   readonly children: readonly number[];
   readonly path: string;
@@ -26,6 +26,26 @@ export function childrenOf<N extends HierarchyNode>(world: Hierarchy<N>, parent:
 export function isAncestor(world: Hierarchy, ancestor: HierarchyNode, node: HierarchyNode): boolean {
   for (let at = node.parent; at !== null; at = world.nodes[at]?.parent ?? null) if (at === ancestor.index) return true;
   return false;
+}
+
+/** A deprecation a node is under: the note, and the node that carries it. */
+export interface Deprecation<N extends HierarchyNode = HierarchyNode> {
+  /** The note, trimmed: why, and what to use instead. */
+  readonly note: string;
+  /** The node carrying it: the node itself, else the nearest dome around it that has one. */
+  readonly by: N;
+}
+
+/**
+ * The deprecation `node` is under: its own note, else that of the nearest dome around it; undefined when neither it
+ * nor a dome around it has one. A note that is not a string, or blank, says nothing.
+ */
+export function deprecationOf<N extends HierarchyNode>(world: Hierarchy<N>, node: N): Deprecation<N> | undefined {
+  for (let at: N | undefined = node; at; at = at.parent === null ? undefined : world.nodes[at.parent]) {
+    const note: unknown = at.spec.deprecated;
+    if (typeof note === "string" && note.trim() !== "") return { note: note.trim(), by: at };
+  }
+  return undefined;
 }
 
 /**

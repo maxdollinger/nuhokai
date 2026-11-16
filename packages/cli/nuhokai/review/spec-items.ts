@@ -1,5 +1,6 @@
 import { node } from "@nuhokai/world";
 import { Failure } from "../failure.ts";
+import { Path } from "../path/path.ts";
 
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 export const SpecItems = node({
@@ -21,7 +22,8 @@ export const SpecItems = node({
       kind: "call",
       purpose: "Each uses edge's target, with the name its item cites",
       input: "the loaded world, a node's position",
-      output: "{ name, ports, node? (none when the world never reaches it) }[], in the edges' order",
+      output:
+        "{ name, ports, node? (none when the world never reaches it), deprecated? (the note the target is under) }[], in the edges' order",
       errors: [],
     },
     find: {
@@ -57,6 +59,10 @@ export const SpecItems = node({
       id: "R6",
       text: "A uses edge's item names its target (targets): by name, by path when two targets share one; a target the world never reaches (an orphan, LoadWorld R14) by its export name, else its id, never dropped. ReviewScope lists the same names, so prompt and validation agree.",
     },
+    {
+      id: "R7",
+      text: "targets: a target under a deprecation (Path.deprecationOf) carries its note; one under none, or one the world never reaches, carries none.",
+    },
     { id: "C1", kind: "constraint", text: "No filesystem access, load or printing." },
   ],
   testCases: [
@@ -72,6 +78,10 @@ export const SpecItems = node({
       text: "find('Store.requirements[R1]') → it; find('requirements[r1]') → none; listing twice → the same items. A requirement id 'R  1' → found as requirements[R 1], as printed; not as written.",
       demonstrates: ["R5"],
     },
+    {
+      text: "Example in a dome Box uses Old.run, Old deprecated 'use New.run' → its target carries that note; the orphan Lost and a target under no deprecation carry none.",
+      demonstrates: ["R7"],
+    },
   ],
   decisions: [
     {
@@ -85,4 +95,4 @@ export const SpecItems = node({
       ],
     },
   ],
-}).edges({ uses: () => [Failure.format] });
+}).edges({ uses: () => [Failure.format, Path.deprecationOf] });

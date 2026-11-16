@@ -31,4 +31,6 @@ export const DataRules = node({
       output: "findings as Diagnostics.format takes them",
     },
   },
-}).edges({ uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor] });
+}).edges({
+  uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor, Path.deprecationOf],
+});

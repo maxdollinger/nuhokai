@@ -40,7 +40,7 @@ export const SpecCheck = node({
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
     {
       id: "R9",
-      text: "A uses edge to a node that carries deprecated is a warning at the edge, naming the edge, the node and its note, never an error; none when the using node is deprecated itself or sits in a deprecated dome. A blank deprecated is an error.",
+      text: "A uses edge to a node under a deprecation (Path.deprecationOf: its own note, else a dome's around it) is a warning at the edge, naming the edge, the node carrying the note and the note, never an error; none when the using node is under one itself. A blank deprecated is an error.",
     },
     {
       id: "R10",

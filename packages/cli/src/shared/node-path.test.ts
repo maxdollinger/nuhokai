@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { LoadedNode } from "../load/load-world.ts";
 import { CliError } from "./failure.ts";
-import { findNode, type Hierarchy, nameNodes } from "./node-path.ts";
+import { deprecationOf, findNode, type Hierarchy, nameNodes } from "./node-path.ts";
 
 /** A world's shape, as LoadWorld answers it: each node by name and id under its parent's position, named by nameNodes. */
 function hierarchy(entries: readonly [name: string, parent: number | null, id?: string][]): Hierarchy {
@@ -123,4 +123,27 @@ test("NodePath R5: siblings sharing a name make their path ambiguous; paths stil
     "'Orders' names 2 siblings; `nuhokai check --path app` reports the clash",
   );
   expect(pathsOf(clash)).toEqual(["Orders", "Orders"]);
+});
+
+test("NodePath R6: a node is under its own note, else the nearest dome's around it; a blank or odd note says nothing", () => {
+  const world = hierarchy([
+    ["Shop", null],
+    ["Orders", 0],
+    ["Lines", 1],
+    ["Stock", null],
+  ]);
+  const [shop, orders, lines, stock] = world.nodes;
+  if (!shop || !orders || !lines || !stock) throw new Error("no nodes");
+  const note = (node: { spec: object }, deprecated: unknown) => Object.assign(node.spec, { deprecated });
+
+  expect(deprecationOf(world, lines)).toBeUndefined();
+  note(shop, " use Store ");
+  expect(deprecationOf(world, lines)).toEqual({ note: "use Store", by: shop });
+  expect(deprecationOf(world, stock)).toBeUndefined();
+  note(orders, "use Baskets");
+  expect(deprecationOf(world, lines)).toEqual({ note: "use Baskets", by: orders });
+  note(lines, "  ");
+  expect(deprecationOf(world, lines)?.by).toBe(orders);
+  note(orders, true);
+  expect(deprecationOf(world, lines)?.by).toBe(shop);
 });

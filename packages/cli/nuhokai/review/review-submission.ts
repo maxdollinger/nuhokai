@@ -44,8 +44,16 @@ export const ReviewSubmission = node({
       id: "R4",
       text: "Valid → one finding per submitted finding: against-spec an error, the others warnings; node its path, rule the spec item or 'unspecified', fix the evidence; their lines as Diagnostics.format gives them (in its order, identical ones merged), then Diagnostics.summarize. ok without errors, else failed.",
     },
+    {
+      id: "R5",
+      text: "Valid, and the scope carries a deprecation → one more finding, a warning at the node carrying the note (its spec file and node() line), node the reviewed path, rule saying the reviewed node is deprecated, or inside which deprecated dome, with the note. It never fails the review, and an invalid submission prints none.",
+    },
   ],
   testCases: [
+    {
+      text: "Example deprecated 'use Greeter.greet', no findings → 'warning: nuhokai/example.ts:<line>: Example: the reviewed node is deprecated: use Greeter.greet; …', 'ok: 0 errors, 1 warning'; with an against-spec finding → both lines, 'failed: 1 error, 1 warning'.",
+      demonstrates: ["R5"],
+    },
     {
       text: "Source src/** over src/assets/Screen Shot.png holding 'one', a newline and 'two', no final newline → line 2 valid and printed as named, line 3 past its end, which has 2 lines.",
       demonstrates: ["R2", "R4"],

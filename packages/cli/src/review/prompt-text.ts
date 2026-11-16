@@ -29,7 +29,8 @@ function itemLines(item: SpecItem): string[] {
 
 /**
  * The prompt for a review of `scope` in the project directory `root` (named from the cwd), as lines, in order (R1):
- * check first, the node and its spec file, every spec item, the files, the allowed dependencies, the drafts (R2),
+ * check first, the node and its spec file, and the deprecation it is under (R7), every spec item, the files, the
+ * allowed dependencies, a deprecated one marked with its note (R7), the drafts (R2),
  * the categories and verdicts, the JSON to answer with, and the submit command, spelled to run as printed (R3). Text
  * from the project is one line each (R4), inside blocks of data the agent is told never to follow (R6): world text,
  * the node's path, its spec file, its files and the example JSON naming them; file names keep their whitespace. The
@@ -38,6 +39,7 @@ function itemLines(item: SpecItem): string[] {
 export function render(root: string, scope: Scope): string[] {
   const check = suggestedCommand("check", [], root);
   const submit = suggestedCommand("review", ["--submit"], root);
+  const deprecated = scope.deprecated;
   const firstFile = scope.files.find((file) => !file.includes(".test.")) ?? scope.files[0];
   const example = {
     node: scope.node,
@@ -60,7 +62,21 @@ export function render(root: string, scope: Scope): string[] {
     "",
     "The node's path, and the spec file that specifies it:",
     "",
-    ...data([`- node: ${oneLine(scope.node)}`, `- spec file: ${plainText(scope.specFile)}`]),
+    ...data([
+      `- node: ${oneLine(scope.node)}`,
+      `- spec file: ${plainText(scope.specFile)}`,
+      ...(deprecated === undefined
+        ? []
+        : [
+            `- deprecated${deprecated.by === scope.node ? "" : ` with ${oneLine(deprecated.by)}`}: ${oneLine(deprecated.note)}`,
+          ]),
+    ]),
+    ...(deprecated === undefined
+      ? []
+      : [
+          "",
+          "The node is deprecated: its code is on its way out. Review it all the same, and tell the user it is deprecated, with the note above; the submit command prints it as a warning.",
+        ]),
     "",
     "## 3. The spec items",
     "",
@@ -80,9 +96,14 @@ export function render(root: string, scope: Scope): string[] {
       ? ["The spec lists no uses edge: the code depends on no other node of the world."]
       : [
           "The code may use these nodes' ports, and no other node of the world: using another is against the spec's uses edges.",
+          ...(scope.uses.some((target) => target.deprecated !== undefined)
+            ? [
+                "A node marked deprecated should gain no new uses, but the spec still allows this one: code using it is not a finding.",
+              ]
+            : []),
           "",
           ...data(
-            scope.uses.map(({ name, node: target, ports }) => {
+            scope.uses.map(({ name, node: target, ports, deprecated: note }) => {
               const used = ports.map(oneLine).join(", ");
               if (target === undefined) {
                 return `- ${oneLine(name)}: ${used} (unreachable: the world never reaches this node; ${check} reports it)`;
@@ -97,7 +118,8 @@ export function render(root: string, scope: Scope): string[] {
                   ? "no source yet"
                   : `source ${entries.map((entry) => plainText(nameInProject(root, entry))).join(", ")}`;
               const purpose = typeof spec.purpose === "string" ? spec.purpose : "";
-              return `- ${oneLine(target.path)}: ${used} (${where}): ${oneLine(purpose)}`;
+              const state = note === undefined ? where : `${where}; deprecated: ${oneLine(note)}`;
+              return `- ${oneLine(target.path)}: ${used} (${state}): ${oneLine(purpose)}`;
             }),
           ),
         ]),

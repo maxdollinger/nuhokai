@@ -127,7 +127,8 @@ A compile-time check fails if the two drift apart.
   the code matches the spec is for `check` and `review` to say. Nothing a tool cannot verify is authored.
 - **`deprecated`** is optional on any node: a note that says what to use instead, `deprecated: "use Stock.reserve"`.
   The node stays valid. `check` warns about every `uses` edge that targets it, at the edge, unless the using node
-  is deprecated itself or sits in a deprecated dome; a blank note is an error. tsc has no warnings, so the type check
+  is deprecated itself or sits in a deprecated dome; a blank note is an error. `review` names the note in its prompt
+  and warns when the reviewed node is deprecated. tsc has no warnings, so the type check
   stays silent: for a strike-through in the editor, also put `/** @deprecated … */` above the node's `export const`.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an
   unresolved port reference (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have

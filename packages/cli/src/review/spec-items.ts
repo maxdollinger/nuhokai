@@ -2,6 +2,7 @@
 import type { Decision, Port, Requirement, TestCase } from "@nuhokai/world/node-spec";
 import type { LoadedNode, LoadedWorld } from "../load/load-world.ts";
 import { oneLine } from "../shared/failure.ts";
+import { deprecationOf } from "../shared/node-path.ts";
 
 /** What a spec item is, as the prompt names it. */
 type SpecItemKind = "purpose" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
@@ -33,6 +34,8 @@ export interface Target {
   readonly ports: readonly string[];
   /** The target, undefined when the world never reaches it (an orphan, R6). */
   readonly node?: LoadedNode;
+  /** The deprecation the target is under, its own or a dome's around it: its note (R7). */
+  readonly deprecated?: string;
 }
 
 /** A value as a list, empty when it is none: an unchecked world may hold anything. */
@@ -61,7 +64,8 @@ function portDetails(port: Port): string[] {
 
 /**
  * The uses edges of the node at `position`, in its edges' order, each with the name its item cites (R1, R6): the
- * target's name, its path when two targets share a name, and an unreachable target's export name (else its id).
+ * target's name, its path when two targets share a name, and an unreachable target's export name (else its id). A
+ * target under a deprecation, its own or a dome's around it, carries the note (R7).
  */
 export function targets(world: LoadedWorld, position: number): Target[] {
   const node = world.nodes[position];
@@ -72,7 +76,13 @@ export function targets(world: LoadedWorld, position: number): Target[] {
     const target = to === null ? undefined : world.nodes[to];
     const id = textOf(edges[at]?.to);
     const name = target?.spec.name ?? world.orphans.find((orphan) => orphan.id === id)?.name ?? id;
-    return { name, ports: listOf<string>(edges[at]?.port), ...(target ? { node: target } : {}) };
+    const deprecation = target && deprecationOf(world, target);
+    return {
+      name,
+      ports: listOf<string>(edges[at]?.port),
+      ...(target ? { node: target } : {}),
+      ...(deprecation ? { deprecated: deprecation.note } : {}),
+    };
   });
   // A name two targets share would cite either: those go by their path.
   return found.map((target) =>

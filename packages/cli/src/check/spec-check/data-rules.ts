@@ -1,7 +1,7 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
 import { type Finding, locate, nodeError } from "../../shared/diagnostics.ts";
-import { childrenOf, isAncestor } from "../../shared/node-path.ts";
+import { childrenOf, deprecationOf, isAncestor } from "../../shared/node-path.ts";
 import type { Ids } from "./ids.ts";
 
 /** Where a node is listed: the file of the list, and how a message names that list. */
@@ -319,20 +319,6 @@ function portNames(spec: NodeSpec): string[] {
   return (spec.ports ?? []).map((port) => port.name);
 }
 
-/** A node's deprecation note, when it carries one that says something. */
-function deprecationOf(spec: NodeSpec): string | undefined {
-  const note: unknown = spec.deprecated;
-  return typeof note === "string" && note.trim() !== "" ? note.trim() : undefined;
-}
-
-/** Whether the node or a dome around it is deprecated: what it uses is then on its way out with it. */
-function onItsWayOut(world: LoadedWorld, node: LoadedNode): boolean {
-  for (let at: LoadedNode | undefined = node; at; at = at.parent === null ? undefined : world.nodes[at.parent]) {
-    if (deprecationOf(at.spec) !== undefined) return true;
-  }
-  return false;
-}
-
 /**
  * SpecCheck R9: a uses edge to a deprecated node is a warning at the edge, with the node's note, unless the using node
  * is deprecated itself or sits in a deprecated dome; a blank note is an error. A note that is not a string is tsc's.
@@ -349,18 +335,19 @@ function deprecations(world: LoadedWorld, ids: Ids, node: LoadedNode): Finding[]
       ),
     );
   }
-  if (onItsWayOut(world, node)) return findings;
+  // A deprecated node, or one in a deprecated dome, is on its way out with what it uses.
+  if (deprecationOf(world, node) !== undefined) return findings;
   for (const [index, edge] of (node.spec.edges ?? []).entries()) {
     if (edge.kind !== "uses" || ids.duplicated.has(edge.to)) continue;
     const target = ids.byId(edge.to);
-    const why = target && deprecationOf(target.spec);
-    if (!target || why === undefined) continue;
+    const deprecation = target && deprecationOf(world, target);
+    if (!target || !deprecation) continue;
     const line = node.places?.uses[index] ?? node.line;
     findings.push({
       severity: "warning",
       ...locate({ file: node.file, line }),
       node: node.path,
-      rule: `${usesEdge(node, target.spec.name, edge.port)}, but ${target.path} is deprecated: ${why}`,
+      rule: `${usesEdge(node, target.spec.name, edge.port)}, but ${deprecation.by.path} is deprecated: ${deprecation.note}`,
       fix: "use what the note names instead, or drop the edge",
     });
   }
