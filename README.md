@@ -72,7 +72,7 @@ failed: 2 errors, 0 warnings
 - **A spec per component.** Purpose, ports, requirements and design decisions sit next to the code. `nuhokai review`
   has your agent check a component's code against them.
 - **A map of the real thing.** `nuhokai map` writes a self-contained HTML file: a searchable 3D graph of components,
-  dependencies, what has code yet and the parts not designed yet.
+  dependencies, how complex each component is and the parts not designed yet.
 - **No toolchain.** One binary with its own type checker. No `node_modules`, no build step; the files are read
   statically and never executed.
 

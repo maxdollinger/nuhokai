@@ -29,7 +29,7 @@ export const Viewer = node({
     { id: "R5", text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType." },
     {
       id: "R6",
-      text: "Island colour = the node's state, read from the world, never authored: deprecated when it carries a note; else built when it or a node inside it lists source, or it is a contract with an implementor that is external or built; else planned. An external that is not deprecated has no state and keeps its own colour.",
+      text: "Island colour = the node's complexity in three steps of one hue, simple, mid, complex: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
     },
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
@@ -38,7 +38,7 @@ export const Viewer = node({
     },
     {
       id: "R9",
-      text: "Click: the state (R6), then NodeSpec fields only: the deprecation note, purpose, ports, requirements, source.",
+      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, purpose, ports, requirements, source.",
     },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
@@ -47,7 +47,7 @@ export const Viewer = node({
     },
     {
       id: "R11",
-      text: "Search (/ or Ctrl K, ⌘K on Apple; the placeholder names both, touch screens neither): every node and port by name, every tbd hole by export name and description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole's description: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; a node found by prefix or word starts ranks with its own port that matches better, after nodes as good themselves; ties: nodes, holes, ports, then world order. Results: a state dot (a hole: dashed), matches bold, holes on up to two lines, the home scope's breadcrumbs without the world's (`top` there), past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; one active row, which the mouse moves too; `None in this view` when no hit lights the open scope; arrows, Enter or click, Escape; keys typed in the box, IME commits included, never go up or jump. Each row's accessible name reads `name, kind of owner, in path`; one polite live region announces the count, No matches and each landing.",
+      text: "Search (/ or Ctrl K, ⌘K on Apple; the placeholder names both, touch screens neither): every node and port by name, every tbd hole by export name and description, whatever scope is open. Case-insensitive tiers: exact, prefix, word starts, substring, subsequence (3+ characters, tighter first); a hole's description: word starts only as one run, no subsequence; with a separator (space . › /) a port also by its node's name before the last one and its own after, at the worse tier; a node found by prefix or word starts ranks with its own port that matches better, after nodes as good themselves; ties: nodes, holes, ports, then world order. Results: a complexity dot (a hole: dashed), matches bold, holes on up to two lines, the home scope's breadcrumbs without the world's (`top` there), past 50 a `50 of N — keep typing` row, at most 35% of a phone's height; one active row, which the mouse moves too; `None in this view` when no hit lights the open scope; arrows, Enter or click, Escape; keys typed in the box, IME commits included, never go up or jump. Each row's accessible name reads `name, kind of owner, in path`; one polite live region announces the count, No matches and each landing.",
     },
     {
       id: "R12",
@@ -62,6 +62,10 @@ export const Viewer = node({
     {
       text: "scene.js under bun, example world: Stock's Postgres lane and notifyCustomer hole start at Shop on top, at Stock inside Shop.",
       demonstrates: ["R3", "R7"],
+    },
+    {
+      text: "scene.js under bun: a dome with 1 port, 1 requirement, 2 nodes inside that use 3 outside ports (one of them from both) and 1 hole → 8, simple, the edge between the two not counted; an implementor with 9 requirements, its contract's port and 2 requirements → 16, complex; an external → none.",
+      demonstrates: ["R6"],
     },
     {
       text: "By hand, browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
@@ -155,12 +159,24 @@ export const Viewer = node({
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
     {
-      decision: "Island colour = a state derived from source and deprecated; nodes have no status field.",
-      why: "A hand-set status was a claim no tool could check, and it drifted: shipped nodes stayed building. Source says whether there is code; whether the code matches the spec is check's and review's to say.",
+      decision: "Island colour = complexity, estimated from the spec. The map shows no state.",
+      why: "Where the complexity sits is what a reader of the map cannot see from the islands; whether a node has code is in its source, and check and review say whether the code matches. The estimate needs no model and no code, so a node has it before it is built.",
       rejected: [
         {
-          option: "An authored status: planned, building, built, deprecated",
-          why: "Nothing verified it, externals, contracts and domes had no clear value, and building against built had no test.",
+          option: "Colour by state: an authored status, or planned and built read from source",
+          why: "The authored status drifted and no tool verified it; the derived one said only whether source is empty.",
+        },
+        {
+          option: "A dome's score = the sum of the leaves inside it",
+          why: "Every dome then lands in the top step. Judged as one component at its own level, domes and leaves share one scale.",
+        },
+        {
+          option: "Count the nodes that depend on it",
+          why: "That is the risk of changing it, not how complex it is: Failure has the most dependents and is simple.",
+        },
+        {
+          option: "An LLM estimate, or lines of code",
+          why: "Not reproducible, and the map calls no model; lines exist only once there is code, and the map reads no project files.",
         },
       ],
     },

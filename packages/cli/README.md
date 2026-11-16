@@ -91,8 +91,9 @@ so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
-coloured by its state, which the map reads from the world: planned until the node or a node inside it lists `source`, then
-built, and deprecated when it carries a `deprecated` note. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
+coloured by its complexity in three steps (simple, mid, complex). The map estimates it from the spec alone: the ports a
+node offers, the ports and `tbd` holes it uses outside itself, its requirements and the nodes inside it, so a dome is
+judged as one component at its own level. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
 with its node) and `tbd` placeholders by export name or description in every scope, lights them in the open scope and jumps to one
 with Enter or a click. It never opens a browser. The map remembers moved islands per browser, under the world's id
 and by node id, so a regenerated map keeps them and two projects' maps never share them.

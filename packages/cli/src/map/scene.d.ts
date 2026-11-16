@@ -11,11 +11,29 @@ export interface MapWorld {
   readonly placeholders: readonly Placeholder[];
 }
 
+/** How complex a node is, in three steps: a score under 10 is simple, from 16 complex. */
+export type ComplexityLevel = "simple" | "mid" | "complex";
+
 /**
- * A node's state, read from the world, never authored: deprecated with a note; else built when it or a node inside
- * it lists source, or it is a contract with an implementor that is external or built; else planned.
+ * A node's complexity, estimated from its spec alone, one formula for leaves and domes: the sum of its parts. A dome
+ * is one component at its own level: an edge between two nodes inside it does not count.
  */
-export type NodeState = "planned" | "built" | "deprecated";
+export interface Complexity {
+  readonly level: ComplexityLevel;
+  readonly score: number;
+  readonly parts: {
+    /** The ports it offers, those inherited from contracts it implements among them. */
+    readonly ports: number;
+    /** The ports it, or a node inside it, uses outside itself, each once. */
+    readonly uses: number;
+    /** The tbd holes it, or a node inside it, uses. */
+    readonly holes: number;
+    /** Its requirements, those of contracts it implements among them. */
+    readonly requirements: number;
+    /** The nodes inside it, at every depth. */
+    readonly inside: number;
+  };
+}
 
 /** A scope: null for the top level, else the dome's position in `nodes`. */
 export type Scope = number | null;
@@ -28,18 +46,18 @@ export interface Scene {
   readonly children: ReadonlyMap<Scope, readonly number[]>;
   /** The first node with each id. */
   readonly byId: ReadonlyMap<string, number>;
-  /** Each node's state, by position; null for an external that is not deprecated: it is not ours to build. */
-  readonly states: readonly (NodeState | null)[];
+  /** Each node's complexity, by position; null for an external: it is not ours to build. */
+  readonly complexity: readonly (Complexity | null)[];
 }
 
-/** A direct child of the scope, drawn as an island coloured by its state. */
+/** A direct child of the scope, drawn as an island coloured by its complexity. */
 export interface Island {
   readonly key: string;
   readonly kind: "island";
   readonly node: number;
   readonly name: string;
   readonly side: 0;
-  readonly state: NodeState;
+  readonly complexity: ComplexityLevel;
   readonly abstract: boolean;
   readonly dome: boolean;
   readonly parts: number;
@@ -124,7 +142,8 @@ export interface ScopeView {
 
 export interface Details {
   readonly name: string;
-  readonly state: NodeState | null;
+  /** Its complexity, the parts in words (`1 port · 8 used ports · 17 requirements`); null for an external. */
+  readonly complexity: { readonly level: ComplexityLevel; readonly score: number; readonly parts: string } | null;
   /** The node's deprecation note; null when it has none. */
   readonly deprecated: string | null;
   readonly kind: string | null;

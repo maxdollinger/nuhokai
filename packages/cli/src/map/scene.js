@@ -45,7 +45,7 @@ export function mapScene(world) {
   parents.forEach((parent, index) => {
     children.get(parent).push(index);
   });
-  return { world, nodes, parents, children, byId, states: statesOf(nodes, children) };
+  return { world, nodes, parents, children, byId, complexity: complexityOf(world, nodes, children, byId) };
 }
 
 /** A node's deprecation note when it says something, else null: the map draws unchecked worlds too. */
@@ -53,26 +53,64 @@ function deprecationOf(node) {
   return typeof node.deprecated === "string" && node.deprecated.trim() !== "" ? node.deprecated.trim() : null;
 }
 
+/** The scores from which a node is mid and complex; below MID_FROM it is simple. */
+const MID_FROM = 10;
+const COMPLEX_FROM = 16;
+
+/** A field that should be a list, as one: the map draws unchecked worlds too. */
+const listOf = (value) => (Array.isArray(value) ? value : []);
+
 /**
- * Each node's state, by position: read from the world, never authored. "deprecated" with a note; else "built" when
- * the node or a node inside it lists source, or it is a contract with an implementor that is external or built;
- * else "planned". An external that is not deprecated has none (null): it is not ours to build.
+ * Each node's complexity, by position: an estimate from the spec alone, one formula for leaves and domes. The score
+ * is what the node offers (its ports, those inherited from contracts it implements among them), what it uses outside
+ * itself (each port once, and each tbd hole), what it must satisfy (its requirements, a contract's among them) and
+ * the nodes inside it. A dome is thus judged as one component at its own level: an edge between two nodes inside it
+ * does not count. An external has none (null): it is not ours to build.
  */
-function statesOf(nodes, children) {
-  const hasCode = (index) =>
-    (Array.isArray(nodes[index].source) && nodes[index].source.some((entry) => typeof entry === "string")) ||
-    children.get(index).some(hasCode);
-  const coded = nodes.map((_, index) => hasCode(index));
-  const implemented = new Set();
-  nodes.forEach((node, index) => {
-    if (!node.external && !coded[index]) return;
-    for (const edge of node.edges ?? []) if (edge.kind === "implements") implemented.add(edge.to);
-  });
+function complexityOf(world, nodes, children, byId) {
+  const inside = (index) => children.get(index).flatMap((child) => [child, ...inside(child)]);
   return nodes.map((node, index) => {
-    if (deprecationOf(node) !== null) return "deprecated";
     if (node.external) return null;
-    return coded[index] || (node.abstract && implemented.has(node.id)) ? "built" : "planned";
+    const members = [index, ...inside(index)];
+    const within = new Set(members);
+    const ids = new Set(members.map((member) => nodes[member].id));
+    const used = new Set();
+    for (const member of members) {
+      for (const edge of listOf(nodes[member].edges)) {
+        if (edge.kind !== "uses" || within.has(byId.get(edge.to))) continue;
+        for (const port of listOf(edge.port)) used.add(`${edge.to} ${port}`);
+      }
+    }
+    const contracts = listOf(node.edges)
+      .filter((edge) => edge.kind === "implements")
+      .map((edge) => nodes[byId.get(edge.to)])
+      .filter((contract) => contract);
+    const count = (field) =>
+      listOf(node[field]).length + contracts.reduce((sum, contract) => sum + listOf(contract[field]).length, 0);
+    const parts = {
+      ports: count("ports"),
+      uses: used.size,
+      holes: listOf(world.placeholders).filter((hole) => listOf(hole.users).some((user) => ids.has(user))).length,
+      requirements: count("requirements"),
+      inside: members.length - 1,
+    };
+    const score = parts.ports + parts.uses + parts.holes + parts.requirements + parts.inside;
+    return { level: score >= COMPLEX_FROM ? "complex" : score >= MID_FROM ? "mid" : "simple", score, parts };
   });
+}
+
+/** A complexity's parts in words, the empty ones left out: `1 port · 8 used ports · 17 requirements`. */
+function partsInWords(parts) {
+  const counted = (count, one, many) => (count === 0 ? null : `${count} ${count === 1 ? one : many}`);
+  return [
+    counted(parts.ports, "port", "ports"),
+    counted(parts.uses, "used port", "used ports"),
+    counted(parts.holes, "tbd hole", "tbd holes"),
+    counted(parts.requirements, "requirement", "requirements"),
+    counted(parts.inside, "node inside", "nodes inside"),
+  ]
+    .filter((part) => part)
+    .join(" · ");
 }
 
 /** The direct child of `scope` that contains node `index` (itself included), or undefined if it lies outside. */
@@ -137,7 +175,7 @@ export function scopeView(scene, scope) {
         node: index,
         name: node.name,
         side: 0,
-        state: scene.states[index] ?? "planned",
+        complexity: scene.complexity[index]?.level ?? "simple",
         abstract: node.abstract,
         dome: parts > 0,
         parts,
@@ -283,15 +321,20 @@ function levelIslands(items, lanes) {
 }
 
 /**
- * What the click panel shows for the node at `index`: its state, then its NodeSpec fields only, the deprecation
- * note, purpose, ports, requirements and source, in that order.
+ * What the click panel shows for the node at `index`: its complexity with the parts it was estimated from, then its
+ * NodeSpec fields only, the deprecation note, purpose, ports, requirements and source, in that order.
  */
 export function detailsOf(scene, index) {
   const node = scene.nodes[index];
+  const complexity = scene.complexity[index];
   const kind = node.external ? `external ${node.externalType ?? "api"}` : node.abstract ? "contract" : null;
   return {
     name: node.name,
-    state: scene.states[index],
+    complexity: complexity && {
+      level: complexity.level,
+      score: complexity.score,
+      parts: partsInWords(complexity.parts),
+    },
     deprecated: deprecationOf(node),
     kind,
     purpose: node.purpose,
