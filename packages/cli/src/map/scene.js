@@ -340,6 +340,7 @@ export function detailsOf(scene, index) {
     why: node.why ?? null,
     sections: [
       {
+        kind: "ports",
         label: "Ports",
         rows: (node.ports ?? []).map((port) => ({
           name: port.name,
@@ -349,13 +350,14 @@ export function detailsOf(scene, index) {
         })),
       },
       {
+        kind: "requirements",
         label: "Requirements",
         rows: (node.requirements ?? []).map((requirement) => ({
           name: requirement.kind === "constraint" ? `${requirement.id} (constraint)` : requirement.id,
           meta: requirement.text,
         })),
       },
-      { label: "Source", rows: (node.source ?? []).map((glob) => ({ name: glob, meta: "" })) },
+      { kind: "source", label: "Source", rows: listOf(node.source) },
     ],
   };
 }

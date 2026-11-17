@@ -4238,13 +4238,13 @@ export const VIEWER_HTML: string = `<!doctype html>
 :root{
   --bg-a:#f4f3ef;--bg-b:#e4e3dd;
   --panel:rgba(255,255,255,0.88);--panel-border:rgba(20,20,19,0.10);
-  --text:#1d1d1b;--text-2:#5a5955;--shadow:0 2px 10px rgba(20,30,40,0.08);--accent:#185FA5;
+  --text:#1d1d1b;--text-2:#5a5955;--shadow:0 2px 10px rgba(20,30,40,0.08);--accent:#185FA5;--danger:#A32D2D;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg-a:#1f2120;--bg-b:#121313;
     --panel:rgba(36,36,34,0.88);--panel-border:rgba(255,255,255,0.10);
-    --text:#f1efe8;--text-2:#b4b2a9;--shadow:0 2px 10px rgba(0,0,0,0.35);--accent:#85B7EB;
+    --text:#f1efe8;--text-2:#b4b2a9;--shadow:0 2px 10px rgba(0,0,0,0.35);--accent:#85B7EB;--danger:#F09595;
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -4340,6 +4340,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 .d-copy:focus-visible,.d-close:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
 #details .d-copy svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .d-copy.done{color:var(--accent)}
+.d-copy.fail{color:var(--danger)}
 .d-none{color:var(--text-2);padding:5px 0;border-top:0.5px solid var(--panel-border)}
 .d-link{cursor:pointer;color:var(--accent)}
 .d-link:hover{text-decoration:underline}
@@ -4666,13 +4667,17 @@ function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 // a source path on one line, cut at the front so its file name stays, the whole path on hover and a copy button
 const COPY_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 const DONE_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const FAIL_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>';
 async function copyText(text){try{await navigator.clipboard.writeText(text);return true;}catch{}
   const ta=make('textarea',null,text,document.body);ta.setAttribute('readonly','');ta.style.cssText='position:fixed;opacity:0;pointer-events:none';ta.select();
   let ok=false;try{ok=document.execCommand('copy');}catch{}ta.remove();return ok;}
 function sourceRow(path,ul){const li=make('li','d-src',null,ul);const p=make('span','d-path',null,li);p.title=path;make('bdi',null,path,p);
   const b=make('button','d-copy',null,li);b.type='button';b.innerHTML=COPY_ICON;b.title='Copy path';b.setAttribute('aria-label','Copy '+path);
-  b.onclick=async e=>{e.stopPropagation();const ok=await copyText(path);if(!ok){say('Could not copy '+path);return;}
-    b.innerHTML=DONE_ICON;b.classList.add('done');say('Copied '+path);clearTimeout(b._t);b._t=setTimeout(()=>{b.innerHTML=COPY_ICON;b.classList.remove('done');},1200);};}
+  let reset=0;const show=(icon,cls,title,ms)=>{clearTimeout(reset);b.innerHTML=icon;b.className='d-copy '+cls;b.title=title;
+    reset=setTimeout(()=>{b.innerHTML=COPY_ICON;b.className='d-copy';b.title='Copy path';},ms);};
+  // a failed copy shows on the button and selects the whole path, so Ctrl/⌘C still copies it
+  b.onclick=async()=>{if(await copyText(path)){show(DONE_ICON,'done','Copied',1200);say('Copied '+path);return;}
+    getSelection().selectAllChildren(p);show(FAIL_ICON,'fail','Could not copy: the path is selected, press '+(APPLE?'⌘C':'Ctrl C'),4000);say('Could not copy '+path+'; it is selected');};}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
 const mk=(tag,cls,txt,parent)=>make(tag,cls,txt,parent||d);
@@ -4684,8 +4689,8 @@ if(info.deprecated)mk('p','d-purpose','Deprecated: '+info.deprecated);
 mk('p','d-purpose',info.what);
 if(info.why)mk('p','d-why','Why: '+info.why);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{
-  if(sec.label==='Source'){sourceRow(r.name,ul);return;}
-  const li=mk('li',sec.label==='Ports'&&selPorts.includes(r.name)?'d-hit':null,null,ul);mk('span','d-row-name',r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
+  if(sec.kind==='source'){sourceRow(r,ul);return;}
+  const li=mk('li',sec.kind==='ports'&&selPorts.includes(r.name)?'d-hit':null,null,ul);mk('span','d-row-name',r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
 function setLaneLook(l,col,a){l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
@@ -5185,6 +5190,7 @@ export function detailsOf(scene, index) {
     why: node.why ?? null,
     sections: [
       {
+        kind: "ports",
         label: "Ports",
         rows: (node.ports ?? []).map((port) => ({
           name: port.name,
@@ -5194,13 +5200,14 @@ export function detailsOf(scene, index) {
         })),
       },
       {
+        kind: "requirements",
         label: "Requirements",
         rows: (node.requirements ?? []).map((requirement) => ({
           name: requirement.kind === "constraint" ? \`\${requirement.id} (constraint)\` : requirement.id,
           meta: requirement.text,
         })),
       },
-      { label: "Source", rows: (node.source ?? []).map((glob) => ({ name: glob, meta: "" })) },
+      { kind: "source", label: "Source", rows: listOf(node.source) },
     ],
   };
 }

@@ -111,6 +111,14 @@ export const Viewer = node({
       demonstrates: ["R9"],
     },
     {
+      text: "scene.js under bun: the click panel's sections are kinds ports, requirements and source, the source rows the paths as written.",
+      demonstrates: ["R9"],
+    },
+    {
+      text: "By hand, headless Chromium: a node with a long unbroken name, a long port name, a long requirement id, a URL in its deprecation note and a deeply nested source path → no horizontal scroll at 1280 and 390px wide; each port and requirement shows its name above its details; the path shows its file name, whole on hover; its button copies the whole path; with the clipboard refused the button shows the failure and the path is selected.",
+      demonstrates: ["R9"],
+    },
+    {
       text: "scene.js under bun: two tbd placeholders with one description in one scope → two holes, each with its sorted user ids, so their saved positions stay apart.",
       demonstrates: ["R7", "R8"],
     },

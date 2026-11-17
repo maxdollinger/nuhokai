@@ -189,14 +189,15 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
     why: orders.why ?? null,
     sections: [
       {
+        kind: "ports",
         label: "Ports",
         rows: [
           { name: "place", meta: "call · Place an order" },
           { name: "cancelled", meta: "event · An order was cancelled" },
         ],
       },
-      { label: "Requirements", rows: [] },
-      { label: "Source", rows: [] },
+      { kind: "requirements", label: "Requirements", rows: [] },
+      { kind: "source", label: "Source", rows: [] },
     ],
   });
   expect(detailsOf(scene, indexOf("Postgres"))).toMatchObject({ kind: "external db", complexity: null });
@@ -211,7 +212,17 @@ test("the click panel shows a node without source, as a world file may hold one"
   const { source: _source, ...unsourced } = orders;
   const details = detailsOf(mapScene({ ...world, nodes: [unsourced as typeof orders] }), 0);
 
-  expect(details.sections.at(-1)).toEqual({ label: "Source", rows: [] });
+  expect(details.sections.at(-1)).toEqual({ kind: "source", label: "Source", rows: [] });
+});
+
+test("the click panel lists a node's source paths as written, for the viewer to cut and copy", () => {
+  const orders = world.nodes[indexOf("Orders")];
+  if (!orders) throw new Error("no Orders");
+  const source = ["src/orders/deeply/nested/place-order.ts", "src/**/*.generated.ts"];
+  const details = detailsOf(mapScene({ ...world, nodes: [{ ...orders, source }] }), 0);
+
+  expect(details.sections.map((section) => section.kind)).toEqual(["ports", "requirements", "source"]);
+  expect(details.sections.at(-1)).toEqual({ kind: "source", label: "Source", rows: source });
 });
 
 test("complexity is estimated from the spec: ports, uses outside itself, holes, requirements, nodes inside", () => {

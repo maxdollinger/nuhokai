@@ -150,11 +150,20 @@ export interface Details {
   readonly what: string;
   /** Why the node exists; null when it has none (an external may leave it out). */
   readonly why: string | null;
-  readonly sections: readonly {
-    readonly label: string;
-    readonly rows: readonly { readonly name: string; readonly meta: string }[];
-  }[];
+  /** Each section's kind says how the viewer draws it; its label is only the heading. */
+  readonly sections: readonly DetailsSection[];
 }
+
+/** A row of ports or requirements: its name, then what it is. */
+export interface DetailsRow {
+  readonly name: string;
+  readonly meta: string;
+}
+
+export type DetailsSection =
+  | { readonly kind: "ports" | "requirements"; readonly label: string; readonly rows: readonly DetailsRow[] }
+  /** The node's source paths and globs, as written. */
+  | { readonly kind: "source"; readonly label: string; readonly rows: readonly string[] };
 
 /** A search result: a node or port by its name, a tbd hole by its description. */
 export interface Hit {
