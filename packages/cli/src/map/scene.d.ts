@@ -177,6 +177,20 @@ export interface Hit {
   readonly port: string | null;
 }
 
+/** Where a double-click on an item lands: the node it stands for, centred in its home scope, its ports marked. */
+export interface Landing {
+  /** The node's parent. */
+  readonly scope: Scope;
+  /** The breadcrumbs to scope. */
+  readonly path: ScopeView["path"];
+  /** The item scope draws for the node: node:<index>. */
+  readonly key: string;
+  /** The item's node; for the open dome's entry, the dome. */
+  readonly node: number;
+  /** The ports the item shows, which the node's details mark: used from here, or the dome's entry ports. */
+  readonly ports: readonly string[];
+}
+
 /** An item a query lights in one scope. */
 export interface Light {
   readonly key: string;
@@ -188,4 +202,5 @@ export function mapScene(world: MapWorld): Scene;
 export function scopeView(scene: Scene, scope: Scope): ScopeView;
 export function detailsOf(scene: Scene, index: number): Details;
 export function search(scene: Scene, query: string): Hit[];
+export function landingOf(scene: Scene, view: ScopeView, key: string): Landing | null;
 export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): Light[];

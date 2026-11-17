@@ -3,7 +3,16 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
-import { detailsOf, lightsFor, type MapWorld, mapScene, type ScopeView, scopeView, search } from "./scene.js";
+import {
+  detailsOf,
+  landingOf,
+  lightsFor,
+  type MapWorld,
+  mapScene,
+  type ScopeView,
+  scopeView,
+  search,
+} from "./scene.js";
 
 const EXAMPLE = join(import.meta.dir, "../../../world/example");
 const root = mkdtempSync(join(tmpdir(), "nuhokai-scene-test-"));
@@ -602,4 +611,35 @@ test("a node found by its name's start ranks with its own port that matches bett
     ["Reload › load", 1],
     ["Reload", 4], // a substring: not promoted
   ]);
+});
+
+test("a double-click lands on the node an item stands for, centred in its own dome, the item's ports marked", () => {
+  const shop = indexOf("Shop");
+  const inShop = scopeView(scene, shop);
+  const top = [{ scope: null, name: "Shop" }];
+  const land = (key: string) => landingOf(scene, inShop, key);
+  expect(land(key("Postgres"))).toEqual({
+    scope: null,
+    path: top,
+    key: key("Postgres"),
+    node: indexOf("Postgres"),
+    ports: ["query"],
+  });
+  expect(land(key("AuditLog"))).toEqual({
+    scope: null,
+    path: top,
+    key: key("AuditLog"),
+    node: indexOf("AuditLog"),
+    ports: [],
+  });
+  expect(land("entry")).toEqual({
+    scope: null,
+    path: top,
+    key: key("Shop"),
+    node: shop,
+    ports: ["placeOrder", "orderHistory"],
+  });
+  expect(land(key("Stock"))).toMatchObject({ scope: shop, key: key("Stock"), ports: [] });
+  expect(land("tbd:0")).toBeNull();
+  expect(land("nothing")).toBeNull();
 });

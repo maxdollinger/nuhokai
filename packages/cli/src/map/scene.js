@@ -555,6 +555,20 @@ export function search(scene, query) {
 }
 
 /**
+ * Where a double-click on an item of `view` lands: the node it stands for (the entry: the open dome) in that node's
+ * home scope, its parent, with the ports the item shows. Null for what is no node: a hole, an id missing from the
+ * world. An island lands where it is; the page opens a dome island instead.
+ */
+export function landingOf(scene, view, key) {
+  const item = view.items.find((entry) => entry.key === key);
+  if (!item) return null;
+  const node = item.kind === "entry" ? view.scope : item.node;
+  if (node === null) return null;
+  const scope = scene.parents[node];
+  return { scope, path: pathTo(scene, scope), key: `node:${node}`, node, ports: [...(item.ports ?? [])] };
+}
+
+/**
  * What stands for each hit in `view`: its own item if drawn there (an island, external or outside proxy), else the
  * island containing it; the open dome and its ports: the entry; a port's node stands for the port; a hole only where
  * it is drawn. One light per item, in hit order, with how many hits from inside it stands for. Subsequence hits light
