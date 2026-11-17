@@ -50,7 +50,11 @@ export const Viewer = node({
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
       id: "R14",
-      text: "Up to 520px wide the view controls are an icon row under the search box, their names kept for screen readers: never under the legend or details.",
+      text: "Up to 520px wide the view controls are an icon row under the search box, their names kept for screen readers: never under the help button or details.",
+    },
+    {
+      id: "R16",
+      text: "No legend on the map: a ? button at the bottom left, or the ? key, opens a modal explaining the map in sections: islands (complexity colours, height, domes, contracts), lanes (call, entry and external, event, dashed, focused), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it; while open, no key reaches the map.",
     },
     {
       id: "R11",
@@ -157,6 +161,10 @@ export const Viewer = node({
     {
       text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the legend and the details.",
       demonstrates: ["R14"],
+    },
+    {
+      text: "By hand, headless Chromium, light, dark and 390px with touch: no legend; ? (button or key) opens the help, Escape and a backdrop click close it, the map stays in its scope.",
+      demonstrates: ["R16"],
     },
     {
       text: "By hand, headless Chromium, example world: `customer` + Enter → Shop open, the hole and its lanes lit, plain after a click; `reserve` + Enter → reserve marked in Stock's details, then / brings `reserve` back selected; a click on Shop while `stock` is typed clears the query and selects Shop; `stock` dims the rest harder than hover, Shop's label tinted.",
