@@ -8,7 +8,6 @@ export const NodePath = node({
   purpose:
     "Own the one name of a node, its hierarchy path (Check/SpecCheck), which commands print and take: name every " +
     "node of a loaded world, and find the node a typed path names. Pure: no I/O, never loads.",
-  status: "built",
   source: ["src/shared/node-path.ts", "src/shared/node-path.test.ts"],
   ports: {
     nameNodes: {

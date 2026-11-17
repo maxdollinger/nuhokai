@@ -10,7 +10,6 @@ export const Scaffold = node({
   purpose:
     "The program inside Init: inspect the project directory, hand the outcome to Publish, return a Report. " +
     "Owns no data, file or template; never prints.",
-  status: "built",
   source: ["src/init/scaffold.ts"],
   ports: {
     run: {

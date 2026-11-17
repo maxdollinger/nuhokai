@@ -11,7 +11,6 @@ export const LoadWorld = node({
   purpose:
     "Read nuhokai/ without running it into plain data: the world, each node as its NodeSpec placed in the hierarchy " +
     "and its edges, tbd placeholders, and where everything is written. Checks no rule; writes nothing in the project.",
-  status: "building",
   source: ["src/load/**"],
   ports: {
     load: {

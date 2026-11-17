@@ -8,7 +8,6 @@ export const TreeLines = node({
   purpose:
     "Own the tree's text: pick the nodes below a start down to a level and write one line per node, " +
     "path | source | purpose. Pure: never loads, finds a typed path or prints.",
-  status: "built",
   source: ["src/tree/tree-lines.ts", "src/tree/tree-lines.test.ts"],
   ports: {
     render: {

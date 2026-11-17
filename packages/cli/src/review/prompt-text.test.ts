@@ -195,3 +195,56 @@ test("R6: the node's path, its spec file, its files and the example JSON sit ins
   ];
   for (const text of projectText) expect(outside.filter((line) => line.includes(text))).toEqual([]);
 });
+
+test("R7: a deprecated node is named so with its note, and whose it is; a deprecated dependency is marked, not a finding", () => {
+  const plain = render(".", PRINT_TREE);
+  expect(plain.some((line) => line.includes("deprecated"))).toBe(false);
+
+  const own = render(".", {
+    ...PRINT_TREE,
+    deprecated: {
+      note: "use Tree/Print\u001b[2JTree2",
+      by: "Tree/PrintTree",
+      own: true,
+      file: "nuhokai/tree/print-tree.ts",
+      line: 9,
+    },
+  });
+  const node = lineOf(own, "- node: Tree/PrintTree");
+  expect(own.slice(node, node + 6)).toEqual([
+    "- node: Tree/PrintTree",
+    "- spec file: nuhokai/tree/print-tree.ts",
+    "- deprecated: use Tree/Print [2JTree2",
+    "SPEC DATA >>>>>",
+    "",
+    "The node is deprecated: its code is on its way out. Review it all the same, and tell the user it is deprecated, with the note above; the submit command prints it as a warning.",
+  ]);
+
+  const domes = render(".", {
+    ...PRINT_TREE,
+    deprecated: { note: "use Forest", by: "Tree", own: false, file: "nuhokai/tree/tree.ts" },
+  });
+  expect(domes).toContain("- deprecated with Tree: use Forest");
+
+  const [load, ...rest] = PRINT_TREE.uses;
+  if (!load) throw new Error("no uses");
+  const using = render(".", {
+    ...PRINT_TREE,
+    uses: [
+      {
+        ...load,
+        deprecated: [
+          { by: "LoadWorld", note: "use ReadWorld.read" },
+          { by: "Tsgo", note: "use a newer checker" },
+        ],
+      },
+      ...rest,
+    ],
+  });
+  expect(using).toContain(
+    "- LoadWorld: load (source src/load/**; deprecated: use ReadWorld.read; deprecated via Tsgo: use a newer checker): Read nuhokai/.",
+  );
+  expect(using).toContain(
+    "A node marked deprecated should gain no new uses, but the spec still allows this one: code using it is not a finding.",
+  );
+});

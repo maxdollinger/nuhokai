@@ -15,7 +15,6 @@ export const Init = node({
     "Create a repo's world from nothing: nuhokai/ with the example world, CLI-owned tsconfig and embedded " +
     "@nuhokai/world types, so loader and editor work at once. Writes and reports only; never checks, repairs, " +
     "updates or prints. Boundary: run → Scaffold.",
-  status: "built",
   source: ["src/init/**"],
   requirements: [
     {

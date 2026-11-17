@@ -8,7 +8,6 @@ export const Diagnostics = node({
   purpose:
     "Own the finding: built at its place, ordered one way, printed as lines a person or agent can act on alone, " +
     "and the summary under them. Shared by check and review.",
-  status: "building",
   source: ["src/shared/diagnostics.ts", "src/shared/diagnostics.test.ts"],
   ports: {
     format: {

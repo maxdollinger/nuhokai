@@ -1,5 +1,6 @@
 import type { NodeSpec } from "@nuhokai/world/node-spec";
 import type { Listing, LoadedNode, LoadedWorld } from "../../load/load-world.ts";
+import { deprecationOf, deprecationsOfUse } from "../../shared/deprecation.ts";
 import { type Finding, locate, nodeError } from "../../shared/diagnostics.ts";
 import { childrenOf, isAncestor } from "../../shared/node-path.ts";
 import type { Ids } from "./ids.ts";
@@ -13,7 +14,7 @@ interface Place {
 
 /**
  * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
- * leaves to check, built nodes with code. Pure: reads nothing but the world; every violation is one finding.
+ * leaves to check, uses of deprecated nodes. Pure: reads nothing but the world; every violation is one finding.
  */
 export function checkDataRules(
   world: LoadedWorld,
@@ -34,7 +35,7 @@ export function checkDataRules(
     ...siblingNames(world, ids),
     // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
     ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, ids, node))),
-    ...judged.flatMap((node) => builtWithoutSource(node)),
+    ...judged.flatMap((node) => deprecations(world, ids, node)),
     ...judged.flatMap((node) => contracts(world, ids, node, typeErrors)),
   ];
 }
@@ -319,16 +320,49 @@ function portNames(spec: NodeSpec): string[] {
   return (spec.ports ?? []).map((port) => port.name);
 }
 
-/** SpecCheck R9: a building or built node, not external or abstract, lists at least one source entry. */
-function builtWithoutSource(node: LoadedNode): Finding[] {
-  const spec = node.spec;
-  if (spec.external || spec.abstract || (spec.status !== "building" && spec.status !== "built")) return [];
-  if (!Array.isArray(spec.source) || spec.source.length > 0) return [];
-  return [
-    nodeError(
-      node,
-      `a ${spec.status} node lists no source`,
-      'list its code in source, e.g. ["src/orders/**"], or set its status to "planned"',
-    ),
-  ];
+/**
+ * SpecCheck R9: a uses edge meeting a deprecation is a warning at the edge, with the note: the target's own or its
+ * dome's, a deprecated child a dome port delegates to, or a deprecated contract an inherited port comes from (one per
+ * node carrying a note, naming the ports that lead to it). Implementing a deprecated contract is a warning at the node.
+ * None when the node is under a deprecation itself. A blank note is an error; one that is not a string is tsc's.
+ */
+function deprecations(world: LoadedWorld, ids: Ids, node: LoadedNode): Finding[] {
+  const findings: Finding[] = [];
+  const note: unknown = node.spec.deprecated;
+  if (typeof note === "string" && note.trim() === "") {
+    findings.push(
+      nodeError(
+        node,
+        "deprecated is blank",
+        'say what to use instead, e.g. deprecated: "use Stock.reserve", or drop the field',
+      ),
+    );
+  }
+  // A deprecated node, or one in a deprecated dome, is on its way out with what it uses.
+  if (deprecationOf(world, node)) return findings;
+  const warn = (line: number | undefined, rule: string, fix: string) =>
+    findings.push({ severity: "warning", ...locate({ file: node.file, line }), node: node.path, rule, fix });
+  for (const [index, edge] of (node.spec.edges ?? []).entries()) {
+    const target = ids.byId(edge.to);
+    if (!target) continue;
+    if (edge.kind === "implements") {
+      const deprecation = deprecationOf(world, target);
+      if (deprecation) {
+        warn(
+          node.line,
+          `${node.spec.name} implements ${target.spec.name}, but ${deprecation.by.path} is deprecated: ${deprecation.note}`,
+          "implement what the note names instead, or drop it from implements",
+        );
+      }
+      continue;
+    }
+    for (const deprecation of deprecationsOfUse(world, target, edge.port)) {
+      warn(
+        node.places?.uses[index] ?? node.line,
+        `${usesEdge(node, target.spec.name, deprecation.ports)}, but ${deprecation.by.path} is deprecated: ${deprecation.note}`,
+        "use what the note names instead, or drop the edge",
+      );
+    }
+  }
+  return findings;
 }

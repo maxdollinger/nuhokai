@@ -16,20 +16,6 @@ export type NodeId = string;
  */
 export type Shape = string;
 
-// ─── Status ──────────────────────────────────────────────────────────────
-
-/**
- * planned:    designed, no code yet
- * building:   implementation in progress
- * built:      implemented and matching this spec
- * deprecated: still exists, should no longer gain dependents
- *
- * "planned" and "building" are set by the game; "built" and "deprecated"
- * only manually. At the end of a quest, every node the quest created or
- * changed is set to "building", including built nodes. Any change counts.
- */
-export type NodeStatus = "planned" | "building" | "built" | "deprecated";
-
 // ─── Ports ───────────────────────────────────────────────────────────────
 
 interface PortBase {
@@ -161,13 +147,9 @@ export interface NodeSpec {
   /** Why this node exists: the reason for the boundary, and what it deliberately does not do. */
   purpose: string;
   /**
-   * Lifecycle of the node. Applies to externals too: an external may still need to be built.
-   * Independent of the parent's status, e.g. a built parent can have planned children.
-   */
-  status: NodeStatus;
-  /**
    * Where the node lives in code: paths or globs relative to the project directory (the folder holding nuhokai/),
    * e.g. ["src/billing/**"]. Empty while there is no code yet; always empty for externals.
+   * There is no status field: whether a node is built is read from here, never claimed.
    */
   source: string[];
 
@@ -176,6 +158,14 @@ export interface NodeSpec {
   ports?: Port[];
   /** Outgoing relations only. Parent-level edges are never stored. */
   edges?: Edge[];
+
+  /**
+   * Set when the node should no longer gain dependents: the note says why and what to use instead,
+   * e.g. "use Stock.reserve". Not blank. Any node may carry it, an external, a contract or a dome too.
+   * The node still exists and still works; `check` warns about every `uses` edge that reaches it, also through a
+   * dome port or an inherited port, and about every node implementing it.
+   */
+  deprecated?: string;
 
   /** Groups sibling islands; shown as a pillar. Only meaningful among siblings. */
   group?: string;

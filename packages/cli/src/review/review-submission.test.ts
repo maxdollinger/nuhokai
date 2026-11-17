@@ -6,7 +6,7 @@ import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
 import { runReviewPrompt } from "./review-prompt.ts";
 import { runReviewSubmission } from "./review-submission.ts";
-import { named, ROOT } from "./test-world.ts";
+import { lineIn, named, ROOT } from "./test-world.ts";
 
 const CODE = named("src/tree/print-tree.ts");
 const TEST = named("src/tree/print-tree.test.ts");
@@ -112,10 +112,7 @@ test("R2: the node must be one, and reviewable: a typo or a dome is one line, in
 });
 
 test("R2, R4: valid findings print as check prints them, in its order, then the summary; an error fails", async () => {
-  const r3 =
-    readFileSync(SPEC, "utf8")
-      .split("\n")
-      .findIndex((line) => line.includes('id: "R3"')) + 1;
+  const r3 = lineIn(SPEC, 'id: "R3"');
   expect(
     await submitted(
       review([
@@ -168,4 +165,33 @@ test("R2, R4: a file whose name holds spaces is cited and printed as the prompt 
   expect(splitReport(await runReviewSubmission(root, cite(3))).err).toEqual([
     `findings[0].line 3 is past the end of ${file}, which has 2 lines; cite a line within it`,
   ]);
+});
+
+test("R5: reviewing a deprecated node is one warning with its note beside the findings; it never fails the review", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-review-submission-"));
+  temps.push(root);
+  expect((await runInit(root)).outcome).toBe("ok");
+  const spec = join(root, "nuhokai/example.ts");
+  writeFileSync(
+    spec,
+    readFileSync(spec, "utf8").replace("source: [],", 'deprecated: "use Greeter.greet",\n  source: ["src/**"],'),
+  );
+  mkdirSync(join(root, "src"));
+  writeFileSync(join(root, "src/example.ts"), "export {};\n");
+  const line = lineIn(spec, "export const Example");
+  const warning = `warning: <root>/nuhokai/example.ts:${line}: Example: the reviewed node is deprecated: use Greeter.greet; its code is on its way out: weigh the findings accordingly, or review what the note names instead`;
+  const submit = async (findings: unknown[]) =>
+    splitReport(await runReviewSubmission(root, JSON.stringify({ node: "Example", findings })), root);
+
+  expect(await submit([])).toEqual({ outcome: "ok", out: [warning, "ok: 0 errors, 1 warning"], err: [] });
+  const failed = await submit([
+    { category: "against-spec", specItem: "purpose", file: `${root}/src/example.ts`, line: 1, evidence: "x" },
+  ]);
+  expect(failed.outcome).toBe("failed");
+  expect(failed.out).toEqual([
+    warning,
+    "error: <root>/src/example.ts:1: Example: purpose; x",
+    "failed: 1 error, 1 warning",
+  ]);
+  expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain("- deprecated: use Greeter.greet");
 });

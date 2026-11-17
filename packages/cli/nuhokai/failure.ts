@@ -7,7 +7,6 @@ export const Failure = node({
     "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, flattening any " +
     "thrown value to one line, and the Report every command returns: its outcome and its result and failure " +
     "lines, and the helpers that build it. Classifies, formats and shapes only; never prints.",
-  status: "built",
   source: [
     "src/shared/failure.ts",
     "src/shared/failure.test.ts",

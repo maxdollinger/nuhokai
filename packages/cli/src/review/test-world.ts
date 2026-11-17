@@ -1,4 +1,5 @@
 /** For the review tests: the CLI's own project directory named from the cwd, as a command names it. */
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { LoadedWorld } from "../load/load-world.ts";
 
@@ -13,4 +14,13 @@ export function at(world: LoadedWorld, path: string): number {
   const node = world.nodes.find((candidate) => candidate.path === path);
   if (!node) throw new Error(`no ${path}`);
   return node.index;
+}
+
+/** The line of `file` first holding `text`, from 1; 0 when none does. */
+export function lineIn(file: string, text: string): number {
+  return (
+    readFileSync(file, "utf8")
+      .split("\n")
+      .findIndex((line) => line.includes(text)) + 1
+  );
 }

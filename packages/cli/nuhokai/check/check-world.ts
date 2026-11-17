@@ -10,7 +10,6 @@ import { TypeCheck } from "./type-check.ts";
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
   purpose: "Load the world once, run TypeCheck, then SpecCheck on it, then CodeCheck.",
-  status: "building",
   source: ["src/check/check-world.ts"],
   ports: {
     run: {

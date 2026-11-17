@@ -12,7 +12,6 @@ export const Contract = node({
   id: "01a16dd2-bc70-7000-8000-000000000010",
   abstract: true,
   purpose: "c",
-  status: "planned",
   source: [],
   ports: { c: { kind: "call", purpose: "c" } },
 }).edges({});
@@ -20,7 +19,6 @@ export const Contract = node({
 export const B = node({
   id: "01a16dd2-bc70-7000-8000-000000000011",
   purpose: "b",
-  status: "planned",
   source: [],
   ports: { y: { kind: "call", purpose: "y" } },
 }).edges({});
@@ -36,7 +34,6 @@ const hole = tbd.call({ description: "not designed yet" });
 export const A = node({
   id,
   purpose: "a",
-  status: "planned",
   source: [],
   ports: { x: { kind: "call", purpose: "x" } },
   implements: () => [Contract],
@@ -45,14 +42,13 @@ export const A = node({
 export const I = node({
   id: "01a16dd2-bc70-7000-8000-000000000002",
   purpose: "i",
-  status: "planned",
   source: [],
 }).edges({ uses: () => [inherited(A, Contract.c)] });
 
 // @ts-expect-error typo
-export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000003", purpose: "t", status: "planned", source: [] }).edges({ uses: () => [B.yy] });
+export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000003", purpose: "t", source: [] }).edges({ uses: () => [B.yy] });
 // @ts-expect-error spread drops the brand
-export const F = node({ id: "01a16dd2-bc70-7000-8000-000000000004", purpose: "f", status: "planned", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
+export const F = node({ id: "01a16dd2-bc70-7000-8000-000000000004", purpose: "f", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
 
 export default defineWorld({ id: "w", name: "w", source: [], children: [A, I] });
 `;

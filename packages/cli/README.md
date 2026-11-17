@@ -72,7 +72,7 @@ existing `nuhokai/` directory is left untouched: it prints one line and exits 0,
 the format rejects an empty world, and it shows a port, a `tbd` port and a `uses` edge to copy from.
 
 `check` loads the world once, then type-checks it with the CLI's pinned checker and `nuhokai/tsconfig.json` beside
-the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, the rules tsc leaves to `check`,
+the spec rules on the loaded world (unique ids, orphans, `uses` scope, sibling names, uses of deprecated nodes, the rules tsc leaves to `check`,
 and every `source` entry against the project's files, a glob never listing through a symlink to a directory, as git does); the code check runs only when neither found an error, and finds nothing
 yet. Every finding is one stdout line, `<severity>: <file>:<line>: <node>: <rule>; <fix>`, naming a node by its path
 from the world; there is no column, the line is where an editor or agent jumps, and findings that would print the same
@@ -82,7 +82,7 @@ types without their arguments (`'NodeShape'`) and a long object literal as `'{ �
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
 format's functions among it), and the type check allows imports only from `@nuhokai/world` and other world files and
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
-exits 1 on any error and 0 otherwise; orphans are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
+exits 1 on any error and 0 otherwise; orphans, `uses` edges reaching a deprecated node (also through a dome port or an inherited port) and implementors of a deprecated contract are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
 or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
 load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file and line (where a type-check finding
 sits at that very position, one of the two: that finding when it says what to do, else the loader's)
@@ -91,7 +91,9 @@ so every reason the check failed is in one list in one format.
 
 `map` loads the world as it reads, without running `check`, and writes `nuhokai/.generated/map.html`. The map is
 one self-contained HTML file that opens offline, showing islands, domes, edges and `tbd` placeholders, each island
-coloured by its status. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
+coloured by its complexity in three steps (simple, mid, complex). The map estimates it from the spec alone: the ports a
+node offers, the ports and `tbd` holes it uses outside itself, its requirements and the nodes inside it, so a dome is
+judged as one component at its own level. A search box (`/` or Ctrl/⌘K) finds nodes and ports by name (`stock reserve` names a port
 with its node) and `tbd` placeholders by export name or description in every scope, lights them in the open scope and jumps to one
 with Enter or a click. It never opens a browser. The map remembers moved islands per browser, under the world's id
 and by node id, so a regenerated map keeps them and two projects' maps never share them.
@@ -114,7 +116,9 @@ went wrong.
 `review` lets the user's own coding agent review one leaf's code against its spec, in two steps that keep no state
 and call no model. `nuhokai review Tree/PrintTree` prints a prompt for the agent: the node's spec items, its files,
 what it may use, and the JSON to answer with. The agent pipes that JSON to `nuhokai review --submit`, which validates
-it and prints each finding as `check` does, then the summary. It exits 0 when the review passes (warnings allowed), 1
+it and prints each finding as `check` does, then the summary. A deprecated node stays reviewable: the prompt names its
+note (its own, or that of a dome around it) and marks each deprecated dependency, and `--submit` adds one warning that
+the reviewed node is deprecated. It exits 0 when the review passes (warnings allowed), 1
 on an `against-spec` finding or when the world does not load, and 2 for an invalid submission, a node that cannot be
 reviewed or a misused flag; `nuhokai review --help` has the details. It is a dev-loop tool, not a CI gate, since
 nothing proves a review ran.

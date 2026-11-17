@@ -9,7 +9,6 @@ export const Tree = node({
     "Return a Report of the world's node hierarchy, one line per node with its path, source and purpose, so " +
     "agents and people find a node step by step without reading the world, and copy its path into other commands. " +
     "Never checks, writes or prints.",
-  status: "building",
   source: ["src/tree/**"],
   requirements: [
     {
@@ -73,7 +72,7 @@ export const Tree = node({
       rejected: [{ option: "The whole tree by default", why: "Floods the context the command exists to save." }],
     },
     {
-      decision: "No ports, status or edges on the line, for now.",
+      decision: "No ports or edges on the line, for now.",
       why: "Path, source and purpose find a node; add port names if agents pick the wrong nodes while dogfooding (MAX-37).",
     },
   ],

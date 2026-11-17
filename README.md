@@ -27,7 +27,6 @@ import { node } from "@nuhokai/world";
 export const Stock = node({
   id: "01a16dd2-bc2d-708e-89cb-3a9da2e0550d",
   purpose: "Counts what is on the shelf and holds reservations.",
-  status: "built",
   source: ["src/stock/**"],
   ports: { reserve: { kind: "call", purpose: "Reserve items for an order" } },
 }).edges({});
@@ -35,7 +34,6 @@ export const Stock = node({
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1",
   purpose: "Owns orders from checkout to delivery; does not know how stock is counted.",
-  status: "planned",
   source: ["src/orders/**"],
   ports: { place: { kind: "call", purpose: "Place an order" } },
 }).edges({
@@ -74,7 +72,7 @@ failed: 2 errors, 0 warnings
 - **A spec per component.** Purpose, ports, requirements and design decisions sit next to the code. `nuhokai review`
   has your agent check a component's code against them.
 - **A map of the real thing.** `nuhokai map` writes a self-contained HTML file: a searchable 3D graph of components,
-  dependencies, build status and the parts not designed yet.
+  dependencies, how complex each component is and the parts not designed yet.
 - **No toolchain.** One binary with its own type checker. No `node_modules`, no build step; the files are read
   statically and never executed.
 

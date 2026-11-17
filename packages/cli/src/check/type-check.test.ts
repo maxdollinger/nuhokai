@@ -49,11 +49,10 @@ test("R2: a cast to any and a @ts-expect-error line are two errors; a call is Lo
     "nuhokai/dome.ts": `import { node } from "@nuhokai/world";
 import { Example } from "./example.ts";
 
-export const Contract = node({ id: "c", purpose: "p", status: "planned", source: [], abstract: true }).edges({});
+export const Contract = node({ id: "c", purpose: "p", source: [], abstract: true }).edges({});
 export const Dome = node({
   id: "dome",
   purpose: "p",
-  status: "planned",
   source: [],
   children: [Contract as any, Example],
   ports: {},
@@ -64,8 +63,8 @@ export const read = Reflect.get(Dome, "$def");
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/dome.ts:10: world files use no cast; it bypasses the rules tsc checks; drop the cast and fix the type error",
-    "error: nuhokai/dome.ts:13: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
+    "error: nuhokai/dome.ts:9: world files use no cast; it bypasses the rules tsc checks; drop the cast and fix the type error",
+    "error: nuhokai/dome.ts:12: world files use no @ts-expect-error directive; it hides what tsc reports; drop the directive and fix the error",
   ]);
 });
 
@@ -73,7 +72,7 @@ test("R2: as const is no cast", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
 export const ports = { run: { kind: "call", purpose: "Run" } } as const;
-export const A = node({ id: "a", purpose: "p", status: "planned", source: [], ports }).edges({});
+export const A = node({ id: "a", purpose: "p", source: [], ports }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([]);
@@ -108,11 +107,11 @@ export { later } from "./example.ts";
 test("R4: an error about a Forbidden<…> is its message alone; other types are cut to their names", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
-export const Draft = node({ id: "a1", purpose: "p", status: "planned", source: [], ports: {} });
-export const Dome = node({ id: "a2", purpose: "p", status: "planned", source: [], children: [Draft] }).edges({});
-export const Named = node({ id: "a3", purpose: "p", status: "planned", source: [], children: ["Draft"] }).edges({});
-export const Typed = node({ id: "a4", purpose: "p", status: "planned", source: [], ports: {}, externalType: "api" }).edges({});
-export const Odd = node({ id: "a5", purpose: "p", status: "planned", source: [], ports: {}, purpos: "x" }).edges({});
+export const Draft = node({ id: "a1", purpose: "p", source: [], ports: {} });
+export const Dome = node({ id: "a2", purpose: "p", source: [], children: [Draft] }).edges({});
+export const Named = node({ id: "a3", purpose: "p", source: [], children: ["Draft"] }).edges({});
+export const Typed = node({ id: "a4", purpose: "p", source: [], ports: {}, externalType: "api" }).edges({});
+export const Odd = node({ id: "a5", purpose: "p", source: [], ports: {}, purpos: "x" }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([
@@ -126,8 +125,8 @@ export const Odd = node({ id: "a5", purpose: "p", status: "planned", source: [],
 test("R4: a quote inside a string literal type ends no type; a long object type tsc spells out is { … }", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
-export const A = node({ id: "a", status: "planned", source: [], ports: { hi: { kind: "call", purpose: "Say the user's hello" } } }).edges({});
-export const B = node({ id: "b", purpose: "the world's <best> & {last}", status: "planned", source: [], ports: {}, bogus: 1 }).edges({});
+export const A = node({ id: "a", source: [], ports: { hi: { kind: "call", purpose: "Say the user's hello" } } }).edges({});
+export const B = node({ id: "b", purpose: "the world's <best> & {last}", source: [], ports: {}, bogus: 1 }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([
@@ -149,8 +148,8 @@ test("R4: tsc's advice to change the library or install types gives way to the w
 test("R5: a file that does not parse is its first syntax error alone; R2 refuses an import once, without tsc's", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
-export const A = node({ id: "a", purpose: "unterminated, status: "planned", source: [] }).edges({});
-export const B = node({ id: "b", purpose: "p", status: "planned", source: [] }).edges({ uses: () => [it] });
+export const A = node({ id: "a", purpose: "unterminated, group: "core", source: [] }).edges({});
+export const B = node({ id: "b", purpose: "p", source: [] }).edges({ uses: () => [it] });
 `,
     "nuhokai/b.ts": 'import { pad } from "left-pad";\nexport const b = pad;\n',
   });

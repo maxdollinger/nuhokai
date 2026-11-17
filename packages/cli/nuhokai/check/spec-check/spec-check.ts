@@ -7,7 +7,6 @@ import { SourceRules } from "./source-rules.ts";
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
   purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
-  status: "building",
   source: ["src/check/spec-check/**"],
   requirements: [
     {
@@ -41,7 +40,7 @@ export const SpecCheck = node({
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
     {
       id: "R9",
-      text: "A node with status building or built, not external or abstract, lists at least one source entry.",
+      text: "A uses edge meeting a deprecation (Deprecation.deprecationsOfUse: the target's own note or a dome's around it, a deprecated child a dome port delegates to, or the deprecated contract of an inherited port) is a warning at the edge, naming the ports leading there, the node carrying the note and the note; implementing a deprecated contract is a warning at the node. Never an error; none when the node is under a deprecation itself. A blank deprecated is an error.",
     },
     {
       id: "R10",
@@ -86,7 +85,7 @@ export const SpecCheck = node({
       demonstrates: ["R3", "R8"],
     },
     {
-      text: "A built leaf with source [] → error naming the node; the same planned, or an external, passes.",
+      text: "Orders uses Stock.reserve, Stock deprecated with 'use Warehouse.reserve' → one warning at the edge's line carrying the note, exit 0; Orders deprecated too → none; deprecated: '  ' → error. Shelf implements deprecated Store → a warning at Shelf; User uses inherited(Shelf, Store.keep) and Box.run delegating to deprecated Inner → one warning each, naming Store and Box/Inner.",
       demonstrates: ["R9"],
     },
     {

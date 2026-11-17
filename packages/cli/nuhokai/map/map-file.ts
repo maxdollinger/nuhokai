@@ -9,7 +9,6 @@ export const MapFile = node({
   id: "01a179c9-f7cf-779b-98cd-d973d9c86279",
   purpose:
     "Own the map file: Viewer's page with the loaded world as its one data block and three.js inlined, written to one path. Never loads, checks, draws or picks the project directory.",
-  status: "building",
   source: ["src/map/map-file.ts"],
   ports: {
     write: {

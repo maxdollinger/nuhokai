@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
 import { type Scope, scopeAt } from "./review-scope.ts";
-import { named, ROOT } from "./test-world.ts";
+import { lineIn, named, ROOT } from "./test-world.ts";
 
 const temps: string[] = [];
 
@@ -98,7 +98,7 @@ test("R3: a uses edge to an orphan is listed by its name, without a node", async
   writeFileSync(
     file,
     `${readFileSync(file, "utf8").replace("uses: () => [later]", "uses: () => [later, Lost.run]")}
-export const Lost = node({ id: "lost", purpose: "Listed nowhere.", status: "planned", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
+export const Lost = node({ id: "lost", purpose: "Listed nowhere.", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
 `,
   );
   expect((await scoped(root, "Example")).uses).toEqual([{ name: "Lost", ports: ["run"] }]);
@@ -109,4 +109,36 @@ test("R6: a path naming no node → its invalid Report; no world → thrown", as
   const empty = mkdtempSync(join(tmpdir(), "nuhokai-review-scope-"));
   temps.push(empty);
   await expect(scopeAt(empty, "Tree/PrintTree")).rejects.toThrow("no nuhokai/");
+});
+
+test("R8, R3: the node's own deprecation, else its dome's, with where that node is written; a deprecated target carries its note", async () => {
+  const root = await example('["src/**"]');
+  const file = join(root, "nuhokai/example.ts");
+  const spec = readFileSync(file, "utf8");
+  expect((await scoped(root, "Example")).deprecated).toBeUndefined();
+
+  writeFileSync(file, spec.replace("source: [", 'deprecated: " use Greeter ",\n  source: ['));
+  const line = lineIn(file, "export const Example");
+  expect((await scoped(root, "Example")).deprecated).toEqual({
+    note: "use Greeter",
+    by: "Example",
+    own: true,
+    file,
+    line,
+  });
+
+  writeFileSync(
+    file,
+    `${spec.replace("uses: () => [later]", "uses: () => [later, Old.run]")}
+export const Old = node({ id: "old", purpose: "Old.", deprecated: "use New.run", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
+export const Box = node({ id: "box", purpose: "Box.", deprecated: "the box goes", source: [], children: [Example, Old], ports: {} }).edges({});
+`,
+  );
+  const index = join(root, "nuhokai/index.ts");
+  writeFileSync(index, readFileSync(index, "utf8").replaceAll("Example", "Box"));
+  const scope = await scoped(root, "Box/Example");
+  expect(scope.deprecated).toMatchObject({ note: "the box goes", by: "Box", own: false, file });
+  expect(scope.uses).toMatchObject([
+    { name: "Old", ports: ["run"], deprecated: [{ by: "Box/Old", note: "use New.run" }] },
+  ]);
 });

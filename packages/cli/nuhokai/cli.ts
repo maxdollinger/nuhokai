@@ -13,7 +13,6 @@ export const Cli = node({
   purpose:
     "The command surface: parse argv, answer usage and help, run the command's node and print its Report. Owns the " +
     "exit codes and is the only node that touches the terminal; implements no command.",
-  status: "building",
   source: [
     "src/bin.ts",
     "src/bin.test.ts",

@@ -4372,9 +4372,8 @@ const SLAB=DARK?0x5c5d57:0xFFFFFF,EDGE=DARK?0xf1efe8:0x2c2c2a,GROUND=DARK?0x1b1d
 const LITLAB=DARK?0x85B7EB:0xC9DEF4;
 const LANEC=DARK?0xC3C2B7:0x6d6b67,CORAL=0xD85A30,GREEN=0x639922,ORANGE=0xE8932A,VIOLET=DARK?0xA59EF0:0x7F77DD,GHOST=DARK?0x9c9a91:0x8a8880,PIT=DARK?0x050606:0x5f5e5a;
 const EXTC=0xEFB860,EXTD=0xC98A2E,EXTPAD=DARK?0x5a4724:0xC4A570;
-// island colour = status: top and band, tuned per theme so every status stands off the board
-const TOP=DARK?{planned:0x8792AA,building:0x3F8FE0,built:0x6FA834,deprecated:0xC9694A}:{planned:0x76819A,building:0x4C8CCB,built:0x76A443,deprecated:0xC0705A};
-const BAND=DARK?{planned:0x7C869A,building:0x3F8FE0,built:0x6FA834,deprecated:0xC0623F}:{planned:0x5F6B80,building:0x2A78C8,built:0x4F8A17,deprecated:0xA44A2E};
+// island colour = complexity (scene.js estimates it): one hue in three steps, more complex = further from the board's tone
+const LEVELC=DARK?{simple:0x184F95,mid:0x3987E5,complex:0x9EC5F4}:{simple:0x86B6EF,mid:0x2A78D6,complex:0x104281};
 const PILLARC=[0xF0997B,0x5DCAA5,0xAFA9EC,0xEFB860,0x85B7EB,0xD4537E];
 const LV=3.2,NP=8,SH=1.1,SETTLED=0.01;
 function rnd(i){const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x);}
@@ -4491,13 +4490,13 @@ if(sp.kind==='comp'){const c=sp.item;// ro: the island disc's radius
 const ro=(sp.R-1.15+0.35)*1.1;it.rr=ro+0.15;it.ah=SH/2;
 const geo=discGeo(ro,SH);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
 const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.85});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.85;
-add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(BAND[c.status]||BAND.planned,{roughness:0.5})),0,SH*0.28,0));
-add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(TOP[c.status]||TOP.planned,{roughness:0.55})),0,SH,0));
+add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(LEVELC[c.complexity],{roughness:0.5})),0,SH*0.28,0));
+add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(LEVELC[c.complexity],{roughness:0.55})),0,SH,0));
 // a contract: a dashed rim around a translucent island
 if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(ro+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
 const kids=MAP.children.get(c.node);const n=kids.length;if(n){const{spots,childR}=ringSpots(n,ro-0.45);
-kids.forEach((k,j)=>{const ch=MAP.nodes[k];const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(discGeo(childR,hgt),M(TOP[ch.status]||TOP.planned,{roughness:0.5}));add(at(b,spots[j].x,SH+0.05,spots[j].z),false);});}
-const sub=(c.abstract?'contract · ':'')+c.status+' · level '+sp.level;
+kids.forEach((k,j)=>{const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(discGeo(childR,hgt),M(LEVELC[(MAP.complexity[k]||{}).level]||LEVELC.simple,{roughness:0.5}));add(at(b,spots[j].x,SH+0.05,spots[j].z),false);});}
+const sub=(c.abstract?'contract · ':'')+c.complexity+' · level '+sp.level;
 footShape=discShape(ro);lab=labelSprite(c.name,sub);labY=SH+0.35;
 S.labels[sp.id]=c.name+' · '+sub+' · '+(n?n+' inside':'leaf')+'\\nClick for details · drag to move'+(c.dome?' · double-click to look inside':'');}
 else if(sp.kind==='ext'){const t=sp.item.look;it.rr=sp.R-0.35;it.ah=0.45;
@@ -4590,19 +4589,21 @@ it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{
 
 // ---------- state ----------
 let sel=null,selPort=null,HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
-const swatch=status=>'#'+new THREE.Color(BAND[status]||BAND.planned).getHexString();
+// a complexity's colour; an external has none and keeps its own
+const swatch=level=>'#'+new THREE.Color(level?LEVELC[level]||LEVELC.simple:EXTC).getHexString();
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
-t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = status:');
-['planned','building','built','deprecated'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
+t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = complexity, estimated from ports, uses, tbd holes, requirements and nodes inside:');
+['simple','mid','complex'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
 t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
 const mk=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;(parent||d).appendChild(e);return e;};
-const info=detailsOf(it.node);
+const info=detailsOf(MAP,it.sp.item.node);
 const head=mk('div','d-head');const t=mk('div','d-title',null,head);const close=mk('button','d-close','×',head);close.setAttribute('aria-label','Close details');close.onclick=()=>select(null);
 mk('div','d-name',info.name,t);if(info.kind)mk('div','d-sub',info.kind,t);
-const chip=mk('span','d-chip');const sw=mk('i',null,null,chip);sw.style.background=swatch(info.status);mk('span',null,info.status,chip);
+if(info.complexity){const chip=mk('span','d-chip');const sw=mk('i',null,null,chip);sw.style.background=swatch(info.complexity.level);mk('span',null,info.complexity.level+(info.complexity.parts?' · '+info.complexity.parts:''),chip);}
+if(info.deprecated)mk('p','d-purpose','Deprecated: '+info.deprecated);
 mk('p','d-purpose',info.purpose);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&r.name===selPort?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
@@ -4670,8 +4671,8 @@ function renderHits(){hitList.innerHTML='';const on=searching();hitList.hidden=!
 const mk=(tag,cls,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;parent.appendChild(e);return e;};
 if(!HITS.length){mk('div','h-none',hitList).textContent='No matches';return;}
 HITS.slice(0,SHOWN).forEach((h,i)=>{const row=mk('div',h.kind==='hole'?'hit hole':'hit',hitList);row.id='hit'+i;row.setAttribute('role','option');row.setAttribute('aria-selected','false');row.setAttribute('aria-label',rowName(h));
-// a status dot (a hole's dashed), then the label in runs, the matched characters bold
-const name=mk('div','h-name',row),dot=mk('i','h-dot',name),bold=new Set(h.positions);if(h.node!==null)dot.style.background=swatch(MAP.nodes[h.node].status);let from=0;for(let j=1;j<=h.label.length;j++)if(j===h.label.length||bold.has(j)!==bold.has(from)){const s=h.label.slice(from,j);if(bold.has(from))mk('b',null,name).textContent=s;else name.appendChild(document.createTextNode(s));from=j;}
+// a complexity dot (a hole's dashed), then the label in runs, the matched characters bold
+const name=mk('div','h-name',row),dot=mk('i','h-dot',name),bold=new Set(h.positions);if(h.node!==null)dot.style.background=swatch((MAP.complexity[h.node]||{}).level);let from=0;for(let j=1;j<=h.label.length;j++)if(j===h.label.length||bold.has(j)!==bold.has(from)){const s=h.label.slice(from,j);if(bold.has(from))mk('b',null,name).textContent=s;else name.appendChild(document.createTextNode(s));from=j;}
 mk('div','h-path',row).textContent=where(h);
 row.addEventListener('mousedown',e=>e.preventDefault());// a moving mouse only: a list scrolled under a still one keeps the arrows' row
 row.addEventListener('mousemove',e=>{if((e.movementX||e.movementY)&&cur!==i)setCur(i,false);});row.addEventListener('click',()=>jump(h));});
@@ -4800,7 +4801,72 @@ export function mapScene(world) {
   parents.forEach((parent, index) => {
     children.get(parent).push(index);
   });
-  return { world, nodes, parents, children, byId };
+  return { world, nodes, parents, children, byId, complexity: complexityOf(world, nodes, children, byId) };
+}
+
+/** A node's deprecation note when it says something, else null: the map draws unchecked worlds too. */
+function deprecationOf(node) {
+  return typeof node.deprecated === "string" && node.deprecated.trim() !== "" ? node.deprecated.trim() : null;
+}
+
+/** The scores from which a node is mid and complex; below MID_FROM it is simple. */
+const MID_FROM = 10;
+const COMPLEX_FROM = 16;
+
+/** A field that should be a list, as one: the map draws unchecked worlds too. */
+const listOf = (value) => (Array.isArray(value) ? value : []);
+
+/**
+ * Each node's complexity, by position: an estimate from the spec alone, one formula for leaves and domes. The score
+ * is what the node offers (its ports, those inherited from contracts it implements among them), what it uses outside
+ * itself (each port once, and each tbd hole), what it must satisfy (its requirements, a contract's among them) and
+ * the nodes inside it. A dome is thus judged as one component at its own level: an edge between two nodes inside it
+ * does not count. An external has none (null): it is not ours to build.
+ */
+function complexityOf(world, nodes, children, byId) {
+  const inside = (index) => children.get(index).flatMap((child) => [child, ...inside(child)]);
+  return nodes.map((node, index) => {
+    if (node.external) return null;
+    const members = [index, ...inside(index)];
+    const within = new Set(members);
+    const ids = new Set(members.map((member) => nodes[member].id));
+    const used = new Set();
+    for (const member of members) {
+      for (const edge of listOf(nodes[member].edges)) {
+        if (edge.kind !== "uses" || within.has(byId.get(edge.to))) continue;
+        for (const port of listOf(edge.port)) used.add(\`\${edge.to} \${port}\`);
+      }
+    }
+    const contracts = listOf(node.edges)
+      .filter((edge) => edge.kind === "implements")
+      .map((edge) => nodes[byId.get(edge.to)])
+      .filter((contract) => contract);
+    const count = (field) =>
+      listOf(node[field]).length + contracts.reduce((sum, contract) => sum + listOf(contract[field]).length, 0);
+    const parts = {
+      ports: count("ports"),
+      uses: used.size,
+      holes: listOf(world.placeholders).filter((hole) => listOf(hole.users).some((user) => ids.has(user))).length,
+      requirements: count("requirements"),
+      inside: members.length - 1,
+    };
+    const score = parts.ports + parts.uses + parts.holes + parts.requirements + parts.inside;
+    return { level: score >= COMPLEX_FROM ? "complex" : score >= MID_FROM ? "mid" : "simple", score, parts };
+  });
+}
+
+/** A complexity's parts in words, the empty ones left out: \`1 port · 8 used ports · 17 requirements\`. */
+function partsInWords(parts) {
+  const counted = (count, one, many) => (count === 0 ? null : \`\${count} \${count === 1 ? one : many}\`);
+  return [
+    counted(parts.ports, "port", "ports"),
+    counted(parts.uses, "used port", "used ports"),
+    counted(parts.holes, "tbd hole", "tbd holes"),
+    counted(parts.requirements, "requirement", "requirements"),
+    counted(parts.inside, "node inside", "nodes inside"),
+  ]
+    .filter((part) => part)
+    .join(" · ");
 }
 
 /** The direct child of \`scope\` that contains node \`index\` (itself included), or undefined if it lies outside. */
@@ -4865,7 +4931,7 @@ export function scopeView(scene, scope) {
         node: index,
         name: node.name,
         side: 0,
-        status: node.status,
+        complexity: scene.complexity[index].level,
         abstract: node.abstract,
         dome: parts > 0,
         parts,
@@ -5011,14 +5077,20 @@ function levelIslands(items, lanes) {
 }
 
 /**
- * What the click panel shows for a node: its NodeSpec fields only, purpose,
- * status, ports, requirements and source, in that order.
+ * What the click panel shows for the node at \`index\`: its complexity with the parts it was estimated from, then its
+ * NodeSpec fields only, the deprecation note, purpose, ports, requirements and source, in that order.
  */
-export function detailsOf(node) {
+export function detailsOf(scene, index) {
+  const node = scene.nodes[index];
+  const complexity = scene.complexity[index];
   const kind = node.external ? \`external \${node.externalType ?? "api"}\` : node.abstract ? "contract" : null;
   return {
     name: node.name,
-    status: node.status,
+    complexity: complexity && {
+      level: complexity.level,
+      parts: partsInWords(complexity.parts),
+    },
+    deprecated: deprecationOf(node),
     kind,
     purpose: node.purpose,
     sections: [

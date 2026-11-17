@@ -12,7 +12,6 @@ import { inherited, node } from "@nuhokai/world";
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1", // any unique string
   purpose: "Owns orders.",
-  status: "planned",
   source: [],
   ports: { place: { kind: "call", purpose: "Place an order" } },
   implements: () => [AuditLog],
@@ -24,7 +23,6 @@ export const Orders = node({
 export const Shop = node({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
   purpose: "The shop backend.",
-  status: "planned",
   source: [],
   children: [Orders, Stock],
   ports: {
@@ -125,6 +123,15 @@ A compile-time check fails if the two drift apart.
   placeholder is not a child port; a dome has no `externalType`.
 - **World rules checked by tsc:** `defineWorld` needs an `id`, a `name` that is not blank and a `source`; its `children` are not empty and hold nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
+- **No status field.** Whether a node has code is read from `source`, which is empty until there is some; whether
+  the code matches the spec is for `check` and `review` to say. Nothing a tool cannot verify is authored.
+- **`deprecated`** is optional on any node: a note that says what to use instead, `deprecated: "use Stock.reserve"`.
+  The node stays valid. `check` warns about every `uses` edge that reaches it, at the edge: one to the node, to a dome
+  around it, to a dome port delegating to it, or to a port an implementor inherited from it (a contract); and about
+  every node implementing a deprecated contract. None when the using node is deprecated itself or sits in a
+  deprecated dome; a blank note is an error. `review` names the note in its prompt
+  and warns when the reviewed node is deprecated. tsc has no warnings, so the type check
+  stays silent: for a strike-through in the editor, also put `/** @deprecated … */` above the node's `export const`.
 - **Placeholders:** `tbd.call` / `tbd.event` take a `description` that is not blank (as `trim()` sees it) and return an
   unresolved port reference (`UnresolvedPortRef`, alias `TbdPortRef`), with `$ref: "unresolved"`; real ports have
   `"port"`, inherited ones `"inherited"`. Declare them at module level and export them, so find-references lists every
@@ -143,7 +150,7 @@ A compile-time check fails if the two drift apart.
 - The loader reports what it cannot read as data, at its file and line, and judges nothing else. Global rules are
   `check`'s, each reported with `file:line`, node name and one sentence: duplicate ids (also a node listed twice,
   naming both places); orphans (nodes exported but not reachable from the world); `uses` scope (sibling or sibling of
-  an ancestor) against the world tree; every node's `source` under the world's; display names unique among siblings, the top level included. A node's name
+  an ancestor) against the world tree; `uses` edges reaching a deprecated node and implementors of a deprecated contract (warnings); every node's `source` under the world's; display names unique among siblings, the top level included. A node's name
   in diagnostics is its path from the world (`Check/SpecCheck`), so a name only has to be unique next to its siblings.
   `check` type-checks the world and keeps world files declarative (calls only to the format's functions, imports only
   `@nuhokai/world` and other world files, no cast but `as const`, no non-null assertion, `any` or `@ts-` directive), so

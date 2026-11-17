@@ -51,7 +51,7 @@ test("top level: Stock's Postgres lane and the notifyCustomer hole start at Shop
   ]);
   expect(top.air).toEqual([]);
   expect(top.items.Postgres).toMatchObject({ kind: "external", look: "db", side: 1 });
-  expect(top.items.AuditLog).toMatchObject({ kind: "island", abstract: true, status: "planned" });
+  expect(top.items.AuditLog).toMatchObject({ kind: "island", abstract: true, complexity: "simple" });
   expect(top.items.Shop).toMatchObject({ kind: "island", dome: true, parts: 2 });
   expect(top.items[HOLE]).toMatchObject({ kind: "hole", side: 1, portKind: "call" });
 });
@@ -109,7 +109,6 @@ test("an edge listing a call and an event port is a lane and an air route; group
     external: false,
     abstract: false,
     purpose: name,
-    status: "built" as const,
     source: [],
     ...extra,
   });
@@ -150,7 +149,6 @@ test("a call cycle between islands still gets finite levels", () => {
     external: false,
     abstract: false,
     purpose: id,
-    status: "planned" as const,
     source: [],
     edges: [{ kind: "uses" as const, to, port: ["p"] }],
   });
@@ -169,11 +167,12 @@ test("a call cycle between islands still gets finite levels", () => {
 test("the click panel shows Orders' own NodeSpec fields only", () => {
   const orders = world.nodes[indexOf("Orders")];
   if (!orders) throw new Error("no Orders");
-  const details = detailsOf(orders);
+  const details = detailsOf(scene, indexOf("Orders"));
 
   expect(details).toEqual({
     name: "Orders",
-    status: "planned",
+    complexity: { level: "simple", parts: "3 ports · 1 used port · 1 tbd hole · 1 requirement" },
+    deprecated: null,
     kind: null,
     purpose: orders.purpose,
     sections: [
@@ -188,8 +187,8 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
       { label: "Source", rows: [] },
     ],
   });
-  expect(detailsOf(world.nodes[indexOf("Postgres")] ?? orders).kind).toBe("external db");
-  expect(detailsOf(world.nodes[indexOf("AuditLog")] ?? orders).sections[1]?.rows).toEqual([
+  expect(detailsOf(scene, indexOf("Postgres"))).toMatchObject({ kind: "external db", complexity: null });
+  expect(detailsOf(scene, indexOf("AuditLog")).sections[1]?.rows).toEqual([
     { name: "R1", meta: "Every change is listed with author and time." },
   ]);
 });
@@ -198,8 +197,108 @@ test("the click panel shows a node without source, as a world file may hold one"
   const orders = world.nodes[indexOf("Orders")];
   if (!orders) throw new Error("no Orders");
   const { source: _source, ...unsourced } = orders;
+  const details = detailsOf(mapScene({ ...world, nodes: [unsourced as typeof orders] }), 0);
 
-  expect(detailsOf(unsourced as typeof orders).sections.at(-1)).toEqual({ label: "Source", rows: [] });
+  expect(details.sections.at(-1)).toEqual({ label: "Source", rows: [] });
+});
+
+test("complexity is estimated from the spec: ports, uses outside itself, holes, requirements, nodes inside", () => {
+  const spec = (id: string, extra: object = {}) => ({
+    schema: "nuhokai/node@1" as const,
+    id,
+    name: id,
+    parent: null,
+    external: false,
+    abstract: false,
+    purpose: id,
+    source: [],
+    ...extra,
+  });
+  const ports = (...names: string[]) => names.map((name) => ({ name, kind: "call" as const, purpose: name }));
+  const requirements = (count: number) => Array.from({ length: count }, (_, at) => ({ id: `R${at}`, text: "r" }));
+  const uses = (to: string, ...port: string[]) => ({ kind: "uses" as const, to, port });
+  const scene = mapScene({
+    id: "w",
+    nodes: [
+      spec("store", { abstract: true, ports: ports("keep"), requirements: requirements(2) }),
+      spec("ext", { external: true, ports: ports("call") }),
+      spec("util", { ports: ports("a", "b") }),
+      // A dome: one component at its own level. The edge from inner to peer stays inside it and does not count.
+      spec("dome", { ports: ports("run"), requirements: requirements(1) }),
+      spec("inner", {
+        parent: "dome",
+        ports: ports("run"),
+        requirements: requirements(9),
+        edges: [uses("peer", "x"), uses("util", "a"), uses("ext", "call"), { kind: "implements", to: "store" }],
+      }),
+      spec("peer", { parent: "dome", ports: ports("x"), edges: [uses("util", "a", "b")] }),
+    ],
+    placeholders: [{ kind: "call", description: "later", name: "later", users: ["peer"] }] as never,
+  });
+
+  expect(scene.complexity).toEqual([
+    { level: "simple", score: 3, parts: { ports: 1, uses: 0, holes: 0, requirements: 2, inside: 0 } },
+    // An external has none: it is not ours to build.
+    null,
+    { level: "simple", score: 2, parts: { ports: 2, uses: 0, holes: 0, requirements: 0, inside: 0 } },
+    // util.a is used by both nodes inside and counts once; the hole and the two nodes inside count.
+    { level: "simple", score: 8, parts: { ports: 1, uses: 3, holes: 1, requirements: 1, inside: 2 } },
+    // An implementor carries its contract's port and requirements; from 16 a node is complex.
+    { level: "complex", score: 16, parts: { ports: 2, uses: 3, holes: 0, requirements: 11, inside: 0 } },
+    { level: "simple", score: 4, parts: { ports: 1, uses: 2, holes: 1, requirements: 0, inside: 0 } },
+  ]);
+  const view = scopeView(scene, 3);
+  expect(view.items.find((item) => item.name === "inner")).toMatchObject({ kind: "island", complexity: "complex" });
+  expect(detailsOf(scene, 3).complexity).toEqual({
+    level: "simple",
+    parts: "1 port · 3 used ports · 1 tbd hole · 1 requirement · 2 nodes inside",
+  });
+});
+
+test("complexity has three steps: simple under 10, mid from 10, complex from 16; odd fields never crash", () => {
+  const spec = (id: string, requirements: unknown) => ({
+    schema: "nuhokai/node@1" as const,
+    id,
+    name: id,
+    parent: null,
+    external: false,
+    abstract: false,
+    purpose: id,
+    source: [],
+    requirements,
+  });
+  const many = (count: number) => Array.from({ length: count }, (_, at) => ({ id: `R${at}`, text: "r" }));
+  const nodes = [spec("a", many(9)), spec("b", many(10)), spec("c", many(15)), spec("d", many(16)), spec("e", "odd")];
+  const scene = mapScene({ id: "w", nodes: nodes as MapWorld["nodes"], placeholders: [] });
+
+  expect(scene.complexity.map((complexity) => complexity?.level)).toEqual([
+    "simple",
+    "mid",
+    "mid",
+    "complex",
+    "simple",
+  ]);
+  expect(scene.complexity[4]?.score).toBe(0);
+  const bare = mapScene({ id: "w", nodes: [spec("f", undefined)] as MapWorld["nodes"], placeholders: [] });
+  expect(detailsOf(bare, 0).complexity).toEqual({ level: "simple", parts: "" });
+});
+
+test("the click panel shows a deprecation note, trimmed; a blank one says nothing", () => {
+  const spec = (deprecated: string) => ({
+    schema: "nuhokai/node@1" as const,
+    id: deprecated,
+    name: "old",
+    parent: null,
+    external: false,
+    abstract: false,
+    purpose: "p",
+    source: [],
+    deprecated,
+  });
+  const scene = mapScene({ id: "w", nodes: [spec(" use New.run "), spec("  ")], placeholders: [] });
+
+  expect(detailsOf(scene, 0).deprecated).toBe("use New.run");
+  expect(detailsOf(scene, 1).deprecated).toBeNull();
 });
 
 test("two holes sharing a description stay two, each with its sorted users", () => {
@@ -211,7 +310,6 @@ test("two holes sharing a description stay two, each with its sorted users", () 
     external: false,
     abstract: false,
     purpose: id,
-    status: "planned" as const,
     source: [],
   });
   const loaded: MapWorld = {
@@ -231,7 +329,7 @@ test("two holes sharing a description stay two, each with its sorted users", () 
   ]);
 });
 
-/** A planned leaf named by its id. */
+/** A leaf named by its id. */
 const leaf = (id: string, parent: string | null = null) => ({
   schema: "nuhokai/node@1" as const,
   id,
@@ -240,7 +338,6 @@ const leaf = (id: string, parent: string | null = null) => ({
   external: false,
   abstract: false,
   purpose: id,
-  status: "planned" as const,
   source: [],
 });
 

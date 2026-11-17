@@ -1,11 +1,24 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
 import { type LoadedWorld, loadWorld, type Placeholder } from "../load/load-world.ts";
+import { deprecationOf } from "../shared/deprecation.ts";
 import { CliError } from "../shared/failure.ts";
 import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
 import { invalidFrom, type Report } from "../shared/report.ts";
 import { compareText, nameInProject, suggestedCommand } from "../shared/world-path.ts";
 import { list, type SpecItem, type Target, targets } from "./spec-items.ts";
+
+/** The deprecation a reviewed node is under: the note, the node carrying it and where that node is written. */
+export interface ScopeDeprecation {
+  readonly note: string;
+  /** The hierarchy path of the node carrying the note: the reviewed node, else the nearest dome around it. */
+  readonly by: string;
+  /** Whether the reviewed node carries the note itself, not a dome around it. */
+  readonly own: boolean;
+  /** That node's spec file, cwd-relative, and the line of its node() call when known. */
+  readonly file: string;
+  readonly line?: number;
+}
 
 /** What a review of one node covers. */
 export interface Scope {
@@ -22,11 +35,14 @@ export interface Scope {
   readonly uses: readonly Target[];
   /** The tbd placeholders the node uses: dependencies not designed yet, never reviewed against. */
   readonly drafts: readonly Placeholder[];
+  /** The deprecation the node is under, its own or a dome's around it (R8); absent when it is under none. */
+  readonly deprecated?: ScopeDeprecation;
 }
 
 /**
  * The scope of a review of the node at `position` in the world loaded from the project directory `root` (named from
- * the cwd): its spec items, its files, the nodes it may use and the drafts it uses (R2–R4). A node that is not
+ * the cwd): its spec items, its files, the nodes it may use, the drafts it uses (R2–R4) and the deprecation it is
+ * under (R8). A node that is not
  * reviewable is one CliError saying why (R1): a dome, a node without source, or one whose source matches no file.
  */
 function scope(root: string, world: LoadedWorld, position: number): Scope {
@@ -54,6 +70,7 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
     throw new CliError(`${path}'s source matches no file; ${check} names the entry to fix`);
   }
   const items = list(world, position);
+  const deprecation = deprecationOf(world, node);
   return {
     node: path,
     specFile: node.file,
@@ -62,6 +79,17 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
     files,
     uses: targets(world, position),
     drafts: world.placeholders.filter((placeholder) => placeholder.users.includes(spec.id)),
+    ...(deprecation
+      ? {
+          deprecated: {
+            note: deprecation.note,
+            by: deprecation.by.path,
+            own: deprecation.by === node,
+            file: deprecation.by.file,
+            ...(deprecation.by.line === undefined ? {} : { line: deprecation.by.line }),
+          },
+        }
+      : {}),
   };
 }
 
