@@ -23,7 +23,8 @@ import type {
  * ```ts
  * export const Orders = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
- *   purpose: "Owns orders from checkout to delivery.",
+ *   what: "Takes an order from checkout to delivery.",
+ *   why: "So the order lifecycle has one owner.",
  *   source: [],
  *   ports: { place: { kind: "call", purpose: "Place an order" } },
  * }).edges({
@@ -32,7 +33,8 @@ import type {
  *
  * export const Shop = node({
  *   id: "01a16dd2-bc14-752c-b0df-585621a330ac",
- *   purpose: "The shop backend.",
+ *   what: "The shop backend: orders and stock.",
+ *   why: "One boundary around everything a customer interacts with.",
  *   source: [],
  *   children: [Orders],
  *   ports: { placeOrder: Orders.place },

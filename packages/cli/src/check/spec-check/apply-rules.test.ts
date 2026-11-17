@@ -35,7 +35,7 @@ const HEADER = `import { inherited, node, tbd } from "@nuhokai/world";\n`;
 
 /** A leaf's node() call on one line; `rest` adds fields. */
 function leaf(name: string, id: string, rest = "", edges = "{}"): string {
-  return `export const ${name} = node({ id: "${id}", purpose: "p", source: [], ports: { run: { kind: "call", purpose: "r" } }${rest ? `, ${rest}` : ""} }).edges(${edges});\n`;
+  return `export const ${name} = node({ id: "${id}", what: "p", why: "p", source: [], ports: { run: { kind: "call", purpose: "r" } }${rest ? `, ${rest}` : ""} }).edges(${edges});\n`;
 }
 
 /** Spec findings of the project as diagnostics lines, the files named relative to the project. */
@@ -60,7 +60,7 @@ test("R1: a node listed in the world and in a dome is one error naming nuhokai/i
     ),
     "nuhokai/shared.ts": HEADER + leaf("Shared", "shared"),
     "nuhokai/dome.ts": `${HEADER}import { Shared } from "./shared.ts";
-export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Shared], ports: { run: Shared.run } }).edges({});
+export const Dome = node({ id: "dome", what: "p", why: "p", source: [], children: [Shared], ports: { run: Shared.run } }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -73,10 +73,10 @@ test("R1: a child copy-pasted with its parent's id is one error, and nothing els
     "nuhokai/index.ts": index("Dome", `import { Dome } from "./dome.ts";`, `["src/**"]`),
     "src/x.ts": "",
     "nuhokai/dome.ts": `${HEADER}
-export const Child = node({ id: "dome", purpose: "p", source: ["src/x.ts", "src/gone.ts"], ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [Other.run] });
-export const Other = node({ id: "other", purpose: "p", source: ["src/x.ts"], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const Inner = node({ id: "inner", purpose: "p", source: [], children: [Other], ports: {} }).edges({});
-export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Child, Inner], ports: { run: Child.run } }).edges({});
+export const Child = node({ id: "dome", what: "p", why: "p", source: ["src/x.ts", "src/gone.ts"], ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [Other.run] });
+export const Other = node({ id: "other", what: "p", why: "p", source: ["src/x.ts"], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Inner = node({ id: "inner", what: "p", why: "p", source: [], children: [Other], ports: {} }).edges({});
+export const Dome = node({ id: "dome", what: "p", why: "p", source: [], children: [Child, Inner], ports: { run: Child.run } }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -87,7 +87,7 @@ export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Chil
 test("R1: a child sharing its dome's id leaves its siblings under the dome", async () => {
   const root = project({
     "nuhokai/index.ts": index("P, T", `import { P, T } from "./p.ts";`),
-    "nuhokai/p.ts": `${HEADER}${leaf("C1", "x")}${leaf("C2", "c2")}${leaf("T", "t", "", "{ uses: () => [C2.run] }")}export const P = node({ id: "x", purpose: "p", source: [], children: [C1, C2], ports: { run: C2.run } }).edges({});
+    "nuhokai/p.ts": `${HEADER}${leaf("C1", "x")}${leaf("C2", "c2")}${leaf("T", "t", "", "{ uses: () => [C2.run] }")}export const P = node({ id: "x", what: "p", why: "p", source: [], children: [C1, C2], ports: { run: C2.run } }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -126,8 +126,8 @@ test("R2: an exported node missing from index.ts is one warning naming its file;
     "nuhokai/index.ts": index("A", `import { A } from "./a.ts";`),
     "nuhokai/a.ts": HEADER + leaf("A", "a"),
     "nuhokai/lost.ts": `${HEADER}import { A } from "./a.ts";
-export const Box = node({ id: "box", purpose: "p", source: [], children: [A], ports: { run: A.run } }).edges({});
-export const Lost = node({ id: "lost", purpose: "p", source: ["src/gone/**"] }).edges({ uses: () => [A.run] });
+export const Box = node({ id: "box", what: "p", why: "p", source: [], children: [A], ports: { run: A.run } }).edges({});
+export const Lost = node({ id: "lost", what: "p", why: "p", source: ["src/gone/**"] }).edges({ uses: () => [A.run] });
 `,
   });
   expect(await check(root)).toEqual([
@@ -139,9 +139,9 @@ export const Lost = node({ id: "lost", purpose: "p", source: ["src/gone/**"] }).
 const NESTED = (target: string) => ({
   "nuhokai/index.ts": index("Stock, Orders", `import { Orders, Stock } from "./shop.ts";`),
   "nuhokai/shop.ts": `${HEADER}
-export const Reserve = node({ id: "reserve", purpose: "p", source: [], ports: { reserve: { kind: "call", purpose: "r" } } }).edges({});
-export const Stock = node({ id: "stock", purpose: "p", source: [], children: [Reserve], ports: { reserve: Reserve.reserve } }).edges({});
-export const Orders = node({ id: "orders", purpose: "p", source: [] }).edges({ uses: () => [${target}] });
+export const Reserve = node({ id: "reserve", what: "p", why: "p", source: [], ports: { reserve: { kind: "call", purpose: "r" } } }).edges({});
+export const Stock = node({ id: "stock", what: "p", why: "p", source: [], children: [Reserve], ports: { reserve: Reserve.reserve } }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [] }).edges({ uses: () => [${target}] });
 `,
 });
 
@@ -159,10 +159,10 @@ test("R3: an ancestor's sibling is in scope, the ancestor itself is not, nor a n
   const root = project({
     "nuhokai/index.ts": index("Top, Dome", `import { Dome, Top } from "./a.ts";`),
     "nuhokai/a.ts": `${HEADER}
-export const Top = node({ id: "top", purpose: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const Stray = node({ id: "stray", purpose: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const Deep = node({ id: "deep", purpose: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [Top.run, Dome.run, Stray.run] });
-export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Deep], ports: { run: Deep.run } }).edges({});
+export const Top = node({ id: "top", what: "p", why: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Stray = node({ id: "stray", what: "p", why: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Deep = node({ id: "deep", what: "p", why: "p", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [Top.run, Dome.run, Stray.run] });
+export const Dome = node({ id: "dome", what: "p", why: "p", source: [], children: [Deep], ports: { run: Deep.run } }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -181,10 +181,10 @@ const STORES = (second: string) => ({
   "nuhokai/stock/store.ts": HEADER + leaf("Store", "stock-store"),
   "nuhokai/orders.ts": `${HEADER}import { Store } from "./orders/store.ts";
 import { Store as StockStore } from "./stock/store.ts";
-export const Orders = node({ id: "orders", purpose: "p", source: [], children: [Store${second}], ports: {} }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [], children: [Store${second}], ports: {} }).edges({});
 `,
   "nuhokai/stock.ts": `${HEADER}import { Store } from "./stock/store.ts";
-export const Stock = node({ id: "stock", purpose: "p", source: [], children: [Store], ports: {} }).edges({});
+export const Stock = node({ id: "stock", what: "p", why: "p", source: [], children: [Store], ports: {} }).edges({});
 `,
 });
 
@@ -232,10 +232,10 @@ test("R5: flags that are not literals still hold: no external child, no external
     "nuhokai/index.ts": index("Dome, Contract", `import { Contract, Dome } from "./a.ts";`),
     "nuhokai/a.ts": `${HEADER}const yes: boolean = true;
 export const later = tbd.call({ description: "later" });
-export const Contract = node({ id: "contract", purpose: "p", source: [], abstract: yes, ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [later] });
-export const Ext = node({ id: "ext", purpose: "p", source: [], external: yes }).edges({});
-export const Int = node({ id: "int", purpose: "p", source: [], externalType: "db" }).edges({});
-export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Ext, Int], ports: {} }).edges({});
+export const Contract = node({ id: "contract", what: "p", why: "p", source: [], abstract: yes, ports: { run: { kind: "call", purpose: "r" } } }).edges({ uses: () => [later] });
+export const Ext = node({ id: "ext", what: "p", why: "p", source: [], external: yes }).edges({});
+export const Int = node({ id: "int", what: "p", why: "p", source: [], externalType: "db" }).edges({});
+export const Dome = node({ id: "dome", what: "p", why: "p", source: [], children: [Ext, Int], ports: {} }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -245,13 +245,30 @@ export const Dome = node({ id: "dome", purpose: "p", source: [], children: [Ext,
   ]);
 });
 
+test("R12: what is not blank; why is not blank and, unless the node is external, not missing", async () => {
+  const root = project({
+    "nuhokai/index.ts": index("A, B, C, D", `import { A, B, C, D } from "./a.ts";`),
+    "nuhokai/a.ts": `${HEADER}const no: boolean = false;
+export const A = node({ id: "a", what: "  ", why: "p", source: [] }).edges({});
+export const B = node({ id: "b", what: "p", why: "", source: [], external: true }).edges({});
+export const C = node({ id: "c", what: "p", source: [], external: true }).edges({});
+export const D = node({ id: "d", what: "p", source: [], external: no }).edges({});
+`,
+  });
+  expect(await check(root)).toEqual([
+    'error: nuhokai/a.ts:3: A: what is blank; say what the node does, e.g. what: "Counts what is on the shelf."',
+    "error: nuhokai/a.ts:4: B: why is blank; say why the node is part of the world, or drop the field",
+    'error: nuhokai/a.ts:6: D: the node has no why; say why it exists, e.g. why: "So Orders never oversells.", or make it external',
+  ]);
+});
+
 const SOURCES = (claims: Record<string, string>, extra: Record<string, string> = {}) => ({
   "nuhokai/index.ts": index("A, B, Dome", `import { A, B, Dome } from "./a.ts";`, `["src/**"]`),
   "nuhokai/a.ts": `${HEADER}
-export const A = node({ id: "a", purpose: "p", source: ${claims.A ?? "[]"} }).edges({});
-export const B = node({ id: "b", purpose: "p", source: ${claims.B ?? "[]"} }).edges({});
-export const C = node({ id: "c", purpose: "p", source: ${claims.C ?? "[]"} }).edges({});
-export const Dome = node({ id: "dome", purpose: "p", source: ${claims.Dome ?? "[]"}, children: [C], ports: {} }).edges({});
+export const A = node({ id: "a", what: "p", why: "p", source: ${claims.A ?? "[]"} }).edges({});
+export const B = node({ id: "b", what: "p", why: "p", source: ${claims.B ?? "[]"} }).edges({});
+export const C = node({ id: "c", what: "p", why: "p", source: ${claims.C ?? "[]"} }).edges({});
+export const Dome = node({ id: "dome", what: "p", why: "p", source: ${claims.Dome ?? "[]"}, children: [C], ports: {} }).edges({});
 `,
   "src/shared.ts": "",
   "src/map/draw-map.ts": "",
@@ -369,8 +386,8 @@ test("R6: a file whose name holds a space is a file like any other", async () =>
 test("R9: a uses edge to a deprecated node is a warning at the edge with its note; none from a deprecated node", async () => {
   const root = project({
     "nuhokai/index.ts": index("Stock, Orders, Old, Ext", `import { Ext, Old, Orders, Stock } from "./a.ts";`),
-    "nuhokai/a.ts": `${HEADER}${leaf("Stock", "stock", 'deprecated: " use Warehouse.reserve "')}export const Ext = node({ id: "ext", purpose: "p", source: [], external: true, deprecated: "the vendor shuts it down", ports: { call: { kind: "call", purpose: "c" } } }).edges({});
-export const Orders = node({ id: "orders", purpose: "p", source: [] }).edges({
+    "nuhokai/a.ts": `${HEADER}${leaf("Stock", "stock", 'deprecated: " use Warehouse.reserve "')}export const Ext = node({ id: "ext", what: "p", why: "p", source: [], external: true, deprecated: "the vendor shuts it down", ports: { call: { kind: "call", purpose: "c" } } }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [] }).edges({
   uses: () => [
     Ext.call,
     Stock.run,
@@ -387,7 +404,7 @@ ${leaf("Old", "old", 'deprecated: "replaced by Orders"', "{ uses: () => [Stock.r
 test("R9: no warning inside a deprecated dome; a blank deprecated is an error", async () => {
   const root = project({
     "nuhokai/index.ts": index("Stock, Dome", `import { Dome, Stock } from "./a.ts";`),
-    "nuhokai/a.ts": `${HEADER}${leaf("Stock", "stock", 'deprecated: "use Warehouse.reserve"')}${leaf("Inner", "inner", 'deprecated: "  "', "{ uses: () => [Stock.run] }")}export const Dome = node({ id: "dome", purpose: "p", source: [], deprecated: "going away with Stock", children: [Inner], ports: {} }).edges({});
+    "nuhokai/a.ts": `${HEADER}${leaf("Stock", "stock", 'deprecated: "use Warehouse.reserve"')}${leaf("Inner", "inner", 'deprecated: "  "', "{ uses: () => [Stock.run] }")}export const Dome = node({ id: "dome", what: "p", why: "p", source: [], deprecated: "going away with Stock", children: [Inner], ports: {} }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -398,10 +415,10 @@ test("R9: no warning inside a deprecated dome; a blank deprecated is an error", 
 test("R9: a deprecated contract warns its implementors and an inherited use; a dome port warns when its delegate is deprecated", async () => {
   const root = project({
     "nuhokai/index.ts": index("Store, Shelf, Box, User", `import { Box, Shelf, Store, User } from "./a.ts";`),
-    "nuhokai/a.ts": `${HEADER}export const Store = node({ id: "store", purpose: "p", source: [], abstract: true, deprecated: "use Warehouse", ports: { keep: { kind: "call", purpose: "k" } } }).edges({});
-export const Shelf = node({ id: "shelf", purpose: "p", source: [], implements: () => [Store], ports: { show: { kind: "call", purpose: "s" } } }).edges({});
-${leaf("Inner", "inner", 'deprecated: "use Outer.run"')}${leaf("Kept", "kept")}export const Box = node({ id: "box", purpose: "p", source: [], children: [Inner, Kept], ports: { run: Inner.run, go: Kept.run } }).edges({});
-export const User = node({ id: "user", purpose: "p", source: [] }).edges({
+    "nuhokai/a.ts": `${HEADER}export const Store = node({ id: "store", what: "p", why: "p", source: [], abstract: true, deprecated: "use Warehouse", ports: { keep: { kind: "call", purpose: "k" } } }).edges({});
+export const Shelf = node({ id: "shelf", what: "p", why: "p", source: [], implements: () => [Store], ports: { show: { kind: "call", purpose: "s" } } }).edges({});
+${leaf("Inner", "inner", 'deprecated: "use Outer.run"')}${leaf("Kept", "kept")}export const Box = node({ id: "box", what: "p", why: "p", source: [], children: [Inner, Kept], ports: { run: Inner.run, go: Kept.run } }).edges({});
+export const User = node({ id: "user", what: "p", why: "p", source: [] }).edges({
   uses: () => [inherited(Shelf, Store.keep), Shelf.show, Box.go, Box.run],
 });
 `,
@@ -417,9 +434,9 @@ test("R11: implementing a contract listed nowhere, or a node that is not abstrac
   const root = project({
     "nuhokai/index.ts": index("Orders, Plain", `import { Orders, Plain } from "./a.ts";`),
     "nuhokai/a.ts": `${HEADER}
-export const Audit = node({ id: "audit", purpose: "p", source: [], abstract: true, ports: { history: { kind: "call", purpose: "h" } } }).edges({});
-export const Plain = node({ id: "plain", purpose: "p", source: [] }).edges({});
-export const Orders = node({ id: "orders", purpose: "p", source: [], implements: () => [Audit, Plain as unknown as typeof Audit] }).edges({});
+export const Audit = node({ id: "audit", what: "p", why: "p", source: [], abstract: true, ports: { history: { kind: "call", purpose: "h" } } }).edges({});
+export const Plain = node({ id: "plain", what: "p", why: "p", source: [] }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [], implements: () => [Audit, Plain as unknown as typeof Audit] }).edges({});
 `,
   });
   expect(await check(root)).toEqual([
@@ -433,9 +450,9 @@ test("R5: two contracts sharing a port name, and an own port named like an inher
   const root = project({
     "nuhokai/index.ts": index("A, B, Orders", `import { A, B, Orders } from "./a.ts";`),
     "nuhokai/a.ts": `${HEADER}
-export const A = node({ id: "ca", purpose: "p", source: [], abstract: true, ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const B = node({ id: "cb", purpose: "p", source: [], abstract: true, ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const Orders = node({ id: "orders", purpose: "p", source: [], ports: { run: { kind: "call", purpose: "r" } }, implements: () => [A, B] as never }).edges({});
+export const A = node({ id: "ca", what: "p", why: "p", source: [], abstract: true, ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const B = node({ id: "cb", what: "p", why: "p", source: [], abstract: true, ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [], ports: { run: { kind: "call", purpose: "r" } }, implements: () => [A, B] as never }).edges({});
 `,
   });
   expect(await check(root)).toEqual([

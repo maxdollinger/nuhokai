@@ -7,9 +7,8 @@ import { Publish } from "./publish.ts";
 /** The program inside Init's boundary. */
 export const Scaffold = node({
   id: "01a17290-3f10-7c48-a1d2-6b8e04c95f27",
-  purpose:
-    "The program inside Init: inspect the project directory, hand the outcome to Publish, return a Report. " +
-    "Owns no data, file or template; never prints.",
+  what: "The program inside Init: inspect the project directory, hand the outcome to Publish, return a Report.",
+  why: "Keeps the order apart from the content, so each content node owns one thing. Owns no data, file or template; never prints.",
   source: ["src/init/scaffold.ts"],
   ports: {
     run: {

@@ -3,9 +3,8 @@ import { node } from "@nuhokai/world";
 /** The world's folder layout, and the one name of a path inside it or the project. Pure. */
 export const WorldPath = node({
   id: "01a17950-b221-7125-9a41-6c8f2d70be19",
-  purpose:
-    "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, " +
-    "/-separated name of a path in it or in the project directory, which opens as printed. Pure: no I/O. Also the spelling of a suggested command, the inside-test a symlink is held to and the one order of names.",
+  what: "Own the world's layout (nuhokai/: index.ts, node files, CLI-owned files, map) and the one cwd-relative, /-separated name of a path in it or in the project directory, which opens as printed. Also the spelling of a suggested command, the inside-test a symlink is held to and the one order of names.",
+  why: "So every command agrees on where things are and how they are named. Pure: no I/O.",
   source: ["src/shared/world-path.ts"],
   ports: {
     nameInWorld: {

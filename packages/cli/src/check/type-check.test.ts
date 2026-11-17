@@ -49,10 +49,10 @@ test("R2: a cast to any and a @ts-expect-error line are two errors; a call is Lo
     "nuhokai/dome.ts": `import { node } from "@nuhokai/world";
 import { Example } from "./example.ts";
 
-export const Contract = node({ id: "c", purpose: "p", source: [], abstract: true }).edges({});
+export const Contract = node({ id: "c", what: "p", why: "p", source: [], abstract: true }).edges({});
 export const Dome = node({
   id: "dome",
-  purpose: "p",
+  what: "p", why: "p",
   source: [],
   children: [Contract as any, Example],
   ports: {},
@@ -72,7 +72,7 @@ test("R2: as const is no cast", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
 export const ports = { run: { kind: "call", purpose: "Run" } } as const;
-export const A = node({ id: "a", purpose: "p", source: [], ports }).edges({});
+export const A = node({ id: "a", what: "p", why: "p", source: [], ports }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([]);
@@ -107,18 +107,18 @@ export { later } from "./example.ts";
 test("R4: an error about a Forbidden<…> is its message alone; other types are cut to their names", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
-export const Draft = node({ id: "a1", purpose: "p", source: [], ports: {} });
-export const Dome = node({ id: "a2", purpose: "p", source: [], children: [Draft] }).edges({});
-export const Named = node({ id: "a3", purpose: "p", source: [], children: ["Draft"] }).edges({});
-export const Typed = node({ id: "a4", purpose: "p", source: [], ports: {}, externalType: "api" }).edges({});
-export const Odd = node({ id: "a5", purpose: "p", source: [], ports: {}, purpos: "x" }).edges({});
+export const Draft = node({ id: "a1", what: "p", why: "p", source: [], ports: {} });
+export const Dome = node({ id: "a2", what: "p", why: "p", source: [], children: [Draft] }).edges({});
+export const Named = node({ id: "a3", what: "p", why: "p", source: [], children: ["Draft"] }).edges({});
+export const Typed = node({ id: "a4", what: "p", why: "p", source: [], ports: {}, externalType: "api" }).edges({});
+export const Odd = node({ id: "a5", what: "p", why: "p", source: [], ports: {}, wht: "x" }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([
     "error: nuhokai/a.ts:3: a draft is not a node: call .edges(), also with {}",
     "error: nuhokai/a.ts:4: a child is a node reference, not a string: list the node's const, e.g. children: [Orders]",
     "error: nuhokai/a.ts:5: externalType is for external nodes only",
-    "error: nuhokai/a.ts:6: Object literal may only specify known properties, but 'purpos' does not exist in type 'NodeShape'. Did you mean to write 'purpose'?",
+    "error: nuhokai/a.ts:6: Object literal may only specify known properties, but 'wht' does not exist in type 'NodeShape'. Did you mean to write 'what'?",
   ]);
 });
 
@@ -126,11 +126,11 @@ test("R4: a quote inside a string literal type ends no type; a long object type 
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
 export const A = node({ id: "a", source: [], ports: { hi: { kind: "call", purpose: "Say the user's hello" } } }).edges({});
-export const B = node({ id: "b", purpose: "the world's <best> & {last}", source: [], ports: {}, bogus: 1 }).edges({});
+export const B = node({ id: "b", what: "the world's <best> & {last}", why: "the world's <best> & {last}", source: [], ports: {}, bogus: 1 }).edges({});
 `,
   });
   expect(await typeCheck(root)).toEqual([
-    "error: nuhokai/a.ts:2: Argument of type '{ … }' is not assignable to parameter of type 'NodeShape'. Property 'purpose' is missing in type '{ … }' but required in type 'NodeShape'.",
+    "error: nuhokai/a.ts:2: Argument of type '{ … }' is not assignable to parameter of type 'NodeShape'. Property 'what' is missing in type '{ … }' but required in type 'NodeShape'.",
     "error: nuhokai/a.ts:3: Object literal may only specify known properties, and 'bogus' does not exist in type 'NodeShape'.",
   ]);
 });
@@ -148,8 +148,8 @@ test("R4: tsc's advice to change the library or install types gives way to the w
 test("R5: a file that does not parse is its first syntax error alone; R2 refuses an import once, without tsc's", async () => {
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
-export const A = node({ id: "a", purpose: "unterminated, group: "core", source: [] }).edges({});
-export const B = node({ id: "b", purpose: "p", source: [] }).edges({ uses: () => [it] });
+export const A = node({ id: "a", what: "unterminated, group: ", why: "unterminated, group: "core", source: [] }).edges({});
+export const B = node({ id: "b", what: "p", why: "p", source: [] }).edges({ uses: () => [it] });
 `,
     "nuhokai/b.ts": 'import { pad } from "left-pad";\nexport const b = pad;\n',
   });

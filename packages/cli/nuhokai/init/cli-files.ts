@@ -5,9 +5,8 @@ import { Path } from "../path/path.ts";
 /** The files the CLI itself owns inside a world. */
 export const CliFiles = node({
   id: "01a17290-3f10-7c53-9e36-4a70c8b21d5f",
-  purpose:
-    "Own the CLI's files in a world: editor tsconfig and embedded @nuhokai/world declarations, so editors resolve " +
-    "the format without node_modules. Never picks the directory.",
+  what: "Own the CLI's files in a world: editor tsconfig and embedded @nuhokai/world declarations.",
+  why: "So editors resolve the format without node_modules. Never picks the directory.",
   source: ["src/init/cli-files.ts"],
   ports: {
     write: {

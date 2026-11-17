@@ -6,7 +6,8 @@ import { SourceRules } from "./source-rules.ts";
 /** The spec check. Inside: ApplyRules (program), DataRules, SourceRules. */
 export const SpecCheck = node({
   id: "01a18319-8a01-7669-8f66-8435e312227e",
-  purpose: "Prove the loaded world is a valid spec, so the code can be checked against it.",
+  what: "Judge the loaded world against the spec rules tsc cannot check alone and report each break with its fix.",
+  why: "Prove the world is a valid spec, so the code can be checked against it.",
   source: ["src/check/spec-check/**"],
   requirements: [
     {
@@ -50,8 +51,16 @@ export const SpecCheck = node({
       id: "R11",
       text: "Every implements target is reachable; else an error naming the edge. That it is abstract is tsc's, re-checked by R5.",
     },
+    {
+      id: "R12",
+      text: "Every node says what it does and, unless external, why it exists: a blank what or why is an error, an external's why too. A missing what, or a missing why on a node that is not external, is tsc's, re-checked by R5.",
+    },
   ],
   testCases: [
+    {
+      text: "what: '  ' → error at the node; why: '' on an external → error; an external without why → none; a node whose external flag is a const typed boolean false, without why → error.",
+      demonstrates: ["R12"],
+    },
     {
       text: "A node listed in the world and in a dome → one error naming nuhokai/index.ts and the dome's file.",
       demonstrates: ["R1"],

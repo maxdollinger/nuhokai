@@ -8,9 +8,8 @@ import { Path } from "./path/path.ts";
 /** The world as plain NodeSpec data. Reads, never runs, judges nothing. */
 export const LoadWorld = node({
   id: "01a179c9-f7b6-7074-9245-bb542a950ec4",
-  purpose:
-    "Read nuhokai/ without running it into plain data: the world, each node as its NodeSpec placed in the hierarchy " +
-    "and its edges, tbd placeholders, and where everything is written. Checks no rule; writes nothing in the project.",
+  what: "Read nuhokai/ without running it into plain data: the world, each node as its NodeSpec placed in the hierarchy and its edges, tbd placeholders, and where everything is written.",
+  why: "Every command works on the same data and no world file is ever run. Checks no rule; writes nothing in the project.",
   source: ["src/load/**"],
   ports: {
     load: {
@@ -18,7 +17,7 @@ export const LoadWorld = node({
       purpose: "Load the project directory's world",
       input: "project directory, cwd-relative",
       output:
-        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: (position | null)[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { purpose?, ports, requirements, testCases, decisions, uses } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
+        "id, name, source: the world's; file: the world file, cwd-relative; definedIn: the file holding the defineWorld call (file, or one it re-exports the world from), with line? of that call, and sourcePlaces? of the world's source; nodes: { index, spec: NodeSpec, parent: position | null, children: positions, uses: (position | null)[], contracts: (position | null)[], path, file, line?, source?: { at?, entries }, places?: { what?, why?, ports, requirements, testCases, decisions, uses } }[]; top: positions; placeholders: { kind, description, name?, users: node ids }[]; listings: { node: node id, parent: node id | null, file, line? }[]; orphans: { id, name, file, line? }[]; every place a line, never a column",
       errors: [
         "NoWorldError: no world at nuhokai/, naming init",
         "NoWorldError: non-directory at nuhokai/",
@@ -89,7 +88,7 @@ export const LoadWorld = node({
     },
     {
       id: "R15",
-      text: "Where each spec item was written, when the node's file holds its node() call: the line of its purpose, of each port, requirement, test case and decision, and of each uses edge's first item; a spread-in item at its `...spread`. Review cites them.",
+      text: "Where each spec item was written, when the node's file holds its node() call: the line of its what and why, of each port, requirement, test case and decision, and of each uses edge's first item; a spread-in item at its `...spread`. Review cites them.",
     },
     { id: "C1", kind: "constraint", text: "No global rules (ids, orphans, scope, names): check's." },
     {
@@ -104,7 +103,7 @@ export const LoadWorld = node({
       demonstrates: ["R14"],
     },
     {
-      text: "A node with purpose on line 4, requirements R1 on 9 and R2 on 10, a spread-in test case → places give 4, 9, 10 and the spread's line.",
+      text: "A node with what on line 4, why on 5, requirements R1 on 9 and R2 on 10, a spread-in test case → places give 4, 5, 9, 10 and the spread's line.",
       demonstrates: ["R15"],
     },
     {

@@ -108,7 +108,8 @@ test("an edge listing a call and an event port is a lane and an air route; group
     parent: null,
     external: false,
     abstract: false,
-    purpose: name,
+    what: name,
+    why: name,
     source: [],
     ...extra,
   });
@@ -148,7 +149,8 @@ test("a call cycle between islands still gets finite levels", () => {
     parent: null,
     external: false,
     abstract: false,
-    purpose: id,
+    what: id,
+    why: id,
     source: [],
     edges: [{ kind: "uses" as const, to, port: ["p"] }],
   });
@@ -174,7 +176,8 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
     complexity: { level: "simple", parts: "3 ports · 1 used port · 1 tbd hole · 1 requirement" },
     deprecated: null,
     kind: null,
-    purpose: orders.purpose,
+    what: orders.what,
+    why: orders.why ?? null,
     sections: [
       {
         label: "Ports",
@@ -210,7 +213,8 @@ test("complexity is estimated from the spec: ports, uses outside itself, holes, 
     parent: null,
     external: false,
     abstract: false,
-    purpose: id,
+    what: id,
+    why: id,
     source: [],
     ...extra,
   });
@@ -263,7 +267,8 @@ test("complexity has three steps: simple under 10, mid from 10, complex from 16;
     parent: null,
     external: false,
     abstract: false,
-    purpose: id,
+    what: id,
+    why: id,
     source: [],
     requirements,
   });
@@ -291,7 +296,8 @@ test("the click panel shows a deprecation note, trimmed; a blank one says nothin
     parent: null,
     external: false,
     abstract: false,
-    purpose: "p",
+    what: "p",
+    why: "p",
     source: [],
     deprecated,
   });
@@ -309,7 +315,8 @@ test("two holes sharing a description stay two, each with its sorted users", () 
     parent: null,
     external: false,
     abstract: false,
-    purpose: id,
+    what: id,
+    why: id,
     source: [],
   });
   const loaded: MapWorld = {
@@ -337,7 +344,8 @@ const leaf = (id: string, parent: string | null = null) => ({
   parent,
   external: false,
   abstract: false,
-  purpose: id,
+  what: id,
+  why: id,
   source: [],
 });
 

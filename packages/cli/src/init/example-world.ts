@@ -32,7 +32,8 @@ export const later = tbd.call({ description: "Describe what this node has to do"
  */
 export const Example = node({
   id: "01a17290-3f10-7c54-8e51-0b63d9f2a7c4",
-  purpose: "An example to copy from; replace it with the first real node.",
+  what: "Greets whoever calls it by name.",
+  why: "Only an example to copy from: replace it with the first real node.",
   source: [],
   ports: {
     greet: {

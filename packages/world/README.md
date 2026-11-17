@@ -11,7 +11,8 @@ import { inherited, node } from "@nuhokai/world";
 
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1", // any unique string
-  purpose: "Owns orders.",
+  what: "Takes an order from checkout to delivery.",
+  why: "So the order lifecycle has one owner; stock is counted elsewhere.",
   source: [],
   ports: { place: { kind: "call", purpose: "Place an order" } },
   implements: () => [AuditLog],
@@ -22,7 +23,8 @@ export const Orders = node({
 // A dome: children plus the ports it exposes from them. It has no behavior of its own.
 export const Shop = node({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
-  purpose: "The shop backend.",
+  what: "The shop backend: orders and stock.",
+  why: "One boundary around everything a customer interacts with.",
   source: [],
   children: [Orders, Stock],
   ports: {
@@ -114,7 +116,7 @@ A compile-time check fails if the two drift apart.
   rules, where tsc could only point at `defineWorld`, are `check`'s (see below).
 - **Node-spec rules checked by tsc** through the literal flags, ids and names: abstract nodes have no `uses`, implement
   nothing and have no children; external nodes have no children and are top level only; `externalType` only on
-  external nodes; an own port must not have the name of an inherited one, a contract is listed once in `implements`,
+  external nodes; `why` on every node that is not external; an own port must not have the name of an inherited one, a contract is listed once in `implements`,
   and two implemented contracts must not share a port name; requirement ids are unique (non-literal ids are left to
   `check`), and `testCases[].demonstrates` names own requirement ids only (whether an implementor may demonstrate
   a contract's requirement is open in the node spec). Flags that are not literals count as possibly true.
@@ -123,6 +125,9 @@ A compile-time check fails if the two drift apart.
   placeholder is not a child port; a dome has no `externalType`.
 - **World rules checked by tsc:** `defineWorld` needs an `id`, a `name` that is not blank and a `source`; its `children` are not empty and hold nodes only (externals and contracts
   are allowed at the top level); strings, drafts, ports, relations and look-alike objects are rejected.
+- **`what` and `why`** say what a node does and why it exists, so a reader knows both before opening its ports or
+  code. Neither is blank (`check`'s rule); `why` may be left out on an external node, whose reason is that it is not
+  built by us.
 - **No status field.** Whether a node has code is read from `source`, which is empty until there is some; whether
   the code matches the spec is for `check` and `review` to say. Nothing a tool cannot verify is authored.
 - **`deprecated`** is optional on any node: a note that says what to use instead, `deprecated: "use Stock.reserve"`.

@@ -6,7 +6,8 @@ import { MapFile } from "./map-file.ts";
 /** The program inside WorldMap: load, write, report. */
 export const DrawMap = node({
   id: "01a179c9-f7c9-7305-abbf-02a688335a0d",
-  purpose: "The program inside WorldMap: order and outcome only; never prints.",
+  what: "The program inside WorldMap: load the world, write the map file, report its path.",
+  why: "Order and outcome only, so loading and writing stay with their own nodes; never prints.",
   source: ["src/map/draw-map.ts"],
   ports: {
     run: {

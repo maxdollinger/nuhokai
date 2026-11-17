@@ -5,9 +5,8 @@ import { Path } from "../path/path.ts";
 /** The tree's text: which nodes, and one line each. Pure. */
 export const TreeLines = node({
   id: "01a19cc8-5dbe-71db-9018-c63790688e29",
-  purpose:
-    "Own the tree's text: pick the nodes below a start down to a level and write one line per node, " +
-    "path | source | purpose. Pure: never loads, finds a typed path or prints.",
+  what: "Own the tree's text: pick the nodes below a start down to a level and write one line per node, path | source | what.",
+  why: "Keeps the format in one place apart from loading. Pure: never loads, finds a typed path or prints.",
   source: ["src/tree/tree-lines.ts", "src/tree/tree-lines.test.ts"],
   ports: {
     render: {
@@ -22,7 +21,7 @@ export const TreeLines = node({
   requirements: [
     {
       id: "R1",
-      text: "Line = path | source | purpose, joined by ' | '. path is the node's hierarchy path, as LoadWorld holds it (Path.nameNodes); nothing else on the line: no header, world line, indentation, padding or colour.",
+      text: "Line = path | source | what Why: why, joined by ' | '; ' Why: why' left out when the node has none. path is the node's hierarchy path, as LoadWorld holds it (Path.nameNodes); nothing else on the line: no header, world line, indentation, padding or colour.",
     },
     {
       id: "R2",
@@ -30,7 +29,7 @@ export const TreeLines = node({
     },
     {
       id: "R3",
-      text: "purpose: the whole purpose. In every field each run of whitespace or control characters (newlines, escape sequences) is one space, trimmed: one node is always one line, and nothing in a world file reaches the terminal as a control code.",
+      text: "what and why: both whole. In every field each run of whitespace or control characters (newlines, escape sequences) is one space, trimmed: one node is always one line, and nothing in a world file reaches the terminal as a control code.",
     },
     {
       id: "R4",
@@ -45,7 +44,7 @@ export const TreeLines = node({
   ],
   testCases: [
     {
-      text: "Example world, no start, level 1 → Postgres, AuditLog, Shop/ (2), each with its source and purpose; level 0 → also Shop/Orders and Shop/Stock, Shop not collapsed.",
+      text: "Example world, no start, level 1 → Postgres, AuditLog, Shop/ (2), each with its source, what and why (Postgres, external, without Why:); level 0 → also Shop/Orders and Shop/Stock, Shop not collapsed.",
       demonstrates: ["R1", "R4", "R5"],
     },
     {
@@ -57,14 +56,14 @@ export const TreeLines = node({
       demonstrates: ["R2"],
     },
     {
-      text: "A purpose with a newline and double spaces → one line, single spaces; rendering twice → identical lines.",
+      text: "A what with a newline and double spaces → one line, single spaces; rendering twice → identical lines.",
       demonstrates: ["R3", "R6"],
     },
   ],
   decisions: [
     {
       decision:
-        "No escaping beyond R3: names are export identifiers and sources are paths, and the purpose comes last, so a bar inside it stays the purpose's.",
+        "No escaping beyond R3: names are export identifiers and sources are paths, and what and why come last, so a bar inside them stays theirs.",
       why: "Lines stay readable as written; splitting on the first two ' | ' recovers the fields. An unexported node named by an id holding ' | ', or a glob with a comma ({a,b}), reads ambiguous; rare, and the line is still one line.",
       rejected: [
         { option: "JSON or TSV output", why: "Harder to read and grep for people; agents read the plain line fine." },

@@ -5,9 +5,8 @@ import { WorldPath } from "./world-path.ts";
 /** The one name of a node: its hierarchy path, and the way back from a typed path to the node. Pure. */
 export const NodePath = node({
   id: "01a19cc8-5da4-7071-9b9b-71c1bcea0cbe",
-  purpose:
-    "Own the one name of a node, its hierarchy path (Check/SpecCheck), which commands print and take: name every " +
-    "node of a loaded world, and find the node a typed path names. Pure: no I/O, never loads.",
+  what: "Own the one name of a node, its hierarchy path (Check/SpecCheck), which commands print and take: name every node of a loaded world, and find the node a typed path names.",
+  why: "So a path one command prints works as input to the next. Pure: no I/O, never loads.",
   source: ["src/shared/node-path.ts", "src/shared/node-path.test.ts"],
   ports: {
     nameNodes: {

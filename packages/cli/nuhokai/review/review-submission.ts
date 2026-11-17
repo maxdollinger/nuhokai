@@ -8,9 +8,8 @@ import { SpecItems } from "./spec-items.ts";
 /** The program behind `review --submit`. */
 export const ReviewSubmission = node({
   id: "01a1a638-31a1-7367-870d-f1b08c2ed0e3",
-  purpose:
-    "The program behind `review --submit`: hold the agent's findings against the review's scope and print them " +
-    "as check prints its findings; never prints itself.",
+  what: "The program behind `review --submit`: hold the agent's findings against the review's scope and report them as check reports its findings.",
+  why: "So an agent's findings are validated like any other finding before anyone acts on them; never prints itself.",
   source: ["src/review/review-submission.ts", "src/review/review-submission.test.ts"],
   ports: {
     run: {

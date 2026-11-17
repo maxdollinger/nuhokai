@@ -9,7 +9,8 @@ import { Stock } from "./stock.ts";
  */
 export const Shop = node({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
-  purpose: "The shop backend; everything a customer interacts with lives inside it.",
+  what: "The shop backend: takes orders and manages stock for customers.",
+  why: "One boundary around everything a customer interacts with.",
   source: [],
   children: [Orders, Stock],
   ports: {

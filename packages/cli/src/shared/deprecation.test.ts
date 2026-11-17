@@ -35,10 +35,10 @@ const port = '{ kind: "call", purpose: "p" }';
 
 test("R1: a node is under its own note, else the nearest dome's around it; a blank note says nothing", async () => {
   const loaded = await world(
-    `export const Lines = node({ id: "lines", purpose: "p", deprecated: "  ", source: [] }).edges({});
-export const Orders = node({ id: "orders", purpose: "p", source: [], children: [Lines] }).edges({});
-export const Shop = node({ id: "shop", purpose: "p", deprecated: " use Store ", source: [], children: [Orders] }).edges({});
-export const Stock = node({ id: "stock", purpose: "p", source: [] }).edges({});`,
+    `export const Lines = node({ id: "lines", what: "p", why: "p", deprecated: "  ", source: [] }).edges({});
+export const Orders = node({ id: "orders", what: "p", why: "p", source: [], children: [Lines] }).edges({});
+export const Shop = node({ id: "shop", what: "p", why: "p", deprecated: " use Store ", source: [], children: [Orders] }).edges({});
+export const Stock = node({ id: "stock", what: "p", why: "p", source: [] }).edges({});`,
     "Shop, Stock",
   );
   expect(deprecationOf(loaded, at(loaded, "Shop/Orders/Lines"))).toEqual({
@@ -50,12 +50,12 @@ export const Stock = node({ id: "stock", purpose: "p", source: [] }).edges({});`
 
 test("R2: a use meets the target's deprecation, a dome port's deprecated delegate, an inherited port's deprecated contract", async () => {
   const loaded = await world(
-    `export const Store = node({ id: "store", purpose: "p", source: [], abstract: true, deprecated: "use Warehouse", ports: { keep: ${port} } }).edges({});
-export const Shelf = node({ id: "shelf", purpose: "p", source: [], implements: () => [Store], ports: { show: ${port} } }).edges({});
-export const Inner = node({ id: "inner", purpose: "p", source: [], deprecated: "use Outer", ports: { run: ${port}, stop: ${port} } }).edges({});
-export const Kept = node({ id: "kept", purpose: "p", source: [], ports: { go: ${port} } }).edges({});
-export const Middle = node({ id: "middle", purpose: "p", source: [], children: [Inner], ports: { run: Inner.run } }).edges({});
-export const Box = node({ id: "box", purpose: "p", source: [], children: [Middle, Kept, Shelf], ports: { run: Middle.run, go: Kept.go, keep: inherited(Shelf, Store.keep) } }).edges({});`,
+    `export const Store = node({ id: "store", what: "p", why: "p", source: [], abstract: true, deprecated: "use Warehouse", ports: { keep: ${port} } }).edges({});
+export const Shelf = node({ id: "shelf", what: "p", why: "p", source: [], implements: () => [Store], ports: { show: ${port} } }).edges({});
+export const Inner = node({ id: "inner", what: "p", why: "p", source: [], deprecated: "use Outer", ports: { run: ${port}, stop: ${port} } }).edges({});
+export const Kept = node({ id: "kept", what: "p", why: "p", source: [], ports: { go: ${port} } }).edges({});
+export const Middle = node({ id: "middle", what: "p", why: "p", source: [], children: [Inner], ports: { run: Inner.run } }).edges({});
+export const Box = node({ id: "box", what: "p", why: "p", source: [], children: [Middle, Kept, Shelf], ports: { run: Middle.run, go: Kept.go, keep: inherited(Shelf, Store.keep) } }).edges({});`,
     "Store, Box",
   );
   const box = at(loaded, "Box");

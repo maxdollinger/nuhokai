@@ -9,7 +9,8 @@ import { TypeCheck } from "./type-check.ts";
 /** The program inside Check: load, then TypeCheck beside SpecCheck, then CodeCheck. */
 export const CheckWorld = node({
   id: "01a18324-2010-73fa-aa04-aa55d61413ed",
-  purpose: "Load the world once, run TypeCheck, then SpecCheck on it, then CodeCheck.",
+  what: "Load the world once, run TypeCheck, then SpecCheck on it, then CodeCheck, and return their findings as one Report.",
+  why: "Every check needs the loaded world and loading belongs to none of them, so one program owns the load and the order.",
   source: ["src/check/check-world.ts"],
   ports: {
     run: {

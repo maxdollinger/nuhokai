@@ -5,7 +5,8 @@ import { Stock } from "./stock.ts";
 
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1",
-  purpose: "Owns orders from checkout to delivery; does not know how stock is counted.",
+  what: "Takes an order from checkout to delivery and tells others when one is cancelled.",
+  why: "So the order lifecycle has one owner. Reserves stock through Stock; does not know how stock is counted.",
   source: [],
   ports: {
     place: {

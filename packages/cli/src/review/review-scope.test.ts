@@ -88,7 +88,7 @@ test("R4, R5, R7: the example node's tbd is one draft with its description, neve
   expect(scope.drafts).toHaveLength(1);
   expect(scope.uses).toEqual([]);
   expect(scope.files).toEqual([`${root}/src/example.ts`]);
-  expect(scope.example).toBe("purpose");
+  expect(scope.example).toBe("what");
   expect(await scoped(root, "Example")).toEqual(scope);
 });
 
@@ -98,7 +98,7 @@ test("R3: a uses edge to an orphan is listed by its name, without a node", async
   writeFileSync(
     file,
     `${readFileSync(file, "utf8").replace("uses: () => [later]", "uses: () => [later, Lost.run]")}
-export const Lost = node({ id: "lost", purpose: "Listed nowhere.", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
+export const Lost = node({ id: "lost", what: "Listed nowhere.", why: "Listed nowhere.", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
 `,
   );
   expect((await scoped(root, "Example")).uses).toEqual([{ name: "Lost", ports: ["run"] }]);
@@ -130,8 +130,8 @@ test("R8, R3: the node's own deprecation, else its dome's, with where that node 
   writeFileSync(
     file,
     `${spec.replace("uses: () => [later]", "uses: () => [later, Old.run]")}
-export const Old = node({ id: "old", purpose: "Old.", deprecated: "use New.run", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
-export const Box = node({ id: "box", purpose: "Box.", deprecated: "the box goes", source: [], children: [Example, Old], ports: {} }).edges({});
+export const Old = node({ id: "old", what: "Old.", why: "Old.", deprecated: "use New.run", source: [], ports: { run: { kind: "call", purpose: "Run" } } }).edges({});
+export const Box = node({ id: "box", what: "Box.", why: "Box.", deprecated: "the box goes", source: [], children: [Example, Old], ports: {} }).edges({});
 `,
   );
   const index = join(root, "nuhokai/index.ts");

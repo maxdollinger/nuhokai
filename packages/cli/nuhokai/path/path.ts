@@ -5,9 +5,8 @@ import { WorldPath } from "./world-path.ts";
 /** Shared naming: the one name of a file (WorldPath) and of a node (NodePath). Pure. */
 export const Path = node({
   id: "01a19cc8-5d9a-7657-a859-a70d644aa394",
-  purpose:
-    "Own the names the CLI prints and takes back: a file's, cwd-relative (WorldPath), and a node's, its hierarchy " +
-    "path (NodePath). Shared by every command; pure, no I/O.",
+  what: "Own the names the CLI prints and takes back: a file's, cwd-relative (WorldPath), and a node's, its hierarchy path (NodePath).",
+  why: "Shared by every command, so a name means the same everywhere; pure, no I/O.",
   source: [
     "src/shared/world-path.ts",
     "src/shared/world-path.test.ts",

@@ -40,7 +40,7 @@ stale. A test also type-checks a consumer world against the bundled declarations
 | `init`   | write the world skeleton, the CLI-owned `tsconfig.json` and the `@nuhokai/world` types       |
 | `map`    | draw the world into `nuhokai/.generated/map.html`, a self-contained 3D map                   |
 | `review` | print a prompt for a coding agent to review a leaf against its spec; `--submit` its findings |
-| `tree`   | print the node hierarchy, one line per node: `path \| source \| purpose`                     |
+| `tree`   | print the node hierarchy, one line per node: `path \| source \| what Why: why`               |
 
 `init` writes one folder, with everything the tool needs inside it:
 
@@ -104,12 +104,12 @@ matter and nothing is installed or executed. The loader is the one judge of whet
 statement and value in it, used or not, must be readable, and anything else (a call to another function, a value
 imported from a package, a statement block in `uses`, a top-level statement) is one load error at its file and line. It needs no `nuhokai/tsconfig.json`: it opens a project of its own with exactly the world files.
 
-`tree` prints the node hierarchy, one line per node: `path | source | purpose`, e.g.
-`Check/ (5) | src/check/** | Ensure the specs follow the rules.` Every line carries the node's full hierarchy path
+`tree` prints the node hierarchy, one line per node: `path | source | what Why: why`, e.g.
+`Check/ (5) | src/check/** | `nuhokai check`: reports every place … Why: So a person, agent or CI step …` Every line carries the node's full hierarchy path
 (names joined by `/`, as `check` names nodes), so it still makes sense after `grep` and can be passed back as is:
 `nuhokai tree Check -L 2` starts from Check and prints two levels below it. `-L`/`--level` defaults to 1, and `0` prints
 everything; a dome cut off by the level shows `/ (<n>)` and its child count. Sources print from the current directory,
-like every other path, and the whole purpose stays on the line. Like `map`, `tree` does not run `check`. A path that
+like every other path, and the whole what and why stay on the line (`Why:` is left out for an external without one). Like `map`, `tree` does not run `check`. A path that
 names no node exits 2 with the closest match (``did you mean `nuhokai tree Check/SpecCheck`?``, a command to run as printed) or the `tree` command listing where it
 went wrong.
 

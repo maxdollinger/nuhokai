@@ -100,8 +100,8 @@ export type Edge = UsesEdge | ImplementsEdge;
  *   Should be demonstrated by at least one test case; one without is a gap.
  * - constraint: a guard rail on how it may be achieved. Tests are optional;
  *   otherwise it is checked by review.
- * Statements about the design (why the boundary exists, what belongs elsewhere)
- * go into `purpose`, not here.
+ * Statements about the design go into `what` (what the node does) and `why`
+ * (why the boundary exists, what belongs elsewhere), not here.
  */
 export interface Requirement {
   /** Unique within the node, e.g. "R1". */
@@ -144,8 +144,18 @@ export interface NodeSpec {
    * - Valid without any implementors.
    */
   abstract: boolean;
-  /** Why this node exists: the reason for the boundary, and what it deliberately does not do. */
-  purpose: string;
+  /**
+   * What the node does: its responsibility in a sentence or two, what it owns, takes in and produces.
+   * Prose, not a list of ports or requirements: those say how it is reached and what must hold.
+   * Not blank. E.g. "Counts what is on the shelf and holds stock for placed orders."
+   */
+  what: string;
+  /**
+   * Why the node exists: the reason for the boundary, the need it meets, and what it deliberately
+   * does not do. Not blank. Required unless the node is external, whose reason is that it is not
+   * built by us. E.g. "So Orders never oversells. Knows nothing of prices or orders themselves."
+   */
+  why?: string;
   /**
    * Where the node lives in code: paths or globs relative to the project directory (the folder holding nuhokai/),
    * e.g. ["src/billing/**"]. Empty while there is no code yet; always empty for externals.

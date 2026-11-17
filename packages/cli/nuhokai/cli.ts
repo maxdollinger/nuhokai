@@ -10,9 +10,8 @@ import { Tree } from "./tree/tree.ts";
 /** The command surface: argv, usage, exit codes and dispatch to the command nodes. */
 export const Cli = node({
   id: "01a16dd6-9f2a-7c3e-8a41-2b7d4e6f9c10",
-  purpose:
-    "The command surface: parse argv, answer usage and help, run the command's node and print its Report. Owns the " +
-    "exit codes and is the only node that touches the terminal; implements no command.",
+  what: "The command surface: parse argv, answer usage and help, run the command's node and print its Report.",
+  why: "One place owns the exit codes and touches the terminal, so commands stay testable without one; implements no command.",
   source: [
     "src/bin.ts",
     "src/bin.test.ts",

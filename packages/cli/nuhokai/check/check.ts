@@ -7,7 +7,8 @@ import { TypeCheck } from "./type-check.ts";
 /** `nuhokai check`. Inside: CheckWorld (program), TypeCheck (tsc), SpecCheck (spec rules), CodeCheck (stub). */
 export const Check = node({
   id: "01a18319-89bb-7640-a85c-2a46040966af",
-  purpose: "Ensure the specs follow the rules.",
+  what: "`nuhokai check`: reports every place the world breaks the format's rules or the code drifts from its spec, one line each.",
+  why: "So a person, agent or CI step learns whether the specs can be trusted before relying on them. Changes nothing.",
   source: ["src/check/**"],
   requirements: [
     {

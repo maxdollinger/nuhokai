@@ -147,7 +147,9 @@ export interface Details {
   /** The node's deprecation note; null when it has none. */
   readonly deprecated: string | null;
   readonly kind: string | null;
-  readonly purpose: string;
+  readonly what: string;
+  /** Why the node exists; null when it has none (an external may leave it out). */
+  readonly why: string | null;
   readonly sections: readonly {
     readonly label: string;
     readonly rows: readonly { readonly name: string; readonly meta: string }[];

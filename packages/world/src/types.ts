@@ -306,7 +306,11 @@ export type PortRules<P> = string extends keyof P
 /** Flag rules for the fields a node authors, independent of children. */
 export type DefRules<External extends boolean, Abstract extends boolean> = (true extends External
   ? unknown
-  : { readonly externalType?: Forbidden<"externalType is for external nodes only"> }) &
+  : {
+      readonly externalType?: Forbidden<"externalType is for external nodes only">;
+      /** Required unless the node is external: why the node exists. */
+      readonly why: string;
+    }) &
   (true extends Abstract ? { readonly implements?: Forbidden<"abstract nodes implement no other node"> } : unknown);
 
 /** A contract's port names: the handle's keys minus the reference's own. Distributes; `never` has none. */

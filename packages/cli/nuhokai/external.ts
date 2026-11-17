@@ -8,10 +8,7 @@ export const Terminal = node({
   id: "01a19d0d-f3b2-75ea-839d-c2a3a079b878",
   external: true,
   externalType: "caller",
-  purpose:
-    "Whoever runs nuhokai: a person at a shell (a tty), a script, a coding agent or a CI step. Starts the process " +
-    "with argv in a working directory, may pipe in a review, reads stdout and stderr and branches on the exit code. " +
-    "Never asked anything.",
+  what: "Whoever runs nuhokai: a person at a shell (a tty), a script, a coding agent or a CI step. Starts the process with argv in a working directory, may pipe in a review, reads stdout and stderr and branches on the exit code. Never asked anything.",
   source: [],
   ports: {
     print: {
@@ -48,9 +45,7 @@ export const FileSystem = node({
   id: "01a19d0d-f3b7-7156-a269-7921e6c90b99",
   external: true,
   externalType: "db",
-  purpose:
-    "The operating system's filesystem: the project directory's files, the world in nuhokai/ and everything the " +
-    "CLI writes. The only state nuhokai keeps; no database, cache or config elsewhere.",
+  what: "The operating system's filesystem: the project directory's files, the world in nuhokai/ and everything the CLI writes. The only state nuhokai keeps; no database, cache or config elsewhere.",
   source: [],
   ports: {
     read: {
@@ -84,9 +79,7 @@ export const BunRuntime = node({
   id: "01a19d0d-f3bd-74c2-a751-9c25b12d4fbe",
   external: true,
   externalType: "api",
-  purpose:
-    "Bun, the runtime the CLI runs on and embeds in each release binary (pinned by the repo's packageManager): " +
-    "matches globs, makes ids, bundles and compiles. Never runs a world file. Not built by us; users never install it.",
+  what: "Bun, the runtime the CLI runs on and embeds in each release binary (pinned by the repo's packageManager): matches globs, makes ids, bundles and compiles. Never runs a world file. Not built by us; users never install it.",
   source: [],
   ports: {
     matchGlob: {
@@ -116,10 +109,7 @@ export const Tsgo = node({
   id: "01a19d0d-f3c2-73b5-ac60-59684513a214",
   external: true,
   externalType: "api",
-  purpose:
-    "TypeScript's native checker (tsgo) at the version the CLI pins: type-checks world files, and parses them for the " +
-    "declarative rule and for the loader, which reads worlds without running them. Ships next to the release binary as a sidecar; from source, the platform build of the pinned " +
-    "typescript package. Not built by us.",
+  what: "TypeScript's native checker (tsgo) at the version the CLI pins: type-checks world files, and parses them for the declarative rule and for the loader, which reads worlds without running them. Ships next to the release binary as a sidecar; from source, the platform build of the pinned typescript package. Not built by us.",
   source: [],
   ports: {
     check: {
@@ -158,9 +148,7 @@ export const Browser = node({
   id: "01a19d0d-f3c8-74cc-b38d-ebccaea7dbe5",
   external: true,
   externalType: "api",
-  purpose:
-    "Whichever web browser the user opens nuhokai/.generated/map.html in, offline from a file URL. Runs the Viewer " +
-    "and keeps its saved layout. nuhokai never starts it.",
+  what: "Whichever web browser the user opens nuhokai/.generated/map.html in, offline from a file URL. Runs the Viewer and keeps its saved layout. nuhokai never starts it.",
   source: [],
   ports: {
     runPage: {
@@ -193,9 +181,7 @@ export const ThreeJs = node({
   id: "01a19d0d-f3ce-7579-af2c-a929efcd4856",
   external: true,
   externalType: "api",
-  purpose:
-    "three.js with OrbitControls, at the exactly pinned dev-dependency version: scene graph, WebGL renderer and " +
-    "camera controls the Viewer draws with. Inlined into every map at build time; not built by us.",
+  what: "three.js with OrbitControls, at the exactly pinned dev-dependency version: scene graph, WebGL renderer and camera controls the Viewer draws with. Inlined into every map at build time; not built by us.",
   source: [],
   ports: {
     render: {

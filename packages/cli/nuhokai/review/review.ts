@@ -8,9 +8,8 @@ import { SpecItems } from "./spec-items.ts";
 /** `nuhokai review`. Inside: ReviewPrompt and ReviewSubmission (programs), ReviewScope, SpecItems, PromptText. */
 export const Review = node({
   id: "01a1a638-313f-77ef-94ae-08e7398c0baf",
-  purpose:
-    "Let the user's coding agent review one leaf's code against its spec: hand it the prompt, then validate the " +
-    "findings it submits. Calls no model and stores nothing; conformance only, no general bug review.",
+  what: "`nuhokai review`: let the user's coding agent review one leaf's code against its spec: hand it the prompt, then validate the findings it submits.",
+  why: "Conformance needs judgement a rule cannot give, and the user's own agent already has it. Calls no model and stores nothing; conformance only, no general bug review.",
   source: ["src/review/**"],
   requirements: [
     {

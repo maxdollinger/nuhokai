@@ -27,7 +27,7 @@ export interface Scope {
   /** Its spec file, cwd-relative. */
   readonly specFile: string;
   readonly items: readonly SpecItem[];
-  /** The reference examples cite, in the prompt and in what submit answers: the first requirement's, else purpose. */
+  /** The reference examples cite, in the prompt and in what submit answers: the first requirement's, else what. */
   readonly example: string;
   /** Its files, cwd-relative, each once, sorted. */
   readonly files: readonly string[];
@@ -75,7 +75,7 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
     node: path,
     specFile: node.file,
     items,
-    example: items.find((item) => item.kind === "requirement")?.ref ?? "purpose",
+    example: items.find((item) => item.kind === "requirement")?.ref ?? "what",
     files,
     uses: targets(world, position),
     drafts: world.placeholders.filter((placeholder) => placeholder.users.includes(spec.id)),

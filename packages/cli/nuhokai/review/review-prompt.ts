@@ -6,7 +6,8 @@ import { ReviewScope } from "./review-scope.ts";
 /** The program behind `review <node>`. */
 export const ReviewPrompt = node({
   id: "01a1a638-318d-7110-a697-dc13cc8070fc",
-  purpose: "The program behind `review <node>`: order and outcome only; never prints.",
+  what: "The program behind `review <node>`: load the world, find the node's scope, render the prompt, report it.",
+  why: "Order and outcome only, so scope and wording stay with their own nodes; never prints.",
   source: ["src/review/review-prompt.ts", "src/review/review-prompt.test.ts"],
   ports: {
     run: {

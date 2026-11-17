@@ -4306,6 +4306,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 .d-chip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:3px 9px;border-radius:999px;background:rgba(127,127,127,0.12);font-size:12px}
 .d-chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .d-purpose{margin-top:10px;line-height:1.45}
+.d-why{margin-top:6px;line-height:1.45;opacity:.75}
 .d-label{margin-top:14px;margin-bottom:2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2)}
 .d-list{list-style:none}
 .d-list li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:0.5px solid var(--panel-border)}
@@ -4604,7 +4605,8 @@ const head=mk('div','d-head');const t=mk('div','d-title',null,head);const close=
 mk('div','d-name',info.name,t);if(info.kind)mk('div','d-sub',info.kind,t);
 if(info.complexity){const chip=mk('span','d-chip');const sw=mk('i',null,null,chip);sw.style.background=swatch(info.complexity.level);mk('span',null,info.complexity.level+(info.complexity.parts?' · '+info.complexity.parts:''),chip);}
 if(info.deprecated)mk('p','d-purpose','Deprecated: '+info.deprecated);
-mk('p','d-purpose',info.purpose);
+mk('p','d-purpose',info.what);
+if(info.why)mk('p','d-why','Why: '+info.why);
 info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&r.name===selPort?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
@@ -5078,7 +5080,7 @@ function levelIslands(items, lanes) {
 
 /**
  * What the click panel shows for the node at \`index\`: its complexity with the parts it was estimated from, then its
- * NodeSpec fields only, the deprecation note, purpose, ports, requirements and source, in that order.
+ * NodeSpec fields only, the deprecation note, what, why, ports, requirements and source, in that order.
  */
 export function detailsOf(scene, index) {
   const node = scene.nodes[index];
@@ -5092,7 +5094,8 @@ export function detailsOf(scene, index) {
     },
     deprecated: deprecationOf(node),
     kind,
-    purpose: node.purpose,
+    what: node.what,
+    why: node.why ?? null,
     sections: [
       {
         label: "Ports",

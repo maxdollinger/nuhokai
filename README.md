@@ -18,7 +18,7 @@ them, and an agent doesn't read them.
 
 ## See it
 
-A component is a `node`: its purpose, the code it covers, the ports it offers and the ports it uses.
+A component is a `node`: what it does and why it exists, the code it covers, the ports it offers and the ports it uses.
 
 ```ts
 // nuhokai/shop.ts
@@ -26,14 +26,16 @@ import { node } from "@nuhokai/world";
 
 export const Stock = node({
   id: "01a16dd2-bc2d-708e-89cb-3a9da2e0550d",
-  purpose: "Counts what is on the shelf and holds reservations.",
+  what: "Counts what is on the shelf and holds stock for placed orders.",
+  why: "So Orders never oversells. Knows nothing of prices or orders themselves.",
   source: ["src/stock/**"],
   ports: { reserve: { kind: "call", purpose: "Reserve items for an order" } },
 }).edges({});
 
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1",
-  purpose: "Owns orders from checkout to delivery; does not know how stock is counted.",
+  what: "Takes an order from checkout to delivery.",
+  why: "So the order lifecycle has one owner. Reserves stock through Stock; does not know how stock is counted.",
   source: ["src/orders/**"],
   ports: { place: { kind: "call", purpose: "Place an order" } },
 }).edges({
