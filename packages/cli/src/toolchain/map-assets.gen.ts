@@ -4639,7 +4639,7 @@ function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaled
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
 // zoom into a dome's island, then open \`to\`, the path to it or to a scope inside it; a search hit lands there centred
-function dive(it,to,h){return{kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,path:to,sel:h&&h.key,port:h&&marks(h)};}
+function dive(it,to,h){return{kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,path:to,sel:h&&h.key,ports:h&&h.ports};}
 function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans=dive(it,[...path,it.sp.item.node]);controls.enabled=false;tip.style.display='none';}
 function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:path.slice(0,d+1),from:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
@@ -4682,13 +4682,12 @@ setCur(cur,true);
 if(HITS.length>SHOWN){const more=mk('div','h-more',hitList);more.textContent=SHOWN+' of '+HITS.length+' — keep typing';more.addEventListener('mousedown',e=>e.preventDefault());}}
 // same scope: glide there; inside an island here: dive into it; elsewhere: fade out as going up does, load it, fade in;
 // each lands centred on the hit at the scope's home zoom. A hit chosen during a move waits for it, the latest one wins
-function jump(h){if(q.value){cur=HITS.indexOf(h);clearQuery(true);}q.blur();if(trans){queued=h;return;}fly(h);}
-// a search hit marks its one port; a double-click's landing the ports its item showed
-function marks(h){return h.ports||(h.port?[h.port]:[]);}
+function jump(h){if(q.value){cur=HITS.indexOf(h);clearQuery(true);}q.blur();if(trans){queued=h;return;}fly({scope:h.scope,path:h.path,key:h.key,ports:h.port?[h.port]:[]});}
+// to a destination: its scope and the path there, the item to land on, the ports to mark (a search hit's one, a double-click's landingOf)
 function fly(h){const to=h.path.map(c=>c.scope),depth=path.length,into=to.length>depth&&to[depth-1]===S.scope&&S.items['node:'+to[depth]];
-if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone(),sel:h.key,port:marks(h)};}
+if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone(),sel:h.key,ports:h.ports};}
 else if(into)trans=dive(into,to,h);
-else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:to,sel:h.key,port:marks(h)};
+else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:to,sel:h.key,ports:h.ports};
 controls.enabled=false;tip.style.display='none';}
 q.addEventListener('input',onQuery);
 // touch screens have no / key: a tap into the empty box brings the query back
@@ -4734,13 +4733,13 @@ const timer=new THREE.Timer();timer.connect(document);const ease=t=>1-Math.pow(1
 function loop(t){requestAnimationFrame(loop);timer.update(t);const dt=Math.min(timer.getDelta(),0.05);T+=dt;
 if(trans){trans.t+=dt;const k=Math.min(1,trans.t/0.7),e=io2(k);
 if(trans.kind==='in1'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.position.copy(trans.fromP).add(tt.clone().sub(trans.fromT));controls.target.copy(tt);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();camera.lookAt(tt);el.style.opacity=String(1-Math.max(0,(k-0.5)/0.5));
-if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=tr.sel&&S.items[tr.sel];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();camAt(c,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:c,toT:c.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom,sel:tr.sel,port:tr.port};}}
+if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=tr.sel&&S.items[tr.sel];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();camAt(c,HOME.zoom*0.3);trans={kind:'in2',t:0,fromT:c,toT:c.clone(),fromZ:HOME.zoom*0.3,toZ:HOME.zoom,sel:tr.sel,ports:tr.ports};}}
 else if(trans.kind==='out1'){camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camera.updateProjectionMatrix();el.style.opacity=String(1-Math.max(0,(k-0.4)/0.6));
 if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=S.items[tr.sel||tr.from];const c=it?V(it.base.x,it.y,it.base.z):HOME.t.clone();
 // going up starts close on the dome just left and widens to the scope; a search hit starts close and stays centred on it
-const z0=HOME.zoom*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:HOME.zoom,sel:tr.sel,port:tr.port};}}
-else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s){land(s,p);flashCrumbs();}moved();}}
-else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.port;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);moved();}}}
+const z0=HOME.zoom*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:HOME.zoom,sel:tr.sel,ports:tr.ports};}}
+else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel,p=trans.ports;trans=null;controls.enabled=true;controls.update();if(s){land(s,p);flashCrumbs();}moved();}}
+else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.ports;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);moved();}}}
 else if(!drag)controls.update();
 const prf=rf;rf+=(raiseTarget-rf)*Math.min(1,dt*2.5);if(Math.abs(rf-raiseTarget)<1e-3)rf=raiseTarget;const raising=rf!==prf;
 const lt=T-S.T0;
