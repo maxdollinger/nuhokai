@@ -4499,7 +4499,7 @@ const kids=MAP.children.get(c.node);const n=kids.length;if(n){const{spots,childR
 kids.forEach((k,j)=>{const hgt=0.18+0.08*Math.min(3,MAP.children.get(k).length);const b=new THREE.Mesh(discGeo(childR,hgt),M(LEVELC[(MAP.complexity[k]||{}).level]||LEVELC.simple,{roughness:0.5}));add(at(b,spots[j].x,SH+0.05,spots[j].z),false);});}
 const sub=(c.abstract?'contract · ':'')+c.complexity+' · level '+sp.level;
 footShape=discShape(ro);lab=labelSprite(c.name,sub);labY=SH+0.35;
-S.labels[sp.id]=c.name+' · '+sub+' · '+(n?n+' inside':'leaf')+'\\nClick for details · drag to move'+(c.dome?' · double-click to look inside':'');}
+S.labels[sp.id]=c.name+' · '+sub+' · '+(n?n+' inside':'leaf')+'\\nClick for details · drag to move · double-click to '+(c.dome?'look inside':'centre');}
 else if(sp.kind==='ext'){const t=sp.item.look;it.rr=sp.R-0.35;it.ah=0.45;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(sp.R-0.7,sp.R-0.55,0.2,48),M(EXTPAD)),0,0.1,0));
 if(t==='village'){[[-0.9,0],[0,0.5],[0.9,-0.25]].forEach(([hx,hz])=>{add(at(new THREE.Mesh(new THREE.BoxGeometry(0.62,0.5,0.62),M(EXTC)),hx,0.45,hz));const r2=add(at(new THREE.Mesh(new THREE.ConeGeometry(0.5,0.38,4),M(EXTD)),hx,0.89,hz));r2.rotation.y=Math.PI/4;});labY=1.4;}
@@ -4507,13 +4507,13 @@ else if(t==='db'){[0.38,0.76,1.14].forEach((y,j)=>add(at(new THREE.Mesh(new THRE
 else{add(at(new THREE.Mesh(new THREE.BoxGeometry(1.7,0.75,1.1),M(EXTC)),0,0.58,0));add(at(new THREE.Mesh(new THREE.BoxGeometry(1.85,0.1,1.25),M(EXTD)),0,1.0,0));labY=1.25;}
 const type=sp.node.externalType||'api';
 footShape=discShape(sp.R-0.55);lab=labelSprite(sp.item.name,'external · '+type,EXTC);
-S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'used from here')+')'+(sp.item.ports.length?'\\nused for '+sp.item.ports.join(', '):'')+'\\nClick for details';}
+S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'used from here')+')'+(sp.item.ports.length?'\\nused for '+sp.item.ports.join(', '):'')+'\\nClick for details · double-click to go there';}
 else if(sp.kind==='ghost'){it.rr=1.15;it.ah=0.15;const col=sp.orange?ORANGE:GHOST;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.3,40),M(col,{transparent:true,opacity:0.45})),0,0.15,0));
 const em=new THREE.LineDashedMaterial({color:col,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.9});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.0)),em);ol.computeLineDistances();ol.position.y=0.31;add(ol);
 const ports=sp.item.ports.join(', ');footShape=discShape(0.95);
 const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:where),col);labY=0.5;
-S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details':'');}
+S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports+'\\nDouble-click to go to '+S.view.name:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details · double-click to go there':'');}
 else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 // a tbd: a dark pit with a dashed rim, labelled with what the missing port has to do
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.04,40),M(PIT,{transparent:true,opacity:0.6})),0,0.02,0));
@@ -4589,13 +4589,13 @@ function moveItem(id,x,z){const it=S.items[id];const L=layoutOf(S.scope);const r
 it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{if(l.from===id||l.to===id)routeLane(l);});S.air.forEach(a=>{if(a.from===id||a.to===id)routeAir(a);});S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
 
 // ---------- state ----------
-let sel=null,selPort=null,HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
+let sel=null,selPorts=[],HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
 // a complexity's colour; an external has none and keeps its own
 const swatch=level=>'#'+new THREE.Color(level?LEVELC[level]||LEVELC.simple:EXTC).getHexString();
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
 t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = complexity, estimated from ports, uses, tbd holes, requirements and nodes inside:');
 ['simple','mid','complex'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
-t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
+t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside, any other node to go to it in its own dome'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
@@ -4607,7 +4607,7 @@ if(info.complexity){const chip=mk('span','d-chip');const sw=mk('i',null,null,chi
 if(info.deprecated)mk('p','d-purpose','Deprecated: '+info.deprecated);
 mk('p','d-purpose',info.what);
 if(info.why)mk('p','d-why','Why: '+info.why);
-info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&r.name===selPort?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
+info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&selPorts.includes(r.name)?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
 function setLaneLook(l,col,a){l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
@@ -4624,9 +4624,9 @@ legend();}
 // a lit dome's count of the hits inside it, above its label
 function badge(it,n){if((it.badgeN||0)===n)return;if(it.badge){it.g.remove(it.badge);it.badge.material.map.dispose();it.badge.material.dispose();it.badge=null;}it.badgeN=n;if(!n)return;
 const b=labelSprite(n+' inside',null);b.material.color.setHex(LITLAB);b.scale.multiplyScalar(0.9);b.position.y=it.label.position.y+it.label.scale.y+0.12;b.renderOrder=11;it.g.add(b);it.badge=b;}
-function select(id,port){sel=selectable(id)?id:null;selPort=(sel&&port)||null;S.mark=null;applyState();renderDetails();}
+function select(id,ports){sel=selectable(id)?id:null;selPorts=sel&&ports?ports:[];S.mark=null;applyState();renderDetails();}
 // a hit lands selected (the camera moved, so a hover from before is stale); a hole has no details, so it is marked as hover marks it until the next click, Escape or scope
-function land(id,port){S.hover=null;select(id,port);const it=S.items[id];if(!it)return;if(!sel){S.mark=id;applyState();}say((port?port+', port of ':'')+(it.kind==='hole'?'tbd '+(it.sp.item.codeName||it.name):it.name)+', in '+S.view.name);}
+function land(id,ports){S.hover=null;select(id,ports);const it=S.items[id];if(!it)return;if(!sel){S.mark=id;applyState();}say((ports&&ports.length?ports.join(', ')+(ports.length>1?', ports of ':', port of '):'')+(it.kind==='hole'?'tbd '+(it.sp.item.codeName||it.name):it.name)+', in '+S.view.name);}
 // one polite region for screen readers: result counts (after typing settles) and landings
 let sayT=0;function say(text,later){clearTimeout(sayT);if(later)sayT=setTimeout(()=>{sayBox.textContent=text;},400);else sayBox.textContent=text;}
 function toggleRaise(){raiseTarget=raiseTarget?0:1;const b=document.getElementById('raiseBtn');b.querySelector('span').textContent=raiseTarget?'Land nodes':'Lift nodes';b.querySelector('svg').innerHTML=raiseTarget?'<path d="M12 19V5"/><path d="M6 11l6 6 6-6"/>':'<path d="M12 5v14"/><path d="M6 13l6-6 6 6"/>';}
@@ -4639,7 +4639,7 @@ function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaled
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
 // zoom into a dome's island, then open \`to\`, the path to it or to a scope inside it; a search hit lands there centred
-function dive(it,to,h){return{kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,path:to,sel:h&&h.key,port:h&&h.port};}
+function dive(it,to,h){return{kind:'in1',t:0,fromT:controls.target.clone(),fromP:camera.position.clone(),fromZ:camera.zoom,toT:V(it.base.x,it.y+SH/2,it.base.z),toZ:camera.zoom*7,path:to,sel:h&&h.key,port:h&&marks(h)};}
 function enter(id){const it=S.items[id];if(trans||!it||it.kind!=='comp'||!it.sp.item.dome)return;trans=dive(it,[...path,it.sp.item.node]);controls.enabled=false;tip.style.display='none';}
 function goTo(d){if(trans||d>=path.length-1||d<0)return;trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:path.slice(0,d+1),from:'node:'+path[d+1]};controls.enabled=false;tip.style.display='none';}
 function goUp(){goTo(path.length-2);}
@@ -4682,11 +4682,13 @@ setCur(cur,true);
 if(HITS.length>SHOWN){const more=mk('div','h-more',hitList);more.textContent=SHOWN+' of '+HITS.length+' — keep typing';more.addEventListener('mousedown',e=>e.preventDefault());}}
 // same scope: glide there; inside an island here: dive into it; elsewhere: fade out as going up does, load it, fade in;
 // each lands centred on the hit at the scope's home zoom. A hit chosen during a move waits for it, the latest one wins
-function jump(h){if(q.value){cur=HITS.indexOf(h);clearQuery(true);}q.blur();if(trans){queued=h;return;}
-const to=h.path.map(c=>c.scope),depth=path.length,into=to.length>depth&&to[depth-1]===S.scope&&S.items['node:'+to[depth]];
-if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone(),sel:h.key,port:h.port};}
+function jump(h){if(q.value){cur=HITS.indexOf(h);clearQuery(true);}q.blur();if(trans){queued=h;return;}fly(h);}
+// a search hit marks its one port; a double-click's landing the ports its item showed
+function marks(h){return h.ports||(h.port?[h.port]:[]);}
+function fly(h){const to=h.path.map(c=>c.scope),depth=path.length,into=to.length>depth&&to[depth-1]===S.scope&&S.items['node:'+to[depth]];
+if(h.scope===S.scope){const it=S.items[h.key];if(!it)return;trans={kind:'home',t:0,fromT:controls.target.clone(),toT:V(it.base.x,it.y,it.base.z),fromZ:camera.zoom,toZ:HOME.zoom,fromP:camera.position.clone(),sel:h.key,port:marks(h)};}
 else if(into)trans=dive(into,to,h);
-else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:to,sel:h.key,port:h.port};
+else trans={kind:'out1',t:0,fromZ:camera.zoom,toZ:camera.zoom*0.25,path:to,sel:h.key,port:marks(h)};
 controls.enabled=false;tip.style.display='none';}
 q.addEventListener('input',onQuery);
 // touch screens have no / key: a tap into the empty box brings the query back
@@ -4715,7 +4717,7 @@ if(key&&S.labels[key]){tip.textContent=S.labels[key];tip.style.display='block';t
 window.addEventListener('pointerup',e=>{wrap.style.cursor='grab';
 if(drag){if(!drag.moved){clearQuery(true);select(drag.kind==='item'?drag.id:null);}drag=null;if(!trans)controls.enabled=true;return;}
 if(down&&down.b===0&&!trans&&e.target===el){const dx=e.clientX-down.x,dy=e.clientY-down.y;if(dx*dx+dy*dy<25){const h=hitAt(e);clearQuery(true);select(h&&h.id?h.id:null);}}down=null;});
-el.addEventListener('dblclick',e=>{if(trans)return;const h=hitAt(e);if(h&&h.id){enter(h.id);return;}if(path.length>1&&outsideBoard(e))goUp();});
+el.addEventListener('dblclick',e=>{if(trans)return;const h=hitAt(e);if(h&&h.id){const it=S.items[h.id];if(it&&it.kind==='comp'&&it.sp.item.dome){enter(h.id);return;}const to=landingOf(MAP,S.view,h.id);if(to)fly(to);return;}if(path.length>1&&outsideBoard(e))goUp();});
 el.addEventListener('pointerleave',()=>{tip.style.display='none';if(S.hover){S.hover=null;applyState();}});
 el.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='k'||e.key==='K')){e.preventDefault();openSearch();return;}
@@ -5310,6 +5312,20 @@ export function search(scene, query) {
   }
   // Stable: equal rank, score and order keep world order.
   return found.sort((a, b) => a.rank - b.rank || a.score - b.score || a.order - b.order).map((entry) => entry.hit);
+}
+
+/**
+ * Where a double-click on an item of \`view\` lands: the node it stands for (the entry: the open dome) in that node's
+ * home scope, its parent, with the ports the item shows. Null for what is no node: a hole, an id missing from the
+ * world. An island lands where it is; the page opens a dome island instead.
+ */
+export function landingOf(scene, view, key) {
+  const item = view.items.find((entry) => entry.key === key);
+  if (!item) return null;
+  const node = item.kind === "entry" ? view.scope : item.node;
+  if (node === null) return null;
+  const scope = scene.parents[node];
+  return { scope, path: pathTo(scene, scope), key: \`node:\${node}\`, node, ports: [...(item.ports ?? [])] };
 }
 
 /**

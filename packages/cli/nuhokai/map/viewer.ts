@@ -22,6 +22,10 @@ export const Viewer = node({
       text: "Double-click opens a dome; breadcrumbs lead back. The top level, first breadcrumb and page title carry the world's name, else World.",
     },
     {
+      id: "R15",
+      text: "Double-click on any other node (a leaf island, an external, an outside proxy, the entry for the open dome) lands on that node in its own parent dome as a search hit does (R13), selected, every port the item showed marked; a tbd hole or an id missing from the world stays put. Each one's tooltip says so.",
+    },
+    {
       id: "R3",
       text: "uses: lanes carrying their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
     },
@@ -66,6 +70,14 @@ export const Viewer = node({
     {
       text: "scene.js under bun: a dome with 1 port, 1 requirement, 2 nodes inside that use 3 outside ports (one of them from both) and 1 hole → 8, simple, the edge between the two not counted; an implementor with 9 requirements, its contract's port and 2 requirements → 16, complex; an external → none.",
       demonstrates: ["R6"],
+    },
+    {
+      text: "scene.js under bun, example world: inside Shop, Postgres lands on top with query, AuditLog on top with none, the entry on Shop on top with placeOrder and orderHistory, Stock in Shop; the hole and an unknown key → null.",
+      demonstrates: ["R15"],
+    },
+    {
+      text: "By hand, headless Chromium, example world: inside Shop, double-clicking Postgres, the entry and AuditLog each fade to the top, centred and selected, the ports marked in the details.",
+      demonstrates: ["R15"],
     },
     {
       text: "By hand, browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
@@ -205,6 +217,10 @@ export const Viewer = node({
       decision:
         "Holes match word starts only as one run from one word start, then substring; never skipping words, never as a subsequence.",
       why: "A description is a sentence: across its many words almost any query's letters appear in order.",
+    },
+    {
+      decision: "Double-click on a node at the edge goes to it, as a search hit; on a dome it still opens it.",
+      why: "What sits at a dome's edge is drawn there only as a proxy; its own lanes and details are in its home scope, and searching for a name already on screen is a detour.",
     },
     {
       decision: "A hit lands in its home scope, never on an outside proxy.",
