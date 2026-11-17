@@ -54,7 +54,7 @@ export const Viewer = node({
     },
     {
       id: "R16",
-      text: "No legend on the map: a ? button at the bottom left, or the ? key, opens a modal explaining the map in sections: islands (complexity colours, height, domes, contracts), lanes (call, entry and external, event, dashed, focused), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it; while open, no key reaches the map.",
+      text: "No legend on the map: a ? button at the bottom left (up to 640px wide at the top right, clear of the details), or the ? key outside the search box and without Ctrl, Alt or ⌘, opens a modal built once that explains the map in sections: islands (complexity colours, height, domes, contracts), lanes (call, entry and external, event, dashed, focused), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it, a selection dragged out of it does not; while open, no key reaches the map.",
     },
     {
       id: "R11",
@@ -159,7 +159,7 @@ export const Viewer = node({
       demonstrates: ["R11", "R13"],
     },
     {
-      text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the legend and the details.",
+      text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the help button and the details.",
       demonstrates: ["R14"],
     },
     {
