@@ -45,7 +45,7 @@ export const Viewer = node({
     },
     {
       id: "R9",
-      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, what, why, ports, requirements, source.",
+      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, what, why, ports, requirements, source. Each port and requirement on two rows, its name above its details; long names and unbroken text wrap, never widen the panel. A source path on one line, cut at the front so its end shows, whole on hover, with a button that copies it.",
     },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
@@ -108,6 +108,14 @@ export const Viewer = node({
     },
     {
       text: "scene.js under bun: a node without source (world files are not type-checked) → empty Source section, no crash.",
+      demonstrates: ["R9"],
+    },
+    {
+      text: "scene.js under bun: the click panel's sections are kinds ports, requirements and source, the source rows the paths as written.",
+      demonstrates: ["R9"],
+    },
+    {
+      text: "By hand, headless Chromium: a node with a long unbroken name, a long port name, a long requirement id, a URL in its deprecation note and a deeply nested source path → no horizontal scroll at 1280 and 390px wide; each port and requirement shows its name above its details; the path shows its file name, whole on hover; its button copies the whole path; with the clipboard refused the button shows the failure and the path is selected.",
       demonstrates: ["R9"],
     },
     {
