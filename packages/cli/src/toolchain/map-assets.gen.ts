@@ -4511,8 +4511,9 @@ S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'us
 else if(sp.kind==='ghost'){it.rr=1.15;it.ah=0.15;const col=sp.orange?ORANGE:GHOST;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.3,40),M(col,{transparent:true,opacity:0.45})),0,0.15,0));
 const em=new THREE.LineDashedMaterial({color:col,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.9});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.0)),em);ol.computeLineDistances();ol.position.y=0.31;add(ol);
-const ports=sp.item.ports.join(', ');footShape=discShape(0.95);
-const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:where),col);labY=0.5;
+const ports=sp.item.ports.join(', '),count=sp.item.ports.length+(sp.item.ports.length===1?' port':' ports');footShape=discShape(0.95);
+// the label counts the ports, however few: a dome with many would otherwise grow an unreadable label; the details list them
+const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+count:(ports?'used for '+count:where),col);labY=0.5;
 S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports+'\\nDouble-click to go to '+S.view.name:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details · double-click to go there':'');}
 else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 // a tbd: a dark pit with a dashed rim, labelled with what the missing port has to do

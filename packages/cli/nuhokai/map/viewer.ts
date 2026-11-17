@@ -30,7 +30,10 @@ export const Viewer = node({
       text: "uses: lanes carrying their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
     },
     { id: "R4", text: "implements: dashed lane to the contract; abstract: contract island." },
-    { id: "R5", text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType." },
+    {
+      id: "R5",
+      text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. The entry's and an outside node's labels count their ports (`enters via 1 port`, `used for 12 ports`), never list them.",
+    },
     {
       id: "R6",
       text: "Island colour = the node's complexity in three steps of one hue, simple, mid, complex: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
@@ -82,6 +85,10 @@ export const Viewer = node({
     {
       text: "By hand, browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
       demonstrates: ["R1", "R2", "R4", "R5", "R9"],
+    },
+    {
+      text: "By hand, headless Chromium, example world: inside Shop the entry reads `enters via N ports` and Postgres's ports are not listed on its label; an outside node used for one port reads `used for 1 port`.",
+      demonstrates: ["R5"],
     },
     {
       text: "By hand, headless Chromium, example world: moved Shop keeps its place after reload and after regenerating with a node added (seeded); Reset layout seeds again; without storage the map still draws.",
