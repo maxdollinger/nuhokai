@@ -13,7 +13,8 @@ let temp = "";
 const SHOP = `import { node } from "@nuhokai/world";
 export const Store = node({
   id: "store",
-  what: "A place to keep things.", why: "A place to keep things.",
+  what: "A place to keep things.",
+  why: "So orders and stock are kept alike.",
   source: [],
   abstract: true,
   ports: { keep: { kind: "call", purpose: "Keep one thing" } },
@@ -22,7 +23,8 @@ export const Store = node({
 }).edges({});
 export const Orders = node({
   id: "orders",
-  what: "Owns orders.", why: "Owns orders.",
+  what: "Owns orders.",
+  why: "So orders have one owner.",
   source: ["src/orders.ts"],
   ports: { place: { kind: "event", purpose: "An order was placed", payload: "the order" } },
   requirements: [
@@ -41,13 +43,15 @@ export const Orders = node({
 }).edges({ implements: () => [Store], uses: () => [Stock.reserve, Lost.run, Stock.count] });
 export const Stock = node({
   id: "stock",
-  what: "Counts stock.", why: "Counts stock.",
+  what: "Counts stock.",
+  external: true,
   source: [],
   ports: { reserve: { kind: "call", purpose: "Reserve" }, count: { kind: "call", purpose: "Count" } },
 }).edges({});
 export const Lost = node({
   id: "lost",
-  what: "Listed nowhere.", why: "Listed nowhere.",
+  what: "Listed nowhere.",
+  why: "To be used, never listed.",
   source: [],
   ports: { run: { kind: "call", purpose: "Run" } },
 }).edges({});
@@ -72,6 +76,11 @@ afterAll(() => {
   if (temp) rmSync(temp, { recursive: true, force: true });
 });
 
+test("R1: a node without a why, an external, has a what item and no why item", () => {
+  const items = list(shop, at(shop, "Stock"));
+  expect(items.map((item) => item.ref)).toEqual(["what", "ports.reserve", "ports.count"]);
+});
+
 test("R1, R2, R3, R6: items by reference in spec order, each at its line; details below their item; a contract's items prefixed by its name", () => {
   const items = list(shop, at(shop, "Orders"));
   expect(items.map((item) => item.ref)).toEqual([
@@ -93,8 +102,8 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
   const file = join(temp, "nuhokai/shop.ts");
   expect(find(items, "requirements[R1]")).toMatchObject({ kind: "requirement", file, line: lineIn(file, "Places") });
   // One item per target, its ports merged, at the edge's first item; an orphan by its export name, never dropped.
-  expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 29 });
-  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 29 });
+  expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 31 });
+  expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 31 });
   expect(find(items, "ports.place")?.details).toEqual(["payload: the order"]);
   expect(find(items, "ports.place.payload")).toBeUndefined();
   expect(find(items, "decisions[0]")).toMatchObject({
@@ -102,9 +111,17 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
     details: ["rejected: A shared id service Why not: One more hop."],
   });
   expect(find(items, "decisions[0].rejected[0]")).toBeUndefined();
-  expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 8, contract: "Store" });
-  expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 9, contract: "Store" });
+  expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 9, contract: "Store" });
+  expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 10, contract: "Store" });
+  expect(find(items, "what")).toMatchObject({
+    kind: "what",
+    text: "Owns orders.",
+    file,
+    line: lineIn(file, "Owns orders."),
+  });
+  expect(find(items, "why")).toMatchObject({ kind: "why", text: "So orders have one owner.", file });
   expect(find(items, "Store.what")).toBeUndefined();
+  expect(find(items, "Store.why")).toBeUndefined();
 });
 
 test("R4: a requirement of the node's own no test case demonstrates is marked untested; a constraint or a contract's never is", () => {

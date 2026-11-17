@@ -36,7 +36,7 @@ export const SpecItems = node({
   requirements: [
     {
       id: "R1",
-      text: "References by id or name, never by a position a reorder shifts, where the format gives one, and only these: what, why, ports.run, requirements[R2], edges.uses[LoadWorld], testCases[0], decisions[1]. A port's input, output, errors, payload and transport, and a decision's rejected options, are its details, one line each below it, cited by the item's own reference.",
+      text: "References by id or name, never by a position a reorder shifts, where the format gives one, and only these: what, why (only when the node has one: an external may not), ports.run, requirements[R2], edges.uses[LoadWorld], testCases[0], decisions[1]. A port's input, output, errors, payload and transport, and a decision's rejected options, are its details, one line each below it, cited by the item's own reference.",
     },
     {
       id: "R2",
@@ -69,6 +69,7 @@ export const SpecItems = node({
       text: "Orders implements Store, uses Stock.reserve, the orphan Lost and Stock.count, and has a decision with one rejected option → what, why, ports.place with its payload below it, its requirements, edges.uses[Stock] (reserve, count) and edges.uses[Lost], its test case, decisions[0] with the rejected option below it, then Store's ports, requirements and test case prefixed Store., at Store's lines; no ports.place.payload or decisions[0].rejected[0].",
       demonstrates: ["R1", "R2", "R3", "R6"],
     },
+    { text: "Stock, external without a why → what and its ports, no why item.", demonstrates: ["R1"] },
     {
       text: "R2 demonstrated by no test case → marked untested; a constraint C1, or the contract's R2 → not marked.",
       demonstrates: ["R4"],

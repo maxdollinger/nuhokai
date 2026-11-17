@@ -70,6 +70,10 @@ export const WorldFormat = node({
       text: "A dome lists its children, children: [A, B], and exposes their ports by reference, ports: { run: A.run }; a wrong child or port fails tsc on that entry.",
     },
     {
+      id: "R13",
+      text: "A node says what it does in what and why it exists in why. A node without what, or one whose external flag is literal false without why, fails tsc; an external may leave why out. Blank ones, and a why missing where the flag is not literal, are check's. Ports keep purpose.",
+    },
+    {
       id: "C1",
       kind: "constraint",
       text: "Types only: no runtime code and no dependencies; world files are read by tools, never run.",
@@ -116,6 +120,10 @@ export const WorldFormat = node({
       demonstrates: ["R9"],
     },
     { text: "defineWorld without an id fails typecheck; a world keeps its id.", demonstrates: ["R10"] },
+    {
+      text: "A node without why fails typecheck; the same node external compiles; a node without what fails typecheck.",
+      demonstrates: ["R13"],
+    },
     {
       text: "defineWorld without a name, with a blank name or without source fails typecheck; the world keeps both.",
       demonstrates: ["R11"],
@@ -293,6 +301,19 @@ export const WorldFormat = node({
           option: "Key it by a node id",
           why: "Node ids are unique only within a world; init scaffolds the same example id into every project.",
         },
+      ],
+    },
+    {
+      decision:
+        "A node is described by two fields: what (what it does) and why (why it exists). why is required unless the node is external. A port keeps one purpose field.",
+      why: "A reader needs both before opening a node's ports or code, and one prose field drifted to only one of them in this repo's own worlds. Two fields make a missing half visible to tsc and check, and let tools show each where it helps: the tree line, the map, a review finding citing one of them. An external is not built by us, which is its reason; a port's job is its what alone.",
+      rejected: [
+        {
+          option: "One purpose field covering why and what",
+          why: "Nothing notices when one half is missing; it was, in many of this repo's own nodes.",
+        },
+        { option: "why optional on every node", why: "The boundary's reason is what gets left out first." },
+        { option: "what and why on ports too", why: "A port's reason is its node's; the split adds only noise." },
       ],
     },
     {
