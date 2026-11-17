@@ -30,7 +30,10 @@ export const Viewer = node({
       text: "uses: lanes carrying their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
     },
     { id: "R4", text: "implements: dashed lane to the contract; abstract: contract island." },
-    { id: "R5", text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType." },
+    {
+      id: "R5",
+      text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. The entry's and an outside node's labels count their ports (`enters via 1 port`, `used for 12 ports`), never list them.",
+    },
     {
       id: "R6",
       text: "Island colour = the node's complexity in three steps of one hue, simple, mid, complex: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
@@ -47,7 +50,11 @@ export const Viewer = node({
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {
       id: "R14",
-      text: "Up to 520px wide the view controls are an icon row under the search box, their names kept for screen readers: never under the legend or details.",
+      text: "Up to 520px wide the view controls are an icon row under the search box, their names kept for screen readers: never under the help button or details.",
+    },
+    {
+      id: "R16",
+      text: "No legend on the map: a ? button at the bottom left (up to 640px wide at the top right, clear of the details), or the ? key outside the search box and without Ctrl, Alt or ⌘, opens a modal built once that explains the map in sections: islands (complexity colours, height, domes, contracts), lanes (call, entry and external, event, dashed, focused), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it, a selection dragged out of it does not; while open, no key reaches the map.",
     },
     {
       id: "R11",
@@ -82,6 +89,10 @@ export const Viewer = node({
     {
       text: "By hand, browser, example world: Postgres at the edge as db, AuditLog as contract, Shop opens to Orders and Stock, clicking Orders shows its fields only.",
       demonstrates: ["R1", "R2", "R4", "R5", "R9"],
+    },
+    {
+      text: "By hand, headless Chromium, example world: inside Shop the entry reads `enters via N ports` and Postgres's ports are not listed on its label; an outside node used for one port reads `used for 1 port`.",
+      demonstrates: ["R5"],
     },
     {
       text: "By hand, headless Chromium, example world: moved Shop keeps its place after reload and after regenerating with a node added (seeded); Reset layout seeds again; without storage the map still draws.",
@@ -148,8 +159,12 @@ export const Viewer = node({
       demonstrates: ["R11", "R13"],
     },
     {
-      text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the legend and the details.",
+      text: "By hand, headless Chromium, 390px with touch, light and dark: the controls are an icon row under the search box, clear of the help button and the details.",
       demonstrates: ["R14"],
+    },
+    {
+      text: "By hand, headless Chromium, light, dark and 390px with touch: no legend; ? (button or key) opens the help, Escape and a backdrop click close it, the map stays in its scope.",
+      demonstrates: ["R16"],
     },
     {
       text: "By hand, headless Chromium, example world: `customer` + Enter → Shop open, the hole and its lanes lit, plain after a click; `reserve` + Enter → reserve marked in Stock's details, then / brings `reserve` back selected; a click on Shop while `stock` is typed clears the query and selects Shop; `stock` dims the rest harder than hover, Shop's label tinted.",

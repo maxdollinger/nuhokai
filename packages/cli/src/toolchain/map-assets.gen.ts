@@ -4286,12 +4286,31 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
   display:flex;flex-direction:column;gap:4px;padding:6px}
 #controls button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;border-radius:7px;
   background:transparent;color:var(--text);font:inherit;font-size:13px;cursor:pointer;text-align:left;white-space:nowrap}
-#controls button:hover{background:rgba(127,127,127,0.14)}
-#controls button:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
+#controls button:hover,#helpBtn:hover{background:rgba(127,127,127,0.14)}
+#controls button:focus-visible,#helpBtn:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
 #controls svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#info{position:absolute;left:16px;bottom:16px;z-index:3;max-width:min(580px,calc(100% - 32px));
-  padding:9px 12px;font-size:13px;line-height:1.45;color:var(--text-2)}
-#info .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 4px 0 8px;vertical-align:baseline}
+#helpBtn{position:absolute;left:16px;bottom:16px;z-index:3;width:36px;height:36px;border-radius:50%;color:var(--text);
+  font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+#helpDlg{margin:auto;width:min(600px,calc(100% - 32px));max-height:calc(100% - 32px);padding:0;border:0.5px solid var(--panel-border);
+  border-radius:12px;background:var(--bg-a);color:var(--text);box-shadow:0 12px 40px rgba(0,0,0,0.25);font-size:13px;line-height:1.45}
+#helpDlg::backdrop{background:rgba(10,10,10,0.35)}
+#helpDlg .hp-head{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;background:var(--bg-a);border-bottom:0.5px solid var(--panel-border)}
+#helpDlg h2{font-size:15px;font-weight:600}
+#helpDlg h3{margin:16px 0 6px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2)}
+#helpDlg .hp-body{padding:4px 18px 18px}
+#helpDlg .hp-intro{margin-top:10px;color:var(--text-2)}
+#helpDlg dl{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;align-items:baseline}
+#helpDlg dt{display:flex;align-items:center;gap:7px;font-weight:600;white-space:nowrap}
+#helpDlg dd{color:var(--text-2)}
+#helpDlg kbd{display:inline-block;min-width:18px;padding:0 5px;border:0.5px solid var(--panel-border);border-radius:4px;background:var(--panel);font:inherit;font-size:12px;text-align:center}
+#helpDlg .hp-s{flex:none;display:inline-block;background:var(--f,transparent)}
+#helpDlg .hp-dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+#helpDlg .hp-ring{width:11px;height:11px;border-radius:50%;border:1.5px dashed var(--c)}
+#helpDlg .hp-line{width:18px;height:0;border-top:3px solid var(--c)}
+#helpDlg .hp-dash{width:18px;height:0;border-top:2px dashed var(--c)}
+#helpDlg .hp-arc{width:18px;height:9px;border:2px solid var(--c);border-bottom:0;border-radius:9px 9px 0 0}
+#helpDlg .hp-sq{width:10px;height:10px;border-radius:2px;background:var(--c)}
+@media (max-width:520px){#helpDlg dl{grid-template-columns:1fr;gap:2px}#helpDlg dd{margin-bottom:6px}}
 #tip{position:fixed;pointer-events:none;display:none;z-index:4;background:rgba(30,30,28,0.92);color:#fff;
   font-size:12px;padding:6px 10px;border-radius:6px;white-space:pre;line-height:1.5}
 @media (max-width:520px){#controls{top:104px;transform:none;flex-direction:row}#controls button{width:auto;padding:8px}#controls button span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}}
@@ -4317,7 +4336,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 .d-link:hover{text-decoration:underline}
 .d-action{margin-top:14px;width:100%;padding:8px;border-radius:7px;border:0.5px solid var(--panel-border);background:rgba(127,127,127,0.08);color:var(--text);font:inherit;cursor:pointer}
 .d-action:hover{background:rgba(127,127,127,0.16)}
-@media (max-width:640px){#details{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:45%}#hits{max-height:35vh}}
+@media (max-width:640px){#helpBtn{bottom:auto;top:104px;left:auto;right:16px}#details{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:45%}#hits{max-height:35vh}}
 </style>
 </head>
 <body>
@@ -4333,7 +4352,8 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
     <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h3a3 3 0 0 1 3 3"/><path d="M10 17H7a3 3 0 0 1-3-3"/></svg><span>Reset layout</span></button>
     <button id="raiseBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6 6 6-6"/></svg><span>Land nodes</span></button>
   </div>
-  <p id="info" class="panel"></p>
+  <button id="helpBtn" class="panel" type="button" aria-label="How to read this map" aria-haspopup="dialog">?</button>
+  <dialog id="helpDlg" aria-labelledby="helpTitle"><div class="hp-head"><h2 id="helpTitle">How to read this map</h2><button class="d-close" type="button" aria-label="Close">×</button></div><div class="hp-body"></div></dialog>
   <aside id="details" class="panel" hidden aria-live="polite"></aside>
   <div id="tip"></div>
   <div id="say" class="sr" aria-live="polite"></div>
@@ -4344,7 +4364,7 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 /*nuhokai:scene*/
 
 // ---------- viewer ----------
-const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),info=document.getElementById('info'),crumbs=document.getElementById('crumbs'),q=document.getElementById('q'),hitList=document.getElementById('hits'),here=document.getElementById('here'),sayBox=document.getElementById('say');
+const wrap=document.getElementById('wrap'),tip=document.getElementById('tip'),helpDlg=document.getElementById('helpDlg'),crumbs=document.getElementById('crumbs'),q=document.getElementById('q'),hitList=document.getElementById('hits'),here=document.getElementById('here'),sayBox=document.getElementById('say');
 const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
 const TOUCH=window.matchMedia&&window.matchMedia('(hover: none)').matches;
@@ -4415,9 +4435,13 @@ function discShape(r){const s=new THREE.Shape();s.absarc(0,0,r,0,Math.PI*2,false
 function circlePts(r){const a=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2;a.push(V(Math.cos(t)*r,0,Math.sin(t)*r));}return a;}
 function radius(parts){return Math.min(2.4,0.9*Math.sqrt(Math.max(1,parts)));}
 function convexHull(P){P=P.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);const lo=[],up=[];for(const p of P){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}for(let i=P.length-1;i>=0;i--){const p=P[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p);}up.pop();lo.pop();return lo.concat(up);}
+// a three.js colour as CSS
+const cssColor=c=>'#'+new THREE.Color(c).getHexString();
+// an element with a class and text, appended to parent
+const make=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;if(parent)parent.appendChild(e);return e;};
 function labelSprite(name,sub,dot){const pad=14,f1='600 28px system-ui,-apple-system,sans-serif',f2='400 22px system-ui,-apple-system,sans-serif';const cv=document.createElement('canvas');const x=cv.getContext('2d');x.font=f1;const w1=x.measureText(name).width+(dot!=null?22:0);x.font=f2;const w2=sub?x.measureText(sub).width:0;const w=Math.ceil(Math.max(w1,w2)+pad*2),h=sub?80:50;cv.width=w;cv.height=h;
 x.fillStyle=DARK?'rgba(40,40,38,0.94)':'rgba(255,255,255,0.95)';x.strokeStyle=DARK?'rgba(255,255,255,0.16)':'rgba(20,20,19,0.16)';x.lineWidth=2;x.beginPath();if(x.roundRect)x.roundRect(1,1,w-2,h-2,10);else x.rect(1,1,w-2,h-2);x.fill();x.stroke();
-let tx=pad;if(dot!=null){x.fillStyle='#'+new THREE.Color(dot).getHexString();x.beginPath();x.arc(pad+6,26,6,0,Math.PI*2);x.fill();tx+=22;}
+let tx=pad;if(dot!=null){x.fillStyle=cssColor(dot);x.beginPath();x.arc(pad+6,26,6,0,Math.PI*2);x.fill();tx+=22;}
 x.textBaseline='middle';x.fillStyle=DARK?'#f1efe8':'#1d1d1b';x.font=f1;x.fillText(name,tx,26);if(sub){x.fillStyle=DARK?'#b4b2a9':'#6d6b67';x.font=f2;x.fillText(sub,pad,60);}
 const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(w*0.015,h*0.015,1);sp.renderOrder=10;return sp;}
 
@@ -4511,8 +4535,9 @@ S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'us
 else if(sp.kind==='ghost'){it.rr=1.15;it.ah=0.15;const col=sp.orange?ORANGE:GHOST;
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.3,40),M(col,{transparent:true,opacity:0.45})),0,0.15,0));
 const em=new THREE.LineDashedMaterial({color:col,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.9});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(1.0)),em);ol.computeLineDistances();ol.position.y=0.31;add(ol);
-const ports=sp.item.ports.join(', ');footShape=discShape(0.95);
-const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+ports:(ports?'used for '+ports:where),col);labY=0.5;
+const ports=sp.item.ports.join(', '),n=sp.item.ports.length,count=n+(n===1?' port':' ports');footShape=discShape(0.95);
+// the label counts the ports, however few: a dome with many would otherwise grow an unreadable label; the tooltip lists them
+const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+count:(ports?'used for '+count:where),col);labY=0.5;
 S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports+'\\nDouble-click to go to '+S.view.name:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\\nClick for details · double-click to go there':'');}
 else if(sp.kind==='hole'){it.rr=1.15;it.ah=0.05;
 // a tbd: a dark pit with a dashed rim, labelled with what the missing port has to do
@@ -4591,15 +4616,47 @@ it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;S.lanes.forEach(l=>{
 // ---------- state ----------
 let sel=null,selPorts=[],HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
 // a complexity's colour; an external has none and keeps its own
-const swatch=level=>'#'+new THREE.Color(level?LEVELC[level]||LEVELC.simple:EXTC).getHexString();
-function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
-t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = complexity, estimated from ports, uses, tbd holes, requirements and nodes inside:');
-['simple','mid','complex'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
-t('. '+(TOUCH?'Tap an island for its lanes\\' ports, events and details':'Hover an island for its lanes\\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside, any other node to go to it in its own dome'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
+const swatch=level=>cssColor(level?LEVELC[level]||LEVELC.simple:EXTC);
+// the help: what the map's shapes and colours mean and what you can do with them, in one modal behind the ? button
+// rows: [samples, term, description]; a sample is [shape, colour, fill]; a term given as an array is keys
+function helpBody(){const body=helpDlg.querySelector('.hp-body');
+make('p','hp-intro','Each island is a node of the world. You look at one scope at a time: the top level, or the inside of a dome. The breadcrumbs at the top left say where you are.',body);
+const section=(title,rows)=>{make('h3',null,title,body);const dl=make('dl',null,null,body);rows.forEach(([samples,term,desc])=>{const dt=make('dt',null,null,dl);
+samples.forEach(([shape,c,f])=>{const i=make('i','hp-s hp-'+shape,null,dt);i.style.setProperty('--c',c);if(f)i.style.setProperty('--f',f);});
+if(Array.isArray(term))term.forEach(k=>make('kbd',null,k,dt));else dt.append(term);make('dd',null,desc,dl);});};
+section('Islands',[
+  [['simple','mid','complex'].map(l=>['dot',swatch(l)]),'Colour','Complexity: simple, mid or complex, estimated from the node\\'s ports, used ports, tbd holes, requirements and nodes inside. Click an island for the breakdown.'],
+  [[],'Height','Call depth, the level on its label: an island stands above the ones it calls.'],
+  [[],'Dome','A node with nodes inside, drawn as small discs on top. Double-click it to look inside.'],
+  [[['ring',cssColor(VIOLET)]],'Contract','A dashed rim around a translucent island: a contract other nodes implement.'],
+]);
+section('Lanes',[
+  [[['line',cssColor(LANEC)]],'Call','A node uses another\\'s ports; thicker the more ports it carries.'],
+  [[['line',cssColor(ORANGE)]],'Entry, external','A call into this dome through its own ports, or to or from an external.'],
+  [[['arc',cssColor(VIOLET)]],'Event','An arc from the node that publishes it to the one that listens.'],
+  [[['dash',cssColor(LANEC)]],'Dashed','Leads to the contract a node implements, or to a tbd hole.'],
+  [[['line',cssColor(CORAL)],['line',cssColor(GREEN)]],'Focused','With an island hovered or selected: coral lanes are the calls it makes, green the calls into it. Their tags name the ports.'],
+]);
+section('At the edge',[
+  [[['sq',cssColor(EXTC)]],'External','A system outside the world (an api, a db, …), shaped by its type.'],
+  [[['ring',cssColor(GHOST)]],'Outside node','A node in another dome that nodes here use: used for N ports.'],
+  [[['ring',cssColor(ORANGE)]],'Entry','The open dome\\'s own ports, where calls come in: enters via N ports.'],
+  [[['ring',cssColor(GHOST),cssColor(PIT)]],'tbd hole','A dark pit: a port a node needs that is not designed yet.'],
+  [[],'Group','An outline around islands that belong together.'],
+]);
+section('Using the map',[
+  [[],TOUCH?'Tap':'Hover',TOUCH?'An island: its lanes\\' ports, its events and its details.':'An island: its lanes\\' ports and its events.'],
+  ...(TOUCH?[]:[[[],'Click','An island: its details on the right.']]),
+  [[],'Double-click','A dome: look inside. Any other node: go to it in its own dome.'],
+  [[],'Drag','An island or a group outline: rearrange. This browser remembers the layout.'],
+  ...(TOUCH?[]:[[[],['/','Ctrl','K'],'Search nodes, ports and tbd holes.'],[[],['Esc'],'Clear the search, then the selection, then go up a dome.'],[[],['⌫'],'Go up a dome.'],[[],['?'],'This help.']]),
+  [[],'Buttons','Reset view, reset the layout, land or lift the nodes.'],
+]);}
+helpBody();
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
-const mk=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;(parent||d).appendChild(e);return e;};
+const mk=(tag,cls,txt,parent)=>make(tag,cls,txt,parent||d);
 const info=detailsOf(MAP,it.sp.item.node);
 const head=mk('div','d-head');const t=mk('div','d-title',null,head);const close=mk('button','d-close','×',head);close.setAttribute('aria-label','Close details');close.onclick=()=>select(null);
 mk('div','d-name',info.name,t);if(info.kind)mk('div','d-sub',info.kind,t);
@@ -4619,8 +4676,7 @@ if(it.edge){const f=lit?on:fid===it.id;it.edge.color.setHex(f?CORAL:EDGE);op(it.
 // edge tags only for the focused item's edges: all at once they bury the islands
 S.lanes.forEach(l=>{if(l.tag)l.tag.visible=!!fid&&(l.from===fid||l.to===fid);if(lit)setLaneLook(l,laneColor(l),0.08);else if(fid){if(l.from===fid)setLaneLook(l,CORAL,1);else if(l.to===fid)setLaneLook(l,GREEN,1);else setLaneLook(l,laneColor(l),0.08);}else setLaneLook(l,laneColor(l),1);});
 S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.95:0.08;a.amat.opacity=a.vis?0.95:0.08;a.label.visible=a.vis&&!!fid;});
-S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});
-legend();}
+S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.95*o;r.fmat.opacity=0.13*o;r.label.material.opacity=o;});}
 // a lit dome's count of the hits inside it, above its label
 function badge(it,n){if((it.badgeN||0)===n)return;if(it.badge){it.g.remove(it.badge);it.badge.material.map.dispose();it.badge.material.dispose();it.badge=null;}it.badgeN=n;if(!n)return;
 const b=labelSprite(n+' inside',null);b.material.color.setHex(LITLAB);b.scale.multiplyScalar(0.9);b.position.y=it.label.position.y+it.label.scale.y+0.12;b.renderOrder=11;it.g.add(b);it.badge=b;}
@@ -4653,6 +4709,11 @@ function resetLayout(){if(trans)return;const all=stored();delete all[scopeKey(S.
 document.getElementById('resetBtn').addEventListener('click',resetView);
 document.getElementById('layoutBtn').addEventListener('click',resetLayout);
 document.getElementById('raiseBtn').addEventListener('click',toggleRaise);
+document.getElementById('helpBtn').addEventListener('click',()=>helpDlg.showModal());
+helpDlg.querySelector('.d-close').addEventListener('click',()=>helpDlg.close());
+// a click on the backdrop closes the help; a click inside it, or a selection dragged out of it, does not
+let helpDown=null;helpDlg.addEventListener('pointerdown',e=>{helpDown=e.target;});
+helpDlg.addEventListener('click',e=>{if(e.target===helpDlg&&helpDown===helpDlg)helpDlg.close();});
 
 // ---------- search ----------
 // every node, port and tbd hole in the world, whatever scope is open; a hit lands in its home scope, centred and selected
@@ -4670,7 +4731,7 @@ function rowName(h){const w=h.path.length>1?'in '+where(h):'at the top';return h
 // the one active row: arrows and the mouse move it, Enter takes it
 function setCur(i,scroll){const old=document.getElementById('hit'+cur);if(old)old.setAttribute('aria-selected','false');cur=i;const row=document.getElementById('hit'+i);if(!row)return;row.setAttribute('aria-selected','true');q.setAttribute('aria-activedescendant',row.id);if(scroll)row.scrollIntoView({block:'nearest'});}
 function renderHits(){hitList.innerHTML='';const on=searching();hitList.hidden=!on;q.setAttribute('aria-expanded',String(on));q.removeAttribute('aria-activedescendant');if(!on)return;
-const mk=(tag,cls,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;parent.appendChild(e);return e;};
+const mk=(tag,cls,parent)=>make(tag,cls,null,parent);
 if(!HITS.length){mk('div','h-none',hitList).textContent='No matches';return;}
 HITS.slice(0,SHOWN).forEach((h,i)=>{const row=mk('div',h.kind==='hole'?'hit hole':'hit',hitList);row.id='hit'+i;row.setAttribute('role','option');row.setAttribute('aria-selected','false');row.setAttribute('aria-label',rowName(h));
 // a complexity dot (a hole's dashed), then the label in runs, the matched characters bold
@@ -4719,10 +4780,14 @@ if(down&&down.b===0&&!trans&&e.target===el){const dx=e.clientX-down.x,dy=e.clien
 el.addEventListener('dblclick',e=>{if(trans)return;const h=hitAt(e);if(h&&h.id){const it=S.items[h.id];if(it&&it.kind==='comp'&&it.sp.item.dome){enter(h.id);return;}const to=landingOf(MAP,S.view,h.id);if(to)fly(to);return;}if(path.length>1&&outsideBoard(e))goUp();});
 el.addEventListener('pointerleave',()=>{tip.style.display='none';if(S.hover){S.hover=null;applyState();}});
 el.addEventListener('contextmenu',e=>e.preventDefault());
-window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='k'||e.key==='K')){e.preventDefault();openSearch();return;}
+window.addEventListener('keydown',e=>{
+// the open help owns the keys: Escape closes it, nothing reaches the map
+if(helpDlg.open)return;
+if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='k'||e.key==='K')){e.preventDefault();openSearch();return;}
 // keys typed in the search box are the box's own: never a way up
 if(e.target===q)return;
 if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();openSearch();return;}
+if(e.key==='?'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();helpDlg.showModal();return;}
 if(e.key==='Escape'&&searching()){clearQuery(false);return;}
 if(e.key==='Escape'&&(sel||S.mark)){select(null);return;}if((e.key==='Escape'||e.key==='Backspace')&&path.length>1){e.preventDefault();goUp();}});
 window.addEventListener('resize',()=>{renderer.setSize(W(),H());frustum();computeHome();});
