@@ -45,7 +45,7 @@ export const Viewer = node({
     },
     {
       id: "R9",
-      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, what, why, ports, requirements, source.",
+      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, what, why, ports, requirements, source. Each port and requirement on two rows, its name above its details; long names and unbroken text wrap, never widen the panel. A source path on one line, cut at the front so its end shows, whole on hover, with a button that copies it.",
     },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {

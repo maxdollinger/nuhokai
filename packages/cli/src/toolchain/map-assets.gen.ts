@@ -4318,19 +4318,28 @@ body{background:radial-gradient(ellipse at 50% 45%,var(--bg-a),var(--bg-b));colo
 #details[hidden]{display:none}
 .d-head{display:flex;gap:8px;align-items:flex-start}
 .d-title{flex:1;min-width:0}
-.d-name{font-size:16px;font-weight:600;line-height:1.3}
+.d-name{font-size:16px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
 .d-sub{color:var(--text-2);margin-top:2px}
 .d-close{border:0;background:transparent;color:var(--text-2);font-size:20px;line-height:1;cursor:pointer;padding:2px 7px;border-radius:6px}
 .d-close:hover{background:rgba(127,127,127,0.14);color:var(--text)}
 .d-chip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:3px 9px;border-radius:999px;background:rgba(127,127,127,0.12);font-size:12px}
 .d-chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
-.d-purpose{margin-top:10px;line-height:1.45}
-.d-why{margin-top:6px;line-height:1.45;opacity:.75}
+.d-purpose{margin-top:10px;line-height:1.45;overflow-wrap:anywhere}
+.d-why{margin-top:6px;line-height:1.45;opacity:.75;overflow-wrap:anywhere}
 .d-label{margin-top:14px;margin-bottom:2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2)}
 .d-list{list-style:none}
-.d-list li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:0.5px solid var(--panel-border)}
-.d-meta{color:var(--text-2);text-align:right;overflow-wrap:anywhere}
-.d-hit>span:first-child{font-weight:600;color:var(--accent)}
+.d-list li{padding:5px 0;border-top:0.5px solid var(--panel-border);line-height:1.4}
+.d-row-name{display:block;font-weight:500;overflow-wrap:anywhere}
+.d-meta{display:block;margin-top:1px;color:var(--text-2);overflow-wrap:anywhere}
+.d-hit .d-row-name{font-weight:600;color:var(--accent)}
+.d-list li.d-src{display:flex;align-items:center;gap:6px;padding:3px 0}
+.d-path{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.d-path bdi{direction:ltr;unicode-bidi:isolate}
+.d-copy{flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--text-2);cursor:pointer}
+.d-copy:hover{background:rgba(127,127,127,0.14);color:var(--text)}
+.d-copy:focus-visible,.d-close:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
+#details .d-copy svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.d-copy.done{color:var(--accent)}
 .d-none{color:var(--text-2);padding:5px 0;border-top:0.5px solid var(--panel-border)}
 .d-link{cursor:pointer;color:var(--accent)}
 .d-link:hover{text-decoration:underline}
@@ -4654,6 +4663,16 @@ section('Using the map',[
 ]);}
 helpBody();
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}
+// a source path on one line, cut at the front so its file name stays, the whole path on hover and a copy button
+const COPY_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+const DONE_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+async function copyText(text){try{await navigator.clipboard.writeText(text);return true;}catch{}
+  const ta=make('textarea',null,text,document.body);ta.setAttribute('readonly','');ta.style.cssText='position:fixed;opacity:0;pointer-events:none';ta.select();
+  let ok=false;try{ok=document.execCommand('copy');}catch{}ta.remove();return ok;}
+function sourceRow(path,ul){const li=make('li','d-src',null,ul);const p=make('span','d-path',null,li);p.title=path;make('bdi',null,path,p);
+  const b=make('button','d-copy',null,li);b.type='button';b.innerHTML=COPY_ICON;b.title='Copy path';b.setAttribute('aria-label','Copy '+path);
+  b.onclick=async e=>{e.stopPropagation();const ok=await copyText(path);if(!ok){say('Could not copy '+path);return;}
+    b.innerHTML=DONE_ICON;b.classList.add('done');say('Copied '+path);clearTimeout(b._t);b._t=setTimeout(()=>{b.innerHTML=COPY_ICON;b.classList.remove('done');},1200);};}
 function renderDetails(){const d=document.getElementById('details');const id=sel;const it=id&&S.items[id];if(!it||!it.node){d.hidden=true;d.innerHTML='';return;}
 d.innerHTML='';d.hidden=false;
 const mk=(tag,cls,txt,parent)=>make(tag,cls,txt,parent||d);
@@ -4664,7 +4683,9 @@ if(info.complexity){const chip=mk('span','d-chip');const sw=mk('i',null,null,chi
 if(info.deprecated)mk('p','d-purpose','Deprecated: '+info.deprecated);
 mk('p','d-purpose',info.what);
 if(info.why)mk('p','d-why','Why: '+info.why);
-info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{const li=mk('li',sec.label==='Ports'&&selPorts.includes(r.name)?'d-hit':null,null,ul);mk('span',null,r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
+info.sections.forEach(sec=>{mk('div','d-label',sec.label);if(!sec.rows.length){mk('div','d-none','none');return;}const ul=mk('ul','d-list');sec.rows.forEach(r=>{
+  if(sec.label==='Source'){sourceRow(r.name,ul);return;}
+  const li=mk('li',sec.label==='Ports'&&selPorts.includes(r.name)?'d-hit':null,null,ul);mk('span','d-row-name',r.name,li);if(r.meta)mk('span','d-meta',r.meta,li);});});
 if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look inside');b.onclick=()=>enter(id);}
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
 function setLaneLook(l,col,a){l.rmat.color.setHex(col);l.rmat.emissive.setHex(col);l.pmat.color.setHex(0xffffff);l.amat.color.setHex(col);l.rmat.opacity=0.9*a;l.pmat.opacity=a;l.amat.opacity=0.95*a;l.arrow.visible=a>0.1;}
