@@ -3,10 +3,8 @@ import { node } from "@nuhokai/world";
 /** Which deprecation a node, or a use of its ports, is under. Pure. */
 export const Deprecation = node({
   id: "01a1e9a9-e493-7690-a860-002bd868ce48",
-  purpose:
-    "Own the one answer to 'is this deprecated': for a node, and for a use of its ports, following a dome port to " +
-    "the child that handles it and an inherited port to its contract. Shared by check and review; judges nothing " +
-    "itself, so each says what a deprecation means for it. Pure: no I/O, never loads.",
+  what: "Own the one answer to 'is this deprecated': for a node, and for a use of its ports, following a dome port to the child that handles it and an inherited port to its contract.",
+  why: "Shared by check and review so they agree; judges nothing itself, so each says what a deprecation means for it. Pure: no I/O, never loads.",
   source: ["src/shared/deprecation.ts", "src/shared/deprecation.test.ts"],
   ports: {
     deprecationOf: {

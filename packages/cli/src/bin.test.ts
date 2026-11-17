@@ -270,7 +270,7 @@ test("`nuhokai check` runs Check in the cwd or under --path; `nuhokai check x` i
     // Findings name their files from the cwd.
     writeFileSync(
       join(project, "nuhokai/orphan.ts"),
-      'import { node } from "@nuhokai/world";\n\nexport const Orphan = node({ id: "o", purpose: "p", source: [] }).edges({});\n',
+      'import { node } from "@nuhokai/world";\n\nexport const Orphan = node({ id: "o", what: "p", why: "p", source: [] }).edges({});\n',
     );
     process.chdir(project);
     expect(await printed(["check"])).toEqual({

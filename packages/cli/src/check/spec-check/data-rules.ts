@@ -13,8 +13,8 @@ interface Place {
 }
 
 /**
- * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11): ids, orphans, scope, names, the rules tsc
- * leaves to check, uses of deprecated nodes. Pure: reads nothing but the world; every violation is one finding.
+ * The graph rules, from the loaded world alone (SpecCheck R1–R5, R9, R11, R12): ids, orphans, scope, names, what and
+ * why, the rules tsc leaves to check, uses of deprecated nodes. Pure: reads nothing but the world; every violation is one finding.
  */
 export function checkDataRules(
   world: LoadedWorld,
@@ -35,6 +35,7 @@ export function checkDataRules(
     ...siblingNames(world, ids),
     // SpecCheck R5 re-checks tsc's rules for what tsc could not decide; after a type error it would only repeat tsc.
     ...(typeErrors ? [] : judged.flatMap((node) => formatRules(world, ids, node))),
+    ...judged.flatMap((node) => whatAndWhy(node, typeErrors)),
     ...judged.flatMap((node) => deprecations(world, ids, node)),
     ...judged.flatMap((node) => contracts(world, ids, node, typeErrors)),
   ];
@@ -318,6 +319,46 @@ function contracts(world: LoadedWorld, ids: Ids, node: LoadedNode, typeErrors: b
 
 function portNames(spec: NodeSpec): string[] {
   return (spec.ports ?? []).map((port) => port.name);
+}
+
+/**
+ * SpecCheck R12: a blank what or why is an error, an external's why too. A missing what, or a missing why on a node
+ * that is not external, is tsc's; re-checked like R5, so left out after a type error.
+ */
+function whatAndWhy(node: LoadedNode, typeErrors: boolean): Finding[] {
+  const findings: Finding[] = [];
+  const what: unknown = node.spec.what;
+  const why: unknown = node.spec.why;
+  const blank = (value: unknown) => typeof value === "string" && value.trim() === "";
+  if (blank(what)) {
+    findings.push(
+      nodeError(node, "what is blank", 'say what the node does, e.g. what: "Counts what is on the shelf."'),
+    );
+  } else if (what === undefined && !typeErrors) {
+    findings.push(
+      nodeError(node, "the node has no what", 'say what it does, e.g. what: "Counts what is on the shelf."'),
+    );
+  }
+  if (blank(why)) {
+    findings.push(
+      nodeError(
+        node,
+        "why is blank",
+        node.spec.external
+          ? "say why the node is part of the world, or drop the field"
+          : 'say why the node exists, e.g. why: "So Orders never oversells."',
+      ),
+    );
+  } else if (why === undefined && !node.spec.external && !typeErrors) {
+    findings.push(
+      nodeError(
+        node,
+        "the node has no why",
+        'say why it exists, e.g. why: "So Orders never oversells.", or make it external',
+      ),
+    );
+  }
+  return findings;
 }
 
 /**

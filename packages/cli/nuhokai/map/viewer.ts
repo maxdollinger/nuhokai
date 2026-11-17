@@ -4,8 +4,8 @@ import { Browser, ThreeJs } from "../external.ts";
 /** The map's page: what the browser draws from the loaded world. */
 export const Viewer = node({
   id: "01a17bb5-b066-71d0-a81d-ccdfa4cb5fde",
-  purpose:
-    "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser. Never writes files, inlines assets or picks where the map goes.",
+  what: "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser.",
+  why: "Drawing runs in the browser, apart from the CLI that writes the file. Never writes files, inlines assets or picks where the map goes.",
   source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
     draw: {
@@ -38,7 +38,7 @@ export const Viewer = node({
     },
     {
       id: "R9",
-      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, purpose, ports, requirements, source.",
+      text: "Click: the complexity with the parts it was estimated from (R6), then NodeSpec fields only: the deprecation note, what, why, ports, requirements, source.",
     },
     { id: "R10", text: "The mouse wheel zooms toward the point under the cursor." },
     {

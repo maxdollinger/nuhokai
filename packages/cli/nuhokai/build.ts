@@ -5,10 +5,8 @@ import { BunRuntime, FileSystem, Tsgo } from "./external.ts";
 /** How the CLI is made and shipped. Runs on a developer's machine and in CI, never inside nuhokai. */
 export const Build = node({
   id: "01a19fc4-c9e7-7008-99ba-a816600a1088",
-  purpose:
-    "Make and ship the CLI: generate the embedded assets (the @nuhokai/world declarations, three.js and the map's " +
-    "viewer), compile a per-platform release archive with the tsgo sidecar, and smoke-test it. Build time only: " +
-    "nothing here is a dependency of the shipped binary.",
+  what: "Make and ship the CLI: generate the embedded assets (the @nuhokai/world declarations, three.js and the map's viewer), compile a per-platform release archive with the tsgo sidecar, and smoke-test it.",
+  why: "So a release is one binary per platform that needs nothing installed. Build time only: nothing here is a dependency of the shipped binary.",
   source: ["scripts/**", "src/toolchain/**"],
   ports: {
     embed: {

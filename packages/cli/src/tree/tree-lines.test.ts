@@ -4,12 +4,14 @@ import type { LoadedWorld } from "../load/load-world.ts";
 import { nameNodes } from "../shared/node-path.ts";
 import { renderTree } from "./tree-lines.ts";
 
-/** A loaded world's tree part: each node's name, parent position, source and purpose, its path as NodePath names it. */
-function world(entries: readonly [name: string, parent: number | null, source: unknown, purpose: unknown][]) {
+/** A loaded world's tree part: each node's name, parent position, source, what and why, its path as NodePath names it. */
+function world(
+  entries: readonly [name: string, parent: number | null, source: unknown, what: unknown, why?: unknown][],
+) {
   const paths = nameNodes(entries.map(([name, parent]) => ({ name, parent })));
-  const nodes = entries.map(([name, parent, source, purpose], index) => ({
+  const nodes = entries.map(([name, parent, source, what, why], index) => ({
     index,
-    spec: { name, id: name, source, purpose } as unknown as NodeSpec,
+    spec: { name, id: name, source, what, why } as unknown as NodeSpec,
     parent,
     children: entries.flatMap(([, above], child) => (above === index ? [child] : [])),
     path: paths[index] ?? "",
@@ -21,20 +23,20 @@ function world(entries: readonly [name: string, parent: number | null, source: u
   } as unknown as LoadedWorld;
 }
 
-/** The example world's shape and purposes, in LoadWorld's walk order. */
+/** The example world's shape, whats and whys, in LoadWorld's walk order. */
 const example = world([
-  ["Postgres", null, [], "The shared database; run by ops, not built by us."],
-  ["AuditLog", null, [], "Lets compliance read who changed what, independent of the owning node."],
-  ["Shop", null, [], "The shop backend; everything a customer interacts with lives inside it."],
-  ["Orders", 2, [], "Owns orders from checkout to delivery; does not know how stock is counted."],
-  ["Stock", 2, [], "Counts what is on the shelf and holds reservations."],
+  ["Postgres", null, [], "The shared database, run by ops."],
+  ["AuditLog", null, [], "Records who changed which entity.", "So compliance can read it."],
+  ["Shop", null, [], "The shop backend.", "One boundary around everything a customer interacts with."],
+  ["Orders", 2, [], "Takes an order from checkout to delivery.", "So the order lifecycle has one owner."],
+  ["Stock", 2, [], "Counts what is on the shelf.", "So Orders never oversells."],
 ]);
 
 test("TreeLines R1, R4, R5: the top level at level 1, a dome below it collapsed with its child count", () => {
   expect(renderTree(example, ".", null, 1)).toEqual([
-    "Postgres | (none) | The shared database; run by ops, not built by us.",
-    "AuditLog | (none) | Lets compliance read who changed what, independent of the owning node.",
-    "Shop/ (2) | (none) | The shop backend; everything a customer interacts with lives inside it.",
+    "Postgres | (none) | The shared database, run by ops.",
+    "AuditLog | (none) | Records who changed which entity. Why: So compliance can read it.",
+    "Shop/ (2) | (none) | The shop backend. Why: One boundary around everything a customer interacts with.",
   ]);
 });
 
@@ -76,9 +78,9 @@ test("TreeLines R2: sources in authored order, comma-separated, named from the c
   expect(renderTree(world([["Abs", null, ["/etc/x"], "abs"]]), "app", null, 1)).toEqual(["Abs | /etc/x | abs"]);
 });
 
-test("TreeLines R3, R6: a purpose is one line with single spaces; the same input gives the same lines", () => {
-  const spaced = world([["A", null, [], "  First line,\n  second   line. "]]);
-  expect(renderTree(spaced, ".", null, 1)).toEqual(["A | (none) | First line, second line."]);
+test("TreeLines R3, R6: what and why are one line with single spaces; the same input gives the same lines", () => {
+  const spaced = world([["A", null, [], "  First line,\n  second   line. ", " Because\n  so. "]]);
+  expect(renderTree(spaced, ".", null, 1)).toEqual(["A | (none) | First line, second line. Why: Because so."]);
   expect(renderTree(spaced, ".", null, 1)).toEqual(renderTree(spaced, ".", null, 1));
 });
 
@@ -87,7 +89,7 @@ test("TreeLines R3: no field breaks the line or passes a control code, whatever 
   expect(renderTree(hostile, ".", null, 1)).toEqual(["a INJECTED | fake | src/ [31mred.ts | [2Jclear next"]);
 });
 
-test("TreeLines: an unchecked world's odd source or purpose prints, never crashes", () => {
-  const odd = world([["A", null, "src/**", 42]]);
+test("TreeLines: an unchecked world's odd source, what or why prints, never crashes", () => {
+  const odd = world([["A", null, "src/**", 42, 7]]);
   expect(renderTree(odd, ".", null, 1)).toEqual(["A | (none) | "]);
 });

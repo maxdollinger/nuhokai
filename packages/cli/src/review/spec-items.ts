@@ -5,7 +5,7 @@ import { deprecationsOfUse } from "../shared/deprecation.ts";
 import { oneLine } from "../shared/failure.ts";
 
 /** What a spec item is, as the prompt names it. */
-type SpecItemKind = "purpose" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
+type SpecItemKind = "what" | "why" | "port" | "requirement" | "constraint" | "uses edge" | "test case" | "decision";
 
 /** One item of a node's spec: its reference, what it says, and where it is written. */
 export interface SpecItem {
@@ -98,7 +98,7 @@ export function targets(world: LoadedWorld, position: number): Target[] {
 
 /**
  * One node's own items, each reference prefixed by `prefix` (a contract's name and a dot for inherited ones): ports,
- * requirements and test cases always, and with `own` its purpose, uses edges and decisions.
+ * requirements and test cases always, and with `own` its what and why, uses edges and decisions.
  */
 function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: string): SpecItem[] {
   const { spec, places } = node;
@@ -117,7 +117,10 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
       ...(extra.untested ? { untested: true as const } : {}),
     });
   };
-  if (own) add("purpose", "purpose", textOf(spec.purpose), places?.purpose);
+  if (own) {
+    add("what", "what", textOf(spec.what), places?.what);
+    if (spec.why !== undefined) add("why", "why", textOf(spec.why), places?.why);
+  }
   for (const [index, port] of listOf<Port>(spec.ports).entries()) {
     const text = `${textOf(port.kind)} port: ${textOf(port.purpose)}`;
     add(`ports.${port.name}`, "port", text, places?.ports[index], { details: portDetails(port) });
@@ -155,7 +158,7 @@ function itemsOf(world: LoadedWorld, node: LoadedNode, own: boolean, prefix: str
 }
 
 /**
- * Every item of the spec of the node at `position`, in spec order, the node's own first: its purpose, ports (their
+ * Every item of the spec of the node at `position`, in spec order, the node's own first: its what and why, ports (their
  * shapes, errors and transport below each), requirements, uses edges, test cases and decisions (their rejected
  * options below each) (R1). Then each contract's ports, requirements and test cases, prefixed by the contract's name
  * (R2); a contract the walk never reached adds nothing. Each carries its spec file and line (R3); a requirement no

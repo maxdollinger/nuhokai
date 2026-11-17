@@ -22,31 +22,31 @@ const consumer = {
 import { inherited, node } from "../dts/index.ts";
 import { B, C, Contract } from "./b.ts";
 export const A = node({
-  id: "01a16dd2-bc70-7000-8000-000000000001", purpose: "a", source: [],
+  id: "01a16dd2-bc70-7000-8000-000000000001", what: "a", why: "a", source: [],
   ports: { x: { kind: "call", purpose: "x" } },
   implements: () => [Contract],
 }).edges({ uses: () => [B.y] });
 // Children are in step one and import b.ts, which imports this file: no annotation needed.
 export const Parent = node({
-  id: "01a16dd2-bc70-7000-8000-00000000000a", purpose: "p", source: [],
+  id: "01a16dd2-bc70-7000-8000-00000000000a", what: "p", why: "p", source: [],
   children: [C],
   ports: { z: C.z },
 }).edges({});
 // @ts-expect-error typo
-export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000002", purpose: "t", source: [] }).edges({ uses: () => [B.yy] });
+export const T = node({ id: "01a16dd2-bc70-7000-8000-000000000002", what: "t", why: "t", source: [] }).edges({ uses: () => [B.yy] });
 // @ts-expect-error spread drops the brand
-export const F = node({ id: "01a16dd2-bc70-7000-8000-000000000004", purpose: "f", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
-export const I = node({ id: "01a16dd2-bc70-7000-8000-000000000005", purpose: "i", source: [] }).edges({ uses: () => [inherited(A, Contract.c)] });
+export const F = node({ id: "01a16dd2-bc70-7000-8000-000000000004", what: "f", why: "f", source: [] }).edges({ uses: () => [{ ...B.y, name: "z" }] });
+export const I = node({ id: "01a16dd2-bc70-7000-8000-000000000005", what: "i", why: "i", source: [] }).edges({ uses: () => [inherited(A, Contract.c)] });
 // @ts-expect-error B does not implement Contract
-export const J = node({ id: "01a16dd2-bc70-7000-8000-000000000006", purpose: "j", source: [] }).edges({ uses: () => [inherited(B, Contract.c)] });
+export const J = node({ id: "01a16dd2-bc70-7000-8000-000000000006", what: "j", why: "j", source: [] }).edges({ uses: () => [inherited(B, Contract.c)] });
 `,
   "b.ts": `
 import { node } from "../dts/index.ts";
 import { A } from "./a.ts";
-export const Contract = node({ id: "01a16dd2-bc70-7000-8000-000000000007", abstract: true, purpose: "c", source: [], ports: { c: { kind: "call", purpose: "c" } } }).edges({});
-export const Ext = node({ id: "01a16dd2-bc70-7000-8000-000000000008", external: true, purpose: "e", source: [] }).edges({});
-export const B = node({ id: "01a16dd2-bc70-7000-8000-000000000009", purpose: "b", source: [], ports: { y: { kind: "call", purpose: "y" } } }).edges({ uses: () => [A.x] });
-export const C = node({ id: "01a16dd2-bc70-7000-8000-00000000000b", purpose: "c", source: [], ports: { z: { kind: "call", purpose: "z" } } }).edges({});
+export const Contract = node({ id: "01a16dd2-bc70-7000-8000-000000000007", abstract: true, what: "c", why: "c", source: [], ports: { c: { kind: "call", purpose: "c" } } }).edges({});
+export const Ext = node({ id: "01a16dd2-bc70-7000-8000-000000000008", external: true, what: "e", why: "e", source: [] }).edges({});
+export const B = node({ id: "01a16dd2-bc70-7000-8000-000000000009", what: "b", why: "b", source: [], ports: { y: { kind: "call", purpose: "y" } } }).edges({ uses: () => [A.x] });
+export const C = node({ id: "01a16dd2-bc70-7000-8000-00000000000b", what: "c", why: "c", source: [], ports: { z: { kind: "call", purpose: "z" } } }).edges({});
 `,
   "index.ts": `
 import { defineWorld, node } from "../dts/index.ts";
@@ -56,9 +56,9 @@ export default defineWorld({ id: "01a16dd2-bc70-7000-8000-00000000000e", name: "
 // @ts-expect-error a world needs an id
 export const N = defineWorld({ name: "n", source: [], children: [A] });
 // @ts-expect-error external child
-export const Q = node({ id: "01a16dd2-bc70-7000-8000-00000000000c", purpose: "q", source: [], children: [C, Ext] }).edges({});
+export const Q = node({ id: "01a16dd2-bc70-7000-8000-00000000000c", what: "q", why: "q", source: [], children: [C, Ext] }).edges({});
 // @ts-expect-error C is not a direct child
-export const R = node({ id: "01a16dd2-bc70-7000-8000-00000000000d", purpose: "r", source: [], children: [B], ports: { z: C.z } }).edges({});
+export const R = node({ id: "01a16dd2-bc70-7000-8000-00000000000d", what: "r", why: "r", source: [], children: [B], ports: { z: C.z } }).edges({});
 // @ts-expect-error a string is not a node
 export const S = defineWorld({ id: "s", name: "s", source: [], children: ["a"] });
 `,

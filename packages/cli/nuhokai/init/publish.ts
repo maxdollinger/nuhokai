@@ -7,9 +7,8 @@ import { ExampleWorld } from "./example-world.ts";
 /** The all-or-nothing write transaction. */
 export const Publish = node({
   id: "01a17290-3f10-7c51-84a6-1e93f5d70c48",
-  purpose:
-    "Make a complete world appear in the project directory or leave nothing: staged inside it, filled by the two " +
-    "content nodes, committed in one step. Atomicity only, no content.",
+  what: "Make a complete world appear in the project directory or leave nothing: staged inside it, filled by the two content nodes, committed in one step.",
+  why: "So a failed init never leaves half a world behind. Atomicity only, no content.",
   source: ["src/init/publish.ts"],
   ports: {
     run: {

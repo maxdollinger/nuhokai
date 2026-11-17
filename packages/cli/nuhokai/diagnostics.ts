@@ -5,9 +5,8 @@ import { Path } from "./path/path.ts";
 /** The finding line check and review print. */
 export const Diagnostics = node({
   id: "01a18319-8a0c-755d-855a-72794bb4cdf1",
-  purpose:
-    "Own the finding: built at its place, ordered one way, printed as lines a person or agent can act on alone, " +
-    "and the summary under them. Shared by check and review.",
+  what: "Own the finding: built at its place, ordered one way, printed as lines a person or agent can act on alone, and the summary under them.",
+  why: "Shared by check and review, so their findings read the same.",
   source: ["src/shared/diagnostics.ts", "src/shared/diagnostics.test.ts"],
   ports: {
     format: {

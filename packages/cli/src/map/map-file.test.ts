@@ -45,8 +45,8 @@ function files(dir: string): string[] {
     .sort();
 }
 
-/** A one-node world whose node has the given purpose. */
-function oneNode(purpose: string): LoadedWorld {
+/** A one-node world whose node has the given what. */
+function oneNode(what: string): LoadedWorld {
   return {
     id: "w",
     nodes: [
@@ -59,7 +59,8 @@ function oneNode(purpose: string): LoadedWorld {
           parent: null,
           external: false,
           abstract: false,
-          purpose,
+          what,
+          why: "w",
           source: [],
         },
         parent: null,
@@ -109,20 +110,20 @@ test("a previous map is replaced", () => {
   writeMap(root, oneNode("new map"));
 
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
-  expect(html).toContain('"purpose":"new map"');
+  expect(html).toContain('"what":"new map"');
   expect(files(root)).toEqual(["nuhokai/.generated/map.html"]);
 });
 
-test("a purpose that closes the script stays data", () => {
+test("a what that closes the script stays data", () => {
   const root = tempDir();
-  const purpose = "</script><script>alert(1)</script><!-- x";
+  const what = "</script><script>alert(1)</script><!-- x";
 
-  writeMap(root, oneNode(purpose));
+  writeMap(root, oneNode(what));
 
   const html = readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8");
   const block = html.match(DATA_BLOCK)?.[1] ?? "";
   expect(block).not.toContain("<");
-  expect(JSON.parse(block).nodes[0].purpose).toBe(purpose);
+  expect(JSON.parse(block).nodes[0].what).toBe(what);
   expect(html).not.toContain("alert(1)</script>");
 });
 
@@ -160,7 +161,7 @@ test("a map.html symlinked out of the project is replaced, never written through
 
   expect(readFileSync(victim, "utf8")).toBe("keep me\n");
   expect(lstatSync(join(root, "nuhokai/.generated/map.html")).isSymbolicLink()).toBe(false);
-  expect(readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8")).toContain('"purpose":"safe"');
+  expect(readFileSync(join(root, "nuhokai/.generated/map.html"), "utf8")).toContain('"what":"safe"');
   expect(files(root)).toEqual(["nuhokai/.generated/map.html"]);
 });
 

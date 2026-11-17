@@ -185,12 +185,12 @@ test("R5: reviewing a deprecated node is one warning with its note beside the fi
 
   expect(await submit([])).toEqual({ outcome: "ok", out: [warning, "ok: 0 errors, 1 warning"], err: [] });
   const failed = await submit([
-    { category: "against-spec", specItem: "purpose", file: `${root}/src/example.ts`, line: 1, evidence: "x" },
+    { category: "against-spec", specItem: "what", file: `${root}/src/example.ts`, line: 1, evidence: "x" },
   ]);
   expect(failed.outcome).toBe("failed");
   expect(failed.out).toEqual([
     warning,
-    "error: <root>/src/example.ts:1: Example: purpose; x",
+    "error: <root>/src/example.ts:1: Example: what; x",
     "failed: 1 error, 1 warning",
   ]);
   expect(splitReport(await runReviewPrompt(root, "Example")).out).toContain("- deprecated: use Greeter.greet");

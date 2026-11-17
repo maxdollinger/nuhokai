@@ -35,7 +35,7 @@ async function check(root: string): Promise<SplitReport> {
 
 const ORPHAN = `import { node } from "@nuhokai/world";
 
-export const Orphan = node({ id: "orphan", purpose: "p", source: [] }).edges({});
+export const Orphan = node({ id: "orphan", what: "p", why: "p", source: [] }).edges({});
 `;
 
 test("Check R1, CheckWorld R7: after init, check reports no finding, only its summary, ok", async () => {
@@ -46,11 +46,11 @@ test("Check R1: two violations in different files are two result lines, failed",
   const root = await world({
     "nuhokai/a.ts": `import { node } from "@nuhokai/world";
 
-export const A = node({ id: "a", purpose: "p", source: [], deprecated: " " }).edges({});
+export const A = node({ id: "a", what: "p", why: "p", source: [], deprecated: " " }).edges({});
 `,
     "nuhokai/b.ts": `import { node } from "@nuhokai/world";
 
-export const B = node({ id: "b", purpose: "p", source: ["src/gone.ts"] }).edges({});
+export const B = node({ id: "b", what: "p", why: "p", source: ["src/gone.ts"] }).edges({});
 `,
   });
   writeFileSync(
@@ -205,7 +205,7 @@ test("CheckWorld R6: a load error on the line of a message the format wrote is l
     join(root, "nuhokai/index.ts"),
     `import { defineWorld, node } from "@nuhokai/world";
 import { Example } from "./example.ts";
-const Draft = node({ id: "d", purpose: "p", source: [] });
+const Draft = node({ id: "d", what: "p", why: "p", source: [] });
 export default defineWorld({ id: "w", name: " ", source: [], children: [Example, Draft] });
 `,
   );
@@ -297,7 +297,7 @@ test("CheckWorld R3: a tsc finding names its node when its file defines exactly 
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
+export const Example = node({ id: "e", what: "p", why: "p", source: [], deprecated: 1 }).edges({});
 `,
   );
   writeFileSync(
@@ -324,8 +324,8 @@ test("CheckWorld R3: no node is named for a file that defines two nodes", async 
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
-export const Other = node({ id: "o", purpose: "p", source: [] }).edges({});
+export const Example = node({ id: "e", what: "p", why: "p", source: [], deprecated: 1 }).edges({});
+export const Other = node({ id: "o", what: "p", why: "p", source: [] }).edges({});
 `,
   );
   writeFileSync(
@@ -352,8 +352,8 @@ test("CheckWorld R3: an orphan counts as a node its file defines", async () => {
     join(root, "nuhokai/example.ts"),
     `import { node } from "@nuhokai/world";
 
-export const Example = node({ id: "e", purpose: "p", source: [], deprecated: 1 }).edges({});
-export const Orphan = node({ id: "o", purpose: "p", source: [] }).edges({});
+export const Example = node({ id: "e", what: "p", why: "p", source: [], deprecated: 1 }).edges({});
+export const Orphan = node({ id: "o", what: "p", why: "p", source: [] }).edges({});
 `,
   );
   writeFileSync(
@@ -374,7 +374,7 @@ test("CheckWorld R3: a node is named by its path even when a sibling shares its 
     join(root, "nuhokai/c2.ts"),
     `import { node } from "@nuhokai/world";
 
-export const C2 = node({ id: "c2", purpose: "p", source: [], deprecated: 1 }).edges({});
+export const C2 = node({ id: "c2", what: "p", why: "p", source: [], deprecated: 1 }).edges({});
 `,
   );
   writeFileSync(
@@ -382,8 +382,8 @@ export const C2 = node({ id: "c2", purpose: "p", source: [], deprecated: 1 }).ed
     `import { defineWorld, node } from "@nuhokai/world";
 import { C2 } from "./c2.ts";
 
-export const C1 = node({ id: "x", purpose: "p", source: [] }).edges({});
-export const P = node({ id: "x", purpose: "p", source: [], children: [C1, C2], ports: {} }).edges({});
+export const C1 = node({ id: "x", what: "p", why: "p", source: [] }).edges({});
+export const P = node({ id: "x", what: "p", why: "p", source: [], children: [C1, C2], ports: {} }).edges({});
 export default defineWorld({ id: "w", name: "W", source: [], children: [P] });
 `,
   );
@@ -409,8 +409,8 @@ test("a missing nuhokai/tsconfig.json is a failure saying how to restore it; the
 test("CheckWorld R5: after a type error SpecCheck leaves out R5, so an external child is reported once, by tsc", async () => {
   const root = await world({
     "nuhokai/bad.ts": `import { node } from "@nuhokai/world";
-export const Ext = node({ id: "ext", external: true, purpose: "e", source: [] }).edges({});
-export const Dome = node({ id: "dome", purpose: "d", source: [], children: [Ext] }).edges({});
+export const Ext = node({ id: "ext", external: true, what: "e", why: "e", source: [] }).edges({});
+export const Dome = node({ id: "dome", what: "d", why: "d", source: [], children: [Ext] }).edges({});
 `,
     "nuhokai/index.ts": `import { defineWorld } from "@nuhokai/world";
 import { Dome } from "./bad.ts";

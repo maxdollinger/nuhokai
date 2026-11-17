@@ -6,8 +6,8 @@ import { Viewer } from "./viewer.ts";
 /** `nuhokai map`: the world as one HTML file. Inside: DrawMap (program), MapFile (the file), Viewer (the drawing). */
 export const WorldMap = node({
   id: "01a179c9-f7d4-7081-ad93-92211b3fe333",
-  purpose:
-    "Draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html and return a Report of its path. Never checks, edits, prints or opens a browser.",
+  what: "`nuhokai map`: draw the current world (islands, domes, ports, edges, tbd placeholders) into nuhokai/.generated/map.html and return a Report of its path.",
+  why: "So people see the world's shape at a glance. Never checks, edits, prints or opens a browser.",
   source: ["src/map/**"],
   requirements: [
     { id: "R1", text: "Writes only nuhokai/.generated/map.html." },

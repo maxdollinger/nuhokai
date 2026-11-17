@@ -13,7 +13,7 @@ let temp = "";
 const SHOP = `import { node } from "@nuhokai/world";
 export const Store = node({
   id: "store",
-  purpose: "A place to keep things.",
+  what: "A place to keep things.", why: "A place to keep things.",
   source: [],
   abstract: true,
   ports: { keep: { kind: "call", purpose: "Keep one thing" } },
@@ -22,7 +22,7 @@ export const Store = node({
 }).edges({});
 export const Orders = node({
   id: "orders",
-  purpose: "Owns orders.",
+  what: "Owns orders.", why: "Owns orders.",
   source: ["src/orders.ts"],
   ports: { place: { kind: "event", purpose: "An order was placed", payload: "the order" } },
   requirements: [
@@ -41,13 +41,13 @@ export const Orders = node({
 }).edges({ implements: () => [Store], uses: () => [Stock.reserve, Lost.run, Stock.count] });
 export const Stock = node({
   id: "stock",
-  purpose: "Counts stock.",
+  what: "Counts stock.", why: "Counts stock.",
   source: [],
   ports: { reserve: { kind: "call", purpose: "Reserve" }, count: { kind: "call", purpose: "Count" } },
 }).edges({});
 export const Lost = node({
   id: "lost",
-  purpose: "Listed nowhere.",
+  what: "Listed nowhere.", why: "Listed nowhere.",
   source: [],
   ports: { run: { kind: "call", purpose: "Run" } },
 }).edges({});
@@ -75,7 +75,8 @@ afterAll(() => {
 test("R1, R2, R3, R6: items by reference in spec order, each at its line; details below their item; a contract's items prefixed by its name", () => {
   const items = list(shop, at(shop, "Orders"));
   expect(items.map((item) => item.ref)).toEqual([
-    "purpose",
+    "what",
+    "why",
     "ports.place",
     "requirements[R1]",
     "requirements[R2]",
@@ -103,7 +104,7 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
   expect(find(items, "decisions[0].rejected[0]")).toBeUndefined();
   expect(find(items, "Store.requirements[R1]")).toMatchObject({ file, line: 8, contract: "Store" });
   expect(find(items, "Store.testCases[0]")).toMatchObject({ line: 9, contract: "Store" });
-  expect(find(items, "Store.purpose")).toBeUndefined();
+  expect(find(items, "Store.what")).toBeUndefined();
 });
 
 test("R4: a requirement of the node's own no test case demonstrates is marked untested; a constraint or a contract's never is", () => {
@@ -132,11 +133,11 @@ test("R7: a target whose use meets a deprecation carries it, by the node carryin
     writeFileSync(
       join(root, "nuhokai/index.ts"),
       `import { defineWorld, node } from "@nuhokai/world";
-export const Inner = node({ id: "inner", purpose: "i", deprecated: " use Outer.run ", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const Box = node({ id: "box", purpose: "b", source: [], children: [Inner], ports: { run: Inner.run } }).edges({});
-export const Plain = node({ id: "plain", purpose: "p", source: [], ports: { go: { kind: "call", purpose: "g" } } }).edges({});
-export const Lost = node({ id: "lost", purpose: "l", deprecated: "gone", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
-export const User = node({ id: "user", purpose: "u", source: [] }).edges({ uses: () => [Box.run, Plain.go, Lost.run] });
+export const Inner = node({ id: "inner", what: "i", why: "i", deprecated: " use Outer.run ", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Box = node({ id: "box", what: "b", why: "b", source: [], children: [Inner], ports: { run: Inner.run } }).edges({});
+export const Plain = node({ id: "plain", what: "p", why: "p", source: [], ports: { go: { kind: "call", purpose: "g" } } }).edges({});
+export const Lost = node({ id: "lost", what: "l", why: "l", deprecated: "gone", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const User = node({ id: "user", what: "u", why: "u", source: [] }).edges({ uses: () => [Box.run, Plain.go, Lost.run] });
 export default defineWorld({ id: "w", name: "w", source: [], children: [Box, Plain, User] });
 `,
     );

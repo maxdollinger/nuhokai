@@ -7,7 +7,8 @@ import { TreeLines } from "./tree-lines.ts";
 /** The program inside Tree: load, find, render, report. */
 export const PrintTree = node({
   id: "01a19cc8-5db7-7499-b1d8-5c6f35694e25",
-  purpose: "The program inside Tree: order and outcome only; never prints.",
+  what: "The program inside Tree: load the world, find the start, render the lines, report them.",
+  why: "Order and outcome only, so finding and rendering stay with their own nodes; never prints.",
   source: ["src/tree/print-tree.ts", "src/tree/print-tree.test.ts"],
   ports: {
     run: {

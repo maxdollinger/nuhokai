@@ -9,9 +9,8 @@ import { SpecItems } from "./spec-items.ts";
 /** What a review of one node covers. Both programs derive it, so prompt and validation agree. */
 export const ReviewScope = node({
   id: "01a1a638-3166-7422-9654-ca4cda8f7160",
-  purpose:
-    "Decide what a review of one node covers: its spec items, its files and what it may use, or why it is not " +
-    "reviewable. The one source of both the prompt and the validation, and their shared first steps.",
+  what: "Decide what a review of one node covers: its spec items, its files and what it may use, or why it is not reviewable.",
+  why: "The one source of both the prompt and the validation, and their shared first steps, so they never disagree.",
   source: ["src/review/review-scope.ts", "src/review/review-scope.test.ts"],
   ports: {
     scopeAt: {
@@ -53,7 +52,7 @@ export const ReviewScope = node({
     },
     {
       id: "R7",
-      text: "example: the first requirement's reference, else purpose: the one example the prompt's JSON and submit's messages cite.",
+      text: "example: the first requirement's reference, else what: the one example the prompt's JSON and submit's messages cite.",
     },
     {
       id: "R8",
@@ -70,7 +69,7 @@ export const ReviewScope = node({
       demonstrates: ["R1", "R2"],
     },
     {
-      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example purpose. A uses edge to the orphan Lost → uses Lost without a node.",
+      text: "The init example node with its tbd port → one draft with its description and name; its uses list leaves it out; example what. A uses edge to the orphan Lost → uses Lost without a node.",
       demonstrates: ["R3", "R4", "R5", "R7"],
     },
     {

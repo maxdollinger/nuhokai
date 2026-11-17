@@ -5,9 +5,8 @@ import { Failure } from "../failure.ts";
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 export const SpecItems = node({
   id: "01a1a638-3153-77af-bfa3-1a7298cb2542",
-  purpose:
-    "Own the reference of each spec item a review cites: list a node's items, its contracts' included, each with " +
-    "where it is written, and find the item a reference names. Pure.",
+  what: "Own the reference of each spec item a review cites: list a node's items, its contracts' included, each with where it is written, and find the item a reference names.",
+  why: "So the prompt and the submitted findings name items the same way. Pure.",
   source: ["src/review/spec-items.ts", "src/review/spec-items.test.ts"],
   ports: {
     list: {
@@ -37,7 +36,7 @@ export const SpecItems = node({
   requirements: [
     {
       id: "R1",
-      text: "References by id or name, never by a position a reorder shifts, where the format gives one, and only these: purpose, ports.run, requirements[R2], edges.uses[LoadWorld], testCases[0], decisions[1]. A port's input, output, errors, payload and transport, and a decision's rejected options, are its details, one line each below it, cited by the item's own reference.",
+      text: "References by id or name, never by a position a reorder shifts, where the format gives one, and only these: what, why, ports.run, requirements[R2], edges.uses[LoadWorld], testCases[0], decisions[1]. A port's input, output, errors, payload and transport, and a decision's rejected options, are its details, one line each below it, cited by the item's own reference.",
     },
     {
       id: "R2",
@@ -67,7 +66,7 @@ export const SpecItems = node({
   ],
   testCases: [
     {
-      text: "Orders implements Store, uses Stock.reserve, the orphan Lost and Stock.count, and has a decision with one rejected option → purpose, ports.place with its payload below it, its requirements, edges.uses[Stock] (reserve, count) and edges.uses[Lost], its test case, decisions[0] with the rejected option below it, then Store's ports, requirements and test case prefixed Store., at Store's lines; no ports.place.payload or decisions[0].rejected[0].",
+      text: "Orders implements Store, uses Stock.reserve, the orphan Lost and Stock.count, and has a decision with one rejected option → what, why, ports.place with its payload below it, its requirements, edges.uses[Stock] (reserve, count) and edges.uses[Lost], its test case, decisions[0] with the rejected option below it, then Store's ports, requirements and test case prefixed Store., at Store's lines; no ports.place.payload or decisions[0].rejected[0].",
       demonstrates: ["R1", "R2", "R3", "R6"],
     },
     {

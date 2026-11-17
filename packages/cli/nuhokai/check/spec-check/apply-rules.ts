@@ -6,7 +6,8 @@ import { SourceRules } from "./source-rules.ts";
 /** The program inside SpecCheck: the wiring of the two rule groups. */
 export const ApplyRules = node({
   id: "01a188c9-49f6-71df-8840-816a2bd99c14",
-  purpose: "Apply DataRules and SourceRules to the loaded world and put their findings in one order.",
+  what: "Apply DataRules and SourceRules to the loaded world and put their findings in one order.",
+  why: "So SpecCheck's output does not depend on which rule set found what first; judges nothing itself.",
   source: ["src/check/spec-check/apply-rules.ts", "src/check/spec-check/ids.ts"],
   ports: {
     run: {

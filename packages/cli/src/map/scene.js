@@ -322,7 +322,7 @@ function levelIslands(items, lanes) {
 
 /**
  * What the click panel shows for the node at `index`: its complexity with the parts it was estimated from, then its
- * NodeSpec fields only, the deprecation note, purpose, ports, requirements and source, in that order.
+ * NodeSpec fields only, the deprecation note, what, why, ports, requirements and source, in that order.
  */
 export function detailsOf(scene, index) {
   const node = scene.nodes[index];
@@ -336,7 +336,8 @@ export function detailsOf(scene, index) {
     },
     deprecated: deprecationOf(node),
     kind,
-    purpose: node.purpose,
+    what: node.what,
+    why: node.why ?? null,
     sections: [
       {
         label: "Ports",

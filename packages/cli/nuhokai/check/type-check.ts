@@ -8,7 +8,8 @@ import { Path } from "../path/path.ts";
 /** The world's type check, beside SpecCheck. */
 export const TypeCheck = node({
   id: "01a186f7-93a5-7791-86db-5d2a7e555555",
-  purpose: "Type-check the world files with the CLI's pinned checker and nuhokai/tsconfig.json.",
+  what: "Type-check the world files with the CLI's pinned checker and nuhokai/tsconfig.json and turn each tsc error into a finding.",
+  why: "tsc catches most format rules where they are written; running the checker is not judging the loaded world, so it is not SpecCheck's.",
   source: ["src/check/type-check.ts"],
   ports: {
     run: {
@@ -48,7 +49,7 @@ export const TypeCheck = node({
       demonstrates: ["R2"],
     },
     {
-      text: "children: [Draft] (no .edges) → 'a draft is not a node: call .edges(), also with {}'; purpos: 'x' → \"… does not exist in type 'NodeShape'. Did you mean to write 'purpose'?\"; typeof console → \"Cannot find name 'console'; remove the code that uses it: world files hold data only (…)\".",
+      text: "children: [Draft] (no .edges) → 'a draft is not a node: call .edges(), also with {}'; wht: 'x' → \"… does not exist in type 'NodeShape'. Did you mean to write 'what'?\"; typeof console → \"Cannot find name 'console'; remove the code that uses it: world files hold data only (…)\".",
       demonstrates: ["R4"],
     },
     {

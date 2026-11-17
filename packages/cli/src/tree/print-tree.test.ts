@@ -44,9 +44,9 @@ test("Tree R1, R2: the example world's top level, one line per node, Shop collap
   expect(result).toEqual({
     outcome: "ok",
     out: [
-      "Postgres | (none) | The shared database: stores and queries the shop's data over SQL. Run by ops, not built by us.",
-      "AuditLog | (none) | Records who changed which entity and when, and answers that history, so compliance can read it independent of the owning node.",
-      "Shop/ (2) | (none) | The shop backend: takes orders and manages stock for customers, one boundary around everything a customer interacts with.",
+      "Postgres | (none) | The shared database: stores and queries the shop's data over SQL; run by ops, not built by us.",
+      "AuditLog | (none) | Records who changed which entity and when, and answers that history. Why: So compliance can read it independent of the owning node.",
+      "Shop/ (2) | (none) | The shop backend: takes orders and manages stock for customers. Why: One boundary around everything a customer interacts with.",
     ],
     err: [],
   });
@@ -97,7 +97,7 @@ test("PrintTree R1, R3: a node file that does not parse is one failure line nami
 
 test("Tree R3: siblings sharing a name both print; addressing them names nuhokai check", async () => {
   const twin = (id: string) =>
-    `import { node } from "@nuhokai/world";\nexport const Twin = node({ id: "${id}", purpose: "twin ${id}", source: [], ports: {} }).edges({});\n`;
+    `import { node } from "@nuhokai/world";\nexport const Twin = node({ id: "${id}", what: "twin ${id}", why: "twin", source: [], ports: {} }).edges({});\n`;
   const root = tempDir();
   const files: Record<string, string> = {
     "a/twin.ts": twin("a"),
@@ -110,7 +110,7 @@ test("Tree R3: siblings sharing a name both print; addressing them names nuhokai
   }
   expect(await tree(root)).toEqual({
     outcome: "ok",
-    out: ["Twin | (none) | twin a", "Twin | (none) | twin b"],
+    out: ["Twin | (none) | twin a Why: twin", "Twin | (none) | twin b Why: twin"],
     err: [],
   });
   expect(await tree(root, "Twin")).toEqual({

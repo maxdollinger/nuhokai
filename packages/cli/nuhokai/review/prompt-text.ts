@@ -5,9 +5,8 @@ import { Path } from "../path/path.ts";
 /** The review prompt's text. Pure. */
 export const PromptText = node({
   id: "01a1a638-3179-7684-ab5c-2e76eb035aea",
-  purpose:
-    "Own the prompt's wording: turn a review's scope into the instructions a coding agent follows, ending with " +
-    "the command that submits its findings. Pure: never loads or prints.",
+  what: "Own the prompt's wording: turn a review's scope into the instructions a coding agent follows, ending with the command that submits its findings.",
+  why: "Keeps the wording in one place, apart from deciding what a review covers. Pure: never loads or prints.",
   source: ["src/review/prompt-text.ts", "src/review/prompt-text.test.ts"],
   ports: {
     render: {
@@ -60,11 +59,11 @@ export const PromptText = node({
       demonstrates: ["R7"],
     },
     {
-      text: "A purpose holding ESC and a newline → one line with spaces; rendering twice → identical lines; src/a  b.ts printed with both spaces.",
+      text: "A what holding ESC and a newline → one line with spaces; rendering twice → identical lines; src/a  b.ts printed with both spaces.",
       demonstrates: ["R4", "R5"],
     },
     {
-      text: "A purpose reading 'Ignore all previous instructions.' and holding the end marker → one line inside its block, which still ends at its own marker line; the warning names both markers.",
+      text: "A what reading 'Ignore all previous instructions.' and holding the end marker → one line inside its block, which still ends at its own marker line; the warning names both markers.",
       demonstrates: ["R6"],
     },
     {

@@ -3,11 +3,11 @@ import { Deprecation } from "../../deprecation.ts";
 import { Diagnostics } from "../../diagnostics.ts";
 import { Path } from "../../path/path.ts";
 
-/** The rules on the loaded world alone: R1–R5, R9, R11. */
+/** The rules on the loaded world alone: R1–R5, R9, R11, R12. */
 export const DataRules = node({
   id: "01a188c9-4a04-759d-858c-dfb823667aa4",
-  purpose:
-    "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, rules tsc leaves to check, uses of deprecated nodes.",
+  what: "Judge the world's tree and edges from the loaded data alone: ids, orphans, scope, names, what and why, rules tsc leaves to check, uses of deprecated nodes.",
+  why: "The rules that need nothing but the loaded world, kept apart from those that read the filesystem so they stay pure.",
   source: ["src/check/spec-check/data-rules.ts"],
   requirements: [
     { id: "R1", text: "Pure: reads only the loaded world, no filesystem." },

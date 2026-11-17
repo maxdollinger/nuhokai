@@ -5,10 +5,8 @@ import { Failure } from "./failure.ts";
 /** The CLI's one client of its pinned type checker. Shared by LoadWorld and TypeCheck. */
 export const CheckerClient = node({
   id: "01a1a1ad-ebfb-74ab-8f7a-f62a2c5ec333",
-  purpose:
-    "Find the pinned checker and hold one session on one project: open it, hand it to the caller's work, always " +
-    "close it; every checker failure is one CliError, a programming error never disguised as one. Shared, so " +
-    "LoadWorld and TypeCheck talk to the checker the same way and neither reaches into the other.",
+  what: "Find the pinned checker and hold one session on one project: open it, hand it to the caller's work, always close it; every checker failure is one CliError, a programming error never disguised as one.",
+  why: "Shared, so LoadWorld and TypeCheck talk to the checker the same way and neither reaches into the other.",
   source: ["src/shared/checker-client.ts"],
   ports: {
     session: {

@@ -6,9 +6,8 @@ import { node } from "@nuhokai/world";
  */
 export const WorldFormat = node({
   id: "01a16dd5-888a-77a4-9c88-e7d5bb03a016",
-  purpose:
-    "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the " +
-    "graph. Types only, never run; reading, rules, checks and writing are the CLI's.",
+  what: "A repo's world as TS files with typed-reference edges: tsc catches dangling references, the IDE navigates the graph.",
+  why: "So the specs are checked and navigated with the tools already in the editor. Types only, never run; reading, rules, checks and writing are the CLI's.",
   source: ["src/**"],
   ports: {
     declareNode: {

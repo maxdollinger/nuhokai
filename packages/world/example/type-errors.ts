@@ -7,9 +7,10 @@
 import { defineWorld, inherited, type NodeDef, node, type PortsDef, tbd } from "../src/index.ts";
 import { AuditLog, notifyCustomer, Orders, Postgres, Shop, Stock } from "./index.ts";
 
-const base: Pick<NodeDef, "id" | "purpose" | "source"> = {
+const base: Pick<NodeDef, "id" | "what" | "source"> & { readonly why: string } = {
   id: "01a16dd2-bc47-74bf-84dd-c156e496d92b",
-  purpose: "Type test",
+  what: "Type test",
+  why: "Type test",
   source: [],
 };
 
@@ -547,3 +548,19 @@ export const authoredStatus = node({
   // @ts-expect-error there is no status field: whether a node has code is read from source
   status: "built",
 }).edges({});
+
+// ─── what and why ────────────────────────────────────────────────────────
+
+const { why: _why, ...withoutWhy } = base;
+
+// @ts-expect-error a node that is not external needs a why
+export const missingWhy = node({ ...withoutWhy, id: "01a16dd2-bc47-74bf-84dd-c156e496d9f1" }).edges({});
+
+export const externalWithoutWhy = node({
+  ...withoutWhy,
+  id: "01a16dd2-bc47-74bf-84dd-c156e496d9f2",
+  external: true,
+}).edges({});
+
+// @ts-expect-error every node needs a what
+export const missingWhat = node({ id: "01a16dd2-bc47-74bf-84dd-c156e496d9f3", why: "Type test", source: [] }).edges({});

@@ -111,16 +111,17 @@ export function render(root: string, scope: Scope): string[] {
               const source: unknown[] = Array.isArray(spec.source) ? spec.source : [];
               const entries = source.filter((entry) => typeof entry === "string");
               const where = spec.external
-                ? "external: known by name and purpose alone"
+                ? "external: known by name, what and why alone"
                 : entries.length === 0
                   ? "no source yet"
                   : `source ${entries.map((entry) => plainText(nameInProject(root, entry))).join(", ")}`;
-              const purpose = typeof spec.purpose === "string" ? spec.purpose : "";
+              const what = typeof spec.what === "string" ? spec.what : "";
+              const why = typeof spec.why === "string" && spec.why.trim() !== "" ? ` Why: ${spec.why}` : "";
               const deprecations = (met ?? []).map(
                 ({ by, note }) => `; deprecated${by === target.path ? "" : ` via ${oneLine(by)}`}: ${oneLine(note)}`,
               );
               const state = `${where}${deprecations.join("")}`;
-              return `- ${oneLine(target.path)}: ${used} (${state}): ${oneLine(purpose)}`;
+              return `- ${oneLine(target.path)}: ${used} (${state}): ${oneLine(`${what}${why}`)}`;
             }),
           ),
         ]),

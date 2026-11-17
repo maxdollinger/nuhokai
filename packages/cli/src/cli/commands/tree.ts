@@ -13,7 +13,7 @@ export const LEVEL_OPTION: Option<number> = {
 };
 
 export const treeCmd: Cmd = {
-  description: "Print the node hierarchy, one line per node: path | source | purpose",
+  description: "Print the node hierarchy, one line per node: path | source | what and why",
   positionals: ["[node]"],
   arguments: [
     {
@@ -22,7 +22,7 @@ export const treeCmd: Cmd = {
     },
   ],
   output:
-    "one line per node, `<path> | <source> | <purpose>`; a dome whose children the level cuts off shows `<path>/ (<children_count>)`",
+    "one line per node, `<path> | <source> | <what> Why: <why>` (no `Why:` when the node has none); a dome whose children the level cuts off shows `<path>/ (<children_count>)`",
   options: [LEVEL_OPTION],
   // The node passes unchanged: which node it names is Tree's to judge.
   async run(root, { positionals: [node], get }) {

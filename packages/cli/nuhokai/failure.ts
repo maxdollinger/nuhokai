@@ -3,10 +3,8 @@ import { node } from "@nuhokai/world";
 /** The failure surface: an expectable failure, and the rule that makes it one line. */
 export const Failure = node({
   id: "01a17950-b221-7126-bd52-7e93a4c10f38",
-  purpose:
-    "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, flattening any " +
-    "thrown value to one line, and the Report every command returns: its outcome and its result and failure " +
-    "lines, and the helpers that build it. Classifies, formats and shapes only; never prints.",
+  what: "The CLI's failure surface: one error type for expected failures, the expected-vs-bug test, flattening any thrown value to one line, and the Report every command returns: its outcome and its result and failure lines, and the helpers that build it.",
+  why: "So every command fails and reports the same way and Cli alone decides what reaches the terminal. Classifies, formats and shapes only; never prints.",
   source: [
     "src/shared/failure.ts",
     "src/shared/failure.test.ts",

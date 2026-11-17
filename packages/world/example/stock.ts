@@ -5,8 +5,8 @@ import { Postgres } from "./postgres.ts";
 
 export const Stock = node({
   id: "01a16dd2-bc2d-708e-89cb-3a9da2e0550d",
-  purpose:
-    "Counts what is on the shelf and holds stock for placed orders, so Orders never oversells. Knows nothing of prices or orders themselves.",
+  what: "Counts what is on the shelf and holds stock for placed orders.",
+  why: "So Orders never oversells. Knows nothing of prices or orders themselves.",
   source: [],
   ports: {
     reserve: { kind: "call", purpose: "Reserve items for an order", input: "order id and lines", errors: ["short"] },

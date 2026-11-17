@@ -5,9 +5,8 @@ import { Path } from "./path/path.ts";
 /** The files a source entry names in the project directory. */
 export const ProjectFiles = node({
   id: "01a1a638-312c-75bd-9a7e-dcd59fbe6cec",
-  purpose:
-    "Answer which files a source entry names in the project directory: the one expansion of an entry, so check and " +
-    "review agree on a node's files; knows nothing of nodes.",
+  what: "Answer which files a source entry names in the project directory: the one expansion of an entry.",
+  why: "So check and review agree on a node's files; knows nothing of nodes.",
   source: ["src/shared/project-files.ts", "src/shared/project-files.test.ts"],
   ports: {
     expand: {

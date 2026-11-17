@@ -69,12 +69,13 @@ export interface Orphan {
 }
 
 /**
- * Where each spec item was written in the node's file (R15), by line: the purpose, and one entry per port,
+ * Where each spec item was written in the node's file (R15), by line: the what and the why, and one entry per port,
  * requirement, test case, decision and uses edge, in the NodeSpec's order (an edge at its first item); a spread-in
  * item at its `...spread`. An entry is undefined where the item was written in another file.
  */
 export interface SpecPlaces {
-  readonly purpose?: number;
+  readonly what?: number;
+  readonly why?: number;
   readonly ports: readonly (number | undefined)[];
   readonly requirements: readonly (number | undefined)[];
   readonly testCases: readonly (number | undefined)[];
@@ -526,9 +527,11 @@ function specPlaces(reader: Reader, { spec, uses }: ReadNode, def: Rec, file: st
     return Array.isArray(list) ? list.map((_item, index) => line(reader.itemIn(list, index, file))) : [];
   };
   const ports = def.ports;
-  const purpose = line(reader.propertyAt(def, "purpose"));
+  const what = line(reader.propertyAt(def, "what"));
+  const why = line(reader.propertyAt(def, "why"));
   return {
-    ...(purpose === undefined ? {} : { purpose }),
+    ...(what === undefined ? {} : { what }),
+    ...(why === undefined ? {} : { why }),
     ports: (spec.ports ?? []).map((port) =>
       ports !== null && typeof ports === "object" && !Array.isArray(ports)
         ? line(reader.propertyAt(ports as Rec, port.name))

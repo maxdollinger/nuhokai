@@ -6,9 +6,8 @@ import { Path } from "./path/path.ts";
 /** What sits at nuhokai/ in the project directory, as a verdict. Reads only. */
 export const Inspect = node({
   id: "01a17290-3f10-7c50-9c2e-7d41b6a83e02",
-  purpose:
-    "Observe nuhokai/ in the project directory: absent, world or occupied; for commands needing a world, turn " +
-    "anything else into one error. Shared; reads only.",
+  what: "Observe nuhokai/ in the project directory: absent, world or occupied; for commands needing a world, turn anything else into one error.",
+  why: "Shared, so every command tells 'no world' the same way; reads only.",
   source: ["src/shared/inspect.ts"],
   ports: {
     inspect: {

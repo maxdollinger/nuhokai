@@ -5,9 +5,8 @@ import { Path } from "../path/path.ts";
 /** The authored example a new world starts with. Owns its bytes. */
 export const ExampleWorld = node({
   id: "01a17290-3f10-7c52-b7f0-5c28d914ae6b",
-  purpose:
-    "Own the example world: world file under a fresh world id, plus one node, Example, in its own file. " +
-    "Writes only into the given directory; never picks where a world goes.",
+  what: "Own the example world: world file under a fresh world id, plus one node, Example, in its own file.",
+  why: "So a new world loads and checks at once and shows how a node is written. Writes only into the given directory; never picks where a world goes.",
   source: ["src/init/example-world.ts"],
   ports: {
     write: {

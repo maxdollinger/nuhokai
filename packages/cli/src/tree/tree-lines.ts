@@ -8,7 +8,7 @@ import { nameInProject } from "../shared/world-path.ts";
 const NO_SOURCE = "(none)";
 
 /**
- * The tree's lines, one per node in walk order: `path | source | purpose`. Without a start, the top-level nodes
+ * The tree's lines, one per node in walk order: `path | source | what Why: why`, the why left out when there is none. Without a start, the top-level nodes
  * and their descendants down to `level` (a top-level node counting as 1); with one, the start itself, then its
  * descendants down to `level` below it. `level` 0 prints every descendant. A printed dome whose children are not
  * printed shows `/ (<n>)` after its path. Sources are named from the cwd through the project directory `root`.
@@ -31,6 +31,7 @@ export function renderTree(world: LoadedWorld, root: string, start: number | nul
 function line(root: string, spec: NodeSpec, path: string): string {
   const entries = Array.isArray(spec?.source) ? spec.source.filter((entry) => typeof entry === "string") : [];
   const source = entries.length > 0 ? entries.map((entry) => nameInProject(root, entry)).join(", ") : NO_SOURCE;
-  const purpose = typeof spec?.purpose === "string" ? spec.purpose : "";
-  return [path, source, purpose].map(oneLine).join(" | ");
+  const what = typeof spec?.what === "string" ? spec.what : "";
+  const why = typeof spec?.why === "string" && spec.why.trim() !== "" ? ` Why: ${spec.why}` : "";
+  return [path, source, `${what}${why}`].map(oneLine).join(" | ");
 }

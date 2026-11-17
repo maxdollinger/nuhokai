@@ -11,10 +11,8 @@ import { Scaffold } from "./scaffold.ts";
  */
 export const Init = node({
   id: "01a17233-ebfc-772d-abf4-0bd32b81656d",
-  purpose:
-    "Create a repo's world from nothing: nuhokai/ with the example world, CLI-owned tsconfig and embedded " +
-    "@nuhokai/world types, so loader and editor work at once. Writes and reports only; never checks, repairs, " +
-    "updates or prints. Boundary: run → Scaffold.",
+  what: "`nuhokai init`: create a repo's world from nothing: nuhokai/ with the example world, CLI-owned tsconfig and embedded @nuhokai/world types.",
+  why: "So loader and editor work at once. Writes and reports only; never checks, repairs, updates or prints. Boundary: run → Scaffold.",
   source: ["src/init/**"],
   requirements: [
     {
