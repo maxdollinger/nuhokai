@@ -1,7 +1,8 @@
 /** What a review of one node covers: both review programs derive it, so the prompt and the validation agree. */
 import { type LoadedWorld, loadWorld, type Placeholder } from "../load/load-world.ts";
+import { deprecationOf } from "../shared/deprecation.ts";
 import { CliError } from "../shared/failure.ts";
-import { deprecationOf, findNode } from "../shared/node-path.ts";
+import { findNode } from "../shared/node-path.ts";
 import { ProjectFiles } from "../shared/project-files.ts";
 import { invalidFrom, type Report } from "../shared/report.ts";
 import { compareText, nameInProject, suggestedCommand } from "../shared/world-path.ts";
@@ -12,6 +13,8 @@ export interface ScopeDeprecation {
   readonly note: string;
   /** The hierarchy path of the node carrying the note: the reviewed node, else the nearest dome around it. */
   readonly by: string;
+  /** Whether the reviewed node carries the note itself, not a dome around it. */
+  readonly own: boolean;
   /** That node's spec file, cwd-relative, and the line of its node() call when known. */
   readonly file: string;
   readonly line?: number;
@@ -81,6 +84,7 @@ function scope(root: string, world: LoadedWorld, position: number): Scope {
           deprecated: {
             note: deprecation.note,
             by: deprecation.by.path,
+            own: deprecation.by === node,
             file: deprecation.by.file,
             ...(deprecation.by.line === undefined ? {} : { line: deprecation.by.line }),
           },

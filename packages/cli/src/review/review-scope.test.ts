@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
 import { type Scope, scopeAt } from "./review-scope.ts";
-import { named, ROOT } from "./test-world.ts";
+import { lineIn, named, ROOT } from "./test-world.ts";
 
 const temps: string[] = [];
 
@@ -118,11 +118,14 @@ test("R8, R3: the node's own deprecation, else its dome's, with where that node 
   expect((await scoped(root, "Example")).deprecated).toBeUndefined();
 
   writeFileSync(file, spec.replace("source: [", 'deprecated: " use Greeter ",\n  source: ['));
-  const line =
-    readFileSync(file, "utf8")
-      .split("\n")
-      .findIndex((text) => text.startsWith("export const Example")) + 1;
-  expect((await scoped(root, "Example")).deprecated).toEqual({ note: "use Greeter", by: "Example", file, line });
+  const line = lineIn(file, "export const Example");
+  expect((await scoped(root, "Example")).deprecated).toEqual({
+    note: "use Greeter",
+    by: "Example",
+    own: true,
+    file,
+    line,
+  });
 
   writeFileSync(
     file,
@@ -134,6 +137,8 @@ export const Box = node({ id: "box", purpose: "Box.", deprecated: "the box goes"
   const index = join(root, "nuhokai/index.ts");
   writeFileSync(index, readFileSync(index, "utf8").replaceAll("Example", "Box"));
   const scope = await scoped(root, "Box/Example");
-  expect(scope.deprecated).toMatchObject({ note: "the box goes", by: "Box", file });
-  expect(scope.uses).toMatchObject([{ name: "Old", ports: ["run"], deprecated: "use New.run" }]);
+  expect(scope.deprecated).toMatchObject({ note: "the box goes", by: "Box", own: false, file });
+  expect(scope.uses).toMatchObject([
+    { name: "Old", ports: ["run"], deprecated: [{ by: "Box/Old", note: "use New.run" }] },
+  ]);
 });

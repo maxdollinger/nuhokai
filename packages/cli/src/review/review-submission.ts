@@ -156,10 +156,10 @@ function findingOf(scope: Scope, finding: SubmittedFinding): Finding {
  * The warning that the reviewed node is under a deprecation (R5): at the node carrying the note, saying whose it is.
  * None for a node under no deprecation.
  */
-function deprecationOf(scope: Scope): Finding[] {
+function deprecationWarning(scope: Scope): Finding[] {
   const deprecated = scope.deprecated;
   if (deprecated === undefined) return [];
-  const whose = deprecated.by === scope.node ? "is deprecated" : `is inside ${deprecated.by}, which is deprecated`;
+  const whose = deprecated.own ? "is deprecated" : `is inside ${deprecated.by}, which is deprecated`;
   return [
     {
       severity: "warning",
@@ -194,7 +194,7 @@ export function runReviewSubmission(root: string, text: string): Promise<Report>
     if ("outcome" in scope) return scope;
     const problems = judgeContent(submission, scope);
     if (problems.length > 0) return invalid(problems);
-    const findings = [...submission.findings.map((finding) => findingOf(scope, finding)), ...deprecationOf(scope)];
+    const findings = [...submission.findings.map((finding) => findingOf(scope, finding)), ...deprecationWarning(scope)];
     const outcome = findings.some((finding) => finding.severity === "error") ? "failed" : "ok";
     return { outcome, lines: [...format(findings), summarize(findings)].map(resultLine) };
   });

@@ -143,7 +143,7 @@ export interface ScopeView {
 export interface Details {
   readonly name: string;
   /** Its complexity, the parts in words (`1 port · 8 used ports · 17 requirements`); null for an external. */
-  readonly complexity: { readonly level: ComplexityLevel; readonly score: number; readonly parts: string } | null;
+  readonly complexity: { readonly level: ComplexityLevel; readonly parts: string } | null;
   /** The node's deprecation note; null when it has none. */
   readonly deprecated: string | null;
   readonly kind: string | null;

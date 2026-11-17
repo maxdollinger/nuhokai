@@ -42,7 +42,7 @@ export const PromptText = node({
     },
     {
       id: "R7",
-      text: "A node under a deprecation is named so in the node's block, with the note and, when a dome around it carries the note, that dome's path; an instruction after the block says to review it all the same and to tell the user. A deprecated dependency is marked with its note, and the prompt says that using it is not a finding. Without either, the prompt says nothing of deprecation.",
+      text: "A node under a deprecation is named so in the node's block, with the note and, when a dome around it carries the note, that dome's path; an instruction after the block says to review it all the same and to tell the user. A dependency whose use meets a deprecation is marked with each note, naming the node carrying it when that is not the dependency itself (via <path>), and the prompt says that using it is not a finding. Without either, the prompt says nothing of deprecation.",
     },
     { id: "C1", kind: "constraint", text: "No filesystem access, load or printing." },
   ],

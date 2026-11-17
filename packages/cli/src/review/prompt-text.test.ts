@@ -205,6 +205,7 @@ test("R7: a deprecated node is named so with its note, and whose it is; a deprec
     deprecated: {
       note: "use Tree/Print\u001b[2JTree2",
       by: "Tree/PrintTree",
+      own: true,
       file: "nuhokai/tree/print-tree.ts",
       line: 9,
     },
@@ -221,14 +222,28 @@ test("R7: a deprecated node is named so with its note, and whose it is; a deprec
 
   const domes = render(".", {
     ...PRINT_TREE,
-    deprecated: { note: "use Forest", by: "Tree", file: "nuhokai/tree/tree.ts" },
+    deprecated: { note: "use Forest", by: "Tree", own: false, file: "nuhokai/tree/tree.ts" },
   });
   expect(domes).toContain("- deprecated with Tree: use Forest");
 
   const [load, ...rest] = PRINT_TREE.uses;
   if (!load) throw new Error("no uses");
-  const using = render(".", { ...PRINT_TREE, uses: [{ ...load, deprecated: "use ReadWorld.read" }, ...rest] });
-  expect(using).toContain("- LoadWorld: load (source src/load/**; deprecated: use ReadWorld.read): Read nuhokai/.");
+  const using = render(".", {
+    ...PRINT_TREE,
+    uses: [
+      {
+        ...load,
+        deprecated: [
+          { by: "LoadWorld", note: "use ReadWorld.read" },
+          { by: "Tsgo", note: "use a newer checker" },
+        ],
+      },
+      ...rest,
+    ],
+  });
+  expect(using).toContain(
+    "- LoadWorld: load (source src/load/**; deprecated: use ReadWorld.read; deprecated via Tsgo: use a newer checker): Read nuhokai/.",
+  );
   expect(using).toContain(
     "A node marked deprecated should gain no new uses, but the spec still allows this one: code using it is not a finding.",
   );

@@ -171,7 +171,7 @@ test("the click panel shows Orders' own NodeSpec fields only", () => {
 
   expect(details).toEqual({
     name: "Orders",
-    complexity: { level: "simple", score: 6, parts: "3 ports · 1 used port · 1 tbd hole · 1 requirement" },
+    complexity: { level: "simple", parts: "3 ports · 1 used port · 1 tbd hole · 1 requirement" },
     deprecated: null,
     kind: null,
     purpose: orders.purpose,
@@ -251,7 +251,6 @@ test("complexity is estimated from the spec: ports, uses outside itself, holes, 
   expect(view.items.find((item) => item.name === "inner")).toMatchObject({ kind: "island", complexity: "complex" });
   expect(detailsOf(scene, 3).complexity).toEqual({
     level: "simple",
-    score: 8,
     parts: "1 port · 3 used ports · 1 tbd hole · 1 requirement · 2 nodes inside",
   });
 });
@@ -281,7 +280,7 @@ test("complexity has three steps: simple under 10, mid from 10, complex from 16;
   ]);
   expect(scene.complexity[4]?.score).toBe(0);
   const bare = mapScene({ id: "w", nodes: [spec("f", undefined)] as MapWorld["nodes"], placeholders: [] });
-  expect(detailsOf(bare, 0).complexity).toEqual({ level: "simple", score: 0, parts: "" });
+  expect(detailsOf(bare, 0).complexity).toEqual({ level: "simple", parts: "" });
 });
 
 test("the click panel shows a deprecation note, trimmed; a blank one says nothing", () => {
@@ -330,7 +329,7 @@ test("two holes sharing a description stay two, each with its sorted users", () 
   ]);
 });
 
-/** A planned leaf named by its id. */
+/** A leaf named by its id. */
 const leaf = (id: string, parent: string | null = null) => ({
   schema: "nuhokai/node@1" as const,
   id,

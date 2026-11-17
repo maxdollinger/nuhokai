@@ -40,7 +40,7 @@ export const SpecCheck = node({
     { id: "R8", text: "Every violation states its fix, listing alternatives when there is a choice." },
     {
       id: "R9",
-      text: "A uses edge to a node under a deprecation (Path.deprecationOf: its own note, else a dome's around it) is a warning at the edge, naming the edge, the node carrying the note and the note, never an error; none when the using node is under one itself. A blank deprecated is an error.",
+      text: "A uses edge meeting a deprecation (Deprecation.deprecationsOfUse: the target's own note or a dome's around it, a deprecated child a dome port delegates to, or the deprecated contract of an inherited port) is a warning at the edge, naming the ports leading there, the node carrying the note and the note; implementing a deprecated contract is a warning at the node. Never an error; none when the node is under a deprecation itself. A blank deprecated is an error.",
     },
     {
       id: "R10",
@@ -85,7 +85,7 @@ export const SpecCheck = node({
       demonstrates: ["R3", "R8"],
     },
     {
-      text: "Orders uses Stock.reserve, Stock deprecated with 'use Warehouse.reserve' → one warning at the edge's line carrying the note, exit 0; Orders deprecated too → none; deprecated: '  ' → error.",
+      text: "Orders uses Stock.reserve, Stock deprecated with 'use Warehouse.reserve' → one warning at the edge's line carrying the note, exit 0; Orders deprecated too → none; deprecated: '  ' → error. Shelf implements deprecated Store → a warning at Shelf; User uses inherited(Shelf, Store.keep) and Box.run delegating to deprecated Inner → one warning each, naming Store and Box/Inner.",
       demonstrates: ["R9"],
     },
     {

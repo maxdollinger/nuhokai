@@ -67,9 +67,7 @@ export function render(root: string, scope: Scope): string[] {
       `- spec file: ${plainText(scope.specFile)}`,
       ...(deprecated === undefined
         ? []
-        : [
-            `- deprecated${deprecated.by === scope.node ? "" : ` with ${oneLine(deprecated.by)}`}: ${oneLine(deprecated.note)}`,
-          ]),
+        : [`- deprecated${deprecated.own ? "" : ` with ${oneLine(deprecated.by)}`}: ${oneLine(deprecated.note)}`]),
     ]),
     ...(deprecated === undefined
       ? []
@@ -103,7 +101,7 @@ export function render(root: string, scope: Scope): string[] {
             : []),
           "",
           ...data(
-            scope.uses.map(({ name, node: target, ports, deprecated: note }) => {
+            scope.uses.map(({ name, node: target, ports, deprecated: met }) => {
               const used = ports.map(oneLine).join(", ");
               if (target === undefined) {
                 return `- ${oneLine(name)}: ${used} (unreachable: the world never reaches this node; ${check} reports it)`;
@@ -118,7 +116,10 @@ export function render(root: string, scope: Scope): string[] {
                   ? "no source yet"
                   : `source ${entries.map((entry) => plainText(nameInProject(root, entry))).join(", ")}`;
               const purpose = typeof spec.purpose === "string" ? spec.purpose : "";
-              const state = note === undefined ? where : `${where}; deprecated: ${oneLine(note)}`;
+              const deprecations = (met ?? []).map(
+                ({ by, note }) => `; deprecated${by === target.path ? "" : ` via ${oneLine(by)}`}: ${oneLine(note)}`,
+              );
+              const state = `${where}${deprecations.join("")}`;
               return `- ${oneLine(target.path)}: ${used} (${state}): ${oneLine(purpose)}`;
             }),
           ),

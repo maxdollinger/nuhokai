@@ -175,7 +175,7 @@ export function scopeView(scene, scope) {
         node: index,
         name: node.name,
         side: 0,
-        complexity: scene.complexity[index]?.level ?? "simple",
+        complexity: scene.complexity[index].level,
         abstract: node.abstract,
         dome: parts > 0,
         parts,
@@ -332,7 +332,6 @@ export function detailsOf(scene, index) {
     name: node.name,
     complexity: complexity && {
       level: complexity.level,
-      score: complexity.score,
       parts: partsInWords(complexity.parts),
     },
     deprecated: deprecationOf(node),

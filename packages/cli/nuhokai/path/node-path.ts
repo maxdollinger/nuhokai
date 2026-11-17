@@ -31,13 +31,6 @@ export const NodePath = node({
       output: "whether the first contains the second, at any depth",
       errors: [],
     },
-    deprecationOf: {
-      kind: "call",
-      purpose: "Tell which deprecation a node is under",
-      input: "the loaded world, a node",
-      output: "{ note: trimmed, by: the node carrying it }, or none",
-      errors: [],
-    },
     findNode: {
       kind: "call",
       purpose: "Find the node a hierarchy path names",
@@ -73,10 +66,6 @@ export const NodePath = node({
       text: "Two siblings with the segment's name → one CliError naming the path and that `nuhokai check` reports the clash. Paths of such siblings are equal; nameNodes still names both.",
     },
     {
-      id: "R6",
-      text: "deprecationOf: a node is under its own deprecated note, else under that of the nearest dome around it; under none when neither has one. A note that is not a string, or blank, says nothing; the note is answered trimmed. The one answer check and review give to 'is this node deprecated'.",
-    },
-    {
       id: "C1",
       kind: "constraint",
       text: "No filesystem access, no load, no printing: the calling command returns the error's line in its Report; Cli owns the prefix and exit code.",
@@ -94,10 +83,6 @@ export const NodePath = node({
     {
       text: "Two top-level nodes both named Orders (exported from two files) → findNode Orders fails naming `nuhokai check`; nameNodes lists Orders twice.",
       demonstrates: ["R5"],
-    },
-    {
-      text: "Shop deprecated ' use Store ' → Shop/Orders/Lines is under 'use Store' by Shop, Stock under none; Orders deprecated too → Lines under Orders'; Lines' own note blank → still Orders'.",
-      demonstrates: ["R6"],
     },
   ],
   decisions: [

@@ -6,7 +6,7 @@ import { runInit } from "../init/scaffold.ts";
 import { splitReport } from "../shared/split-report.ts";
 import { runReviewPrompt } from "./review-prompt.ts";
 import { runReviewSubmission } from "./review-submission.ts";
-import { named, ROOT } from "./test-world.ts";
+import { lineIn, named, ROOT } from "./test-world.ts";
 
 const CODE = named("src/tree/print-tree.ts");
 const TEST = named("src/tree/print-tree.test.ts");
@@ -112,10 +112,7 @@ test("R2: the node must be one, and reviewable: a typo or a dome is one line, in
 });
 
 test("R2, R4: valid findings print as check prints them, in its order, then the summary; an error fails", async () => {
-  const r3 =
-    readFileSync(SPEC, "utf8")
-      .split("\n")
-      .findIndex((line) => line.includes('id: "R3"')) + 1;
+  const r3 = lineIn(SPEC, 'id: "R3"');
   expect(
     await submitted(
       review([
@@ -181,10 +178,7 @@ test("R5: reviewing a deprecated node is one warning with its note beside the fi
   );
   mkdirSync(join(root, "src"));
   writeFileSync(join(root, "src/example.ts"), "export {};\n");
-  const line =
-    readFileSync(spec, "utf8")
-      .split("\n")
-      .findIndex((text) => text.startsWith("export const Example")) + 1;
+  const line = lineIn(spec, "export const Example");
   const warning = `warning: <root>/nuhokai/example.ts:${line}: Example: the reviewed node is deprecated: use Greeter.greet; its code is on its way out: weigh the findings accordingly, or review what the note names instead`;
   const submit = async (findings: unknown[]) =>
     splitReport(await runReviewSubmission(root, JSON.stringify({ node: "Example", findings })), root);

@@ -82,7 +82,7 @@ types without their arguments (`'NodeShape'`) and a long object literal as `'{ â
 the world's fix, since `nuhokai/tsconfig.json` is CLI-owned. World files must stay declarative: the loader rejects anything that is not data (calls other than the
 format's functions among it), and the type check allows imports only from `@nuhokai/world` and other world files and
 no cast but `as const`, no non-null assertion, `any` or `@ts-` directive, so nothing bypasses tsc's rules. It
-exits 1 on any error and 0 otherwise; orphans and `uses` edges to a deprecated node are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
+exits 1 on any error and 0 otherwise; orphans, `uses` edges reaching a deprecated node (also through a dome port or an inherited port) and implementors of a deprecated contract are warnings. Its last stdout line sums up, `ok: 0 errors, 1 warning`
 or `failed: 2 errors, 0 warnings`, so a clean check still prints one line saying it ran. A missing world is one stderr line; a world that fails to
 load still gets every tsc finding, and the load error is one more finding among them on stdout, at its file and line (where a type-check finding
 sits at that very position, one of the two: that finding when it says what to do, else the loader's)

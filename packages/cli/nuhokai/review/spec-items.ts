@@ -1,6 +1,6 @@
 import { node } from "@nuhokai/world";
+import { Deprecation } from "../deprecation.ts";
 import { Failure } from "../failure.ts";
-import { Path } from "../path/path.ts";
 
 /** The items of a node's spec a review cites, each by a stable reference. Pure. */
 export const SpecItems = node({
@@ -23,7 +23,7 @@ export const SpecItems = node({
       purpose: "Each uses edge's target, with the name its item cites",
       input: "the loaded world, a node's position",
       output:
-        "{ name, ports, node? (none when the world never reaches it), deprecated? (the note the target is under) }[], in the edges' order",
+        "{ name, ports, node? (none when the world never reaches it), deprecated? ({ by, note }[] its use meets) }[], in the edges' order",
       errors: [],
     },
     find: {
@@ -61,7 +61,7 @@ export const SpecItems = node({
     },
     {
       id: "R7",
-      text: "targets: a target under a deprecation (Path.deprecationOf) carries its note; one under none, or one the world never reaches, carries none.",
+      text: "targets: a target whose use meets a deprecation (Deprecation.deprecationsOfUse) carries each, by the path of the node carrying the note; one meeting none, or one the world never reaches, carries none.",
     },
     { id: "C1", kind: "constraint", text: "No filesystem access, load or printing." },
   ],
@@ -79,7 +79,7 @@ export const SpecItems = node({
       demonstrates: ["R5"],
     },
     {
-      text: "Example in a dome Box uses Old.run, Old deprecated 'use New.run' → its target carries that note; the orphan Lost and a target under no deprecation carry none.",
+      text: "User uses Box.run (delegating to Inner, deprecated ' use Outer.run '), Plain.go and the deprecated orphan Lost → Box carries { by: Box/Inner, note: 'use Outer.run' }; Plain and Lost carry none.",
       demonstrates: ["R7"],
     },
   ],
@@ -95,4 +95,4 @@ export const SpecItems = node({
       ],
     },
   ],
-}).edges({ uses: () => [Failure.format, Path.deprecationOf] });
+}).edges({ uses: () => [Failure.format, Deprecation.deprecationsOfUse] });

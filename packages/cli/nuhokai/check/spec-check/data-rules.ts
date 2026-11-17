@@ -1,4 +1,5 @@
 import { node } from "@nuhokai/world";
+import { Deprecation } from "../../deprecation.ts";
 import { Diagnostics } from "../../diagnostics.ts";
 import { Path } from "../../path/path.ts";
 
@@ -32,5 +33,12 @@ export const DataRules = node({
     },
   },
 }).edges({
-  uses: () => [Diagnostics.locate, Diagnostics.nodeError, Path.childrenOf, Path.isAncestor, Path.deprecationOf],
+  uses: () => [
+    Diagnostics.locate,
+    Diagnostics.nodeError,
+    Path.childrenOf,
+    Path.isAncestor,
+    Deprecation.deprecationOf,
+    Deprecation.deprecationsOfUse,
+  ],
 });

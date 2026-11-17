@@ -48,6 +48,5 @@ export const Path = node({
     findNode: NodePath.findNode,
     childrenOf: NodePath.childrenOf,
     isAncestor: NodePath.isAncestor,
-    deprecationOf: NodePath.deprecationOf,
   },
 }).edges({});

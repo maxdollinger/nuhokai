@@ -395,6 +395,24 @@ test("R9: no warning inside a deprecated dome; a blank deprecated is an error", 
   ]);
 });
 
+test("R9: a deprecated contract warns its implementors and an inherited use; a dome port warns when its delegate is deprecated", async () => {
+  const root = project({
+    "nuhokai/index.ts": index("Store, Shelf, Box, User", `import { Box, Shelf, Store, User } from "./a.ts";`),
+    "nuhokai/a.ts": `${HEADER}export const Store = node({ id: "store", purpose: "p", source: [], abstract: true, deprecated: "use Warehouse", ports: { keep: { kind: "call", purpose: "k" } } }).edges({});
+export const Shelf = node({ id: "shelf", purpose: "p", source: [], implements: () => [Store], ports: { show: { kind: "call", purpose: "s" } } }).edges({});
+${leaf("Inner", "inner", 'deprecated: "use Outer.run"')}${leaf("Kept", "kept")}export const Box = node({ id: "box", purpose: "p", source: [], children: [Inner, Kept], ports: { run: Inner.run, go: Kept.run } }).edges({});
+export const User = node({ id: "user", purpose: "p", source: [] }).edges({
+  uses: () => [inherited(Shelf, Store.keep), Shelf.show, Box.go, Box.run],
+});
+`,
+  });
+  expect(await check(root)).toEqual([
+    "warning: nuhokai/a.ts:3: Shelf: Shelf implements Store, but Store is deprecated: use Warehouse; implement what the note names instead, or drop it from implements",
+    "warning: nuhokai/a.ts:8: User: User uses Box.run, but Box/Inner is deprecated: use Outer.run; use what the note names instead, or drop the edge",
+    "warning: nuhokai/a.ts:8: User: User uses Shelf.keep, but Store is deprecated: use Warehouse; use what the note names instead, or drop the edge",
+  ]);
+});
+
 test("R11: implementing a contract listed nowhere, or a node that is not abstract, is an error naming the edge", async () => {
   const root = project({
     "nuhokai/index.ts": index("Orders, Plain", `import { Orders, Plain } from "./a.ts";`),

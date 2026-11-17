@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeCliFiles } from "../init/cli-files.ts";
 import { type LoadedWorld, loadWorld } from "../load/load-world.ts";
-import { find, list, type SpecItem } from "./spec-items.ts";
-import { at } from "./test-world.ts";
+import { find, list, type SpecItem, targets } from "./spec-items.ts";
+import { at, lineIn } from "./test-world.ts";
 
 let shop: LoadedWorld;
 let temp = "";
@@ -72,15 +72,6 @@ afterAll(() => {
   if (temp) rmSync(temp, { recursive: true, force: true });
 });
 
-/** The line of `file` holding `text`, from 1. */
-function lineOf(file: string, text: string): number {
-  return (
-    readFileSync(file, "utf8")
-      .split("\n")
-      .findIndex((line) => line.includes(text)) + 1
-  );
-}
-
 test("R1, R2, R3, R6: items by reference in spec order, each at its line; details below their item; a contract's items prefixed by its name", () => {
   const items = list(shop, at(shop, "Orders"));
   expect(items.map((item) => item.ref)).toEqual([
@@ -99,7 +90,7 @@ test("R1, R2, R3, R6: items by reference in spec order, each at its line; detail
     "Store.testCases[0]",
   ]);
   const file = join(temp, "nuhokai/shop.ts");
-  expect(find(items, "requirements[R1]")).toMatchObject({ kind: "requirement", file, line: lineOf(file, "Places") });
+  expect(find(items, "requirements[R1]")).toMatchObject({ kind: "requirement", file, line: lineIn(file, "Places") });
   // One item per target, its ports merged, at the edge's first item; an orphan by its export name, never dropped.
   expect(find(items, "edges.uses[Stock]")).toMatchObject({ text: "uses Stock: reserve, count", line: 29 });
   expect(find(items, "edges.uses[Lost]")).toMatchObject({ text: "uses Lost: run", line: 29 });
@@ -132,4 +123,31 @@ test("R5: find is exact, case-sensitive, and takes a reference as the prompt pri
   const items: SpecItem[] = [{ ref: "requirements[R  1]", kind: "requirement", text: "t", file: "nuhokai/a.ts" }];
   expect(find(items, "requirements[R 1]")?.ref).toBe("requirements[R  1]");
   expect(find(items, "requirements[R  1]")).toBeUndefined();
+});
+
+test("R7: a target whose use meets a deprecation carries it, by the node carrying the note; an orphan or a plain target none", async () => {
+  const root = mkdtempSync(join(tmpdir(), "nuhokai-spec-items-"));
+  try {
+    mkdirSync(join(root, "nuhokai"));
+    writeFileSync(
+      join(root, "nuhokai/index.ts"),
+      `import { defineWorld, node } from "@nuhokai/world";
+export const Inner = node({ id: "inner", purpose: "i", deprecated: " use Outer.run ", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const Box = node({ id: "box", purpose: "b", source: [], children: [Inner], ports: { run: Inner.run } }).edges({});
+export const Plain = node({ id: "plain", purpose: "p", source: [], ports: { go: { kind: "call", purpose: "g" } } }).edges({});
+export const Lost = node({ id: "lost", purpose: "l", deprecated: "gone", source: [], ports: { run: { kind: "call", purpose: "r" } } }).edges({});
+export const User = node({ id: "user", purpose: "u", source: [] }).edges({ uses: () => [Box.run, Plain.go, Lost.run] });
+export default defineWorld({ id: "w", name: "w", source: [], children: [Box, Plain, User] });
+`,
+    );
+    writeCliFiles(root);
+    const world = await loadWorld(root);
+    expect(targets(world, at(world, "User")).map(({ name, deprecated }) => ({ name, deprecated }))).toEqual([
+      { name: "Box", deprecated: [{ by: "Box/Inner", note: "use Outer.run" }] },
+      { name: "Plain", deprecated: undefined },
+      { name: "Lost", deprecated: undefined },
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

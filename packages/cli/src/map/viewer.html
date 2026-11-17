@@ -260,8 +260,8 @@ if(sp.kind==='comp'){const c=sp.item;// ro: the island disc's radius
 const ro=(sp.R-1.15+0.35)*1.1;it.rr=ro+0.15;it.ah=SH/2;
 const geo=discGeo(ro,SH);add(new THREE.Mesh(geo,M(SLAB,c.abstract?{roughness:0.65,transparent:true,opacity:0.55}:{roughness:0.65})));
 const em=new THREE.LineBasicMaterial({color:EDGE,transparent:true,opacity:0.85});add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),em));it.edge=em;it.edgeOp=0.85;
-add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(LEVELC[c.complexity]||LEVELC.simple,{roughness:0.5})),0,SH*0.28,0));
-add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(LEVELC[c.complexity]||LEVELC.simple,{roughness:0.55})),0,SH,0));
+add(at(new THREE.Mesh(discGeo(ro+0.04,0.36),M(LEVELC[c.complexity],{roughness:0.5})),0,SH*0.28,0));
+add(at(new THREE.Mesh(discGeo(ro-0.16,0.05),M(LEVELC[c.complexity],{roughness:0.55})),0,SH,0));
 // a contract: a dashed rim around a translucent island
 if(c.abstract){const dm=new THREE.LineDashedMaterial({color:VIOLET,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(ro+0.25)),dm);ol.computeLineDistances();ol.position.y=SH+0.08;add(ol);}
 const kids=MAP.children.get(c.node);const n=kids.length;if(n){const{spots,childR}=ringSpots(n,ro-0.45);
@@ -362,7 +362,7 @@ let sel=null,selPort=null,HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
 // a complexity's colour; an external has none and keeps its own
 const swatch=level=>'#'+new THREE.Color(level?LEVELC[level]||LEVELC.simple:EXTC).getHexString();
 function legend(){info.innerHTML='';const t=s=>info.appendChild(document.createTextNode(s));
-t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = complexity, estimated from ports, uses, requirements and nodes inside:');
+t('Height = call depth. Lanes are calls (orange = entries and externals), violet arcs are events, dashed lanes lead to contracts and tbd holes. Island colour = complexity, estimated from ports, uses, tbd holes, requirements and nodes inside:');
 ['simple','mid','complex'].forEach(s=>{const sw=document.createElement('i');sw.className='sw';sw.style.background=swatch(s);info.appendChild(sw);t(s);});
 t('. '+(TOUCH?'Tap an island for its lanes\' ports, events and details':'Hover an island for its lanes\' ports and events, click for details')+', drag islands or group outlines to rearrange (this browser remembers it); double-click a dome to look inside'+(TOUCH?'':', / to search')+(path.length>1?', Esc to go up.':'.'));}
 function selectable(id){const it=S.items[id];return !!(it&&it.node);}

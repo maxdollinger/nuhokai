@@ -162,7 +162,8 @@ export interface NodeSpec {
   /**
    * Set when the node should no longer gain dependents: the note says why and what to use instead,
    * e.g. "use Stock.reserve". Not blank. Any node may carry it, an external, a contract or a dome too.
-   * The node still exists and still works; `check` warns about every `uses` edge that targets it.
+   * The node still exists and still works; `check` warns about every `uses` edge that reaches it, also through a
+   * dome port or an inherited port, and about every node implementing it.
    */
   deprecated?: string;
 

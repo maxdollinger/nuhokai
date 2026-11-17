@@ -3,6 +3,7 @@ import { Build } from "./build.ts";
 import { Check } from "./check/check.ts";
 import { CheckerClient } from "./checker-client.ts";
 import { Cli } from "./cli.ts";
+import { Deprecation } from "./deprecation.ts";
 import { Diagnostics } from "./diagnostics.ts";
 import { Browser, BunRuntime, FileSystem, Terminal, ThreeJs, Tsgo } from "./external.ts";
 import { Failure } from "./failure.ts";
@@ -33,6 +34,7 @@ export default defineWorld({
     LoadWorld,
     ProjectFiles,
     Diagnostics,
+    Deprecation,
     CheckerClient,
     Path,
     Failure,
