@@ -11,7 +11,7 @@ import { inherited, node } from "@nuhokai/world";
 
 export const Orders = node({
   id: "01a16dd2-bc20-732c-ae7b-02362b8baff1", // any unique string
-  purpose: "Owns orders.",
+  purpose: "Takes an order from checkout to delivery, so the order lifecycle has one owner.",
   source: [],
   ports: { place: { kind: "call", purpose: "Place an order" } },
   implements: () => [AuditLog],
@@ -22,7 +22,7 @@ export const Orders = node({
 // A dome: children plus the ports it exposes from them. It has no behavior of its own.
 export const Shop = node({
   id: "01a16dd2-bc14-752c-b0df-585621a330ab",
-  purpose: "The shop backend.",
+  purpose: "The shop backend: everything a customer interacts with, behind one boundary.",
   source: [],
   children: [Orders, Stock],
   ports: {

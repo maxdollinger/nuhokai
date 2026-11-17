@@ -44,9 +44,9 @@ test("Tree R1, R2: the example world's top level, one line per node, Shop collap
   expect(result).toEqual({
     outcome: "ok",
     out: [
-      "Postgres | (none) | The shared database; run by ops, not built by us.",
-      "AuditLog | (none) | Lets compliance read who changed what, independent of the owning node.",
-      "Shop/ (2) | (none) | The shop backend; everything a customer interacts with lives inside it.",
+      "Postgres | (none) | The shared database: stores and queries the shop's data over SQL. Run by ops, not built by us.",
+      "AuditLog | (none) | Records who changed which entity and when, and answers that history, so compliance can read it independent of the owning node.",
+      "Shop/ (2) | (none) | The shop backend: takes orders and manages stock for customers, one boundary around everything a customer interacts with.",
     ],
     err: [],
   });

@@ -121,7 +121,8 @@ test("after init, without node_modules, loads Example named by its export plus i
       parent: null,
       external: false,
       abstract: false,
-      purpose: "An example to copy from; replace it with the first real node.",
+      purpose:
+        "Greets whoever calls it by name; here only as an example to copy from. Replace it with the first real node: say why it exists and what it does.",
       source: [],
       ports: [{ name: "greet", kind: "call", purpose: "Say hello", input: "a name", output: "a greeting" }],
     },
