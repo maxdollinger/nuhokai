@@ -4,12 +4,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadWorld } from "../load/load-world.ts";
 import {
+  conesOf,
   detailsOf,
+  freeAngle,
   landingOf,
   lightsFor,
   type MapWorld,
   mapScene,
+  mountainLayout,
   type ScopeView,
+  savedAngles,
   scopeView,
   search,
 } from "./scene.js";
@@ -653,4 +657,100 @@ test("a double-click lands on the node an item stands for, centred in its own do
   expect(land(key("Stock"))).toMatchObject({ scope: shop, key: key("Stock"), ports: [] });
   expect(land("tbd:0")).toBeNull();
   expect(land("nothing")).toBeNull();
+});
+
+/** A world of top-level leaves, each using the ids listed for it (implements for ids starting with `!`). */
+function leaves(uses: Record<string, string[]>): MapWorld {
+  return {
+    id: "w",
+    nodes: Object.entries(uses).map(([id, to]) => ({
+      schema: "nuhokai/node@1" as const,
+      id,
+      name: id,
+      parent: null,
+      external: false,
+      abstract: false,
+      what: id,
+      why: id,
+      source: [],
+      edges: to.map((target) =>
+        target.startsWith("!")
+          ? { kind: "implements" as const, to: target.slice(1) }
+          : { kind: "uses" as const, to: target, port: ["p"] },
+      ),
+    })),
+    placeholders: [],
+  };
+}
+
+test("a lane from inside a dome starts at the node inside it that uses the port; the dome's own edge at none", () => {
+  const top = scopeView(scene, null);
+  const lane = (kind: string, to: string) =>
+    top.lanes.find((l) => l.kind === kind && top.items.find((item) => item.key === l.to)?.name === to);
+
+  expect(lane("uses", "Postgres")?.inner).toEqual([indexOf("Stock")]);
+  const implementors = lane("implements", "AuditLog")?.inner ?? [];
+  expect(implementors.length).toBeGreaterThan(0);
+  for (const index of implementors) expect(scene.parents[index]).toBe(indexOf("Shop"));
+});
+
+test("cones: what each item depends on and what depends on it, at its nearest hop; implements is no dependency", () => {
+  const view = scopeView(mapScene(leaves({ a: ["b"], b: ["c"], c: [], d: ["b", "!c"] })), null);
+  const cones = conesOf(view);
+  const at = (name: string) => cones.get(view.items.find((item) => item.name === name)?.key ?? "");
+  const named = (map: ReadonlyMap<string, number> | undefined) =>
+    Object.fromEntries([...(map ?? [])].map(([key, hops]) => [view.items.find((i) => i.key === key)?.name, hops]));
+
+  expect(named(at("b")?.down)).toEqual({ c: 1 });
+  expect(named(at("b")?.up)).toEqual({ a: 1, d: 1 });
+  expect(named(at("a")?.down)).toEqual({ b: 1, c: 2 });
+  expect(named(at("c")?.up)).toEqual({ b: 1, a: 2, d: 2 });
+});
+
+test("freeAngle: the wanted angle when clear, else the nearest clear one, null on a full ring", () => {
+  expect(freeAngle(1, 5, 1, [])).toBeCloseTo(1);
+  const blocked = freeAngle(0, 5, 1, [{ angle: 0.1, foot: 1 }]) ?? Number.NaN;
+  // two footprints of 1 with 0.5 between them stand 2.5 apart: a chord of 2.5 on a ring of 5
+  expect(blocked).toBeCloseTo(0.1 - 2 * Math.asin(0.25));
+  expect(freeAngle(0, 1, 1, [{ angle: Math.PI, foot: 1 }])).toBeNull();
+  expect(freeAngle(2, 0, 1, [])).toBeCloseTo(2);
+  expect(freeAngle(2, 0, 1, [{ angle: 0, foot: 1 }])).toBeNull();
+});
+
+test("saved positions: angles as saved, positions from before the rings as angles round their centre", () => {
+  const angles = savedAngles({ a: { ang: 7 }, b: { x: 3, z: 1 }, c: { x: 1, z: 1 }, d: { x: 2, z: 3 }, e: "junk" });
+
+  expect(angles.get("a")).toBeCloseTo(7 - 2 * Math.PI);
+  expect(angles.get("b")).toBeCloseTo(Math.atan2(-0.6667, 1));
+  expect(angles.get("c")).toBeCloseTo(Math.atan2(-0.6667, -1));
+  expect(angles.get("d")).toBeCloseTo(Math.PI / 2);
+  expect(angles.has("e")).toBe(false);
+});
+
+test("Mountain layout: one ring per level, the top alone in the middle, no footprints touching, fixed angles kept", () => {
+  // e uses d uses c uses b uses a; f, g, h, i, j also use a (level 1 with b)
+  const view = scopeView(
+    mapScene(leaves({ a: [], b: ["a"], c: ["b"], d: ["c"], e: ["d"], f: ["a"], g: ["a"], h: ["a"], i: ["a"] })),
+    null,
+  );
+  const key = (name: string) => view.items.find((item) => item.name === name)?.key ?? "";
+  const options = { foot: () => 1.2, seed: (k: string) => k.length * 7 };
+  const layout = mountainLayout(view, options);
+  const spot = (name: string) => layout.positions.get(key(name));
+
+  expect(spot("e")).toMatchObject({ r: 0, x: 0, z: 0 });
+  expect(layout.rings[4]).toBe(0);
+  for (let level = 3; level >= 0; level--) expect(layout.rings[level]).toBeGreaterThan(layout.rings[level + 1] ?? 0);
+  expect(spot("b")?.r).toBe(layout.rings[1]);
+  const spots = [...layout.positions.values()];
+  for (const p of spots)
+    for (const q of spots)
+      if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(2.4 + 0.6 - 1e-6);
+  expect(mountainLayout(view, options)).toEqual(layout);
+
+  const moved = mountainLayout(view, { ...options, fixed: new Map([[key("f"), spot("b")?.angle ?? 0]]) });
+  expect(moved.positions.get(key("f"))?.angle).toBeCloseTo(spot("b")?.angle ?? 0);
+  const ring = [...moved.positions.values()].filter((p) => p.r === moved.rings[1]);
+  for (const p of ring)
+    for (const q of ring) if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(3 - 1e-6);
 });
