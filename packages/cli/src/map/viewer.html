@@ -150,19 +150,20 @@ const W=()=>window.innerWidth,H=()=>window.innerHeight;
 const DARK=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
 const TOUCH=window.matchMedia&&window.matchMedia('(hover: none)').matches;
 const APPLE=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
-// colours and light as three.js r128 drew them: hex values used as given, no sRGB conversion, legacy light units (×π)
-THREE.ColorManagement.enabled=false;
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
+// colours and light as the design study draws them: sRGB colours, three.js's own light units
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(W(),H());renderer.setClearColor(0x000000,0);
 const el=renderer.domElement;wrap.prepend(el);
 const scene=new THREE.Scene();
-const FR=30;const camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,700);
-function frustum(){const a=W()/H();camera.left=-FR*a/2;camera.right=FR*a/2;camera.top=FR/2;camera.bottom=-FR/2;camera.updateProjectionMatrix();}
+const camera=new THREE.PerspectiveCamera(34,W()/H(),0.5,900);
+function frustum(){camera.aspect=W()/H();camera.updateProjectionMatrix();}
 frustum();
-const controls=new THREE.OrbitControls(camera,el);controls.enableDamping=true;controls.dampingFactor=0.1;controls.minZoom=0.15;controls.maxZoom=14;controls.zoomToCursor=true;controls.screenSpacePanning=true;controls.maxPolarAngle=Math.PI/2-0.12;
-const CAMDIR=new THREE.Vector3(0.8,1.1,-1).normalize();
-scene.add(new THREE.HemisphereLight(0xffffff,DARK?0x30302e:0xd8d6cf,(DARK?0.7:0.62)*Math.PI));
-const sun=new THREE.DirectionalLight(0xffffff,(DARK?0.45:0.4)*Math.PI);sun.position.set(18,40,-24);scene.add(sun);scene.add(sun.target);
+const controls=new THREE.OrbitControls(camera,el);controls.enableDamping=true;controls.dampingFactor=0.1;controls.minDistance=6;controls.maxDistance=420;controls.zoomToCursor=true;controls.screenSpacePanning=true;controls.maxPolarAngle=Math.PI/2-0.12;
+// the camera looks down 54° from straight above, a little from the side
+const CAMDIR=new THREE.Vector3(Math.sin(0.95)*Math.sin(0.35),Math.cos(0.95),Math.sin(0.95)*Math.cos(0.35));
+scene.add(new THREE.HemisphereLight(0xffffff,0x2a2a28,2.2));
+const sun=new THREE.DirectionalLight(0xffffff,1.7);sun.position.set(18,40,-14);scene.add(sun);scene.add(sun.target);
+const fill=new THREE.DirectionalLight(0x9ec5f4,0.5);fill.position.set(-20,10,25);scene.add(fill);
 const world=new THREE.Group();scene.add(world);
 // three.js compiles an opaque material to draw alpha 1, so a material turning transparent needs a new program
 function op(mat,o){const t=o<1;if(mat.transparent!==t){mat.transparent=t;mat.needsUpdate=true;}mat.opacity=o;mat.depthWrite=o>=1;}
@@ -170,17 +171,21 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);const UPV=V(0,1,0);
 // palette: warm paper in the light theme, neutral graphite in the dark one; colour only where it means something.
 // used: what depends on a node (filled dots, lanes into it), dep: what it depends on (hollow rings, lanes out of it):
 // blue and red differ in shape on the ground and in brightness, so they stay apart without colour vision too
-const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.16,tone:'#8c949c',tower:0x5e6a70,towerOp:0.85,lit:0.3,glow:0.75,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,focus:0xf2f5f4,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,0.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,ghost:0x9aa3a8,pit:0x050606,dotRing:0x8c949c,dotRingOp:0.3,swell:0xffffff,swk:0.75,
-  card:'rgba(24,27,31,0.94)',cardLine:'rgba(195,204,208,0.35)',sub:'#a3acb2',usedTxt:'#9cc8ff',depTxt:'#ff8a5c'}
-:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.22,tone:'#837e76',tower:0xd6d2ca,towerOp:0.9,lit:0.16,glow:0.84,edge:0x88837a,edgeOp:0.5,floorOp:0.35,focus:0x26292c,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,0.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,ghost:0x77726a,pit:0x6e6a63,dotRing:0x88837a,dotRingOp:0.4,swell:0xfffdf7,swk:0.85,
-  card:'rgba(248,245,239,0.96)',cardLine:'rgba(120,114,104,0.55)',sub:'#5f5a52',usedTxt:'#1d4f91',depTxt:'#a8400f'};
+const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.12,tone:'#8c949c',tower:0x5e6a70,towerOp:0.8,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,dotRing:null,swell:0xffffff,swk:0.75,
+  focus:0xf2f5f4,ghost:0x9aa3a8,pit:0x050606,card:'rgba(24,27,31,.94)',cardLine:'rgba(195,204,208,.35)',sub:'#a3acb2',usedTxt:'#9cc8ff',depTxt:'#ff8a5c'}
+:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.2,tone:'#837e76',tower:0xf2ede4,towerOp:0.95,edge:0x88837a,edgeOp:0.5,floorOp:0.35,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,dotRing:0x88837a,swell:0xfffdf7,swk:0.85,
+  focus:0x26292c,ghost:0x77726a,pit:0x6e6a63,card:'rgba(248,245,239,.96)',cardLine:'rgba(120,114,104,.55)',sub:'#5f5a52',usedTxt:'#1d4f91',depTxt:'#a8400f'};
+// a node's colour by complexity: only the dark theme's line through the ground dots still carries it, faintly
+const LIVE={simple:0x2f8f86,mid:0x45c2c4,complex:0xa6f2ea},VIOLET=0xA066FF;
+// a tower's width by complexity
+const RADC={complex:1.75,mid:1.5,simple:1.3};
 // a lit label in a query: tinted toward the accent, pale in the light theme so its text stays dark
 const LITLAB=DARK?0x85B7EB:0xC9DEF4;
 // complexity, shown in the details and search only: one hue in three steps; an external has none and keeps its own
 const LEVELC=DARK?{simple:0x184F95,mid:0x3987E5,complex:0x9EC5F4}:{simple:0x86B6EF,mid:0x2A78D6,complex:0x104281};
 const EXTC=0xEFB860;
 // LV: the height of a level; SH: a level-0 tower's height; TAPER: a tower's foot as a share of its roof
-const LV=3.2,SH=1.8,TAPER=0.55;
+const LV=3.1,SH=1.8,TAPER=0.55;
 const REDUCED=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function rnd(i){const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x);}
 // FNV-1a, 32 bits
@@ -188,7 +193,7 @@ function hash(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++)h=Math.imul(h^s.cha
 // a lane: one quiet colour, brighter toward the end it lands on, with a faint swell of light drifting that way; dashed
 // (uDash: the dash period) for implements, tbd holes and events
 const EVS='varying float vU;void main(){vU=uv.x;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
-const EFS='uniform vec3 uCol,uSw;uniform float uA,uT,uPh,uSp,uLen,uG0,uSoft,uSwK,uDash;varying float vU;void main(){if(uDash>0.0&&fract(vU*uLen/uDash)>0.62)discard;float a=uA*(uG0+(1.0-uG0)*vU);float sp=fract(uT*uSp+uPh)*1.5-0.25;float sw=uSoft*exp(-pow((vU-sp)/0.14,2.0));gl_FragColor=vec4(mix(uCol,uSw,sw*uSwK),clamp(a+sw*uA*0.9,0.0,1.0));}';
+const EFS='uniform vec3 uCol,uSw;uniform float uA,uT,uPh,uSp,uLen,uG0,uSoft,uSwK,uDash;varying float vU;void main(){if(uDash>0.0&&fract(vU*uLen/uDash)>0.62)discard;float a=uA*(uG0+(1.0-uG0)*vU);float sp=fract(uT*uSp+uPh)*1.5-0.25;float sw=uSoft*exp(-pow((vU-sp)/0.14,2.0));gl_FragColor=vec4(mix(uCol,uSw,sw*uSwK),clamp(a+sw*uA*0.9,0.0,1.0));\n#include <colorspace_fragment>\n}';
 
 // ---------- model: the loaded world, as scene.js sees it ----------
 const MAP=mapScene(JSON.parse(document.getElementById('nuhokai-world').textContent));
@@ -215,40 +220,46 @@ const cssColor=c=>'#'+new THREE.Color(c).getHexString();
 // an element with a class and text, appended to parent
 const make=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;if(parent)parent.appendChild(e);return e;};
 // a canvas as a sprite standing on its bottom edge, k world units per pixel
-function spriteOf(cv,k){const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(cv.width*k,cv.height*k,1);sp.renderOrder=10;return sp;}
+function spriteOf(cv,k){const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.minFilter=THREE.LinearFilter;const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(cv.width*k,cv.height*k,1);sp.renderOrder=10;return sp;}
 function card(x,w,h){x.fillStyle=TH.card;x.strokeStyle=TH.cardLine;x.lineWidth=2;x.beginPath();if(x.roundRect)x.roundRect(1,1,w-2,h-2,10);else x.rect(1,1,w-2,h-2);x.fill();x.stroke();}
 function labelSprite(name,sub,dot){const pad=14,f1='600 28px system-ui,-apple-system,sans-serif',f2='400 22px system-ui,-apple-system,sans-serif';const cv=document.createElement('canvas');const x=cv.getContext('2d');x.font=f1;const w1=x.measureText(name).width+(dot!=null?22:0);x.font=f2;const w2=sub?x.measureText(sub).width:0;const w=Math.ceil(Math.max(w1,w2)+pad*2),h=sub?80:50;cv.width=w;cv.height=h;
 card(x,w,h);let tx=pad;if(dot!=null){x.fillStyle=cssColor(dot);x.beginPath();x.arc(pad+6,26,6,0,Math.PI*2);x.fill();tx+=22;}
 x.textBaseline='middle';x.fillStyle=TH.label;x.font=f1;x.fillText(name,tx,26);if(sub){x.fillStyle=TH.sub;x.font=f2;x.fillText(sub,pad,60);}
 return spriteOf(cv,0.015);}
-// an island's name at rest: text only, with a soft halo in the ground's colour
-function nameTag(name,col,px){const f='600 '+(px||26)+'px system-ui,-apple-system,sans-serif';const cv=document.createElement('canvas'),x=cv.getContext('2d');x.font=f;const w=Math.ceil(x.measureText(name).width+24),h=Math.ceil((px||26)*1.6);cv.width=w;cv.height=h;
-x.font=f;x.fillStyle=col||TH.label;x.shadowColor=TH.shadow;x.shadowBlur=8;x.textAlign='center';x.textBaseline='middle';x.fillText(name,w/2,h/2);return spriteOf(cv,0.015);}
-// a hovered or selected island's card: its name, level and inside, then both counts, each with its mark on the ground
-function countCard(name,sub,dn,dnAll,up,upAll){const f1='600 30px system-ui,-apple-system,sans-serif',f2='400 21px ui-monospace,SFMono-Regular,Menlo,monospace',f3='600 22px ui-monospace,SFMono-Regular,Menlo,monospace';
-const l1='depends on '+dn+(dnAll!==dn?' · '+dnAll+' in all':''),l2='used by '+up+(upAll!==up?' · '+upAll+' in all':'');
-const cv=document.createElement('canvas'),x=cv.getContext('2d');const tw=(f,t)=>{x.font=f;return x.measureText(t).width;};const w=Math.ceil(Math.max(tw(f1,name),tw(f2,sub),tw(f3,l1)+34,tw(f3,l2)+34)+48),h=158;cv.width=w;cv.height=h;
-card(x,w,h);x.textBaseline='middle';x.font=f1;x.fillStyle=TH.label;x.fillText(name,24,34);x.font=f2;x.fillStyle=TH.sub;x.fillText(sub,24,66);
-x.font=f3;x.lineWidth=4;x.strokeStyle=TH.depTxt;x.beginPath();x.arc(34,100,8,0,Math.PI*2);x.stroke();x.fillStyle=TH.depTxt;x.fillText(l1,56,101);
-x.fillStyle=TH.usedTxt;x.beginPath();x.arc(34,132,9,0,Math.PI*2);x.fill();x.fillText(l2,56,133);return spriteOf(cv,0.015);}
+// text as the design study draws it: canvases at 3×, sRGB, sized in CSS pixels times k world units
+const FONT='ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif',MONO='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+const MEASURE=document.createElement('canvas').getContext('2d');function textW(f,t){MEASURE.font=f;return MEASURE.measureText(t).width;}
+function texFrom(w,h,draw){const c=document.createElement('canvas'),s=3;c.width=Math.ceil(w*s);c.height=Math.ceil(h*s);const x=c.getContext('2d');x.scale(s,s);draw(x);
+const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;t.minFilter=THREE.LinearMipmapLinearFilter;return t;}
+function rr(x,X,Y,w,h,r){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();}
+function texSprite(t,w,h,k){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(w*k,h*k,1);sp.renderOrder=10;return sp;}
+// a tower's name at rest: text only, with a soft halo in the ground's colour
+function plainTag(name){const f='500 14px '+FONT,w=textW(f,name)+12,h=22;return texSprite(texFrom(w,h,x=>{x.font=f;x.fillStyle=TH.label;x.shadowColor=TH.shadow;x.shadowBlur=5;x.textAlign='center';x.fillText(name,w/2,15);}),w,h,0.034);}
+// a name on the ground or at the edge: text only, in its colour
+function groundLabel(name,tone,size){const f='600 15px '+FONT,w=textW(f,name)+20,h=28;return texSprite(texFrom(w,h,x=>{x.textBaseline='alphabetic';x.font=f;x.fillStyle=tone;x.shadowColor=TH.shadow;x.shadowBlur=6;x.fillText(name,10,19);}),w,h,0.052*size);}
+// a hovered or selected tower's card: its name, level and inside, then both counts, each with its mark on the ground
+function countCard(name,sub,dn,dnAll,up,upAll){const l1='depends on '+dn+(dnAll!==dn?' · '+dnAll+' in all':''),l2='used by '+up+(upAll!==up?' · '+upAll+' in all':'');
+const f1='600 16px '+FONT,f2='500 10.5px '+MONO,f3='600 11.5px '+MONO,w=Math.max(textW(f1,name),textW(f2,sub),textW(f3,l1)+18,textW(f3,l2)+18)+26,h=80;
+return texSprite(texFrom(w,h,x=>{rr(x,1,1,w-2,h-2,8);x.fillStyle=TH.card;x.fill();x.lineWidth=1;x.strokeStyle=TH.cardLine;x.stroke();
+x.font=f1;x.fillStyle=TH.label;x.fillText(name,13,21);x.font=f2;x.fillStyle=TH.sub;x.fillText(sub,13,36);
+x.font=f3;x.lineWidth=2;x.strokeStyle=TH.depTxt;x.beginPath();x.arc(18,51,4,0,Math.PI*2);x.stroke();x.fillStyle=TH.depTxt;x.fillText(l1,30,55);
+x.fillStyle=TH.usedTxt;x.beginPath();x.arc(18,67,4.6,0,Math.PI*2);x.fill();x.fillText(l2,30,71);}),w,h,0.036);}
 
 // ---------- scope ----------
 let S=null,T=0,path=[null];
 // cones: a focused island lights everything it depends on and everything that depends on it, not only its neighbours
 let CONES=(()=>{try{return localStorage.getItem('nuhokai.map.cones')==='1';}catch(e){return false;}})();
 function clearWorld(){world.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});});while(world.children.length)world.remove(world.children[0]);}
-// a tower's roof grows with the nodes inside it; it stands on a narrower foot, an obelisk upside down
-function roofR(parts){return Math.min(1.9,0.75+0.3*Math.sqrt(parts));}
-// the dots round a tower's foot: one filled dot per node that depends on it, one hollow ring per node it depends on,
+// the dots round a tower: one filled dot per node that depends on it, one hollow ring per node it depends on,
 // each on its own ring; the ring with more dots is outside, and a thin line runs through the outer one
-function dotRings(foot,up,dn){const r=n=>foot+0.35+0.075*n,lo=Math.min(up,dn),hi=Math.max(up,dn);const rIn=lo?r(lo):0,rOut=hi?Math.max(r(hi),lo?rIn+0.42:0):0,usedOut=up>=dn;
-return{rUp:up?(usedOut?rOut:rIn):0,rDn:dn?(usedOut?rIn:rOut):0,outer:Math.max(rOut,foot+0.35)};}
+function dotRings(top,up,dn){const r=n=>top+0.35+0.075*n,lo=Math.min(up,dn),hi=Math.max(up,dn);const rIn=lo?r(lo):0,rOut=hi?Math.max(r(hi),lo?rIn+0.42:0):0,usedOut=up>=dn;
+return{rUp:up?(usedOut?rOut:rIn):0,rDn:dn?(usedOut?rIn:rOut):0,outer:Math.max(rOut,top+0.35)};}
 function buildScope(scope){clearWorld();
 const view=scopeView(MAP,scope);
 const sc={scope:scope,view:view,T0:T,items:{},pick:[],lanes:[],air:[],pillars:[],anims:[],labels:{},F:{},R:{},hover:null,mark:null,cones:conesOf(view)};S=sc;
 const specs=view.items.map(item=>{const node=item.node===null?null:MAP.nodes[item.node];
-if(item.kind==='island'){const c=sc.cones.get(item.key),up=c.up.size,dn=c.down.size,top=roofR(item.parts),foot=top*TAPER,rings=dotRings(foot,up,dn);
-  return{id:item.key,kind:'comp',item:item,node:node,seed:node.id,side:0,top:top,foot:foot,up:up,dn:dn,rings:rings,R:Math.max(top,rings.outer)+0.25};}
+if(item.kind==='island'){const c=sc.cones.get(item.key),up=c.up.size,dn=c.down.size,rT=RADC[item.complexity]*0.62,top=rT*0.9,foot=top*TAPER,rings=dotRings(top,up,dn);
+  return{id:item.key,kind:'comp',item:item,node:node,seed:node.id,side:0,rT:rT,top:top,foot:foot,up:up,dn:dn,rings:rings,R:rings.outer+0.3};}
 if(item.kind==='external')return{id:item.key,kind:'ext',item:item,node:node,side:item.side};
 if(item.kind==='hole')return{id:item.key,kind:'hole',item:item,node:null,side:item.side};
 return{id:item.key,kind:'ghost',item:item,node:node,orange:item.kind==='entry',side:item.side};});
@@ -274,10 +285,10 @@ function layout(scope,specs,view){const L=layoutOf(scope);
 if(!L.ring){const all=stored(),kept=all[scopeKey(scope)]||{},drawn=new Set(specs.map(keyOf));const gone=Object.keys(kept).filter(k=>!drawn.has(k));if(gone.length){gone.forEach(k=>delete kept[k]);all[scopeKey(scope)]=kept;store(all);}
   const by={};specs.forEach(s=>by[s.id]=s);const comps=specs.filter(s=>s.kind==='comp');
   const fixed=savedAngles(Object.fromEntries(comps.filter(s=>kept[keyOf(s)]).map(s=>[s.id,kept[keyOf(s)]])));
-  const m=mountainLayout(view,{foot:k=>by[k].R,seed:k=>hash(by[k].seed),fixed:fixed});
+  const m=mountainLayout(view,{foot:k=>by[k].R,seed:k=>hash(by[k].seed),fixed:fixed,gap:0.5});
   comps.forEach(s=>{const p=m.positions.get(s.id);L[s.id]={ang:p.angle,r:p.r,x:p.x,z:p.z};});
   if(by.self)L.self={x:0,z:0};
-  L.rings=m.rings;L.foot={};comps.forEach(s=>L.foot[s.id]=s.R);L.ring={cx:0,cz:0,r:Math.max(10,m.outer+2.6)};
+  L.rings=m.rings;L.foot={};comps.forEach(s=>L.foot[s.id]=s.R);L.ring={cx:0,cz:0,r:Math.max(19,m.outer+1.6)+2.0};
   specs.filter(s=>s.side!==0).forEach(s=>{const p=kept[keyOf(s)];if(p&&Number.isFinite(p.ang))L[s.id]={ang:p.ang};});}
 const ring=L.ring,ins=specs.filter(s=>s.side<0),outs=specs.filter(s=>s.side>0);
 // the outer edge: at most 0.36 rad apart, closer when a side holds many, so a side never wraps past the other
@@ -291,57 +302,55 @@ const it={id:sp.id,sp:sp,kind:sp.kind,side:sp.side,name:sp.item?sp.item.name:'',
 const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh&&pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}return obj;};
 const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let lab,labY=0.9;
-if(sp.kind==='comp'){const c=sp.item,top=sp.top,foot=sp.foot,h=sp.roof;
+if(sp.kind==='comp'){const c=sp.item,rT=sp.rT,top=sp.top,foot=sp.foot,h=sp.roof,lc=new THREE.Color(LIVE[c.complexity]).lerp(new THREE.Color(0xffffff),0.6);
 it.top=top;it.foot=foot;it.rAt=y=>foot+(top-foot)*Math.min(1,Math.max(0,y)/h);
-// the tower: one smooth wall, so only its rims and a faint ring per level below it are drawn
-// one frosted surface: mostly its own glow, so the roof lit from above reads as the same material as the walls, with
-// just enough light left to tell the walls' round from the roof
-const tc=new THREE.Color(TH.tower);const wall=add(new THREE.Mesh(new THREE.CylinderGeometry(top,foot,h,48).translate(0,h/2,0),new THREE.MeshLambertMaterial({color:tc.clone().multiplyScalar(TH.lit),emissive:tc.clone().multiplyScalar(TH.glow),transparent:true,opacity:c.abstract?0.5:TH.towerOp})));
-// drawn after the lanes, so a lane behind or inside it shows only through what the wall lets through
-wall.renderOrder=5;
-// the rims and floor rings sit on the wall's surface, drawn after it
-const onWall=l=>{l.renderOrder=6;return add(l);};
-const rim=onWall(loopLine(top+0.01,h,TH.edge,Math.min(1,TH.edgeOp*1.5)));it.edge=rim.material;it.edgeOp=rim.material.opacity;onWall(loopLine(foot+0.01,0.02,TH.edge,TH.edgeOp));
-for(let l=0;l<sp.level;l++){const y=SH+l*S.lv;onWall(loopLine(it.rAt(y)+0.01,y,TH.edge,TH.floorOp));}
+// the tower: one smooth translucent wall, so only its rims and a faint ring per level below it are drawn
+const geo=new THREE.CylinderGeometry(top,foot,h,48).translate(0,h/2,0);
+add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:TH.tower,transparent:true,opacity:c.abstract?0.5:TH.towerOp,depthWrite:false})));
+const em=add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,20),new THREE.LineBasicMaterial({color:TH.edge,transparent:true,opacity:TH.edgeOp})));it.edge=em.material;it.edgeOp=TH.edgeOp;
+for(let l=0;l<sp.level;l++){const y=SH+l*S.lv;add(loopLine(it.rAt(y),y,TH.edge,TH.floorOp));}
 // a contract: a dashed violet rim round a translucent tower
 if(c.abstract){const dm=new THREE.LineDashedMaterial({color:TH.event,dashSize:0.25,gapSize:0.18,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(top+0.25)),dm);ol.computeLineDistances();ol.position.y=h+0.08;add(ol);}
-// the nodes inside: small blocks in one row in the roof; a lane one of them makes starts at its block
-const kids=MAP.children.get(c.node),kr=kids.length>1?top*0.62:0;
-kids.forEach((k,j)=>{const a=j/kids.length*Math.PI*2+Math.PI/6,x=Math.sin(a)*kr,z=Math.cos(a)*kr;add(at(new THREE.Mesh(new THREE.BoxGeometry(0.24,0.14,0.24),new THREE.MeshBasicMaterial({color:TH.inner})),x,h-0.04,z),false);it.inner[k]={x:x,z:z};});
+// the nodes inside: small blocks in one row just under the roof; a lane one of them makes starts at its block
+const kids=MAP.children.get(c.node),kr=kids.length>1?rT*0.48:0;
+kids.forEach((k,j)=>{const a=j/kids.length*Math.PI*2+Math.PI/6,x=Math.sin(a)*kr,z=Math.cos(a)*kr;add(at(new THREE.Mesh(new THREE.BoxGeometry(0.2,0.14,0.2),new THREE.MeshBasicMaterial({color:TH.inner})),x,h-0.32,z),false);it.inner[k]={x:x,z:z};});
+// where lanes land on the roof: a spot per port, or the roof's middle when nothing is inside
+it.chips={};(sp.node.ports||[]).forEach((pt,i)=>{const a=Math.PI/6+(i%6)*Math.PI/3,o=rT*Math.cos(Math.PI/6)*(0.72-Math.floor(i/6)*0.25);it.chips[pt.name]=kids.length?{x:Math.sin(a)*o,z:Math.cos(a)*o}:{x:0,z:0};});
 // the ground: a dot per node that depends on it, a ring per node it depends on
 const R=sp.rings,a0=rnd(hash(sp.seed))*Math.PI*2;
-const flat=(geo,col,x,z)=>{const m=add(new THREE.Mesh(geo.rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.95,depthWrite:false})),false);m.position.set(x,0.03,z);m.renderOrder=1;return m;};
+const flat=(geo,col,x,z)=>{const m=add(new THREE.Mesh(geo.rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.95,depthWrite:false,side:THREE.DoubleSide})),false);m.position.set(x,0.04,z);return m;};
 for(let i=0;i<sp.up;i++){const a=a0+i/sp.up*Math.PI*2;flat(new THREE.CircleGeometry(0.15,14),TH.used,Math.cos(a)*R.rUp,Math.sin(a)*R.rUp);}
 for(let i=0;i<sp.dn;i++){const a=a0+(i+0.5)/sp.dn*Math.PI*2;flat(new THREE.RingGeometry(0.085,0.17,16),TH.dep,Math.cos(a)*R.rDn,Math.sin(a)*R.rDn);}
-if(sp.up||sp.dn)add(loopLine(Math.max(R.rUp,R.rDn),0.025,TH.dotRing,TH.dotRingOp));
+if(sp.up||sp.dn)add(loopLine(Math.max(R.rUp,R.rDn),0.035,TH.dotRing===null?lc:TH.dotRing,TH.dotRing===null?0.22:0.35));
 it.sub=(c.abstract?'contract · ':'')+'level '+sp.level+(kids.length?' · '+kids.length+' inside':'');
-lab=nameTag(c.name);labY=h+0.3;
+lab=plainTag(c.name);labY=h+0.35;
 S.labels[sp.id]=c.name+' · '+c.complexity+' · '+it.sub+'\nClick for details · drag along its ring · double-click to '+(c.dome?'look inside':'centre');}
 else if(sp.kind==='ext'){const type=sp.node.externalType||'api';rimMark(it,add,TH.ext,false);
-lab=labelSprite(sp.item.name,'external · '+type,TH.ext);
+lab=groundLabel(sp.item.name,cssColor(TH.ext),0.8);
 S.labels[sp.id]=sp.item.name+' · external '+type+' ('+(sp.side<0?'calls in':'used from here')+')'+(sp.item.ports.length?'\nused for '+sp.item.ports.join(', '):'')+'\nClick for details · double-click to go there';}
 else if(sp.kind==='ghost'){const col=sp.orange?TH.ext:TH.ghost;rimMark(it,add,col,!sp.orange);
 const ports=sp.item.ports.join(', '),n=sp.item.ports.length,count=n+(n===1?' port':' ports');
 // the label counts the ports, however few: a dome with many would otherwise grow an unreadable label; the tooltip lists them
-const where=sp.node?'outside this dome':'not in the world';lab=labelSprite(sp.item.name,sp.orange?'enters via '+count:(ports?'used for '+count:where),col);
+const where=sp.node?'outside this dome':'not in the world';lab=groundLabel(sp.item.name+' · '+(sp.orange?'enters via '+count:(ports?'used for '+count:where)),cssColor(col),0.8);
 S.labels[sp.id]=sp.orange?sp.item.name+' · reach this dome via '+ports+'\nDouble-click to go to '+S.view.name:sp.item.name+' · '+where+(ports?' · used for '+ports:'')+(sp.node?'\nClick for details · double-click to go there':'');}
 else if(sp.kind==='hole'){
 // a tbd: a pit with a dashed rim just inside the edge, labelled with what the missing port has to do
 add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,0.04,40),new THREE.MeshBasicMaterial({color:TH.pit,transparent:true,opacity:0.55})),-0.9,0.02,0));
 const em=new THREE.LineDashedMaterial({color:TH.ghost,dashSize:0.2,gapSize:0.14,transparent:true,opacity:0.95});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(0.9)),em);ol.computeLineDistances();ol.position.set(-0.9,0.06,0);add(ol);
-lab=labelSprite(short(sp.item.name,42),'tbd '+sp.item.portKind+' · not designed yet',TH.ghost);
+lab=groundLabel('tbd · '+short(sp.item.name,42),cssColor(TH.ghost),0.8);
 S.labels[sp.id]=sp.item.name+'\ntbd '+sp.item.portKind+(sp.item.codeName?' '+sp.item.codeName:'')+' · not designed yet';}
 else{const em=new THREE.LineDashedMaterial({color:TH.ghost,dashSize:0.3,gapSize:0.2});const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts(2)),em);ol.computeLineDistances();ol.position.y=0.03;add(ol);
 lab=labelSprite('No islands here yet',null);labY=0.3;S.labels[sp.id]='No islands here yet';}
 // the outer edge's items are drawn turned to face the middle: +x points out of the board
-if(sp.side!==0){g.rotation.y=-p.ang;lab.position.set(-1.9,0.3,0);}else lab.position.y=labY;
+if(sp.side!==0){g.rotation.y=-p.ang;lab.center.set(0.5,0.5);lab.position.set(-1.8,0.3,0);}else lab.position.y=labY;
 g.add(lab);it.label=lab;
 S.anims.push({it:it,delay:0.04+idx*0.04});}
 // an outer item's mark: a short arc of the board's edge in its colour (dashed for a node outside the dome), and a
 // clear disc to point at
-function rimMark(it,add,col,dashed){const r=layoutOf(S.scope).ring.r,d=0.9/r,arc=t=>V(-r+r*Math.cos(t),0.08,r*Math.sin(t));
-const seg=dashed?[[-d,-d*0.45],[-d*0.2,d*0.2],[d*0.45,d]]:[[-d,d]];
-seg.forEach(([a,b])=>{const pts=[];for(let i=0;i<=12;i++)pts.push(arc(a+(b-a)*i/12));add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),24,0.1,6,false),new THREE.MeshBasicMaterial({color:col})));});
+function rimMark(it,add,col,dashed){const r=layoutOf(S.scope).ring.r;
+// a torus round the board's middle, cut to 0.22 rad of the edge centred on the item (+x points out of the board)
+const parts=dashed?[[-0.11,0.06],[-0.03,0.06],[0.05,0.06]]:[[-0.11,0.22]];
+parts.forEach(([from,len])=>{const arc=add(new THREE.Mesh(new THREE.TorusGeometry(r,0.07,8,40,len),new THREE.MeshBasicMaterial({color:col})));arc.rotation.x=-Math.PI/2;arc.rotation.z=from;arc.position.set(-r,0.07,0);});
 const hit=add(new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,0.3,24),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})));hit.position.set(-0.9,0.15,0);}
 
 // ---------- connections ----------
@@ -351,8 +360,7 @@ function laneAlpha(ln){return ln.io?TH.extA:TH.callA;}
 function makeLane(l){if(!S.items[l.from]||!S.items[l.to])return;
 const ln={key:String(S.lanes.length),from:l.from,to:l.to,kind:l.kind,ports:l.ports,inner:l.inner,dash:l.kind==='implements'||l.kind==='hole'};
 ln.io=ln.kind==='entry'||S.items[ln.from].kind==='ext'||S.items[ln.to].kind==='ext';
-// thicker the more ports it carries
-ln.r=0.04+0.01*Math.min(4,ln.ports.length);ln.mat=laneMat(laneColor(ln),laneAlpha(ln),ln.dash?0.55:0,0.11,rnd(S.lanes.length*13+1));
+ln.seg=150;ln.mat=laneMat(laneColor(ln),laneAlpha(ln),ln.dash?0.55:0,0.11,rnd(S.lanes.length*13+1));
 // the ports a lane carries, as a tag at its middle
 const text=ln.kind==='uses'||ln.kind==='entry'?laneText(ln):'';if(text){const tag=labelSprite(short(text,40),null);tag.center.set(0.5,0.5);tag.scale.multiplyScalar(0.85);tag.visible=false;world.add(tag);ln.tag=tag;}
 S.labels['route:'+ln.key]=itemName(ln.from)+' → '+itemName(ln.to)+':  '+laneText(ln);S.lanes.push(ln);
@@ -360,18 +368,20 @@ if(!(S.F[ln.from]||[]).includes(ln.to)){(S.F[ln.from]=S.F[ln.from]||[]).push(ln.
 // an event: a dashed violet line from the listener up to the publisher's roof, its swell drifting from publisher to
 // listener; the event's name at its middle when either end is focused
 function makeAir(a){if(!S.items[a.from]||!S.items[a.to])return;const ev=a.ports.join(', ');
-const r={idx:S.air.length,from:a.from,to:a.to,ev:ev,inner:a.inner,r:0.045,mat:laneMat(TH.event,0.85,0.32,-0.11,rnd(S.air.length*7+3))};
+const r={idx:S.air.length,from:a.from,to:a.to,ev:ev,inner:a.inner,seg:80,mat:laneMat(TH.event,0.85,0.32,-0.11,rnd(S.air.length*7+3))};
 const label=labelSprite(ev,'event',TH.event);label.center.set(0.5,0);label.visible=false;world.add(label);r.label=label;S.air.push(r);
 S.labels['air:'+r.idx]=ev+' · event\n'+itemName(a.from)+' → '+itemName(a.to);
+// a publisher carries a violet chip on its roof, where its events leave
+const P=S.items[a.from];if(P.kind==='comp'&&!P.chip){const m=new THREE.MeshStandardMaterial({color:VIOLET,emissive:VIOLET,emissiveIntensity:0.8,transparent:true});P.chip=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.2),m);P.chip.position.y=P.roof-0.05;P.g.add(P.chip);P.mats.push(m);P.baseOp.push(1);}
 if(!(S.F[a.to]||[]).includes(a.from)){(S.F[a.to]=S.F[a.to]||[]).push(a.from);(S.R[a.from]=S.R[a.from]||[]).push(a.to);}}
-// where a lane lands: an island's roof (its middle, or a spot of its own on a roof with blocks), an outer item's mark
-function landAt(it,from){if(it.kind!=='comp')return V(it.base.x,0.12,it.base.z);if(!Object.keys(it.inner).length)return V(it.base.x,it.roof+0.02,it.base.z);const a=rnd(hash(from))*Math.PI*2,r=it.top*0.3;return V(it.base.x+Math.cos(a)*r,it.roof+0.02,it.base.z+Math.sin(a)*r);}
+// where a lane lands: the spot of the port it calls on an island's roof (the middle when nothing is inside), an outer item's mark
+function landAt(it,port){if(it.kind!=='comp')return V(it.base.x,0.12,it.base.z);const c=it.chips[port]||Object.values(it.chips)[0]||{x:0,z:0};return V(it.base.x+c.x,it.roof+0.02,it.base.z+c.z);}
 // where a lane leaves an island: its wall, facing where it lands, at the height it lands at (at most just under the roof)
 function wallAt(it,b){const y=Math.max(0.15,Math.min(it.roof-0.3,b.y)),a=Math.atan2(b.z-it.base.z,b.x-it.base.x),r=it.rAt(y);return V(it.base.x+Math.cos(a)*r,y,it.base.z+Math.sin(a)*r);}
 function leaveAt(it,b){return it.kind==='comp'?wallAt(it,b):V(it.base.x,0.12,it.base.z);}
 // inside its own tower a lane runs straight down from the block that makes it (or the roof's middle) to where it leaves
-function innerRun(it,inner,exit){const k=inner.find(i=>it.inner[i]),p=k!==undefined?it.inner[k]:{x:0,z:0},top=V(it.base.x+p.x,it.roof-(k!==undefined?0.04:0.25),it.base.z+p.z);
-const down=exit.y+0.45;if(down>=top.y-0.1)return[top];const run=[];for(let i=0;i<=6;i++)run.push(V(top.x,top.y-(top.y-down)*i/6,top.z));run.push(V(top.x+(exit.x-top.x)*0.45,exit.y+0.12,top.z+(exit.z-top.z)*0.45));return run;}
+function innerRun(it,inner,exit){const k=inner.find(i=>it.inner[i]),p=k!==undefined?it.inner[k]:{x:0,z:0},top=V(it.base.x+p.x,it.roof-(k!==undefined?0.32:0.25),it.base.z+p.z);
+const down=exit.y+0.45,run=[];for(let i=0;i<=6;i++)run.push(V(top.x,top.y-(top.y-down)*i/6,top.z));run.push(V(top.x+(exit.x-top.x)*0.45,exit.y+0.12,top.z+(exit.z-top.z)*0.45));return run;}
 // from the wall out and up, then down onto the roof it lands on
 function branchPts(a,b,flat){const h=V(b.x-a.x,0,b.z-a.z),d=h.length();h.normalize();const lift=0.35+Math.min(1.4,d*0.12);
 return new THREE.CubicBezierCurve3(a,a.clone().addScaledVector(h,d*0.38).add(V(0,flat?lift*0.15:lift*0.8,0)),b.clone().addScaledVector(h,-Math.min(1.2,d*0.15)).add(V(0,lift,0)),b).getPoints(28);}
@@ -392,14 +402,20 @@ let dx=p.x-o.x,dz=p.z-o.z,d=Math.hypot(dx,dz);const need=o.R(Math.min(p.y,o.H))+
 if(d<need){if(d<1e-3){dx=-(P[i+1].z-P[i-1].z);dz=P[i+1].x-P[i-1].x;d=Math.hypot(dx,dz)||1;}p.x=o.x+dx/d*need;p.z=o.z+dz/d*need;moved=true;}}}return moved;};
 for(let it=0;it<60;it++){const m=push();if(!m&&it>0)break;const Q=P.map(p=>p.clone());for(let i=1;i<N-1;i++)P[i].lerp(Q[i-1].clone().add(Q[i+1]).multiplyScalar(0.5),0.6);}
 push();return P;}
+// a tube that narrows from r0 where it leaves to r1 where it lands; uv.x runs along it
+function taperTube(curve,r0,r1,seg,rad){const fr=curve.computeFrenetFrames(seg,false),pos=[],uv=[],idx=[];
+for(let i=0;i<=seg;i++){const u=i/seg,P=curve.getPointAt(u),N=fr.normals[i],B=fr.binormals[i],r=r0+(r1-r0)*u;
+for(let j=0;j<=rad;j++){const a=j/rad*Math.PI*2,c=Math.cos(a),s=Math.sin(a);pos.push(P.x+r*(c*N.x+s*B.x),P.y+r*(c*N.y+s*B.y),P.z+r*(c*N.z+s*B.z));uv.push(u,j/rad);}}
+for(let i=0;i<seg;i++)for(let j=0;j<rad;j++){const a=i*(rad+1)+j,b=a+rad+1;idx.push(a,b,a+1,b,b+1,a+1);}
+const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);return g;}
 // lay every lane and event again, or (while one item is dragged) only those touching the ids in `only`, unbundled
 function routeAll(only){const lanes=[],air=[];
-S.lanes.forEach(ln=>{if(only&&!only.has(ln.from)&&!only.has(ln.to))return;const A=S.items[ln.from],b=landAt(S.items[ln.to],ln.from),e=leaveAt(A,b);lanes.push({o:ln,f:ln.from,t:ln.to,pts:branchPts(e,b,A.kind==='comp'),run:A.kind==='comp'?innerRun(A,ln.inner,e):[]});});
-S.air.forEach(r=>{if(only&&!only.has(r.from)&&!only.has(r.to))return;const P=S.items[r.from],Ls=S.items[r.to],b=P.kind==='comp'?V(P.base.x,P.roof+0.02,P.base.z):V(P.base.x,0.12,P.base.z),e=leaveAt(Ls,b);air.push({o:r,f:r.to,t:r.from,pts:branchPts(e,b,Ls.kind==='comp'),run:Ls.kind==='comp'?innerRun(Ls,r.inner,e):[]});});
+S.lanes.forEach(ln=>{if(only&&!only.has(ln.from)&&!only.has(ln.to))return;const A=S.items[ln.from],b=landAt(S.items[ln.to],ln.ports[0]),e=leaveAt(A,b);lanes.push({o:ln,f:ln.from,t:ln.to,pts:branchPts(e,b,A.kind==='comp'),run:A.kind==='comp'?innerRun(A,ln.inner,e):[]});});
+S.air.forEach(r=>{if(only&&!only.has(r.from)&&!only.has(r.to))return;const P=S.items[r.from],Ls=S.items[r.to],b=P.kind==='comp'?V(P.base.x,P.roof+0.01,P.base.z):V(P.base.x,0.12,P.base.z),e=leaveAt(Ls,b);air.push({o:r,f:r.to,t:r.from,pts:branchPts(e,b,Ls.kind==='comp'),run:Ls.kind==='comp'?innerRun(Ls,r.inner,e):[]});});
 if(!only){bundle(lanes);bundle(air);}
 [...lanes,...air].forEach(e=>tube(e.o,[...e.run,...avoid(e.pts,e.f,e.t)]));}
 function tube(o,pts){if(o.tube){world.remove(o.tube);o.tube.geometry.dispose();S.pick=S.pick.filter(x=>x!==o.tube);}
-const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal'),len=curve.getLength();const m=new THREE.Mesh(new THREE.TubeGeometry(curve,Math.max(40,Math.round(len*5)),o.r,6,false),o.mat);
+const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal'),len=curve.getLength();const m=new THREE.Mesh(taperTube(curve,0.06,0.045,o.seg,6),o.mat);
 m.renderOrder=3;m.userData=o.idx!==undefined?{air:o.idx}:{route:o.key};m.visible=!!o.shown;world.add(m);S.pick.push(m);o.tube=m;o.mat.uniforms.uLen.value=len;
 const mid=curve.getPoint(0.5);if(o.tag)o.tag.position.copy(mid).add(V(0,0.3,0));if(o.label)o.label.position.copy(mid).add(V(0,0.25,0));}
 
@@ -415,13 +431,12 @@ S.pick.push(tube,fill);rec.tube=tube;rec.fill=fill;let best=sp[0];sp.forEach(p=>
 
 // ---------- board ----------
 // the ground, its edge, and a faint ring per level with its number on the side facing the camera
-function makeBoard(L){const ring=L.ring,D=S.D=ring.r+1.8;
-const cv=document.createElement('canvas');cv.width=cv.height=256;const x=cv.getContext('2d'),gr=x.createRadialGradient(128,128,0,128,128,128);gr.addColorStop(0,TH.g[0]);gr.addColorStop(0.75,TH.g[1]);gr.addColorStop(1,TH.g[2]);x.fillStyle=gr;x.fillRect(0,0,256,256);
-const top=new THREE.Mesh(new THREE.CircleGeometry(D,128),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));top.rotation.x=-Math.PI/2;world.add(top);
-const side=new THREE.Mesh(new THREE.CylinderGeometry(D,D*0.995,0.5,128,1,true),new THREE.MeshLambertMaterial({color:TH.side}));side.position.y=-0.25;world.add(side);
+function makeBoard(L){const ring=L.ring,D=S.D=ring.r+0.2;
+const tex=texFrom(256,256,x=>{const gr=x.createRadialGradient(128,128,0,128,128,128);gr.addColorStop(0,TH.g[0]);gr.addColorStop(0.75,TH.g[1]);gr.addColorStop(1,TH.g[2]);x.fillStyle=gr;x.fillRect(0,0,256,256);});
+const top=new THREE.Mesh(new THREE.CircleGeometry(D,128),new THREE.MeshBasicMaterial({map:tex}));top.rotation.x=-Math.PI/2;world.add(top);
+const side=new THREE.Mesh(new THREE.CylinderGeometry(D,D*0.995,0.6,128,1,true),new THREE.MeshStandardMaterial({color:TH.side,roughness:0.9}));side.position.y=-0.3;world.add(side);
 world.add(loopLine(D-0.05,0.02,TH.rim,0.45));
-const front=Math.atan2(CAMDIR.z,CAMDIR.x);
-(L.rings||[]).forEach((r,lvl)=>{if(r<0.5)return;world.add(loopLine(r,0.015,TH.ring,TH.ringOp));const t=nameTag('L'+lvl,TH.tone,36);t.center.set(0.5,0.5);t.position.set(Math.cos(front)*r,0.05,Math.sin(front)*r);t.renderOrder=2;world.add(t);});}
+(L.rings||[]).forEach((r,lvl)=>{if(r<0.5)return;world.add(loopLine(r,0.015,TH.ring,TH.ringOp));const t=groundLabel('L'+lvl,TH.tone,0.62);t.center.set(0.5,0.5);t.position.set(Math.cos(1.95)*r,0.25,Math.sin(1.95)*r);world.add(t);});}
 
 // ---------- editing (layout only) ----------
 // an island moves only round its own level's ring, never onto another island there; an outer item round the edge
@@ -446,7 +461,8 @@ section('Towers',[
   [[],'Height','Call depth: a tower is one level above the deepest one it calls. Each level has its ring on the ground (L0 outside); the highest stands in the middle.'],
   [[['dot',cssColor(TH.used)]],'Filled dots','Round its foot: one per node that depends on it, directly or not.'],
   [[['ring',cssColor(TH.dep)]],'Hollow rings','One per node it depends on, directly or not. The busier ring is outside, with a line through it.'],
-  [[['sq',cssColor(TH.inner)]],'Blocks in the roof','The nodes inside a dome. Double-click the tower to look inside.'],
+  [[],'Width','Complexity: the more complex, the wider. Click a tower for the breakdown.'],
+  [[['sq',cssColor(TH.inner)]],'Blocks under the roof','The nodes inside a dome. Double-click the tower to look inside.'],
   [[['ring',cssColor(TH.event)]],'Contract','A dashed rim round a see-through tower: a contract other nodes implement.'],
 ]);
 section('Lines',[
@@ -538,10 +554,10 @@ function toggleCones(){CONES=!CONES;try{localStorage.setItem('nuhokai.map.cones'
 showCones();
 
 // ---------- navigation ----------
-let HOME={t:V(0,0,0),zoom:1},trans=null;
+let HOME={t:V(0,0,0),zoom:1,dist:90},trans=null;
 // home: the board's width and, above its tilted disc, the stack's height both fit the frame
-function computeHome(){const r=layoutOf(S.scope).ring;const h=(S.maxL+1)*S.lv;HOME={t:V(r.cx,h*0.5,r.cz),zoom:Math.min(3,FR*W()/H()/(S.D*2.15),FR/(S.D*1.8+h*0.8))};}
-function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaledVector(CAMDIR,110);if(zoom!==undefined)camera.zoom=zoom;camera.updateProjectionMatrix();camera.lookAt(t);}
+function computeHome(){const rim=S.D-2.2,h=SH+S.maxL*S.lv;HOME={t:V(0,Math.min(5,h*0.4),0),zoom:1,dist:68*Math.max(19,rim)/19*Math.max(1,1.37/(W()/H()))};}
+function camAt(t,zoom){controls.target.copy(t);camera.position.copy(t).addScaledVector(CAMDIR,HOME.dist);if(zoom!==undefined)camera.zoom=zoom;camera.updateProjectionMatrix();camera.lookAt(t);}
 function renderCrumbs(){crumbs.innerHTML='';S.view.path.forEach((c,i,all)=>{const s=document.createElement('span');s.textContent=c.name;if(i<all.length-1){s.className='link';s.onclick=()=>goTo(i);}else s.className='cur';crumbs.appendChild(s);if(i<all.length-1){const sep=document.createElement('span');sep.className='sep';sep.textContent='›';crumbs.appendChild(sep);}});}
 function load(scope){sel=null;buildScope(scope);computeHome();renderCrumbs();applyState();renderDetails();}
 // zoom into a dome's island, then open `to`, the path to it or to a scope inside it; a search hit lands there centred
@@ -654,7 +670,7 @@ if(k>=1){const tr=trans;path=tr.path;load(path[path.length-1]);const it=S.items[
 // going up starts close on the dome just left and widens to the scope; a search hit starts close and stays centred on it
 const z0=HOME.zoom*(tr.sel?0.6:6);camAt(c,z0);trans={kind:'in2',t:0,fromT:c,toT:tr.sel?c.clone():HOME.t.clone(),fromZ:z0,toZ:HOME.zoom,sel:tr.sel,ports:tr.ports};}}
 else if(trans.kind==='in2'){const tt=trans.fromT.clone().lerp(trans.toT,e);camera.zoom=trans.fromZ*Math.pow(trans.toZ/trans.fromZ,e);camAt(tt);el.style.opacity=String(Math.min(1,k*2));if(k>=1){const s=trans.sel,p=trans.ports;trans=null;controls.enabled=true;controls.update();if(s){land(s,p);flashCrumbs();}moved();}}
-else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const dirNow=trans.fromP.clone().sub(trans.fromT).normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,110);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.ports;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);moved();}}}
+else if(trans.kind==='home'){const tt=trans.fromT.clone().lerp(trans.toT,e);const off=trans.fromP.clone().sub(trans.fromT),d0=off.length(),dirNow=off.normalize().lerp(CAMDIR,e).normalize();controls.target.copy(tt);camera.position.copy(tt).addScaledVector(dirNow,d0+(HOME.dist-d0)*e);camera.zoom=trans.fromZ+(trans.toZ-trans.fromZ)*e;camera.updateProjectionMatrix();camera.lookAt(tt);if(k>=1){const s=trans.sel,p=trans.ports;trans=null;controls.enabled=true;controls.update();if(s)land(s,p);moved();}}}
 else if(!drag)controls.update();
 const lt=T-S.T0;
 S.anims.forEach(a=>{const e=ease((lt-a.delay)/0.6);a.it.g.position.y=0.8*(1-e);});

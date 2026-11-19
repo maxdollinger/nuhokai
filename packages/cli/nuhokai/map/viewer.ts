@@ -40,7 +40,7 @@ export const Viewer = node({
     },
     {
       id: "R6",
-      text: "A node's complexity in three steps, simple, mid, complex, shown in its details and as its dot in search results, never on the tower: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
+      text: "A node's complexity in three steps, simple, mid, complex, shown in its details, as its dot in search results and as its tower's width (wider is more complex), never as a colour: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
     },
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
@@ -74,7 +74,7 @@ export const Viewer = node({
     },
     {
       id: "R17",
-      text: "An island is a tower, an obelisk upside down: a narrow foot, a roof as wide as its nodes inside need, as tall as its level, a faint ring on its wall at each level below; the nodes inside are blocks in one row in the roof. Round its foot: a filled dot per node that depends on it, a hollow ring per node it depends on, directly or not, the busier of the two rings outside with a thin line through it. Warm paper in the light theme, graphite in the dark one, as the system sets; depends-on red and used-by blue differ in shape and brightness, not only hue.",
+      text: "An island is a translucent tower, an obelisk upside down: a narrow foot, a roof as wide as its complexity, as tall as its level, a faint ring on its wall at each level below; the nodes inside are blocks in one row just under the roof; a lane lands on the spot of the port it calls. Round its foot: a filled dot per node that depends on it, a hollow ring per node it depends on, directly or not, the busier of the two rings outside with a thin line through it. Warm paper in the light theme, graphite in the dark one, as the system sets; depends-on red and used-by blue differ in shape and brightness, not only hue.",
     },
     {
       id: "R18",
@@ -275,8 +275,8 @@ export const Viewer = node({
       why: "Green and coral were the same brightness: one colour for red-green colour blindness and in greyscale. Blue and red, in shape as well as in brightness, stay apart without colour vision.",
     },
     {
-      decision: "Colour management off, linear output, light intensities ×π.",
-      why: "Keeps the palette as three.js r128 drew it; newer three.js converts hex colours from sRGB and uses physical light units.",
+      decision: "sRGB colours, three.js's own light units and a perspective camera, as the design study draws them.",
+      why: "The map looks just like the design it was chosen from; the r128 palette that needed colour management off is gone with the islands.",
     },
     {
       decision:
