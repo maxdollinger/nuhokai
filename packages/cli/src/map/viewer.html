@@ -170,9 +170,9 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);const UPV=V(0,1,0);
 // palette: warm paper in the light theme, neutral graphite in the dark one; colour only where it means something.
 // used: what depends on a node (filled dots, lanes into it), dep: what it depends on (hollow rings, lanes out of it):
 // blue and red differ in shape on the ground and in brightness, so they stay apart without colour vision too
-const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.16,tone:'#8c949c',tower:0x5e6a70,towerOp:0.85,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,focus:0xf2f5f4,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,0.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,ghost:0x9aa3a8,pit:0x050606,dotRing:0x8c949c,dotRingOp:0.3,swell:0xffffff,swk:0.75,
+const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.16,tone:'#8c949c',tower:0x5e6a70,towerOp:0.85,lit:0.3,glow:0.75,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,focus:0xf2f5f4,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,0.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,ghost:0x9aa3a8,pit:0x050606,dotRing:0x8c949c,dotRingOp:0.3,swell:0xffffff,swk:0.75,
   card:'rgba(24,27,31,0.94)',cardLine:'rgba(195,204,208,0.35)',sub:'#a3acb2',usedTxt:'#9cc8ff',depTxt:'#ff8a5c'}
-:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.22,tone:'#837e76',tower:0xf2ede4,towerOp:0.95,edge:0x88837a,edgeOp:0.5,floorOp:0.35,focus:0x26292c,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,0.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,ghost:0x77726a,pit:0x6e6a63,dotRing:0x88837a,dotRingOp:0.4,swell:0xfffdf7,swk:0.85,
+:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.22,tone:'#837e76',tower:0xf6f3ed,towerOp:0.95,lit:0.2,glow:0.9,edge:0x88837a,edgeOp:0.5,floorOp:0.35,focus:0x26292c,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,0.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,ghost:0x77726a,pit:0x6e6a63,dotRing:0x88837a,dotRingOp:0.4,swell:0xfffdf7,swk:0.85,
   card:'rgba(248,245,239,0.96)',cardLine:'rgba(120,114,104,0.55)',sub:'#5f5a52',usedTxt:'#1d4f91',depTxt:'#a8400f'};
 // a lit label in a query: tinted toward the accent, pale in the light theme so its text stays dark
 const LITLAB=DARK?0x85B7EB:0xC9DEF4;
@@ -294,7 +294,9 @@ let lab,labY=0.9;
 if(sp.kind==='comp'){const c=sp.item,top=sp.top,foot=sp.foot,h=sp.roof;
 it.top=top;it.foot=foot;it.rAt=y=>foot+(top-foot)*Math.min(1,Math.max(0,y)/h);
 // the tower: one smooth wall, so only its rims and a faint ring per level below it are drawn
-add(new THREE.Mesh(new THREE.CylinderGeometry(top,foot,h,48).translate(0,h/2,0),new THREE.MeshLambertMaterial({color:TH.tower,transparent:true,opacity:c.abstract?0.5:TH.towerOp})));
+// one frosted surface: mostly its own glow, so the roof lit from above reads as the same material as the walls, with
+// just enough light left to tell the walls' round from the roof
+const tc=new THREE.Color(TH.tower);add(new THREE.Mesh(new THREE.CylinderGeometry(top,foot,h,48).translate(0,h/2,0),new THREE.MeshLambertMaterial({color:tc.clone().multiplyScalar(TH.lit),emissive:tc.clone().multiplyScalar(TH.glow),transparent:true,opacity:c.abstract?0.5:TH.towerOp})));
 const rim=add(loopLine(top,h,TH.edge,Math.min(1,TH.edgeOp*1.5)));it.edge=rim.material;it.edgeOp=rim.material.opacity;add(loopLine(foot,0.02,TH.edge,TH.edgeOp));
 for(let l=0;l<sp.level;l++){const y=SH+l*S.lv;add(loopLine(it.rAt(y),y,TH.edge,TH.floorOp));}
 // a contract: a dashed violet rim round a translucent tower
