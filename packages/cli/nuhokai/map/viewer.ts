@@ -4,7 +4,7 @@ import { Browser, ThreeJs } from "../external.ts";
 /** The map's page: what the browser draws from the loaded world. */
 export const Viewer = node({
   id: "01a17bb5-b066-71d0-a81d-ccdfa4cb5fde",
-  what: "Own the drawing: the page turning the loaded world into islands, domes, lanes and holes in the browser.",
+  what: "Own the drawing: the page turning the loaded world into towers, domes, lanes and holes in the browser.",
   why: "Drawing runs in the browser, apart from the CLI that writes the file. Never writes files, inlines assets or picks where the map goes.",
   source: ["src/map/viewer.html", "src/map/scene.js", "src/map/scene.d.ts"],
   ports: {
@@ -12,7 +12,8 @@ export const Viewer = node({
       kind: "call",
       purpose: "Draw the loaded world in the browser",
       input: "LoadWorld.load's id, name, source, nodes and placeholders as JSON in the page's one data block",
-      output: "the drawn page: islands per scope, edges, holes, saved layout, click details, search",
+      output:
+        "the drawn page: towers per scope on their level rings, edges, holes, saved layout, click details, search, cones",
     },
   },
   requirements: [
@@ -27,21 +28,24 @@ export const Viewer = node({
     },
     {
       id: "R3",
-      text: "uses: lanes carrying their ports; event ports: air routes from the publisher. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
+      text: "uses: lanes carrying their ports, from the node inside that uses them (its block in the roof; the roof's middle when the island itself does) straight down inside the tower, out through the wall at the height of the roof they land on, onto the callee's roof (its middle when it has no nodes inside); event ports: dashed violet lines from the publisher's roof to the listener. No line passes through a tower. A slow swell of light drifts along each line toward where it lands; none with reduced motion. An edge from inside a dome starts at that dome. Edge tags (ports, event names) only on the hovered, selected or search-marked item's edges; none under a query.",
     },
-    { id: "R4", text: "implements: dashed lane to the contract; abstract: contract island." },
+    {
+      id: "R4",
+      text: "implements: dashed lane to the contract; abstract: a contract tower, see-through with a dashed violet rim.",
+    },
     {
       id: "R5",
-      text: "Dome ports: entries to their delegate. group: pillars. externals: outer edge by externalType. The entry's and an outside node's labels count their ports (`enters via 1 port`, `used for 12 ports`), never list them.",
+      text: "Dome ports: entries to their delegate. group: an outline round its towers. externals: an arc of the outer edge, callers on the left. The entry's and an outside node's labels count their ports (`enters via 1 port`, `used for 12 ports`), never list them.",
     },
     {
       id: "R6",
-      text: "Island colour = the node's complexity in three steps of one hue, simple, mid, complex: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
+      text: "A node's complexity in three steps, simple, mid, complex, shown in its details, as its dot in search results and as its tower's width (wider is more complex), never as a colour: an estimate from the spec alone, never authored. One score for leaves and domes: the ports it offers (inherited ones among them), the ports and tbd holes it or a node inside it uses outside itself (each once), its requirements (a contract's among them) and the nodes inside it. Under 10 simple, from 16 complex. An external has none and keeps its own colour.",
     },
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
       id: "R8",
-      text: "Layout seeded by ids. Moved islands and outer items persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
+      text: "Layout: the Mountain, one ring on the ground per level, the highest level in the middle (alone there when it holds one island), level 0 outside, each ring far enough out that its towers and their dots clear each other and the next ring in, by one gap, grown until saved angles fit too; on a ring the islands keep the order of what they share lanes with further in, seeded by ids. An island moves only round its own level's ring and never onto another island there, by the layout's gap; an outer item along the edge; dragging a group's outline turns its islands round their rings together. Moved angles persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a position saved before the rings is dropped (only moved islands were saved, so the centre they stood round is unknown); a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
     },
     {
       id: "R9",
@@ -54,7 +58,7 @@ export const Viewer = node({
     },
     {
       id: "R16",
-      text: "No legend on the map: a ? button at the bottom left (up to 640px wide at the top right, clear of the details), or the ? key outside the search box and without Ctrl, Alt or ⌘, opens a modal built once that explains the map in sections: islands (complexity colours, height, domes, contracts), lanes (call, entry and external, event, dashed, focused), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it, a selection dragged out of it does not; while open, no key reaches the map.",
+      text: "No legend on the map: a ? button at the bottom left (up to 640px wide at the top right, clear of the details), or the ? key outside the search box and without Ctrl, Alt or ⌘, opens a modal built once that explains the map in sections: towers (height, the dots round the foot, blocks in the roof, contracts), lines (call, entry and external, event, dashed, focused, cones), the edge (external, outside node, entry, tbd hole, group) and using the map (touch screens: tap, no keys). Escape, × or a click on the backdrop closes it, a selection dragged out of it does not; while open, no key reaches the map.",
     },
     {
       id: "R11",
@@ -68,8 +72,32 @@ export const Viewer = node({
       id: "R13",
       text: "Enter or click lands in the hit's home scope (a node's parent, a port's node's parent, a hole's deepest scope holding all its users), centred at the scope's home zoom: a node selected; a port's node selected, the port's row marked and in view; a hole lit as on hover until the next click, Escape or scope change. A home scope inside an island of the open one dives into that island as double-click does; another fades; landing in another scope flashes the breadcrumbs. A hit chosen during a move waits for it, the latest one wins. / or Ctrl/⌘K on an empty box (on touch screens, a tap into it) brings back the non-blank query a jump or map click cleared, selected.",
     },
+    {
+      id: "R17",
+      text: "An island is a translucent tower, an obelisk upside down: a narrow foot, a roof as wide as its complexity, as tall as its level, a faint ring on its wall at each level below; the nodes inside are blocks in one row just under the roof; a lane lands on the spot of the port it calls. Round its foot: a filled dot per node that depends on it, a hollow ring per node it depends on, directly or not, by calls and events (a listener depends on the publisher; tbd holes and a dome's entry are no nodes), the busier of the two rings outside with a thin line through it. Warm paper in the light theme, graphite in the dark one, as the system sets; depends-on red and used-by blue differ in shape and brightness, not only hue.",
+    },
+    {
+      id: "R18",
+      text: "Cones, a button, off at first, remembered per browser: off, a hovered or selected tower lights its direct neighbours and the lanes to them; on, everything it depends on and everything that depends on it, by calls and events, fading with each hop, the lanes between them red toward what it depends on and blue from what depends on it. A hovered or selected tower shows a card in place of its name: its level, what is inside, and both counts, direct and in all, each with its mark from the ground.",
+    },
   ],
   testCases: [
+    {
+      text: "scene.js under bun, example world: on top, the Postgres lane starts at Stock inside Shop, AuditLog's implements lanes at nodes inside Shop.",
+      demonstrates: ["R3"],
+    },
+    {
+      text: "scene.js under bun: a uses b uses c, d uses b and implements c → b depends on c, a and d on b; c's up cone b at 1, a and d at 2, used by 3 nodes, 1 direct; implements counts for neither. Example world: Stock, listening to Orders' cancelled, depends on Orders; Shop's cone holds Postgres and its tbd hole, but depends on 1 node; the entry is in the graph, not counted.",
+      demonstrates: ["R17", "R18"],
+    },
+    {
+      text: "scene.js under bun: freeAngle keeps a clear angle, else the nearest clear one, null on a full ring; saved angles kept, positions from before the rings and junk dropped; a five-level chain with four more on level 1 → the top alone in the middle, rings growing outward, no footprints closer than they need, the same layout twice, a fixed angle kept, and two islands saved on one angle kept apart.",
+      demonstrates: ["R8"],
+    },
+    {
+      text: "By hand, headless Chromium, @nuhokai/cli's world, light and dark: towers on their level rings, dots round the feet, lines around the towers; dragging Path moves it round level 1's ring only, saves its angle, and after a reload it is still there; hovering Build shows its card; Cones on lights Build's whole chain.",
+      demonstrates: ["R3", "R8", "R17", "R18"],
+    },
     {
       text: "scene.js under bun, example world: Stock's Postgres lane and notifyCustomer hole start at Shop on top, at Stock inside Shop.",
       demonstrates: ["R3", "R7"],
@@ -194,9 +222,14 @@ export const Viewer = node({
       why: "One data contract from loader to browser; the scene logic is unit-tested under bun.",
     },
     {
-      decision: "Island colour = complexity, estimated from the spec. The map shows no state.",
+      decision:
+        "Complexity is estimated from the spec and shown in the details and search; towers stay neutral. The map shows no state.",
       why: "Where the complexity sits is what a reader of the map cannot see from the islands; whether a node has code is in its source, and check and review say whether the code matches. The estimate needs no model and no code, so a node has it before it is built.",
       rejected: [
+        {
+          option: "Colour each island by its complexity",
+          why: "Three blues on every island competed with the lines and dots that say what depends on what; the colours left on the map now each mean one thing.",
+        },
         {
           option: "Colour by state: an authored status, or planned and built read from source",
           why: "The authored status drifted and no tool verified it; the derived one said only whether source is empty.",
@@ -220,12 +253,30 @@ export const Viewer = node({
       why: "Every lane tagged at once buries the islands; the tags you want are the ones of the item you look at.",
     },
     {
-      decision: "Islands are discs, their children on concentric rings.",
-      why: "The board, the ring the outer items sit on and the spacing between items are all round.",
+      decision: "Islands are round towers, upside-down obelisks, on one ring per level: the Mountain.",
+      why: "Height and ring both say the level, so depth reads from any angle; a round wall needs only its rims drawn; the narrow foot leaves the ground free for the dots, the wide roof room for the blocks inside. Moving only round the ring keeps that order however a reader arranges the map.",
+      rejected: [
+        {
+          option: "Free placement, seeded by a force layout",
+          why: "Levels mixed across the board, so the height of a tower was the only clue to its depth.",
+        },
+        {
+          option: "Lift and land the islands",
+          why: "With towers as tall as their level there is nothing left to lift.",
+        },
+        {
+          option: "A switch for events on or off",
+          why: "Events are as much a dependency as calls; dashed and violet, they stay apart without hiding.",
+        },
+      ],
     },
     {
-      decision: "Colour management off, linear output, light intensities ×π.",
-      why: "Keeps the palette as three.js r128 drew it; newer three.js converts hex colours from sRGB and uses physical light units.",
+      decision: "Used-by blue, filled; depends-on red, hollow.",
+      why: "Green and coral were the same brightness: one colour for red-green colour blindness and in greyscale. Blue and red, in shape as well as in brightness, stay apart without colour vision.",
+    },
+    {
+      decision: "sRGB colours, three.js's own light units and a perspective camera, as the design study draws them.",
+      why: "The map looks just like the design it was chosen from; the r128 palette that needed colour management off is gone with the islands.",
     },
     {
       decision:

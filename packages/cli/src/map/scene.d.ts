@@ -50,7 +50,7 @@ export interface Scene {
   readonly complexity: readonly (Complexity | null)[];
 }
 
-/** A direct child of the scope, drawn as an island coloured by its complexity. */
+/** A direct child of the scope, drawn as a tower on its level's ring. */
 export interface Island {
   readonly key: string;
   readonly kind: "island";
@@ -115,6 +115,8 @@ export interface Lane {
   /** uses: calls; implements: dashed to the contract; hole: dashed to a tbd; entry: a dome port to its delegate. */
   readonly kind: "uses" | "implements" | "hole" | "entry";
   readonly ports: readonly string[];
+  /** The nodes inside the `from` island the lane starts at (its direct children), none when the island itself uses it. */
+  readonly inner: readonly number[];
 }
 
 /** Events: from the publisher to the node that uses them. */
@@ -122,6 +124,8 @@ export interface AirRoute {
   readonly from: string;
   readonly to: string;
   readonly ports: readonly string[];
+  /** The nodes inside the listening (`to`) island that listen, as Lane.inner. */
+  readonly inner: readonly number[];
 }
 
 export interface Pillar {
@@ -213,3 +217,49 @@ export function detailsOf(scene: Scene, index: number): Details;
 export function search(scene: Scene, query: string): Hit[];
 export function landingOf(scene: Scene, view: ScopeView, key: string): Landing | null;
 export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): Light[];
+
+/** What an item reaches through its lanes, by item key, with the hops to each. */
+export interface Cone {
+  readonly down: ReadonlyMap<string, number>;
+  readonly up: ReadonlyMap<string, number>;
+  /** The nodes in `down` and `up`, all hops and direct: tbd holes and a dome's entry are not nodes. */
+  readonly dependsOn: { readonly all: number; readonly direct: number };
+  readonly usedBy: { readonly all: number; readonly direct: number };
+}
+
+/** An island's spot on its level ring. */
+export interface RingSpot {
+  readonly angle: number;
+  readonly r: number;
+  readonly x: number;
+  readonly z: number;
+}
+
+export interface MountainLayout {
+  /** Each level's ring radius, by level. */
+  readonly rings: readonly number[];
+  readonly positions: ReadonlyMap<string, RingSpot>;
+  /** How far out the outermost footprint reaches. */
+  readonly outer: number;
+}
+
+export const RING_GAP: number;
+export function conesOf(view: ScopeView): Map<string, Cone>;
+export function freeAngle(
+  want: number,
+  r: number,
+  foot: number,
+  others: readonly { readonly angle: number; readonly foot: number }[],
+  gap?: number,
+): number | null;
+export function savedAngles(saved: Readonly<Record<string, unknown>>): Map<string, number>;
+export function mountainLayout(
+  view: ScopeView,
+  options: {
+    readonly foot: (key: string) => number;
+    readonly seed: (key: string) => number;
+    readonly fixed?: ReadonlyMap<string, number>;
+    readonly gap?: number;
+    readonly step?: number;
+  },
+): MountainLayout;
