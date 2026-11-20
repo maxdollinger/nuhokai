@@ -6,9 +6,9 @@ nuhokai is a TypeScript format and a CLI. You declare your system's components, 
 dependencies in a `nuhokai/` folder; `tsc` and `nuhokai check` keep it consistent, and your coding agent builds and
 reviews code against it.
 
-![The 3D map of nuhokai's own CLI](docs/map.png)
+![The 3D map of nuhokai's own CLI turning, with one tower selected](docs/map.gif)
 
-_nuhokai's own CLI, [described in nuhokai](packages/cli/nuhokai) and drawn by `nuhokai map`._
+_nuhokai's own CLI, [described in nuhokai](packages/cli/nuhokai) and drawn by `nuhokai map`: each tower is a node, as tall as its call depth; selecting one lights what it depends on (red) and what depends on it (blue)._
 
 ## The problem
 
