@@ -222,6 +222,9 @@ export function lightsFor(scene: Scene, view: ScopeView, hits: readonly Hit[]): 
 export interface Cone {
   readonly down: ReadonlyMap<string, number>;
   readonly up: ReadonlyMap<string, number>;
+  /** The nodes in `down` and `up`, all hops and direct: tbd holes and a dome's entry are not nodes. */
+  readonly dependsOn: { readonly all: number; readonly direct: number };
+  readonly usedBy: { readonly all: number; readonly direct: number };
 }
 
 /** An island's spot on its level ring. */
@@ -240,6 +243,7 @@ export interface MountainLayout {
   readonly outer: number;
 }
 
+export const RING_GAP: number;
 export function conesOf(view: ScopeView): Map<string, Cone>;
 export function freeAngle(
   want: number,

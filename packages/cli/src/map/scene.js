@@ -613,18 +613,32 @@ export function lightsFor(scene, view, hits) {
 }
 
 /**
- * Everything each item of a view reaches through its lanes, both ways, with the number of hops: `down` what it depends
- * on (uses, tbd holes, entries into a dome), `up` what depends on it. A contract it implements is not a dependency.
- * Breadth first, so a node reached two ways counts once at its nearest hop.
+ * The view's one dependency graph, both ways, with the number of hops: `down` what an item depends on, `up` what
+ * depends on it. A call, a tbd hole and an entry into a dome are dependencies, and so is an event: its listener depends
+ * on its publisher. A contract it implements is not. Breadth first, so an item reached two ways counts once at its
+ * nearest hop. `dependsOn` and `usedBy` count nodes only, all hops and direct: tbd holes and the dome's entry are in
+ * the graph but are not nodes.
  */
 export function conesOf(view) {
   const out = new Map();
   const into = new Map();
-  for (const lane of view.lanes) {
-    if (lane.kind === "implements") continue;
-    out.set(lane.from, [...(out.get(lane.from) ?? []), lane.to]);
-    into.set(lane.to, [...(into.get(lane.to) ?? []), lane.from]);
-  }
+  const link = (from, to) => {
+    out.set(from, [...(out.get(from) ?? []), to]);
+    into.set(to, [...(into.get(to) ?? []), from]);
+  };
+  for (const lane of view.lanes) if (lane.kind !== "implements") link(lane.from, lane.to);
+  for (const route of view.air) link(route.to, route.from);
+  const isNode = new Map(view.items.map((item) => [item.key, item.kind !== "hole" && item.kind !== "entry"]));
+  const count = (hops) => {
+    let all = 0;
+    let direct = 0;
+    for (const [key, hop] of hops) {
+      if (!isNode.get(key)) continue;
+      all++;
+      if (hop === 1) direct++;
+    }
+    return { all, direct };
+  };
   const reach = (start, next) => {
     const hops = new Map();
     let front = [start];
@@ -642,7 +656,11 @@ export function conesOf(view) {
     return hops;
   };
   const cones = new Map();
-  for (const item of view.items) cones.set(item.key, { down: reach(item.key, out), up: reach(item.key, into) });
+  for (const item of view.items) {
+    const down = reach(item.key, out);
+    const up = reach(item.key, into);
+    cones.set(item.key, { down, up, dependsOn: count(down), usedBy: count(up) });
+  }
   return cones;
 }
 
@@ -675,31 +693,28 @@ export function freeAngle(want, r, foot, others, gap = 0.5) {
 }
 
 /**
- * Saved positions as angles: `{ ang }` as saved, `{ x, z }` from before the level rings as the angle around the centre
- * of all such positions in the scope. Anything else is dropped.
+ * Saved positions as angles: `{ ang }` as saved. Anything else is dropped, positions saved before the level rings
+ * among them: only the islands someone moved were saved, so the centre they were placed round is not known.
  */
 export function savedAngles(saved) {
-  const ok = Number.isFinite;
-  const points = Object.values(saved).filter((p) => p && !ok(p.ang) && ok(p.x) && ok(p.z));
-  const cx = points.reduce((sum, p) => sum + p.x, 0) / (points.length || 1);
-  const cz = points.reduce((sum, p) => sum + p.z, 0) / (points.length || 1);
   const angles = new Map();
-  for (const [key, p] of Object.entries(saved)) {
-    if (p && ok(p.ang)) angles.set(key, wrapAngle(p.ang));
-    else if (p && ok(p.x) && ok(p.z) && (p.x !== cx || p.z !== cz)) angles.set(key, Math.atan2(p.z - cz, p.x - cx));
-  }
+  for (const [key, p] of Object.entries(saved)) if (p && Number.isFinite(p.ang)) angles.set(key, wrapAngle(p.ang));
   return angles;
 }
+
+/** The gap the Mountain keeps between two footprints, on a ring and between rings; dragging keeps it too. */
+export const RING_GAP = 0.5;
 
 /**
  * The Mountain layout of a view's islands: one ring per level, the highest level innermost (alone in the middle when it
  * holds one island), level 0 outermost. `foot` gives each island's footprint radius; `fixed` the angles the user moved
  * islands to. Each ring is as far out as needed for its footprints to clear the next ring in and each other by `gap`.
- * Islands keep their fixed angle, the rest are spread evenly in the order of the angles of the islands they share
- * lanes with further in (by `seed` where they share none), then nudged off any fixed island they would touch.
+ * Islands keep their fixed angle as near as they can, the rest are spread evenly in the order of the angles of the
+ * islands they share lanes with further in (by `seed` where they share none); no two footprints on a ring ever touch:
+ * a fixed angle taken already moves to the nearest free one, and a ring with no room left grows until all fit.
  * Deterministic: the same view, seeds and fixed angles give the same layout.
  */
-export function mountainLayout(view, { foot, seed, fixed = new Map(), gap = 0.6, step = 3.7 }) {
+export function mountainLayout(view, { foot, seed, fixed = new Map(), gap = RING_GAP, step = 3.7 }) {
   const islands = view.items.filter((item) => item.kind === "island");
   const maxLevel = islands.reduce((max, item) => Math.max(max, item.level), 0);
   const neighbours = new Map();
@@ -715,17 +730,8 @@ export function mountainLayout(view, { foot, seed, fixed = new Map(), gap = 0.6,
     const widest = on.reduce((max, item) => Math.max(max, foot(item.key)), 0);
     let r = 0;
     if (inner !== null) r = inner.r + Math.max(step, inner.widest + widest + gap);
-    if (on.length > 1 || (inner !== null && on.length)) {
-      // neighbours on the ring stand one even step apart: their chord must clear the two widest footprints
-      const need = (2 * widest + gap) / (2 * Math.sin(Math.PI / on.length));
-      r = Math.max(r, on.length > 1 ? need : 0);
-    }
-    if (!on.length) {
-      rings[level] = r;
-      if (inner !== null) inner = { r, widest: inner.widest };
-      continue;
-    }
-    rings[level] = r;
+    // neighbours on the ring stand one even step apart: their chord must clear the two widest footprints
+    if (on.length > 1) r = Math.max(r, (2 * widest + gap) / (2 * Math.sin(Math.PI / on.length)));
     // the angle each island leans toward: the mean direction of what it shares lanes with that is placed already
     const want = on.map((item) => {
       let x = 0;
@@ -749,17 +755,24 @@ export function mountainLayout(view, { foot, seed, fixed = new Map(), gap = 0.6,
       sz += Math.sin(w.angle - i * even);
     });
     const turn = Math.atan2(sz, sx);
-    const placed = [];
-    for (const w of want) {
-      const angle = fixed.get(w.item.key);
-      if (angle !== undefined) placed.push({ key: w.item.key, angle: wrapAngle(angle), foot: foot(w.item.key) });
+    // the fixed islands first, each where it was or the nearest free angle, then the rest at their even spots
+    const order = [...want.filter((w) => fixed.has(w.item.key)), ...want.filter((w) => !fixed.has(w.item.key))];
+    const targets = new Map(want.map((w, i) => [w.item.key, fixed.get(w.item.key) ?? turn + i * even]));
+    const place = (radius) => {
+      const placed = [];
+      for (const w of order) {
+        const angle = freeAngle(targets.get(w.item.key), radius, foot(w.item.key), placed, gap);
+        if (angle === null) return null;
+        placed.push({ key: w.item.key, angle, foot: foot(w.item.key) });
+      }
+      return placed;
+    };
+    let placed = place(r);
+    while (placed === null) {
+      r = Math.max(r * 1.15, r + widest, r + gap);
+      placed = place(r);
     }
-    want.forEach((w, i) => {
-      if (fixed.has(w.item.key)) return;
-      const target = turn + i * even;
-      const angle = freeAngle(target, r, foot(w.item.key), placed, gap) ?? wrapAngle(target);
-      placed.push({ key: w.item.key, angle, foot: foot(w.item.key) });
-    });
+    rings[level] = r;
     for (const p of placed) angles.set(p.key, p.angle);
     inner = { r, widest };
   }

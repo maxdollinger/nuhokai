@@ -171,12 +171,10 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);const UPV=V(0,1,0);
 // palette: warm paper in the light theme, neutral graphite in the dark one; colour only where it means something.
 // used: what depends on a node (filled dots, lanes into it), dep: what it depends on (hollow rings, lanes out of it):
 // blue and red differ in shape on the ground and in brightness, so they stay apart without colour vision too
-const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.12,tone:'#8c949c',tower:0x5e6a70,towerOp:0.8,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,dotRing:null,swell:0xffffff,swk:0.75,
+const TH=DARK?{g:['#1f2328','#181b1f','#121417'],side:0x0c0d0f,rim:0x6b737c,ring:0xa4adb6,ringOp:0.12,tone:'#8c949c',tower:0x5e6a70,towerOp:0.8,edge:0xc3ccd0,edgeOp:0.4,floorOp:0.2,call:0xbcc4c7,callA:0.62,inner:0xe8eeec,label:'#e6ebe9',shadow:'rgba(0,0,0,.95)',used:0x9cc8ff,dep:0xd9572a,ext:0xE8932A,extA:0.55,event:0xA066FF,dotRing:0x8c949c,dotRingOp:0.22,swell:0xffffff,swk:0.75,
   focus:0xf2f5f4,ghost:0x9aa3a8,pit:0x050606,card:'rgba(24,27,31,.94)',cardLine:'rgba(195,204,208,.35)',sub:'#a3acb2',usedTxt:'#9cc8ff',depTxt:'#ff8a5c'}
-:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.2,tone:'#837e76',tower:0xf2ede4,towerOp:0.95,edge:0x88837a,edgeOp:0.5,floorOp:0.35,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,dotRing:0x88837a,swell:0xfffdf7,swk:0.85,
+:{g:['#ece7de','#e4ded3','#d8d1c5'],side:0xa29b90,rim:0x8c877e,ring:0x6e6a63,ringOp:0.2,tone:'#837e76',tower:0xf2ede4,towerOp:0.95,edge:0x88837a,edgeOp:0.5,floorOp:0.35,call:0x33373b,callA:0.75,inner:0x2b2e31,label:'#26292c',shadow:'rgba(240,235,226,.95)',used:0x1d4f91,dep:0xc8501a,ext:0xa3560a,extA:0.7,event:0x5a2fc0,dotRing:0x88837a,dotRingOp:0.35,swell:0xfffdf7,swk:0.85,
   focus:0x26292c,ghost:0x77726a,pit:0x6e6a63,card:'rgba(248,245,239,.96)',cardLine:'rgba(120,114,104,.55)',sub:'#5f5a52',usedTxt:'#1d4f91',depTxt:'#a8400f'};
-// a node's colour by complexity: only the dark theme's line through the ground dots still carries it, faintly
-const LIVE={simple:0x2f8f86,mid:0x45c2c4,complex:0xa6f2ea},VIOLET=0xA066FF;
 // a tower's width by complexity
 const RADC={complex:1.75,mid:1.5,simple:1.3};
 // a lit label in a query: tinted toward the accent, pale in the light theme so its text stays dark
@@ -219,13 +217,6 @@ function convexHull(P){P=P.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o
 const cssColor=c=>'#'+new THREE.Color(c).getHexString();
 // an element with a class and text, appended to parent
 const make=(tag,cls,txt,parent)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;if(parent)parent.appendChild(e);return e;};
-// a canvas as a sprite standing on its bottom edge, k world units per pixel
-function spriteOf(cv,k){const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.minFilter=THREE.LinearFilter;const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(cv.width*k,cv.height*k,1);sp.renderOrder=10;return sp;}
-function card(x,w,h){x.fillStyle=TH.card;x.strokeStyle=TH.cardLine;x.lineWidth=2;x.beginPath();if(x.roundRect)x.roundRect(1,1,w-2,h-2,10);else x.rect(1,1,w-2,h-2);x.fill();x.stroke();}
-function labelSprite(name,sub,dot){const pad=14,f1='600 28px system-ui,-apple-system,sans-serif',f2='400 22px system-ui,-apple-system,sans-serif';const cv=document.createElement('canvas');const x=cv.getContext('2d');x.font=f1;const w1=x.measureText(name).width+(dot!=null?22:0);x.font=f2;const w2=sub?x.measureText(sub).width:0;const w=Math.ceil(Math.max(w1,w2)+pad*2),h=sub?80:50;cv.width=w;cv.height=h;
-card(x,w,h);let tx=pad;if(dot!=null){x.fillStyle=cssColor(dot);x.beginPath();x.arc(pad+6,26,6,0,Math.PI*2);x.fill();tx+=22;}
-x.textBaseline='middle';x.fillStyle=TH.label;x.font=f1;x.fillText(name,tx,26);if(sub){x.fillStyle=TH.sub;x.font=f2;x.fillText(sub,pad,60);}
-return spriteOf(cv,0.015);}
 // text as the design study draws it: canvases at 3×, sRGB, sized in CSS pixels times k world units
 const FONT='ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif',MONO='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
 const MEASURE=document.createElement('canvas').getContext('2d');function textW(f,t){MEASURE.font=f;return MEASURE.measureText(t).width;}
@@ -233,6 +224,11 @@ function texFrom(w,h,draw){const c=document.createElement('canvas'),s=3;c.width=
 const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;t.minFilter=THREE.LinearMipmapLinearFilter;return t;}
 function rr(x,X,Y,w,h,r){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();}
 function texSprite(t,w,h,k){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false}));sp.center.set(0.5,0);sp.scale.set(w*k,h*k,1);sp.renderOrder=10;return sp;}
+// a card: a name, a line under it and a coloured dot before the name, all optional but the name
+function labelSprite(name,sub,dot){const f1='600 14px '+FONT,f2='400 11px '+FONT,pad=7,w=Math.max(textW(f1,name)+(dot!=null?11:0),sub?textW(f2,sub):0)+pad*2,h=sub?40:25;
+return texSprite(texFrom(w,h,x=>{rr(x,0.5,0.5,w-1,h-1,5);x.fillStyle=TH.card;x.fill();x.lineWidth=1;x.strokeStyle=TH.cardLine;x.stroke();let tx=pad;
+if(dot!=null){x.fillStyle=cssColor(dot);x.beginPath();x.arc(pad+3,13,3,0,Math.PI*2);x.fill();tx+=11;}
+x.textBaseline='middle';x.font=f1;x.fillStyle=TH.label;x.fillText(name,tx,13);if(sub){x.font=f2;x.fillStyle=TH.sub;x.fillText(sub,pad,30);}}),w,h,0.03);}
 // a tower's name at rest: text only, with a soft halo in the ground's colour
 function plainTag(name){const f='500 14px '+FONT,w=textW(f,name)+12,h=22;return texSprite(texFrom(w,h,x=>{x.font=f;x.fillStyle=TH.label;x.shadowColor=TH.shadow;x.shadowBlur=5;x.textAlign='center';x.fillText(name,w/2,15);}),w,h,0.034);}
 // a name on the ground or at the edge: text only, in its colour
@@ -256,9 +252,9 @@ function dotRings(top,up,dn){const r=n=>top+0.35+0.075*n,lo=Math.min(up,dn),hi=M
 return{rUp:up?(usedOut?rOut:rIn):0,rDn:dn?(usedOut?rIn:rOut):0,outer:Math.max(rOut,top+0.35)};}
 function buildScope(scope){clearWorld();
 const view=scopeView(MAP,scope);
-const sc={scope:scope,view:view,T0:T,items:{},pick:[],lanes:[],air:[],pillars:[],anims:[],labels:{},F:{},R:{},hover:null,mark:null,cones:conesOf(view)};S=sc;
+const sc={scope:scope,view:view,T0:T,items:{},pick:[],lanes:[],air:[],pillars:[],anims:[],labels:{},hover:null,mark:null,cones:conesOf(view)};S=sc;
 const specs=view.items.map(item=>{const node=item.node===null?null:MAP.nodes[item.node];
-if(item.kind==='island'){const c=sc.cones.get(item.key),up=c.up.size,dn=c.down.size,rT=RADC[item.complexity]*0.62,top=rT*0.9,foot=top*TAPER,rings=dotRings(top,up,dn);
+if(item.kind==='island'){const c=sc.cones.get(item.key),up=c.usedBy.all,dn=c.dependsOn.all,rT=RADC[item.complexity]*0.62,top=rT*0.9,foot=top*TAPER,rings=dotRings(top,up,dn);
   return{id:item.key,kind:'comp',item:item,node:node,seed:node.id,side:0,rT:rT,top:top,foot:foot,up:up,dn:dn,rings:rings,R:rings.outer+0.3};}
 if(item.kind==='external')return{id:item.key,kind:'ext',item:item,node:node,side:item.side};
 if(item.kind==='hole')return{id:item.key,kind:'hole',item:item,node:null,side:item.side};
@@ -285,7 +281,7 @@ function layout(scope,specs,view){const L=layoutOf(scope);
 if(!L.ring){const all=stored(),kept=all[scopeKey(scope)]||{},drawn=new Set(specs.map(keyOf));const gone=Object.keys(kept).filter(k=>!drawn.has(k));if(gone.length){gone.forEach(k=>delete kept[k]);all[scopeKey(scope)]=kept;store(all);}
   const by={};specs.forEach(s=>by[s.id]=s);const comps=specs.filter(s=>s.kind==='comp');
   const fixed=savedAngles(Object.fromEntries(comps.filter(s=>kept[keyOf(s)]).map(s=>[s.id,kept[keyOf(s)]])));
-  const m=mountainLayout(view,{foot:k=>by[k].R,seed:k=>hash(by[k].seed),fixed:fixed,gap:0.5});
+  const m=mountainLayout(view,{foot:k=>by[k].R,seed:k=>hash(by[k].seed),fixed:fixed});
   comps.forEach(s=>{const p=m.positions.get(s.id);L[s.id]={ang:p.angle,r:p.r,x:p.x,z:p.z};});
   if(by.self)L.self={x:0,z:0};
   L.rings=m.rings;L.foot={};comps.forEach(s=>L.foot[s.id]=s.R);L.ring={cx:0,cz:0,r:Math.max(19,m.outer+1.6)+2.0};
@@ -302,7 +298,7 @@ const it={id:sp.id,sp:sp,kind:sp.kind,side:sp.side,name:sp.item?sp.item.name:'',
 const add=(obj,pick)=>{g.add(obj);const m=obj.material;it.mats.push(m);it.baseOp.push(m.transparent?m.opacity:1);if(obj.isMesh&&pick!==false){obj.userData.id=sp.id;S.pick.push(obj);}return obj;};
 const at=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
 let lab,labY=0.9;
-if(sp.kind==='comp'){const c=sp.item,rT=sp.rT,top=sp.top,foot=sp.foot,h=sp.roof,lc=new THREE.Color(LIVE[c.complexity]).lerp(new THREE.Color(0xffffff),0.6);
+if(sp.kind==='comp'){const c=sp.item,rT=sp.rT,top=sp.top,foot=sp.foot,h=sp.roof;
 it.top=top;it.foot=foot;it.rAt=y=>foot+(top-foot)*Math.min(1,Math.max(0,y)/h);
 // the tower: one smooth translucent wall, so only its rims and a faint ring per level below it are drawn
 const geo=new THREE.CylinderGeometry(top,foot,h,48).translate(0,h/2,0);
@@ -321,7 +317,7 @@ const R=sp.rings,a0=rnd(hash(sp.seed))*Math.PI*2;
 const flat=(geo,col,x,z)=>{const m=add(new THREE.Mesh(geo.rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.95,depthWrite:false,side:THREE.DoubleSide})),false);m.position.set(x,0.04,z);return m;};
 for(let i=0;i<sp.up;i++){const a=a0+i/sp.up*Math.PI*2;flat(new THREE.CircleGeometry(0.15,14),TH.used,Math.cos(a)*R.rUp,Math.sin(a)*R.rUp);}
 for(let i=0;i<sp.dn;i++){const a=a0+(i+0.5)/sp.dn*Math.PI*2;flat(new THREE.RingGeometry(0.085,0.17,16),TH.dep,Math.cos(a)*R.rDn,Math.sin(a)*R.rDn);}
-if(sp.up||sp.dn)add(loopLine(Math.max(R.rUp,R.rDn),0.035,TH.dotRing===null?lc:TH.dotRing,TH.dotRing===null?0.22:0.35));
+if(sp.up||sp.dn)add(loopLine(Math.max(R.rUp,R.rDn),0.035,TH.dotRing,TH.dotRingOp));
 it.sub=(c.abstract?'contract · ':'')+'level '+sp.level+(kids.length?' · '+kids.length+' inside':'');
 lab=plainTag(c.name);labY=h+0.35;
 S.labels[sp.id]=c.name+' · '+c.complexity+' · '+it.sub+'\nClick for details · drag along its ring · double-click to '+(c.dome?'look inside':'centre');}
@@ -363,8 +359,7 @@ ln.io=ln.kind==='entry'||S.items[ln.from].kind==='ext'||S.items[ln.to].kind==='e
 ln.seg=150;ln.mat=laneMat(laneColor(ln),laneAlpha(ln),ln.dash?0.55:0,0.11,rnd(S.lanes.length*13+1));
 // the ports a lane carries, as a tag at its middle
 const text=ln.kind==='uses'||ln.kind==='entry'?laneText(ln):'';if(text){const tag=labelSprite(short(text,40),null);tag.center.set(0.5,0.5);tag.scale.multiplyScalar(0.85);tag.visible=false;world.add(tag);ln.tag=tag;}
-S.labels['route:'+ln.key]=itemName(ln.from)+' → '+itemName(ln.to)+':  '+laneText(ln);S.lanes.push(ln);
-if(!(S.F[ln.from]||[]).includes(ln.to)){(S.F[ln.from]=S.F[ln.from]||[]).push(ln.to);(S.R[ln.to]=S.R[ln.to]||[]).push(ln.from);}}
+S.labels['route:'+ln.key]=itemName(ln.from)+' → '+itemName(ln.to)+':  '+laneText(ln);S.lanes.push(ln);}
 // an event: a dashed violet line from the listener up to the publisher's roof, its swell drifting from publisher to
 // listener; the event's name at its middle when either end is focused
 function makeAir(a){if(!S.items[a.from]||!S.items[a.to])return;const ev=a.ports.join(', ');
@@ -372,8 +367,7 @@ const r={idx:S.air.length,from:a.from,to:a.to,ev:ev,inner:a.inner,seg:80,mat:lan
 const label=labelSprite(ev,'event',TH.event);label.center.set(0.5,0);label.visible=false;world.add(label);r.label=label;S.air.push(r);
 S.labels['air:'+r.idx]=ev+' · event\n'+itemName(a.from)+' → '+itemName(a.to);
 // a publisher carries a violet chip on its roof, where its events leave
-const P=S.items[a.from];if(P.kind==='comp'&&!P.chip){const m=new THREE.MeshStandardMaterial({color:VIOLET,emissive:VIOLET,emissiveIntensity:0.8,transparent:true});P.chip=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.2),m);P.chip.position.y=P.roof-0.05;P.g.add(P.chip);P.mats.push(m);P.baseOp.push(1);}
-if(!(S.F[a.to]||[]).includes(a.from)){(S.F[a.to]=S.F[a.to]||[]).push(a.from);(S.R[a.from]=S.R[a.from]||[]).push(a.to);}}
+const P=S.items[a.from];if(P.kind==='comp'&&!P.chip){const m=new THREE.MeshStandardMaterial({color:TH.event,emissive:TH.event,emissiveIntensity:0.8,transparent:true});P.chip=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.2),m);P.chip.position.y=P.roof-0.05;P.g.add(P.chip);P.mats.push(m);P.baseOp.push(1);}}
 // where a lane lands: the spot of the port it calls on an island's roof (the middle when nothing is inside), an outer item's mark
 function landAt(it,port){if(it.kind!=='comp')return V(it.base.x,0.12,it.base.z);const c=it.chips[port]||Object.values(it.chips)[0]||{x:0,z:0};return V(it.base.x+c.x,it.roof+0.02,it.base.z+c.z);}
 // where a lane leaves an island: its wall, facing where it lands, at the height it lands at (at most just under the roof)
@@ -381,7 +375,8 @@ function wallAt(it,b){const y=Math.max(0.15,Math.min(it.roof-0.3,b.y)),a=Math.at
 function leaveAt(it,b){return it.kind==='comp'?wallAt(it,b):V(it.base.x,0.12,it.base.z);}
 // inside its own tower a lane runs straight down from the block that makes it (or the roof's middle) to where it leaves
 function innerRun(it,inner,exit){const k=inner.find(i=>it.inner[i]),p=k!==undefined?it.inner[k]:{x:0,z:0},top=V(it.base.x+p.x,it.roof-(k!==undefined?0.32:0.25),it.base.z+p.z);
-const down=exit.y+0.45,run=[];for(let i=0;i<=6;i++)run.push(V(top.x,top.y-(top.y-down)*i/6,top.z));run.push(V(top.x+(exit.x-top.x)*0.45,exit.y+0.12,top.z+(exit.z-top.z)*0.45));return run;}
+// never above its block, so it stays under the roof when it leaves high up
+const down=Math.min(top.y,exit.y+0.45),run=[];for(let i=0;i<=6;i++)run.push(V(top.x,top.y-(top.y-down)*i/6,top.z));run.push(V(top.x+(exit.x-top.x)*0.45,Math.min(top.y,exit.y+0.12),top.z+(exit.z-top.z)*0.45));return run;}
 // from the wall out and up, then down onto the roof it lands on
 function branchPts(a,b,flat){const h=V(b.x-a.x,0,b.z-a.z),d=h.length();h.normalize();const lift=0.35+Math.min(1.4,d*0.12);
 return new THREE.CubicBezierCurve3(a,a.clone().addScaledVector(h,d*0.38).add(V(0,flat?lift*0.15:lift*0.8,0)),b.clone().addScaledVector(h,-Math.min(1.2,d*0.15)).add(V(0,lift,0)),b).getPoints(28);}
@@ -395,7 +390,9 @@ t.multiplyScalar(1/ws);const shape=Math.pow(Math.sin(Math.PI*i/(N-1)),1.5);const
 E.forEach((e,ei)=>{e.pts=next[ei];});}}
 // no lane goes through a tower: points that fall inside one (plus a margin) are pushed out sideways and the lane
 // smoothed again, until none is left inside; only its own towers' ends are spared, where it leaves and lands
-function avoid(pts,f,t){const TW=Object.values(S.items).filter(o=>o.kind==='comp').map(o=>({k:o.id,x:o.base.x,z:o.base.z,H:o.roof,R:o.rAt}));
+function avoid(pts,f,t){let x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity;pts.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);});
+// only towers near the lane can be in its way: the lane only ever moves out of a tower's footprint
+const TW=Object.values(S.items).filter(o=>o.kind==='comp'&&o.base.x+o.top+0.4>x0&&o.base.x-o.top-0.4<x1&&o.base.z+o.top+0.4>z0&&o.base.z-o.top-0.4<z1).map(o=>({k:o.id,x:o.base.x,z:o.base.z,H:o.roof,R:o.rAt}));
 const cv=new THREE.CatmullRomCurve3(pts,false,'centripetal'),N=Math.max(40,Math.round(cv.getLength()/0.2)),P=cv.getSpacedPoints(N-1);
 const push=()=>{let moved=false;for(let i=1;i<N-1;i++){const p=P[i];for(const o of TW){if((o.k===f||o.k===t)&&(i<5||i>N-6))continue;if(p.y>o.H+0.3)continue;
 let dx=p.x-o.x,dz=p.z-o.z,d=Math.hypot(dx,dz);const need=o.R(Math.min(p.y,o.H))+0.38;
@@ -439,12 +436,21 @@ world.add(loopLine(D-0.05,0.02,TH.rim,0.45));
 (L.rings||[]).forEach((r,lvl)=>{if(r<0.5)return;world.add(loopLine(r,0.015,TH.ring,TH.ringOp));const t=groundLabel('L'+lvl,TH.tone,0.62);t.center.set(0.5,0.5);t.position.set(Math.cos(1.95)*r,0.25,Math.sin(1.95)*r);world.add(t);});}
 
 // ---------- editing (layout only) ----------
-// an island moves only round its own level's ring, never onto another island there; an outer item round the edge
-function moveItem(id,x,z){const it=S.items[id],L=layoutOf(S.scope),ring=L.ring;let a=Math.atan2(z-ring.cz,x-ring.cx);
-if(it.side!==0){x=ring.cx+Math.cos(a)*ring.r;z=ring.cz+Math.sin(a)*ring.r;L[id]={ang:a,x:x,z:z};remember(it.sp,{ang:a});it.g.rotation.y=-a;}
-else{const r=L[id].r,others=Object.values(S.items).filter(o=>o!==it&&o.kind==='comp'&&o.sp.level===it.sp.level).map(o=>({angle:L[o.id].ang,foot:L.foot[o.id]}));
-const free=freeAngle(a,r,L.foot[id],others,0.6);if(free===null)return;a=free;x=ring.cx+Math.cos(a)*r;z=ring.cz+Math.sin(a)*r;L[id]={ang:a,r:r,x:x,z:z};remember(it.sp,{ang:a});}
-it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;routeAll(new Set([id]));S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
+// an island moves only round its own level's ring, never onto another island there (RING_GAP apart, as the layout
+// keeps them); an outer item round the edge
+function ringOthers(it,skip){const L=layoutOf(S.scope);return Object.values(S.items).filter(o=>o!==it&&!skip.has(o.id)&&o.kind==='comp'&&o.sp.level===it.sp.level).map(o=>({angle:L[o.id].ang,foot:L.foot[o.id]}));}
+// put an item at angle a round the board's middle, remembered; null for an island means it stays where it is
+function setAngle(it,a){if(a===null)return;const L=layoutOf(S.scope),ring=L.ring,r=it.side!==0?ring.r:L[it.id].r,x=ring.cx+Math.cos(a)*r,z=ring.cz+Math.sin(a)*r;
+L[it.id]=it.side!==0?{ang:a,x:x,z:z}:{ang:a,r:r,x:x,z:z};remember(it.sp,{ang:a});if(it.side!==0)it.g.rotation.y=-a;it.g.position.x=x;it.g.position.z=z;it.base.x=x;it.base.z=z;}
+function moveItem(id,x,z){const it=S.items[id],L=layoutOf(S.scope),a=Math.atan2(z-L.ring.cz,x-L.ring.cx);
+setAngle(it,it.side!==0?a:freeAngle(a,L[id].r,L.foot[id],ringOthers(it,new Set()),RING_GAP));
+routeAll(new Set([id]));S.pillars.forEach(rc=>{if(rc.memb.includes(id))rebuildPillar(rc);});}
+// a group turns as one, by d from where the drag started: each member clears the islands outside the group and the
+// members already turned, so the group never blocks itself
+function turnGroup(rec,start,d){const L=layoutOf(S.scope),ids=new Set(start.map(s=>s.id)),done=[];
+start.forEach(s=>{const it=S.items[s.id],others=ringOthers(it,ids).concat(done.filter(o=>o.level===it.sp.level)),free=freeAngle(s.a+d,L[s.id].r,L.foot[s.id],others,RING_GAP);
+setAngle(it,free);done.push({level:it.sp.level,angle:L[s.id].ang,foot:L.foot[s.id]});});
+routeAll(ids);rebuildPillar(rec);}
 
 // ---------- state ----------
 let sel=null,selPorts=[],HITS=[],cur=0,lastQ=null,queued=null;const SHOWN=50;
@@ -520,13 +526,15 @@ if(it.kind==='comp'&&it.sp.item.dome){const b=mk('button','d-action','Look insid
 const hit=d.querySelector('.d-hit');if(hit)hit.scrollIntoView({block:'nearest'});}
 function setLaneLook(l,col,a){l.mat.uniforms.uCol.value.setHex(col);l.mat.uniforms.uA.value=a;}
 // a focused tower shows its card, with both counts, in place of its name
-function showCard(it,on){if(on&&!it.card){const c=S.cones.get(it.id),direct=m=>[...m.values()].filter(h=>h===1).length;it.card=countCard(it.name,it.sub,direct(c.down),c.down.size,direct(c.up),c.up.size);it.card.position.copy(it.label.position);it.g.add(it.card);}
+function showCard(it,on){if(on&&!it.card){const c=S.cones.get(it.id);it.card=countCard(it.name,it.sub,c.dependsOn.direct,c.dependsOn.all,c.usedBy.direct,c.usedBy.all);it.card.position.copy(it.label.position);it.g.add(it.card);}
 if(it.card)it.card.visible=on;it.label.visible=!on;}
 function applyState(){const lights=searching()?lightsFor(MAP,S.view,HITS):null,lit=lights&&new Set(lights.map(l=>l.key)),inside=new Map(lights?lights.map(l=>[l.key,l.inside]):[]);
 here.hidden=!(lights&&HITS.length&&!lights.length);const fid=lit?null:S.hover||sel||S.mark;
-// near: how strongly each item stays lit, by hops from the focused one when cones are on, else its neighbours only
-const cone=fid&&CONES?S.cones.get(fid):null,fade=h=>h<=1?1:h===2?0.6:0.35,near=new Map();
-if(fid){near.set(fid,1);if(cone){cone.down.forEach((h,k)=>near.set(k,fade(h)));cone.up.forEach((h,k)=>near.set(k,Math.max(near.get(k)||0,fade(h))));}else{(S.F[fid]||[]).forEach(x=>near.set(x,1));(S.R[fid]||[]).forEach(x=>near.set(x,1));}}
+// near: how strongly each item stays lit, by hops in the focused item's cones: all of them with cones on, else the first
+// hop; and the other end of each lane or event it has itself (a contract it implements is no dependency, but is its lane)
+const cones=fid?S.cones.get(fid):null,cone=CONES?cones:null,fade=h=>h<=1?1:h===2?0.6:0.35,near=new Map();
+if(fid){near.set(fid,1);[cones.down,cones.up].forEach(m=>m.forEach((h,k)=>{if(cone||h===1)near.set(k,Math.max(near.get(k)||0,fade(h)));}));
+[...S.lanes,...S.air].forEach(l=>{if(l.from===fid)near.set(l.to,1);if(l.to===fid)near.set(l.from,1);});}
 // a query lights its hits' items, tinted, and dims the rest harder than hover does, over hover and selection
 Object.values(S.items).forEach(it=>{const on=!!lit&&lit.has(it.id),o=lit?(on?1:0.12):fid?(near.get(it.id)||0.22):1;it.mats.forEach((m,i)=>op(m,it.baseOp[i]*o));
 if(it.kind==='comp')showCard(it,!lit&&fid===it.id);
@@ -537,7 +545,7 @@ S.lanes.forEach(l=>{if(l.tag)l.tag.visible=!lit&&!!fid&&(l.from===fid||l.to===fi
 if(lit){setLaneLook(l,laneColor(l),rest*0.1);return;}if(!fid){setLaneLook(l,laneColor(l),rest);return;}
 const chain=cone&&l.kind!=='implements',out=l.from===fid||(chain&&cone.down.has(l.from)&&cone.down.has(l.to)),into=l.to===fid||(chain&&cone.up.has(l.from)&&cone.up.has(l.to));
 if(out)setLaneLook(l,TH.dep,0.95*(l.from===fid?1:fade(cone.down.get(l.to))));else if(into)setLaneLook(l,TH.used,0.95*(l.to===fid?1:fade(cone.up.get(l.from))));else setLaneLook(l,laneColor(l),rest*0.12);});
-S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid);a.mat.uniforms.uA.value=a.vis?0.85:0.08;a.label.visible=a.vis&&!!fid;});
+S.air.forEach(a=>{a.vis=!lit&&(!fid||a.from===fid||a.to===fid||(!!cone&&((cone.down.has(a.to)||a.to===fid)&&cone.down.has(a.from)||(cone.up.has(a.from)||a.from===fid)&&cone.up.has(a.to))));a.mat.uniforms.uA.value=a.vis?0.85:0.08;a.label.visible=a.vis&&!!fid;});
 S.pillars.forEach(r=>{const o=lit||fid?0.35:1;r.tmat.opacity=0.7*o;r.fmat.opacity=0.06*o;r.label.material.opacity=o;});}
 // a lit dome's count of the hits inside it, above its label
 function badge(it,n){if((it.badgeN||0)===n)return;if(it.badge){it.g.remove(it.badge);it.badge.material.map.dispose();it.badge.material.dispose();it.badge=null;}it.badgeN=n;if(!n)return;
@@ -634,10 +642,10 @@ function outsideBoard(e){const r=layoutOf(S.scope).ring;const p=planeHit(e,0);re
 wrap.addEventListener('pointerdown',e=>{tip.style.display='none';if(trans||e.target!==el)return;
 if(e.button===0){const h=hitAt(e);
 if(h&&h.id&&S.items[h.id]&&S.items[h.id].kind!=='empty'){const it=S.items[h.id];drag={kind:'item',id:h.id,x:e.clientX,y:e.clientY,moved:false,py:it.kind==='comp'?it.roof:0.1};controls.enabled=false;return;}
-if(h&&h.pillar){const rec=S.pillars.find(r=>r.gr.id===h.pillar);const p=planeHit(e,0.02);if(rec&&p){drag={kind:'pillar',rec:rec,x:e.clientX,y:e.clientY,moved:false,a0:Math.atan2(p.z,p.x),start:rec.memb.map(id=>({id:id,a:Math.atan2(S.items[id].base.z,S.items[id].base.x)}))};controls.enabled=false;return;}}}
+if(h&&h.pillar){const rec=S.pillars.find(r=>r.gr.id===h.pillar);const p=planeHit(e,0.02);if(rec&&p){drag={kind:'pillar',rec:rec,x:e.clientX,y:e.clientY,moved:false,a0:Math.atan2(p.z,p.x),start:rec.memb.map(id=>({id:id,a:layoutOf(S.scope)[id].ang}))};controls.enabled=false;return;}}}
 down={x:e.clientX,y:e.clientY,b:e.button};wrap.style.cursor='grabbing';},true);
 window.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&dx*dx+dy*dy<20)return;drag.moved=true;wrap.style.cursor='grabbing';
-if(drag.kind==='item'){const p=planeHit(e,drag.py);if(p)moveItem(drag.id,p.x,p.z);}else{const p=planeHit(e,0.02);if(p){const d=Math.atan2(p.z,p.x)-drag.a0;drag.start.forEach(s=>moveItem(s.id,Math.cos(s.a+d),Math.sin(s.a+d)));}}});
+if(drag.kind==='item'){const p=planeHit(e,drag.py);if(p)moveItem(drag.id,p.x,p.z);}else{const p=planeHit(e,0.02);if(p){turnGroup(drag.rec,drag.start,Math.atan2(p.z,p.x)-drag.a0);}}});
 el.addEventListener('pointermove',e=>{if(drag||e.buttons||trans)return;const h=hitAt(e);const key=h?(h.id||(h.air!==undefined?'air:'+h.air:(h.pillar?'pillar:'+h.pillar:(h.route?'route:'+h.route:null)))):null;const id=h&&h.id&&S.items[h.id]&&S.items[h.id].kind!=='empty'?h.id:null;if(id!==S.hover){S.hover=id;applyState();}
 if(key&&S.labels[key]){tip.textContent=S.labels[key];tip.style.display='block';tip.style.left=Math.max(4,Math.min(e.clientX+14,W()-tip.offsetWidth-8))+'px';tip.style.top=Math.max(4,Math.min(e.clientY+14,H()-tip.offsetHeight-8))+'px';wrap.style.cursor=h.pillar&&!h.id?'move':'pointer';}else{tip.style.display='none';wrap.style.cursor='grab';}});
 window.addEventListener('pointerup',e=>{wrap.style.cursor='grab';

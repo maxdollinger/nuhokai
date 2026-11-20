@@ -694,7 +694,7 @@ test("a lane from inside a dome starts at the node inside it that uses the port;
   for (const index of implementors) expect(scene.parents[index]).toBe(indexOf("Shop"));
 });
 
-test("cones: what each item depends on and what depends on it, at its nearest hop; implements is no dependency", () => {
+test("cones: one graph of calls, holes, entries and events, each item at its nearest hop; implements is none", () => {
   const view = scopeView(mapScene(leaves({ a: ["b"], b: ["c"], c: [], d: ["b", "!c"] })), null);
   const cones = conesOf(view);
   const at = (name: string) => cones.get(view.items.find((item) => item.name === name)?.key ?? "");
@@ -705,6 +705,27 @@ test("cones: what each item depends on and what depends on it, at its nearest ho
   expect(named(at("b")?.up)).toEqual({ a: 1, d: 1 });
   expect(named(at("a")?.down)).toEqual({ b: 1, c: 2 });
   expect(named(at("c")?.up)).toEqual({ b: 1, a: 2, d: 2 });
+  expect(at("c")?.usedBy).toEqual({ all: 3, direct: 1 });
+});
+
+test("cones: an event's listener depends on its publisher; holes and entries are no nodes in the counts", () => {
+  const top = scopeView(scene, null);
+  const cones = conesOf(top);
+  const shop = cones.get(top.items.find((item) => item.name === "Shop")?.key ?? "");
+  // Shop uses Postgres and needs the notifyCustomer hole: both in its cone, only Postgres a node
+  expect(shop?.down.size).toBe(2);
+  expect(shop?.dependsOn).toEqual({ all: 1, direct: 1 });
+
+  const inShop = scopeView(scene, indexOf("Shop"));
+  // Stock listens to Orders' cancelled event
+  const listens = inShop.air.find((route) => route.ports.includes("cancelled"));
+  expect(
+    conesOf(inShop)
+      .get(listens?.to ?? "")
+      ?.down.get(listens?.from ?? ""),
+  ).toBe(1);
+  const entry = conesOf(inShop).get("entry");
+  expect(entry?.dependsOn.all).toBeLessThan(entry?.down.size ?? 0);
 });
 
 test("freeAngle: the wanted angle when clear, else the nearest clear one, null on a full ring", () => {
@@ -717,14 +738,11 @@ test("freeAngle: the wanted angle when clear, else the nearest clear one, null o
   expect(freeAngle(2, 0, 1, [{ angle: 0, foot: 1 }])).toBeNull();
 });
 
-test("saved positions: angles as saved, positions from before the rings as angles round their centre", () => {
-  const angles = savedAngles({ a: { ang: 7 }, b: { x: 3, z: 1 }, c: { x: 1, z: 1 }, d: { x: 2, z: 3 }, e: "junk" });
+test("saved positions: angles as saved; positions from before the rings and junk are dropped", () => {
+  const angles = savedAngles({ a: { ang: 7 }, b: { x: 3, z: 1 }, e: "junk" });
 
   expect(angles.get("a")).toBeCloseTo(7 - 2 * Math.PI);
-  expect(angles.get("b")).toBeCloseTo(Math.atan2(-0.6667, 1));
-  expect(angles.get("c")).toBeCloseTo(Math.atan2(-0.6667, -1));
-  expect(angles.get("d")).toBeCloseTo(Math.PI / 2);
-  expect(angles.has("e")).toBe(false);
+  expect([...angles.keys()]).toEqual(["a"]);
 });
 
 test("Mountain layout: one ring per level, the top alone in the middle, no footprints touching, fixed angles kept", () => {
@@ -745,12 +763,20 @@ test("Mountain layout: one ring per level, the top alone in the middle, no footp
   const spots = [...layout.positions.values()];
   for (const p of spots)
     for (const q of spots)
-      if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(2.4 + 0.6 - 1e-6);
+      if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(2.4 + 0.5 - 1e-6);
   expect(mountainLayout(view, options)).toEqual(layout);
 
-  const moved = mountainLayout(view, { ...options, fixed: new Map([[key("f"), spot("b")?.angle ?? 0]]) });
+  // f saved onto b's spot, g and h saved onto one angle: each keeps it or the nearest free one, none touch
+  const moved = mountainLayout(view, {
+    ...options,
+    fixed: new Map([
+      [key("f"), spot("b")?.angle ?? 0],
+      [key("g"), 1],
+      [key("h"), 1],
+    ]),
+  });
   expect(moved.positions.get(key("f"))?.angle).toBeCloseTo(spot("b")?.angle ?? 0);
   const ring = [...moved.positions.values()].filter((p) => p.r === moved.rings[1]);
   for (const p of ring)
-    for (const q of ring) if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(3 - 1e-6);
+    for (const q of ring) if (p !== q) expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(2.9 - 1e-6);
 });

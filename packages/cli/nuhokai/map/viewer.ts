@@ -45,7 +45,7 @@ export const Viewer = node({
     { id: "R7", text: "tbd: dashed hole with its description; from inside a dome it starts at that dome." },
     {
       id: "R8",
-      text: "Layout: the Mountain, one ring on the ground per level, the highest level in the middle (alone there when it holds one island), level 0 outside, each ring far enough out that its towers and their dots clear each other and the next ring in; on a ring the islands keep the order of what they share lanes with further in, seeded by ids. An island moves only round its own level's ring and never onto another island there; an outer item along the edge; dragging a group's outline turns its islands round their rings. Moved angles persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a position saved before the rings counts as its angle round the scope's saved positions; a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
+      text: "Layout: the Mountain, one ring on the ground per level, the highest level in the middle (alone there when it holds one island), level 0 outside, each ring far enough out that its towers and their dots clear each other and the next ring in, by one gap, grown until saved angles fit too; on a ring the islands keep the order of what they share lanes with further in, seeded by ids. An island moves only round its own level's ring and never onto another island there, by the layout's gap; an outer item along the edge; dragging a group's outline turns its islands round their rings together. Moved angles persist per browser under nuhokai.map.layout.<world id>, by scope (the world's or a dome's id) and node id, a tbd hole by its description and sorted user ids; a position saved before the rings is dropped (only moved islands were saved, so the centre they stood round is unknown); a regenerated map reuses them; a scope drops saved items it no longer draws; Reset layout forgets the scope's.",
     },
     {
       id: "R9",
@@ -74,11 +74,11 @@ export const Viewer = node({
     },
     {
       id: "R17",
-      text: "An island is a translucent tower, an obelisk upside down: a narrow foot, a roof as wide as its complexity, as tall as its level, a faint ring on its wall at each level below; the nodes inside are blocks in one row just under the roof; a lane lands on the spot of the port it calls. Round its foot: a filled dot per node that depends on it, a hollow ring per node it depends on, directly or not, the busier of the two rings outside with a thin line through it. Warm paper in the light theme, graphite in the dark one, as the system sets; depends-on red and used-by blue differ in shape and brightness, not only hue.",
+      text: "An island is a translucent tower, an obelisk upside down: a narrow foot, a roof as wide as its complexity, as tall as its level, a faint ring on its wall at each level below; the nodes inside are blocks in one row just under the roof; a lane lands on the spot of the port it calls. Round its foot: a filled dot per node that depends on it, a hollow ring per node it depends on, directly or not, by calls and events (a listener depends on the publisher; tbd holes and a dome's entry are no nodes), the busier of the two rings outside with a thin line through it. Warm paper in the light theme, graphite in the dark one, as the system sets; depends-on red and used-by blue differ in shape and brightness, not only hue.",
     },
     {
       id: "R18",
-      text: "Cones, a button, off at first, remembered per browser: off, a hovered or selected tower lights its direct neighbours and the lanes to them; on, everything it depends on and everything that depends on it, fading with each hop, the lanes between them red toward what it depends on and blue from what depends on it. A hovered or selected tower shows a card in place of its name: its level, what is inside, and both counts, direct and in all, each with its mark from the ground.",
+      text: "Cones, a button, off at first, remembered per browser: off, a hovered or selected tower lights its direct neighbours and the lanes to them; on, everything it depends on and everything that depends on it, by calls and events, fading with each hop, the lanes between them red toward what it depends on and blue from what depends on it. A hovered or selected tower shows a card in place of its name: its level, what is inside, and both counts, direct and in all, each with its mark from the ground.",
     },
   ],
   testCases: [
@@ -87,11 +87,11 @@ export const Viewer = node({
       demonstrates: ["R3"],
     },
     {
-      text: "scene.js under bun: a uses b uses c, d uses b and implements c → b depends on c, a and d on b; c's up cone b at 1, a and d at 2; implements counts for neither.",
+      text: "scene.js under bun: a uses b uses c, d uses b and implements c → b depends on c, a and d on b; c's up cone b at 1, a and d at 2, used by 3 nodes, 1 direct; implements counts for neither. Example world: Stock, listening to Orders' cancelled, depends on Orders; Shop's cone holds Postgres and its tbd hole, but depends on 1 node; the entry is in the graph, not counted.",
       demonstrates: ["R17", "R18"],
     },
     {
-      text: "scene.js under bun: freeAngle keeps a clear angle, else the nearest clear one, null on a full ring; saved angles kept, saved positions as angles round their centre, junk dropped; a five-level chain with four more on level 1 → the top alone in the middle, rings growing outward, no footprints closer than they need, the same layout twice, a fixed angle kept and its ring still clear.",
+      text: "scene.js under bun: freeAngle keeps a clear angle, else the nearest clear one, null on a full ring; saved angles kept, positions from before the rings and junk dropped; a five-level chain with four more on level 1 → the top alone in the middle, rings growing outward, no footprints closer than they need, the same layout twice, a fixed angle kept, and two islands saved on one angle kept apart.",
       demonstrates: ["R8"],
     },
     {
