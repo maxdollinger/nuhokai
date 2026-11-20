@@ -348,9 +348,9 @@ S.anims.push({it:it,delay:0.04+idx*0.04});}
 // an outer item's mark: a short arc of the board's edge in its colour (dashed for a node outside the dome), and a
 // clear disc to point at
 function rimMark(it,add,col,dashed){const r=layoutOf(S.scope).ring.r;
-// a torus round the board's middle, cut to 0.22 rad of the edge centred on the item (+x points out of the board)
-const parts=dashed?[[-0.11,0.06],[-0.03,0.06],[0.05,0.06]]:[[-0.11,0.22]];
-parts.forEach(([from,len])=>{const arc=add(new THREE.Mesh(new THREE.TorusGeometry(r,0.07,8,40,len),new THREE.MeshBasicMaterial({color:col})));arc.rotation.x=-Math.PI/2;arc.rotation.z=from;arc.position.set(-r,0.07,0);});
+// a torus round the board's middle, cut to a short stretch of the edge (2.4 units) centred on the item (+x points out of the board)
+const d=2.4/r,parts=dashed?[[-d/2,d*0.26],[-d*0.13,d*0.26],[d*0.24,d*0.26]]:[[-d/2,d]];
+parts.forEach(([from,len])=>{const arc=add(new THREE.Mesh(new THREE.TorusGeometry(r,0.16,10,24,len),new THREE.MeshBasicMaterial({color:col})));arc.rotation.x=-Math.PI/2;arc.rotation.z=from;arc.position.set(-r,0.07,0);});
 const hit=add(new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,0.3,24),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})));hit.position.set(-0.9,0.15,0);}
 
 // ---------- connections ----------
