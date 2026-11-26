@@ -1,3 +1,5 @@
+![nuhokai](docs/title.webp)
+
 # nuhokai
 
 **Architecture as code, type-checked. Built for repos where agents write most of the code.**
